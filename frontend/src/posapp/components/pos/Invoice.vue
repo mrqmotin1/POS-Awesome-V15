@@ -359,6 +359,7 @@ import { useCustomersStore } from "../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
 import stockCoordinator from "../../utils/stockCoordinator.js";
 import { isOffline } from "../../../offline/index.js";
+import { isManagerMode } from "../../utils/useManagerMode.js";
 
 export default {
 	name: "POSInvoice",
@@ -1119,6 +1120,19 @@ export default {
 			if (this.isReturnInvoice && parsedValue > 0) {
 				parsedValue = -Math.abs(parsedValue);
 				item[field_name] = parsedValue;
+			}
+
+			// Condition: A regular cashier trying to decrease quantity below 1
+			const isQuantityAtMinimum = parsedValue < 1
+			const isNotInManagerMode = !isManagerMode.value // Remember to use .value with refs in script
+
+			if (isQuantityAtMinimum && isNotInManagerMode) {
+				parsedValue = 1
+				item[field_name] = parsedValue;
+				frappe.show_alert({
+					message: __("Cashier cannot set quantity less than 1. Reset to 1."),
+					indicator: "red"
+				});
 			}
 
 			// Recalculate stock quantity with the adjusted value

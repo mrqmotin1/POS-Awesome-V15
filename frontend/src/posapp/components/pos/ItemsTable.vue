@@ -715,6 +715,8 @@ import _ from "lodash";
 import { logComponentRender } from "../../utils/perf.js";
 import { parseBooleanSetting } from "../../utils/stock.js";
 import { useInvoiceStore } from "../../stores/invoiceStore.js";
+import { isManagerMode } from "../../utils/useManagerMode.js";
+
 export default {
 	name: "ItemsTable",
 	setup() {
@@ -957,6 +959,8 @@ export default {
 				htmlDir === "rtl" || bodyDir === "rtl" || computedDir === "rtl" || isRTLLanguage;
 
 			return this._rtlComputed;
+		isRemoveDisabled (){
+			return !isManagerMode.value // Remember to use .value with refs in script
 		},
 	},
 	methods: {
@@ -1328,6 +1332,18 @@ export default {
 		if (this.expandedCache) {
 			this.expandedCache.clear();
 		}
+		isDecreaseDisabled (item){
+			// Condition 2: A regular cashier trying to decrease quantity below 1
+			const isQuantityAtMinimum = item.qty <= 1
+			const isNotInManagerMode = !isManagerMode.value // Remember to use .value with refs in script
+
+			if (isQuantityAtMinimum && isNotInManagerMode) {
+				return true
+			}
+
+			// If neither of the above conditions are met, the button is enabled
+			return false
+		},
 	},
 };
 </script>
