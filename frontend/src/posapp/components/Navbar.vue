@@ -23,7 +23,7 @@
 			</template>
 
 			<!-- Slot for cache usage meter -->
-			<template #cache-usage-meter>
+			<template #cache-usage-meter v-if="isSystemUser">
 				<CacheUsageMeter
 					:cache-usage="cacheUsage"
 					:cache-usage-loading="cacheUsageLoading"
@@ -33,12 +33,12 @@
 			</template>
 
 			<!-- Slot for CPU gadget -->
-			<template #cpu-gadget>
+			<template #cpu-gadget v-if="isSystemUser">
 				<ServerUsageGadget />
 			</template>
 
 			<!-- Slot for Database Usage Gadget -->
-			<template #db-usage-gadget>
+			<template #db-usage-gadget v-if="isSystemUser">
 				<DatabaseUsageGadget />
 			</template>
 
