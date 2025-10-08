@@ -2096,6 +2096,11 @@ export default {
 ::v-deep(.v-theme--dark) .dark-field {
 	background-color: #1e1e1e !important;
 }
+@media (max-width: 1024px) {
+	::v-deep(.dark-field input) {
+		font-size: 0.8rem !important; /* slightly smaller text */
+	}
+}
 
 :deep([data-theme="dark"]) .dark-field :deep(.v-field__input),
 :deep(.v-theme--dark) .dark-field :deep(.v-field__input),
