@@ -522,9 +522,115 @@ export default {
 			this.uiStore.triggerItemSearchFocus();
 		},
 
+<<<<<<< HEAD
 		focusAdditionalDiscountField() {
 			this.eventBus?.emit?.("focus_additional_discount");
 			this.$refs.invoiceSummary?.focusAdditionalDiscountField?.();
+=======
+<<<<<<< HEAD
+		initializeItemsHeaders() {
+			// Define all available columns
+			this.available_columns = [
+=======
+                initializeItemsHeaders() {
+				// Define all available columns
+				this.available_columns = [
+				{ title: __("SL"), align: "start", sortable: false, key: "sl_no", required: true },
+>>>>>>> 2630814 (added serial number on items cart)
+				{ title: __("Name"), align: "start", sortable: true, key: "item_name", required: true },
+				{ title: __("QTY"), key: "qty", align: "center", required: true },
+				{ title: __("UOM"), key: "uom", align: "center", required: false },
+				{
+					title: __("Price List Rate"),
+					key: "price_list_rate",
+					align: "end",
+					required: false,
+					width: "120px",
+				},
+				{ title: __("Discount %"), key: "discount_value", align: "end", required: false },
+				{ title: __("Discount Amount"), key: "discount_amount", align: "end", required: false },
+				{ title: __("Rate"), key: "rate", align: "center", required: true },
+				{ title: __("Amount"), key: "amount", align: "center", required: true },
+				{ title: __("Offer?"), key: "posa_is_offer", align: "center", required: false },
+				{ title: __("Actions"), key: "actions", align: "center", required: true, sortable: false },
+			];
+
+			// Initialize selected columns if empty
+			if (!this.selected_columns || this.selected_columns.length === 0) {
+				// By default, select all required columns and those enabled in POS profile
+				this.selected_columns = this.available_columns
+					.filter((col) => {
+						if (col.required) return true;
+						if (col.key === "price_list_rate") return true;
+						if (col.key === "discount_value" && this.pos_profile.posa_display_discount_percentage)
+							return true;
+						if (col.key === "discount_amount" && this.pos_profile.posa_display_discount_amount)
+							return true;
+						return false;
+					})
+					.map((col) => col.key);
+			}
+
+			// Generate headers based on selected columns
+			this.updateHeadersFromSelection();
+		},
+		emitCartQuantities() {
+			const totals = {};
+			const normalizeNumber = (value) => {
+				const num = Number(value);
+				return Number.isFinite(num) ? num : null;
+			};
+			const accumulate = (line) => {
+				if (!line || !line.item_code) {
+					return;
+				}
+
+				const code = String(line.item_code).trim();
+				if (!code) {
+					return;
+				}
+
+				let stockQty = normalizeNumber(line.stock_qty);
+				if (stockQty === null) {
+					const qty = normalizeNumber(line.qty);
+					if (qty !== null) {
+						const conversion = normalizeNumber(line.conversion_factor);
+						const factor = conversion !== null && conversion !== 0 ? conversion : 1;
+						stockQty = qty * factor;
+					}
+				}
+
+				if (stockQty === null) {
+					return;
+				}
+
+				const positiveQty = Math.max(0, stockQty);
+				if (!positiveQty) {
+					return;
+				}
+
+				totals[code] = (totals[code] || 0) + positiveQty;
+			};
+
+			(Array.isArray(this.items) ? this.items : []).forEach(accumulate);
+			(Array.isArray(this.packed_items) ? this.packed_items : []).forEach(accumulate);
+
+			const impacted = stockCoordinator.updateReservations(totals, {
+				source: "invoice",
+			});
+			if (impacted.length) {
+				this.applyStockStateToInvoiceItems(impacted);
+			}
+
+			this.eventBus.emit("cart_quantities_updated", totals);
+		},
+		// Handle item dropped from ItemsSelector to ItemsTable
+		handleItemDrop(item) {
+			console.log("Item dropped:", item);
+
+			// Use the existing add_item method to add the dropped item
+			this.add_item(item);
+>>>>>>> 6368ad3c (added serial number on items cart)
 		},
 
 		handleStockCoordinatorUpdate(event = {}) {
