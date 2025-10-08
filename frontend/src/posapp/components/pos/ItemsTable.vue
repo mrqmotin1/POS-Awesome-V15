@@ -30,6 +30,12 @@
 			:search="itemSearch"
 			:custom-filter="customItemFilter"
 		>
+
+			<!-- Serial number column -->
+			<template v-slot:item.sl_no="{ index }">
+			{{ index + 1 }}
+			</template>
+
 			<!-- Item name column -->
 			<template v-slot:item.item_name="{ item }">
 				<div class="d-flex align-center">
