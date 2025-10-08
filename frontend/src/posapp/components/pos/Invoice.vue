@@ -505,9 +505,16 @@ export default {
 			this.eventBus.emit("focus_item_search");
 		},
 
+<<<<<<< HEAD
 		initializeItemsHeaders() {
 			// Define all available columns
 			this.available_columns = [
+=======
+                initializeItemsHeaders() {
+				// Define all available columns
+				this.available_columns = [
+				{ title: __("SL"), align: "start", sortable: false, key: "sl_no", required: true },
+>>>>>>> 2630814 (added serial number on items cart)
 				{ title: __("Name"), align: "start", sortable: true, key: "item_name", required: true },
 				{ title: __("QTY"), key: "qty", align: "center", required: true },
 				{ title: __("UOM"), key: "uom", align: "center", required: false },
