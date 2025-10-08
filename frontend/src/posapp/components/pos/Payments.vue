@@ -2670,6 +2670,11 @@ export default {
 	color: rgb(var(--v-theme-on-primary)) !important;
 	box-shadow: none;
 }
+@media (max-width: 1024px) {
+	::v-deep(.dark-field input) {
+		font-size: 0.8rem !important; /* slightly smaller text */
+	}
+}
 
 .submit-btn:focus-visible {
 	outline: 2px solid rgb(var(--v-theme-primary));
