@@ -491,9 +491,10 @@ export default {
                 },
 
                 initializeItemsHeaders() {
-                        // Define all available columns
-                        this.available_columns = [
-                                { title: __("Name"), align: "start", sortable: true, key: "item_name", required: true },
+				// Define all available columns
+				this.available_columns = [
+				{ title: __("SL"), align: "start", sortable: false, key: "sl_no", required: true },
+				{ title: __("Name"), align: "start", sortable: true, key: "item_name", required: true },
 				{ title: __("QTY"), key: "qty", align: "center", required: true },
 				{ title: __("UOM"), key: "uom", align: "center", required: false },
 				{
