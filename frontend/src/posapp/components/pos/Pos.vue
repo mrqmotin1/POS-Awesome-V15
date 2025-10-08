@@ -13,28 +13,21 @@
 		<Variants></Variants>
 		<OpeningDialog v-if="dialog" :dialog="dialog"></OpeningDialog>
 		<v-row v-show="!dialog" dense class="ma-0 dynamic-main-row">
-			<v-col
-				v-show="!payment && !showOffers && !coupons"
-				xl="5"
-				lg="5"
-				md="5"
-				sm="5"
-				cols="12"
-				class="pos dynamic-col"
-			>
+			<v-col v-show="!payment && !showOffers && !coupons" xl="4" lg="4" md="4" sm="4" cols="12"
+				class="pos dynamic-col">
 				<ItemsSelector></ItemsSelector>
 			</v-col>
-			<v-col v-show="showOffers" xl="5" lg="5" md="5" sm="5" cols="12" class="pos dynamic-col">
+			<v-col v-show="showOffers" xl="4" lg="4" md="4" sm="4" cols="12" class="pos dynamic-col">
 				<PosOffers></PosOffers>
 			</v-col>
-			<v-col v-show="coupons" xl="5" lg="5" md="5" sm="5" cols="12" class="pos dynamic-col">
+			<v-col v-show="coupons" xl="4" lg="4" md="4" sm="4" cols="12" class="pos dynamic-col">
 				<PosCoupons></PosCoupons>
 			</v-col>
-			<v-col v-show="payment" xl="5" lg="5" md="5" sm="5" cols="12" class="pos dynamic-col">
+			<v-col v-show="payment" xl="4" lg="4" md="4" sm="4" cols="12" class="pos dynamic-col">
 				<Payments></Payments>
 			</v-col>
 
-			<v-col xl="7" lg="7" md="7" sm="7" cols="12" class="pos dynamic-col">
+			<v-col xl="8" lg="8" md="8" sm="8" cols="12" class="pos dynamic-col">
 				<Invoice></Invoice>
 			</v-col>
 		</v-row>
