@@ -1597,6 +1597,11 @@ onBeforeUnmount(() => {
 	flex-direction: column;
 	gap: var(--pos-space-2);
 }
+@media (max-width: 1024px) {
+	::v-deep(.dark-field input) {
+		font-size: 0.8rem !important; /* slightly smaller text */
+	}
+}
 
 .payment-card {
 	padding: var(--pos-space-2);
