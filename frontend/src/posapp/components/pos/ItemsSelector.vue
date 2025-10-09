@@ -285,7 +285,7 @@
 														) || 0
 													}}
 												</span>
-												<span class="stock-uom">{{ item.stock_uom || "" }}</span>
+												<!-- <span class="stock-uom">{{ item.stock_uom || "" }}</span> -->
 											</div>
 										</div>
 									</div>
@@ -478,7 +478,7 @@ export default {
 		first_search: "",
 		search_backup: "",
 		// Limit the displayed items to avoid overly large lists
-		itemsPerPage: 50,
+		itemsPerPage: 5,
 		offersCount: 0,
 		appliedOffersCount: 0,
 		couponsCount: 0,
@@ -511,8 +511,8 @@ export default {
 		// Items per page configuration
 		enable_custom_items_per_page: false,
 		temp_enable_custom_items_per_page: false,
-		items_per_page: 50,
-		temp_items_per_page: 50,
+		items_per_page: 5,
+		temp_items_per_page: 5,
 		temp_force_server_items: false,
 		// Performance optimizations
 		searchCache: new Map(),
@@ -1583,7 +1583,7 @@ export default {
 				},
 				{ title: __("Rate"), key: "rate", align: "start" },
 				{ title: __("Available QTY"), key: "actual_qty", align: "start" },
-				{ title: __("UOM"), key: "stock_uom", align: "start" },
+				// { title: __("UOM"), key: "stock_uom", align: "start" },
 			];
 			if (!this.pos_profile.posa_display_item_code) {
 				items_headers.splice(1, 1);
@@ -2462,9 +2462,9 @@ export default {
 			this.hide_zero_rate_items = this.temp_hide_zero_rate_items;
 			this.enable_custom_items_per_page = this.temp_enable_custom_items_per_page;
 			if (this.enable_custom_items_per_page) {
-				this.items_per_page = parseInt(this.temp_items_per_page) || 50;
+				this.items_per_page = parseInt(this.temp_items_per_page) || 5;
 			} else {
-				this.items_per_page = 50;
+				this.items_per_page = 5;
 			}
 			this.itemsPerPage = this.items_per_page;
 			this.pos_profile.posa_force_server_items = this.temp_force_server_items ? 1 : 0;
@@ -2904,6 +2904,35 @@ export default {
 	padding: var(--dynamic-sm);
 	margin: 0;
 	border-bottom: 1px solid #e0e0e0;
+}
+
+@media (max-width: 1024px) {
+	.sleek-data-table :deep(.v-table) {
+		/* This is crucial: it forces the table to obey the widths we set below */
+		table-layout: fixed !important;
+	}
+	.sleek-data-table :deep(th),
+	.sleek-data-table :deep(td) {
+		padding: 12px 6px !important; /* Slightly less padding for more space */
+		font-size: 0.8rem !important;
+	}
+	/* 1st Column: NAME - gets half the space */
+	.sleek-data-table :deep(th:nth-child(1)),
+	.sleek-data-table :deep(td:nth-child(1)) {
+		width: 50% !important;
+	}
+	/* 2nd Column: RATE */
+	.sleek-data-table :deep(th:nth-child(2)),
+	.sleek-data-table :deep(td:nth-child(2)) {
+		width: 25% !important;
+	}
+	/* 3rd Column: AVAILABLE QTY */
+	.sleek-data-table :deep(th:nth-child(3)),
+	.sleek-data-table :deep(td:nth-child(3)) {
+		width: 25% !important;
+		/* Allows the header text to wrap if needed, preventing overflow */
+		white-space: normal;
+	}
 }
 
 [data-theme="dark"] .sticky-header {
