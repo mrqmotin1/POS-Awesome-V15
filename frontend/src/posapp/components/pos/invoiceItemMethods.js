@@ -848,6 +848,7 @@ export default {
 		this.items.forEach((item) => {
 			const new_item = {
 				item_code: item.item_code,
+				barcode: item.barcode,
 				// Retain the item name for offline invoices
 				// Fallback to item_code if item_name is not available
 				item_name: item.item_name || item.item_code,
