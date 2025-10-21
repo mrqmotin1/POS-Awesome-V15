@@ -2121,6 +2121,7 @@ export default {
 				new_item.item_barcode.forEach((element) => {
 					if (search === element.barcode) {
 						new_item.uom = element.posa_uom;
+						new_item.barcode = this.search;
 						match = true;
 					}
 				});
