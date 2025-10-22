@@ -38,14 +38,17 @@
 
 			<!-- Item name column -->
 			<template v-slot:item.item_name="{ item }">
-				<div class="d-flex align-center">
-					<span>{{ item.item_name }}</span>
-					<v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">
-						{{ __("Bundle") }}
-					</v-chip>
-					<v-chip v-if="item.name_overridden" color="primary" size="x-small" class="ml-1">
-						{{ __("Edited") }}
-					</v-chip>
+                                <div class="d-flex align-center">
+									<div class="d-flex flex-column">
+										<div>{{ item.item_name }}</div>
+										<div>({{ item.barcode }})</div>
+									</div>
+                                        <v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">{{
+                                                __("Bundle")
+                                        }}</v-chip>
+                                        <v-chip v-if="item.name_overridden" color="primary" size="x-small" class="ml-1">{{
+                                                __("Edited")
+                                        }}</v-chip>
 					<v-chip
 						v-if="item.batch_no_is_expired"
 						color="error"
@@ -76,7 +79,7 @@
 						class="ml-1"
 						@click.stop="resetItemName(item)"
 						>mdi-undo</v-icon
-					>
+					> 
 				</div>
 			</template>
 
