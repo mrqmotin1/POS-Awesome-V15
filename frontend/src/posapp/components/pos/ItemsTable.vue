@@ -38,14 +38,17 @@
 
 			<!-- Item name column -->
 			<template v-slot:item.item_name="{ item }">
-				<div class="d-flex align-center">
-					<span>{{ item.item_name }}</span>
-					<v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">
-						{{ __("Bundle") }}
-					</v-chip>
-					<v-chip v-if="item.name_overridden" color="primary" size="x-small" class="ml-1">
-						{{ __("Edited") }}
-					</v-chip>
+                                <div class="d-flex align-center">
+									<div class="d-flex flex-column">
+										<div>{{ item.item_name }}</div>
+										<div>({{ item.barcode }})</div>
+									</div>
+                                        <v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">{{
+                                                __("Bundle")
+                                        }}</v-chip>
+                                        <v-chip v-if="item.name_overridden" color="primary" size="x-small" class="ml-1">{{
+                                                __("Edited")
+                                        }}</v-chip>
 					<v-icon
 						v-if="pos_profile.posa_allow_line_item_name_override && !item.posa_is_replace"
 						size="x-small"
@@ -59,7 +62,7 @@
 						class="ml-1"
 						@click.stop="resetItemName(item)"
 						>mdi-undo</v-icon
-					>
+					> 
 				</div>
 			</template>
 
