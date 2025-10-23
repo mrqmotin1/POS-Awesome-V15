@@ -1356,9 +1356,9 @@ export default {
 
 		// If a manual rate was set (e.g. via explicit UOM pricing), don't
 		// overwrite it on expand unless explicitly forced.
-		if (item._manual_rate_set && !force_update) {
-			return;
-		}
+		// if (item._manual_rate_set && !force_update) {
+		// 	return;
+		// }
 
 		// Remove this block which was causing the issue - rates should persist regardless of currency
 		// if (item.price_list_rate && !item.posa_offer_applied) {
@@ -1434,6 +1434,9 @@ export default {
 						// Pass null instead of undefined to avoid console warning
 						vm.set_batch_qty(item, null, false);
 					}
+
+					item.discount_amount = data.discount_amount;
+
 
 					if (!item.locked_price) {
 						// First save base rates if not exists or when force update is requested
