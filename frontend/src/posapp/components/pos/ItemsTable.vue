@@ -1628,6 +1628,19 @@ export default {
 			// If neither of the above conditions are met, the button is enabled
 			return false
 		},
+
+		isDecreaseDisabled (item){
+			// Condition 2: A regular cashier trying to decrease quantity below 1
+			const isQuantityAtMinimum = item.qty <= 1
+			const isNotInManagerMode = !isManagerMode.value // Remember to use .value with refs in script
+
+			if (isQuantityAtMinimum && isNotInManagerMode) {
+				return true
+			}
+
+			// If neither of the above conditions are met, the button is enabled
+			return false
+		}
 	},
 
 	mounted() {
