@@ -4692,10 +4692,10 @@ export default {
 .sticky-header {
 	background-color: var(--pos-card-bg);
 	border-bottom: 1px solid var(--pos-border);
-@media (max-width: 1024px) {
-	.sleek-data-table :deep(.v-table) {
-		table-layout: fixed !important;
-	}
+	@media (max-width: 1024px) {
+		.sleek-data-table :deep(.v-table) {
+			table-layout: fixed !important;
+		}
 
 	.sleek-data-table :deep(th) {
 		/* This new rule prevents header text from breaking into a new line */
@@ -4725,6 +4725,7 @@ export default {
 	.sleek-data-table :deep(td:nth-child(3)) {
 		width: 30% !important;
 	}
+}
 }
 
 [data-theme="dark"] .sticky-header {
