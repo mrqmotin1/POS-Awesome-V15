@@ -912,6 +912,7 @@ export default {
 				htmlDir === "rtl" || bodyDir === "rtl" || computedDir === "rtl" || isRTLLanguage;
 
 			return this._rtlComputed;
+		},
 		isRemoveDisabled (){
 			return !isManagerMode.value // Remember to use .value with refs in script
 		},
@@ -1195,6 +1196,19 @@ export default {
 			const mappedValues = val.map((v) => (typeof v === "object" ? v.posa_row_id : v));
 			this.$emit("update:expanded", mappedValues);
 		},
+
+		isDecreaseDisabled (item){
+			// Condition 2: A regular cashier trying to decrease quantity below 1
+			const isQuantityAtMinimum = item.qty <= 1
+			const isNotInManagerMode = !isManagerMode.value // Remember to use .value with refs in script
+
+			if (isQuantityAtMinimum && isNotInManagerMode) {
+				return true
+			}
+
+			// If neither of the above conditions are met, the button is enabled
+			return false
+		}
 	},
 
 	mounted() {
@@ -1241,18 +1255,6 @@ export default {
 		if (this.expandedCache) {
 			this.expandedCache.clear();
 		}
-		isDecreaseDisabled (item){
-			// Condition 2: A regular cashier trying to decrease quantity below 1
-			const isQuantityAtMinimum = item.qty <= 1
-			const isNotInManagerMode = !isManagerMode.value // Remember to use .value with refs in script
-
-			if (isQuantityAtMinimum && isNotInManagerMode) {
-				return true
-			}
-
-			// If neither of the above conditions are met, the button is enabled
-			return false
-		},
 	},
 };
 </script>
