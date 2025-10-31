@@ -88,7 +88,7 @@
 				<div class="pos-table__qty-counter" :class="{ 'rtl-layout': isRTL }" :title="`RTL: ${isRTL}`">
 					<v-btn
 						:disabled="
-							!!item.posa_is_replace ||
+							!!item.posa_is_replace ||isDecreaseDisabled(item) ||
 							(isReturnInvoice &&
 								(item.is_free_item || item.posa_is_offer || item.posa_is_replace))
 						"
@@ -225,7 +225,7 @@
 			<!-- Actions -->
 			<template v-slot:item.actions="{ item }">
 				<v-btn
-					:disabled="!!item.posa_is_replace"
+					:disabled="!!item.posa_is_replace || isRemoveDisabled"
 					size="small"
 					variant="flat"
 					class="pos-table__delete-btn delete-action-btn"
@@ -1230,8 +1230,18 @@ export default {
 			}
 		},
 		handleQtyChange(item, event) {
-			const newQty = parseFloat(event.target.value) || 0;
-			if (newQty === 0) {
+			// Condition: A regular cashier trying to decrease quantity below 1
+			const newQty = parseFloat(event.target.value);
+			const isNotInManagerMode = !isManagerMode.value // Remember to use .value with refs in script
+
+			if (newQty < 1 && isNotInManagerMode) {
+				this.setFormatedQty(item, "qty", null, false, 1);
+				frappe.show_alert({
+					message: __("Cashier cannot set quantity less than 1. Reset to 1."),
+					indicator: "red"
+				});
+			}
+			else if (newQty === 0) {
 				// Remove the item when quantity is set to 0
 				this.removeItem(item);
 			} else {

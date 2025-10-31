@@ -198,20 +198,6 @@
 							{{ __("Apply Offers") }}
 						</v-btn>
 					</v-col>
-					<v-col cols="12">
-						<v-btn
-							block
-							color="success"
-							theme="dark"
-							size="large"
-							prepend-icon="mdi-credit-card"
-							@click="handleShowPayment"
-							class="summary-btn pay-btn"
-							:loading="paymentLoading"
-						>
-							{{ __("PAY") }}
-						</v-btn>
-					</v-col>
 				</v-row>
 			</v-col>
 		</v-row>
