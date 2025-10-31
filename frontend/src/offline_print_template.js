@@ -180,9 +180,12 @@ function defaultOfflineHTML(invoice) {
     // Format items into table rows.
     const itemsRows = (invoice.items || [])
         .map(
-            (item) => `
+            (item, index) => `
                 <tr>
-                    <td>${item.item_name || ""}</td>
+                    <td style="text-align: left;">${index + 1}</td>
+                    <td>${item.item_name || ""}
+                        <div>(${ item.barcode ? item.barcode : item.item_barcode[0].barcode})</div>
+                    </td>
                     <td style="text-align: center;">${item.qty || 0}</td>
                     <td style="text-align: center;">${(item.rate || 0)}</td>
                     <td style="text-align: right;">${(item.amount || 0).toFixed(2)}</td>
@@ -280,7 +283,7 @@ function formatDate(dateString) {
                     <div style="text-align: center;">
                         <strong>${invoice.company || ""}</strong><br>
                         ${company.registration_details || ""}<br>
-                        Ph: ${company.phone_no || ""}<br>
+                        Tel: ${company.phone_no || ""}<br>
                         TRN: ${company.tax_id || "N/A"}<br>
                     </div>
 
@@ -309,6 +312,7 @@ function formatDate(dateString) {
                     <table width="100%" style="font-size: 11px;">
                         <thead>
                             <tr>
+                                <th style="text-align: left;">SL</th>
                                 <th style="text-align: left;">Items</th>
                                 <th style="text-align: center;">Qty.</th>
                                 <th style="text-align: center;">Price</th>
@@ -372,7 +376,7 @@ function formatDate(dateString) {
                         Exchange within 7 days with original bill and original packing. No exchange on under garments.
                     </p>
                     <p style="text-align: center; margin-top: 6px; font-size: 12px;">
-                        Thank you. Come again. / شكراً لزيارتكم 
+                        Thank you. Come again.
                     </p> 
                 </div>
             </body>
