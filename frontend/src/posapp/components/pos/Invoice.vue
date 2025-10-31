@@ -750,6 +750,179 @@ export default {
 			this.invoiceStore.setPostingDate(date);
 			this.$forceUpdate();
 		},
+		shouldEnforceStockLimits(item) {
+			if (!item) {
+				return false;
+			}
+
+			if (item.is_stock_item === 0) {
+				if (!item.is_bundle) {
+					return false;
+				}
+
+				const bundleChildren = this.packed_items.filter((ch) => ch.bundle_id === item.bundle_id);
+				return bundleChildren.some((ch) => ch.is_stock_item !== 0);
+			}
+
+			return true;
+		},
+		updateBundleChildrenQty(item) {
+			if (!item || !item.is_bundle) {
+				return;
+			}
+
+			const multiplier = item.qty || 0;
+			this.packed_items
+				.filter((it) => it.bundle_id === item.bundle_id)
+				.forEach((ch) => {
+					ch.qty = multiplier * (ch.child_qty_per_bundle || 1);
+					this.calc_stock_qty(ch, ch.qty);
+				});
+		},
+		// Override setFormatedFloat for qty field to handle stock limits and return mode
+		setFormatedQty(item, field_name, precision, no_negative, value) {
+			// Parse and set the value using the mixin's formatter
+			let parsedValue = this.setFormatedFloat(item, field_name, precision, no_negative, value);
+
+			const enforceStockLimits = this.shouldEnforceStockLimits(item);
+			// Enforce available stock limits
+			const allowNegativeStock =
+				(parseBooleanSetting(this.stock_settings?.allow_negative_stock) ||
+					parseBooleanSetting(item?.allow_negative_stock)) &&
+				!this.blockSaleBeyondAvailableQty;
+
+			if (
+				enforceStockLimits &&
+				item.max_qty !== undefined &&
+				this.flt(item[field_name]) > this.flt(item.max_qty)
+			) {
+				const blockSale = this.blockSaleBeyondAvailableQty || !allowNegativeStock;
+				if (blockSale) {
+					item[field_name] = item.max_qty;
+					parsedValue = item.max_qty;
+					this.eventBus.emit("show_message", {
+						title: __(`Maximum available quantity is {0}. Quantity adjusted to match stock.`, [
+							this.formatFloat(item.max_qty),
+						]),
+						color: "error",
+					});
+				} else {
+					this.eventBus.emit("show_message", {
+						title: __("Stock is lower than requested. Proceeding may create negative stock."),
+						color: "warning",
+					});
+				}
+			}
+
+			// Ensure negative value for return invoices
+			if (this.isReturnInvoice && parsedValue > 0) {
+				parsedValue = -Math.abs(parsedValue);
+				item[field_name] = parsedValue;
+			}
+
+			// Recalculate stock quantity with the adjusted value
+			this.calc_stock_qty(item, item[field_name]);
+			if (field_name === "qty") {
+				this.updateBundleChildrenQty(item);
+			}
+			return parsedValue;
+		},
+		async fetch_available_currencies() {
+			try {
+				console.log("Fetching available currencies...");
+				const r = await frappe.call({
+					method: "posawesome.posawesome.api.invoices.get_available_currencies",
+				});
+
+				if (r.message) {
+					console.log("Received currencies:", r.message);
+
+					// Get base currency for reference
+					const baseCurrency = this.pos_profile.currency;
+
+					// Create simple currency list with just names
+					this.available_currencies = r.message.map((currency) => {
+						return {
+							value: currency.name,
+							title: currency.name,
+						};
+					});
+
+					// Sort currencies - base currency first, then others alphabetically
+					this.available_currencies.sort((a, b) => {
+						if (a.value === baseCurrency) return -1;
+						if (b.value === baseCurrency) return 1;
+						return a.value.localeCompare(b.value);
+					});
+
+					// Set default currency if not already set
+					if (!this.selected_currency) {
+						this.selected_currency = baseCurrency;
+					}
+
+					return this.available_currencies;
+				}
+
+				return [];
+			} catch (error) {
+				console.error("Error fetching currencies:", error);
+				// Set default currency as fallback
+				const defaultCurrency = this.pos_profile.currency;
+				this.available_currencies = [
+					{
+						value: defaultCurrency,
+						title: defaultCurrency,
+					},
+				];
+				this.selected_currency = defaultCurrency;
+				return this.available_currencies;
+			}
+		},
+
+		async fetch_price_lists() {
+			if (this.pos_profile.posa_enable_price_list_dropdown) {
+				try {
+					const r = await frappe.call({
+						method: "posawesome.posawesome.api.utilities.get_selling_price_lists",
+					});
+					if (r && r.message) {
+						this.price_lists = r.message.map((pl) => pl.name);
+					}
+				} catch (error) {
+					console.error("Failed fetching price lists", error);
+					this.price_lists = [this.pos_profile.selling_price_list];
+				}
+			} else {
+				// Fallback to the price list defined in the POS Profile
+				this.price_lists = [this.pos_profile.selling_price_list];
+			}
+
+			if (!this.selected_price_list) {
+				this.selected_price_list = this.pos_profile.selling_price_list;
+			}
+
+			// Fetch and store currency for the applied price list
+			try {
+				const r = await frappe.call({
+					method: "posawesome.posawesome.api.invoices.get_price_list_currency",
+					args: { price_list: this.selected_price_list },
+				});
+				if (r && r.message) {
+					this.price_list_currency = r.message;
+				}
+			} catch (error) {
+				console.error("Failed fetching price list currency", error);
+			}
+
+			return this.price_lists;
+		},
+
+		async update_currency(currency) {
+			if (!currency) return;
+			this.selected_currency = currency;
+			await this.update_currency_and_rate();
+			await this.applyPricingRulesForCart(true);
+		},
 
 		update_exchange_rate() {
 			this.sync_exchange_rate();
