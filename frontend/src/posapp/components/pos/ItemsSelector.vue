@@ -3218,6 +3218,7 @@ export default {
 							newItem.base_price_list_rate = price;
 							newItem._manual_rate_set = true;
 							newItem.skip_force_update = true;
+							newItem.barcode=scannedCode;
 						}
 					} catch (e) {
 						console.error("Failed to fetch UOM price", e);
