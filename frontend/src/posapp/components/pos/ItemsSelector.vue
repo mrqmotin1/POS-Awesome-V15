@@ -2175,10 +2175,13 @@ export default {
 			}
 		},
 		onEnter() {
-			if (this.search_onchange.cancel) {
-				this.search_onchange.cancel();
-			}
-			this._performSearch();
+			const trimmedQuery = (this.search_input || "").trim();
+
+			// If the input is a numeric string longer than 6 characters, treat it as a barcode
+			this.onBarcodeScanned(trimmedQuery);
+			// Immediately clear the search field
+			this.search_input = "";
+			return;
 		},
 		search_onchange: _.debounce(function () {
 			this._performSearch();
