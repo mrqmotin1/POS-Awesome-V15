@@ -1903,14 +1903,10 @@ export default {
 			const trimmedQuery = (this.search_input || "").trim();
 
 			// If the input is a numeric string longer than 6 characters, treat it as a barcode
-			if (/^\d{7,}$/.test(trimmedQuery)) {
-				this.onBarcodeScanned(trimmedQuery);
-				// Immediately clear the search field
-				this.search_input = "";
-				return;
-			}
-			// Otherwise, trigger the standard search
-			this.search_onchange();
+			this.onBarcodeScanned(trimmedQuery);
+			// Immediately clear the search field
+			this.search_input = "";
+			return;
 		},
 		search_onchange: _.debounce(
 			withPerf("pos:search-trigger", async function (newSearchTerm) {
