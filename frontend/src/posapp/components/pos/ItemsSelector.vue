@@ -1929,10 +1929,10 @@ export default {
 				vm.first_search = trimmedQuery;
 
 				// If the input is a numeric string longer than 6 characters, treat it as a barcode
-				if (/^\d{7,}$/.test(trimmedQuery)) {
-					vm.onBarcodeScanned(trimmedQuery);
-					return;
-				}
+				// if (/^\d{7,}$/.test(trimmedQuery)) {
+				// 	vm.onBarcodeScanned(trimmedQuery);
+				// 	return;
+				// }
 
 				// Require a minimum of three characters before running a search
 				if (!trimmedQuery || trimmedQuery.length < 3) {
@@ -3040,35 +3040,30 @@ export default {
 			// If not found locally, attempt to fetch from server using processed code
 			try {
 				let newItem = null;
-				if (qtyFromBarcode !== null) {
+				// if (qtyFromBarcode !== null) {
 					// Scale barcodes use a direct, faster lookup
 					const res = await frappe.call({
-						method: "posawesome.posawesome.api.items.get_item_detail",
-						args: {
-							item: JSON.stringify({ item_code: searchCode }),
-							warehouse: this.pos_profile.warehouse,
-							price_list: this.active_price_list,
-							company: this.pos_profile.company,
-						},
+						method: "posawesome.posawesome.api.items.search_item_by_barcode",
+						args: { barcode: scanned_code }
 					});
 					if (res && res.message) {
 						newItem = res.message;
 					}
-				} else {
-					// Regular barcodes and searches use the generic search
-					const res = await frappe.call({
-						method: "posawesome.posawesome.api.items.get_items",
-						args: {
-							pos_profile: this.pos_profile,
-							price_list: this.active_price_list,
-							search_value: searchCode,
-						},
-					});
+				// } else {
+				// 	// Regular barcodes and searches use the generic search
+				// 	const res = await frappe.call({
+				// 		method: "posawesome.posawesome.api.items.get_items",
+				// 		args: {
+				// 			pos_profile: this.pos_profile,
+				// 			price_list: this.active_price_list,
+				// 			search_value: searchCode,
+				// 		},
+				// 	});
 
-					if (res && res.message && res.message.length > 0) {
-						newItem = res.message[0];
-					}
-				}
+				// 	if (res && res.message && res.message.length > 0) {
+				// 		newItem = res.message[0];
+				// 	}
+				// }
 
 				if (newItem) {
 					this.items.push(newItem);
@@ -3158,7 +3153,7 @@ export default {
 					index.set(lower, item);
 				}
 			};
-			register(item.item_code);
+			// register(item.item_code);
 			register(item.barcode);
 			if (Array.isArray(item.item_barcode)) {
 				item.item_barcode.forEach((barcode) => register(barcode?.barcode));

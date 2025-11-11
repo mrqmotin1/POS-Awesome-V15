@@ -929,6 +929,16 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
 
     return res
 
+@frappe.whitelist(allow_guest=False)
+def search_item_by_barcode(barcode):
+    item = frappe.db.get_value("Item Barcode",
+                               {"barcode": barcode},
+                               "parent",
+                               cache=True)
+    if item:
+        item_data = get_item_detail(item)
+        return item_data
+    return None
 
 @frappe.whitelist()
 def get_items_from_barcode(selling_price_list, currency, barcode):
