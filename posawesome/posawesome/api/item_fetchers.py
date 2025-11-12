@@ -169,7 +169,7 @@ def _fetch_barcodes(item_codes: Tuple[str, ...]):
         return []
     return frappe.get_all(
         "Item Barcode",
-        fields=["parent", "barcode", "posa_uom"],
+        fields=["parent", "barcode", "posa_uom", "uom"],
         filters={"parent": ["in", item_codes]},
     )
 
