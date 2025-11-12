@@ -1974,11 +1974,11 @@ export default {
 			// Keep first_search in sync with the value we are about to search for
 			vm.first_search = trimmedQuery;
 
-			// If the input is a numeric string longer than 6 characters, treat it as a barcode
-			if (/^\d{7,}$/.test(trimmedQuery)) {
-				vm.onBarcodeScanned(trimmedQuery);
-				return;
-			}
+				// If the input is a numeric string longer than 6 characters, treat it as a barcode
+				// if (/^\d{7,}$/.test(trimmedQuery)) {
+				// 	vm.onBarcodeScanned(trimmedQuery);
+				// 	return;
+				// }
 
 			// Require a minimum of three characters before running a search
 			if (!trimmedQuery || trimmedQuery.length < 3) {
@@ -3247,7 +3247,7 @@ export default {
 				}
 			} else if (this.scaleBarcodeMatches(scannedCode)) {
 				searchCode = this.get_search(scannedCode);
-				qtyFromBarcode = parseFloat(this.get_item_qty(scannedCode));
+				// qtyFromBarcode = parseFloat(this.get_item_qty(scannedCode));
 			}
 
 			// First try to find exact match by processed code using the pre-built index
@@ -3429,7 +3429,7 @@ export default {
 			console.log("Adding scanned item to invoice:", item, scannedCode);
 
 			// Clone the item to avoid mutating list data
-			const newItem = { ...item };
+			const newItem = { ...item, barcode : scannedCode };
 
 			// If the scanned barcode has a specific UOM, apply it
 			if (Array.isArray(newItem.item_barcode)) {
@@ -3526,42 +3526,42 @@ export default {
 				}
 			}
 
-			const requestedQtyRaw =
-				qtyFromBarcode !== null && !isNaN(qtyFromBarcode) ? qtyFromBarcode : (newItem.qty ?? 1);
-			const requestedQty = Math.abs(requestedQtyRaw || 1);
-			const availableQty =
-				typeof newItem.available_qty === "number"
-					? newItem.available_qty
-					: typeof newItem.actual_qty === "number"
-						? newItem.actual_qty
-						: null;
+			// const requestedQtyRaw =
+			// 	qtyFromBarcode !== null && !isNaN(qtyFromBarcode) ? qtyFromBarcode : (newItem.qty ?? 1);
+			// const requestedQty = Math.abs(requestedQtyRaw || 1);
+			// const availableQty =
+			// 	typeof newItem.available_qty === "number"
+			// 		? newItem.available_qty
+			// 		: typeof newItem.actual_qty === "number"
+			// 			? newItem.actual_qty
+			// 			: null;
 
-			if (availableQty !== null && availableQty < requestedQty) {
-				const formattedAvailable = this.format_number
-					? this.format_number(availableQty, this.hide_qty_decimals ? 0 : this.float_precision)
-					: availableQty;
-				const formattedRequested = this.format_number
-					? this.format_number(requestedQty, this.hide_qty_decimals ? 0 : this.float_precision)
-					: requestedQty;
-				const negativeStockEnabled = this.isNegativeStockEnabled();
-				const shouldBlock =
-					!negativeStockEnabled && (this.blockSaleBeyondAvailableQty || availableQty <= 0);
+			// if (availableQty !== null && availableQty < requestedQty) {
+			// 	const formattedAvailable = this.format_number
+			// 		? this.format_number(availableQty, this.hide_qty_decimals ? 0 : this.float_precision)
+			// 		: availableQty;
+			// 	const formattedRequested = this.format_number
+			// 		? this.format_number(requestedQty, this.hide_qty_decimals ? 0 : this.float_precision)
+			// 		: requestedQty;
+			// 	const negativeStockEnabled = this.isNegativeStockEnabled();
+			// 	const shouldBlock =
+			// 		!negativeStockEnabled && (this.blockSaleBeyondAvailableQty || availableQty <= 0);
 
-				if (shouldBlock) {
-					this.showScanError({
-						message: formatStockShortageError(
-							newItem.item_name || newItem.item_code || scannedCode,
-							availableQty,
-							requestedQty,
-						),
-						code: scannedCode,
-						details: this.__("Adjust the quantity or enable negative stock to continue."),
-					});
-					return;
-				}
+			// 	if (shouldBlock) {
+			// 		this.showScanError({
+			// 			message: formatStockShortageError(
+			// 				newItem.item_name || newItem.item_code || scannedCode,
+			// 				availableQty,
+			// 				requestedQty,
+			// 			),
+			// 			code: scannedCode,
+			// 			details: this.__("Adjust the quantity or enable negative stock to continue."),
+			// 		});
+			// 		return;
+			// 	}
 
-				// Suppress low stock notifications when negative stock is allowed
-			}
+			// 	// Suppress low stock notifications when negative stock is allowed
+			// }
 
 			this.awaitingScanResult = true;
 
@@ -3580,9 +3580,11 @@ export default {
 				const itemName = newItem.item_name || newItem.item_code || scannedCode || this.__("Item");
 				const rawPrecision = Number(this.float_precision);
 				const precision = Number.isInteger(rawPrecision) ? Math.min(Math.max(rawPrecision, 0), 6) : 2;
-				const displayQty = Number.isInteger(requestedQty)
-					? requestedQty
-					: Number(requestedQty.toFixed(precision));
+				const displayQty = (typeof requestedQty !== "undefined" && requestedQty != null && !isNaN(requestedQty))
+					? (Number.isInteger(requestedQty)
+						? requestedQty
+						: Number(requestedQty.toFixed(precision)))
+					: 1;
 
 				if (this.eventBus?.emit) {
 					this.eventBus.emit("show_message", {
