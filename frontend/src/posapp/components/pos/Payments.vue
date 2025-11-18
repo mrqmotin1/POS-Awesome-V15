@@ -1359,30 +1359,30 @@ export default {
 					return;
 				}
 				// Validate cash payments when credit sale is off
-				if (!this.is_credit_sale && !this.invoice_doc.is_return) {
-					let has_cash_payment = false;
-					let cash_amount = 0;
-					this.invoice_doc.payments.forEach((payment) => {
-						if (payment.mode_of_payment.toLowerCase().includes("cash")) {
-							has_cash_payment = true;
-							cash_amount = this.flt(payment.amount);
-						}
-					});
-					if (has_cash_payment && cash_amount > 0) {
-						if (
-							!this.pos_profile.posa_allow_partial_payment &&
-							cash_amount < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
-							(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
-						) {
-							this.eventBus.emit("show_message", {
-								title: `Cash payment cannot be less than invoice total when partial payment is not allowed`,
-								color: "error",
-							});
-							frappe.utils.play_sound("error");
-							return;
-						}
-					}
-				}
+				// if (!this.is_credit_sale && !this.invoice_doc.is_return) {
+				// 	let has_cash_payment = false;
+				// 	let cash_amount = 0;
+				// 	this.invoice_doc.payments.forEach((payment) => {
+				// 		if (payment.mode_of_payment.toLowerCase().includes("cash")) {
+				// 			has_cash_payment = true;
+				// 			cash_amount = this.flt(payment.amount);
+				// 		}
+				// 	});
+				// 	if (has_cash_payment && cash_amount > 0) {
+				// 		if (
+				// 			!this.pos_profile.posa_allow_partial_payment &&
+				// 			cash_amount < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
+				// 			(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
+				// 		) {
+				// 			this.eventBus.emit("show_message", {
+				// 				title: `Cash payment cannot be less than invoice total when partial payment is not allowed`,
+				// 				color: "error",
+				// 			});
+				// 			frappe.utils.play_sound("error");
+				// 			return;
+				// 		}
+				// 	}
+				// }
 				// Validate partial payments only if not credit sale and invoice total is not zero
 				if (
 					!this.is_credit_sale &&
@@ -1391,7 +1391,7 @@ export default {
 					(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
 				) {
 					this.eventBus.emit("show_message", {
-						title: `The amount paid is not complete`,
+						title: `The amount paid cannot be less than invoice total when partial payment is not allowed`,
 						color: "error",
 					});
 					frappe.utils.play_sound("error");
