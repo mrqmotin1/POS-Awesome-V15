@@ -607,10 +607,10 @@
 										></v-text-field>
 									</div>
 									<div class="form-field">
-										<v-autocomplete
-											v-model="item.batch_no"
-											:items="item.batch_no_data"
-											item-title="batch_no"
+                                                                                <v-autocomplete
+                                                                                        v-model="item.batch_no"
+                                                                                        :items="item.batch_no_data"
+                                                                                        item-title="batch_no"
 											variant="outlined"
 											density="compact"
 											color="primary"
@@ -626,11 +626,11 @@
                                                                                                                 v-html="item.raw.batch_no"
                                                                                                         ></v-list-item-title>
                                                                                                         <v-list-item-subtitle class="d-flex align-center">
-                                                                                                                <span
-                                                                                                                        v-html="
-                                                                                                                                `Available QTY  '${item.raw.batch_qty}' - Expiry Date ${item.raw.expiry_date}`
-                                                                                                                        "
-                                                                                                                ></span>
+                                                                                                <span
+                                                                                                        v-html="
+                                                                                                                `Available QTY  '${item.raw.available_qty ?? item.raw.batch_qty}' - Expiry Date ${item.raw.expiry_date}`
+                                                                                                        "
+                                                                                                ></span>
                                                                                                                 <v-chip
                                                                                                                         v-if="item.raw.is_expired"
                                                                                                                         color="error"
