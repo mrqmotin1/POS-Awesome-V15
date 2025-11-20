@@ -83,41 +83,33 @@
 				<v-divider></v-divider>
 
 				<!-- Payment Inputs (All Payment Methods) -->
-				<div v-if="is_cashback && invoice_doc && Array.isArray(invoice_doc.payments)">
+				<div v-if="invoice_doc && Array.isArray(invoice_doc.payments)">
 					<v-row class="payments pa-1" v-for="payment in invoice_doc.payments" :key="payment.name">
-                                        <v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
-                                                <v-text-field
+						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
+								<v-text-field
 								density="compact"
 								variant="solo"
 								color="primary"
 								:label="frappe._(payment.mode_of_payment)"
 								class="sleek-field pos-themed-input"
 								hide-details
-                                                                :model-value="formatCurrency(payment.amount)"
-                                                                @change="handlePaymentAmountChange(payment, $event)"
-								:rules="[
-									isNumber,
-									(v) =>
-										!payment.mode_of_payment.toLowerCase().includes('cash') ||
-										this.is_credit_sale ||
-										v >=
-											(this.invoice_doc.rounded_total ||
-												this.invoice_doc.grand_total) ||
-										'Cash payment cannot be less than invoice total when credit sale is off',
-								]"
+								:model-value="formatCurrency(payment.amount)"
+								@change="handlePaymentAmountChange(payment, $event)"
+								:rules="[isNumber]"
 								:prefix="currencySymbol(invoice_doc.currency)"
 								@focus="set_rest_amount(payment.idx)"
 								:readonly="invoice_doc.is_return"
 							></v-text-field>
 						</v-col>
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
-							<v-btn block color="primary" theme="dark" @click="set_full_amount(payment.idx)">
+							<v-btn block color="primary" @click="set_full_amount(payment.idx); focus_card_last_4_digits(payment.mode_of_payment)">
 								{{ payment.mode_of_payment }}
 							</v-btn>
 						</v-col>
 
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment) && payment.mode_of_payment.toLowerCase().includes('card')">
 							<v-text-field
+								ref="card_last_4_digits"
 								density="compact"
 								variant="solo"
 								color="primary"
@@ -125,9 +117,10 @@
 								:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
 								class="dark-field sleek-field"
 								hide-details
-								:model-value="payment.custom_card_last_4_digits"
+								:v-model="payment.custom_card_last_4_digits"
 								@change="setCardLast4Digits(payment, 'custom_card_last_4_digits', $event)"
-							></v-text-field>
+							>
+							</v-text-field>
 						</v-col>
 
 						<!-- M-Pesa Payment Button (if payment is M-Pesa) -->
@@ -656,7 +649,6 @@
 						block
 						size="large"
 						color="primary"
-						theme="dark"
 						class="submit-btn"
 						@click="submit"
 						:loading="loading"
@@ -2279,6 +2271,18 @@ export default {
 			}
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
 		},
+		focus_card_last_4_digits(mode_of_payment) {
+			if (mode_of_payment.toLowerCase().includes('card')) {
+				this.$nextTick(() => {
+					const input = this.$refs.card_last_4_digits;
+					if (input && input[0]) {
+						input[0].focus();
+					} else {
+						console.warn("Card 4-digit input not found");
+					}
+				});
+			}
+		}
 	},
 	// Lifecycle hook: created
 	created() {
