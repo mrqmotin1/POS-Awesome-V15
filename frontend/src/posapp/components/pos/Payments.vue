@@ -85,7 +85,7 @@
 				<v-divider></v-divider>
 
 				<!-- Payment Inputs (All Payment Methods) -->
-				<div v-if="is_cashback && invoice_doc && Array.isArray(invoice_doc.payments)">
+				<div v-if="invoice_doc && Array.isArray(invoice_doc.payments)">
 					<v-row class="payments pa-1" v-for="payment in invoice_doc.payments" :key="payment.name">
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
 							<v-text-field
@@ -104,13 +104,7 @@
 							></v-text-field>
 						</v-col>
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
-							<v-btn
-								block
-								color="primary"
-								theme="dark"
-								class="payment-method-btn"
-								@click="set_full_amount(payment.idx)"
-							>
+							<v-btn block color="primary" @click="set_full_amount(payment.idx); focus_card_last_4_digits(payment.mode_of_payment)">
 								{{ payment.mode_of_payment }}
 							</v-btn>
 						</v-col>
@@ -142,6 +136,7 @@
 
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment) && payment.mode_of_payment.toLowerCase().includes('card')">
 							<v-text-field
+								ref="card_last_4_digits"
 								density="compact"
 								variant="solo"
 								color="primary"
@@ -149,9 +144,10 @@
 								:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
 								class="dark-field sleek-field"
 								hide-details
-								:model-value="payment.custom_card_last_4_digits"
+								:v-model="payment.custom_card_last_4_digits"
 								@change="setCardLast4Digits(payment, 'custom_card_last_4_digits', $event)"
-							></v-text-field>
+							>
+							</v-text-field>
 						</v-col>
 
 						<!-- M-Pesa Payment Button (if payment is M-Pesa) -->
