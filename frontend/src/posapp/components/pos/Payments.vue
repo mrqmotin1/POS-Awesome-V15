@@ -1468,6 +1468,25 @@ export default {
 						return;
 					}
 				}
+			// Validate Card Last 4 Digits entered for card payments
+			let card_last_4_invalid = false;
+			this.invoice_doc.payments.forEach((payment) => {
+				if ( 
+					payment.mode_of_payment.toLowerCase().includes('card') 
+					&& ![0, "0", "", null, undefined].includes(payment.amount)
+					&& (!payment.custom_card_last_4_digits || String(payment.custom_card_last_4_digits).length !== 4)) {
+						console.log("Invalid card last 4 digits:", payment.custom_card_last_4_digits);
+						card_last_4_invalid = true;
+				}
+			})
+			if (card_last_4_invalid) {
+				this.eventBus.emit("show_message", {	
+					title: __("Please enter valid last 4 digits for card payments"),	
+					color: "error",	
+				});	
+				frappe.utils.play_sound("error");	
+				return;	
+			}
 				// Validate paid_change
 				const changeLimit = Math.max(-this.diff_payment, 0);
 				if (this.paid_change > changeLimit) {
