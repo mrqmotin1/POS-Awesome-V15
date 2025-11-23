@@ -3466,8 +3466,11 @@ export default {
                                                         const price = parseFloat(res.message);
                                                         newItem.rate = price;
                                                         newItem.price_list_rate = price;
-                                                        newItem.base_rate = price;
-                                                        newItem.base_price_list_rate = price;
+                                                        const basePrice = conversionFactor
+                                                                ? price / conversionFactor
+                                                                : price;
+                                                        newItem.base_rate = basePrice;
+                                                        newItem.base_price_list_rate = basePrice;
                                                         if (conversionFactor) {
                                                                 newItem.conversion_factor = conversionFactor;
                                                         }
@@ -3478,8 +3481,8 @@ export default {
 
                                                         newItem.rate = newPrice;
                                                         newItem.price_list_rate = newPrice;
-                                                        newItem.base_rate = newPrice;
-                                                        newItem.base_price_list_rate = newPrice;
+                                                        newItem.base_rate = baseUnitRate;
+                                                        newItem.base_price_list_rate = baseUnitRate;
                                                         newItem.conversion_factor = conversionFactor;
                                                         newItem._manual_rate_set = true;
                                                         newItem.skip_force_update = true;
