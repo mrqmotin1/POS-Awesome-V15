@@ -99,7 +99,7 @@
 								@change="handlePaymentAmountChange(payment, $event)"
 								:rules="[isNumber]"
 								:prefix="currencySymbol(invoice_doc.currency)"
-								@focus="set_rest_amount(payment.idx)"
+								@focus="set_rest_amount(payment.mode_of_payment)"
 								:readonly="invoice_doc.is_return"
 							></v-text-field>
 						</v-col>
