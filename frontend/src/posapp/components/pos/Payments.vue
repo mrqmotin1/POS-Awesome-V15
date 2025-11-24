@@ -97,7 +97,7 @@
 								@change="handlePaymentAmountChange(payment, $event)"
 								:rules="[isNumber]"
 								:prefix="currencySymbol(invoice_doc.currency)"
-								@focus="set_rest_amount(payment.idx)"
+								@focus="set_rest_amount(payment.mode_of_payment)"
 								:readonly="invoice_doc.is_return"
 							></v-text-field>
 						</v-col>
@@ -1724,10 +1724,10 @@ export default {
 			this.$forceUpdate();
 		},
 		// Set remaining amount for a payment method when focused
-		set_rest_amount(idx) {
+		set_rest_amount(mode_of_payment) {
 			const isReturn = this.invoice_doc.is_return || this.invoiceType === "Return";
 			this.invoice_doc.payments.forEach((payment) => {
-				if (payment.idx === idx && payment.amount === 0 && this.diff_payment > 0) {
+				if (payment.mode_of_payment === mode_of_payment && payment.amount === 0 && this.diff_payment > 0) {
 					let amount = this.diff_payment;
 					if (isReturn) {
 						amount = -Math.abs(amount);
