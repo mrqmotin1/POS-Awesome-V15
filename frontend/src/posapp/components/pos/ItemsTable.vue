@@ -150,6 +150,7 @@
 						<v-icon size="small">mdi-chevron-left</v-icon>
 					</v-btn>
 					<v-select
+						ref="uomSelect"
 						:class="{ 'uom-display-mode': editing_uom_row_id !== item.posa_row_id }"
 						:model-value="item.uom"
 						@update:model-value="handleUomSelect(item, $event)"
@@ -1413,6 +1414,11 @@ export default {
 			if (newUom && newUom !== item.uom) {
 				this.calcUom(item, newUom);
 			}
+			// Find the correct component instance to blur
+			const uomSelectComponent = this.$refs.uomSelect.find(
+				(ref) => ref.$el.id.includes(item.posa_row_id),
+			);
+			uomSelectComponent?.blur();
 		},
 
 		changeUom(item, direction) {
