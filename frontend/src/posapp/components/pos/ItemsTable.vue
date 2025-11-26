@@ -158,6 +158,8 @@
 					</div>
 					<v-select
 						v-else
+						ref="uomInput"
+						:menu-props="{ 'onUpdate:modelValue': (value) => isUomMenuOpen = value, 'model-value': isUomMenuOpen }"
 						v-model="editing_uom_value"
 						:items="item.item_uoms"
 						item-title="uom"
@@ -166,6 +168,7 @@
 						variant="outlined"
 						class="pos-table__editor-input"
 						@blur="closeUomEdit(item)"
+						@update:model-value="handleUomSelect(item, $event)"
 						hide-details
 						:autofocus="true"
 						@keydown.enter.prevent="closeUomEdit(item)"
@@ -898,6 +901,7 @@ export default {
 			editing_discount_percent_value: null,
 			editing_discount_amount_row_id: null,
 			editing_discount_amount_value: null,
+			isUomMenuOpen: false,
 		};
 	},
 	computed: {
@@ -1413,17 +1417,25 @@ export default {
 			if (this.editing_uom_row_id !== item.posa_row_id) {
 				this.editing_uom_row_id = item.posa_row_id;
 				this.editing_uom_value = item.uom;
+				this.$nextTick(() => {
+					this.isUomMenuOpen = true;
+				});
 			}
 		},
 
 		closeUomEdit(item) {
 			if (this.editing_uom_row_id === item.posa_row_id) {
-				if (this.editing_uom_value && this.editing_uom_value !== item.uom) {
-					this.calcUom(item, this.editing_uom_value);
-				}
 				this.editing_uom_row_id = null;
 				this.editing_uom_value = null;
+				this.isUomMenuOpen = false;
 			}
+		},
+
+		handleUomSelect(item, newUom) {
+			if (newUom && newUom !== item.uom) {
+				this.calcUom(item, newUom);
+			}
+			this.closeUomEdit(item);
 		},
 
 		changeUom(item, direction) {
