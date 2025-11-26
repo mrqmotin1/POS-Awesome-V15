@@ -83,41 +83,33 @@
 				<v-divider></v-divider>
 
 				<!-- Payment Inputs (All Payment Methods) -->
-				<div v-if="is_cashback && invoice_doc && Array.isArray(invoice_doc.payments)">
+				<div v-if="invoice_doc && Array.isArray(invoice_doc.payments)">
 					<v-row class="payments pa-1" v-for="payment in invoice_doc.payments" :key="payment.name">
-                                        <v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
-                                                <v-text-field
+						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
+								<v-text-field
 								density="compact"
 								variant="solo"
 								color="primary"
 								:label="frappe._(payment.mode_of_payment)"
 								class="sleek-field pos-themed-input"
 								hide-details
-                                                                :model-value="formatCurrency(payment.amount)"
-                                                                @change="handlePaymentAmountChange(payment, $event)"
-								:rules="[
-									isNumber,
-									(v) =>
-										!payment.mode_of_payment.toLowerCase().includes('cash') ||
-										this.is_credit_sale ||
-										v >=
-											(this.invoice_doc.rounded_total ||
-												this.invoice_doc.grand_total) ||
-										'Cash payment cannot be less than invoice total when credit sale is off',
-								]"
+								:model-value="formatCurrency(payment.amount)"
+								@change="handlePaymentAmountChange(payment, $event)"
+								:rules="[isNumber]"
 								:prefix="currencySymbol(invoice_doc.currency)"
-								@focus="set_rest_amount(payment.idx)"
+								@focus="set_rest_amount(payment.mode_of_payment)"
 								:readonly="invoice_doc.is_return"
 							></v-text-field>
 						</v-col>
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
-							<v-btn block color="primary" theme="dark" @click="set_full_amount(payment.idx)">
+							<v-btn block color="primary" @click="set_full_amount(payment.idx); focus_card_last_4_digits(payment.mode_of_payment)">
 								{{ payment.mode_of_payment }}
 							</v-btn>
 						</v-col>
 
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment) && payment.mode_of_payment.toLowerCase().includes('card')">
 							<v-text-field
+								ref="card_last_4_digits"
 								density="compact"
 								variant="solo"
 								color="primary"
@@ -125,9 +117,10 @@
 								:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
 								class="dark-field sleek-field"
 								hide-details
-								:model-value="payment.custom_card_last_4_digits"
+								:v-model="payment.custom_card_last_4_digits"
 								@change="setCardLast4Digits(payment, 'custom_card_last_4_digits', $event)"
-							></v-text-field>
+							>
+							</v-text-field>
 						</v-col>
 
 						<!-- M-Pesa Payment Button (if payment is M-Pesa) -->
@@ -656,7 +649,6 @@
 						block
 						size="large"
 						color="primary"
-						theme="dark"
 						class="submit-btn"
 						@click="submit"
 						:loading="loading"
@@ -1311,30 +1303,30 @@ export default {
 				return;
 			}
 			// Validate cash payments when credit sale is off
-			if (!this.is_credit_sale && !this.invoice_doc.is_return) {
-				let has_cash_payment = false;
-				let cash_amount = 0;
-				this.invoice_doc.payments.forEach((payment) => {
-					if (payment.mode_of_payment.toLowerCase().includes("cash")) {
-						has_cash_payment = true;
-						cash_amount = this.flt(payment.amount);
-					}
-				});
-				if (has_cash_payment && cash_amount > 0) {
-					if (
-						!this.pos_profile.posa_allow_partial_payment &&
-						cash_amount < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
-						(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
-					) {
-						this.eventBus.emit("show_message", {
-							title: `Cash payment cannot be less than invoice total when partial payment is not allowed`,
-							color: "error",
-						});
-						frappe.utils.play_sound("error");
-						return;
-					}
-				}
-			}
+			// if (!this.is_credit_sale && !this.invoice_doc.is_return) {
+			// 	let has_cash_payment = false;
+			// 	let cash_amount = 0;
+			// 	this.invoice_doc.payments.forEach((payment) => {
+			// 		if (payment.mode_of_payment.toLowerCase().includes("cash")) {
+			// 			has_cash_payment = true;
+			// 			cash_amount = this.flt(payment.amount);
+			// 		}
+			// 	});
+			// 	if (has_cash_payment && cash_amount > 0) {
+			// 		if (
+			// 			!this.pos_profile.posa_allow_partial_payment &&
+			// 			cash_amount < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
+			// 			(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
+			// 		) {
+			// 			this.eventBus.emit("show_message", {
+			// 				title: `Cash payment cannot be less than invoice total when partial payment is not allowed`,
+			// 				color: "error",
+			// 			});
+			// 			frappe.utils.play_sound("error");
+			// 			return;
+			// 		}
+			// 	}
+			// }
 			// Validate partial payments only if not credit sale and invoice total is not zero
 			if (
 				!this.is_credit_sale &&
@@ -1343,7 +1335,7 @@ export default {
 				(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
 			) {
 				this.eventBus.emit("show_message", {
-					title: `The amount paid is not complete`,
+					title: `The amount paid cannot be less than invoice total when partial payment is not allowed`,
 					color: "error",
 				});
 				frappe.utils.play_sound("error");
@@ -1365,6 +1357,25 @@ export default {
 					frappe.utils.play_sound("error");
 					return;
 				}
+			}
+			// Validate Card Last 4 Digits entered for card payments
+			let card_last_4_invalid = false;
+			this.invoice_doc.payments.forEach((payment) => {
+				if ( 
+					payment.mode_of_payment.toLowerCase().includes('card') 
+					&& ![0, "0", "", null, undefined].includes(payment.amount)
+					&& (!payment.custom_card_last_4_digits || String(payment.custom_card_last_4_digits).length !== 4)) {
+						console.log("Invalid card last 4 digits:", payment.custom_card_last_4_digits);
+						card_last_4_invalid = true;
+				}
+			})
+			if (card_last_4_invalid) {
+				this.eventBus.emit("show_message", {	
+					title: __("Please enter valid last 4 digits for card payments"),	
+					color: "error",	
+				});	
+				frappe.utils.play_sound("error");	
+				return;	
 			}
                         // Validate paid_change
                         const changeLimit = Math.max(-this.diff_payment, 0);
@@ -1662,10 +1673,10 @@ export default {
 			this.$forceUpdate();
 		},
 		// Set remaining amount for a payment method when focused
-		set_rest_amount(idx) {
+		set_rest_amount(mode_of_payment) {
 			const isReturn = this.invoice_doc.is_return || this.invoiceType === "Return";
 			this.invoice_doc.payments.forEach((payment) => {
-				if (payment.idx === idx && payment.amount === 0 && this.diff_payment > 0) {
+				if (payment.mode_of_payment === mode_of_payment && payment.amount === 0 && this.diff_payment > 0) {
 					let amount = this.diff_payment;
 					if (isReturn) {
 						amount = -Math.abs(amount);
@@ -2279,6 +2290,18 @@ export default {
 			}
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
 		},
+		focus_card_last_4_digits(mode_of_payment) {
+			if (mode_of_payment.toLowerCase().includes('card')) {
+				this.$nextTick(() => {
+					const input = this.$refs.card_last_4_digits;
+					if (input && input[0]) {
+						input[0].focus();
+					} else {
+						console.warn("Card 4-digit input not found");
+					}
+				});
+			}
+		}
 	},
 	// Lifecycle hook: created
 	created() {
