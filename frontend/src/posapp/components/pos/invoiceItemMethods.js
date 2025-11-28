@@ -1902,27 +1902,27 @@ export default {
 
 		// Prepare taxes array
 		doc.taxes = [];
-		if (this.invoice_doc && this.invoice_doc.taxes) {
-			let totalTax = 0;
-			this.invoice_doc.taxes.forEach((tax) => {
-				if (tax.tax_amount) {
-					grandTotal += flt(tax.tax_amount);
-					totalTax += flt(tax.tax_amount);
-				}
-				doc.taxes.push({
-					account_head: tax.account_head,
-					charge_type: tax.charge_type || "On Net Total",
-					description: tax.description,
-					rate: tax.rate,
-					included_in_print_rate: tax.included_in_print_rate || 0,
-					tax_amount: tax.tax_amount,
-					total: tax.total,
-					base_tax_amount: tax.tax_amount * (this.exchange_rate || 1),
-					base_total: tax.total * (this.exchange_rate || 1),
-				});
-			});
-			doc.total_taxes_and_charges = totalTax;
-		} else if (isOffline()) {
+		// if (this.invoice_doc && this.invoice_doc.taxes) {
+		// 	let totalTax = 0;
+		// 	this.invoice_doc.taxes.forEach((tax) => {
+		// 		if (tax.tax_amount) {
+		// 			grandTotal += flt(tax.tax_amount);
+		// 			totalTax += flt(tax.tax_amount);
+		// 		}
+		// 		doc.taxes.push({
+		// 			account_head: tax.account_head,
+		// 			charge_type: tax.charge_type || "On Net Total",
+		// 			description: tax.description,
+		// 			rate: tax.rate,
+		// 			included_in_print_rate: tax.included_in_print_rate || 0,
+		// 			tax_amount: tax.tax_amount,
+		// 			total: tax.total,
+		// 			base_tax_amount: tax.tax_amount * (this.exchange_rate || 1),
+		// 			base_total: tax.total * (this.exchange_rate || 1),
+		// 		});
+		// 	});
+		// 	doc.total_taxes_and_charges = totalTax;
+		// } else if (isOffline()) {
 			const tmpl = getTaxTemplate(this.pos_profile.taxes_and_charges);
 			if (tmpl && Array.isArray(tmpl.taxes)) {
 				const inclusive = getTaxInclusiveSetting();
@@ -1962,7 +1962,7 @@ export default {
 				}
 				doc.total_taxes_and_charges = totalTax;
 			}
-		}
+		// }
 
 		if (isReturn && grandTotal > 0) grandTotal = -Math.abs(grandTotal);
 
@@ -2149,6 +2149,7 @@ export default {
 				return;
 			}
 			const new_item = {
+				...item,
 				item_code: item.item_code,
 				barcode: item.barcode,
 				// Retain the item name for offline invoices
