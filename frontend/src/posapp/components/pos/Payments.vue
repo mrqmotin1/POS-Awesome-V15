@@ -802,6 +802,7 @@
 // Importing format mixin for currency and utility functions
 import format, { formatUtils } from "../../format";
 import { parseBooleanSetting } from "../../utils/stock.js";
+import { getSmartTenderSuggestions } from "../../../utils/smartTender.js";
 import {
 	saveOfflineInvoice,
 	syncOfflineInvoices,
@@ -864,16 +865,6 @@ export default {
 			is_user_editing_paid_change: false, // User interaction flag
 			highlightSubmit: false, // Highlight state for submit button
 			last_payment_change_was_cash: null, // Track last edited payment type
-			currencyDenominations: {
-				PKR: [10, 20, 50, 100, 500, 1000, 5000],
-				INR: [10, 20, 50, 100, 200, 500, 2000],
-				USD: [1, 5, 10, 20, 50, 100],
-				EUR: [5, 10, 20, 50, 100, 200, 500],
-				GBP: [5, 10, 20, 50],
-				AED: [5, 10, 20, 50, 100, 200, 500, 1000],
-				SAR: [1, 5, 10, 50, 100, 500],
-				QAR: [1, 5, 10, 50, 100, 500],
-			},
 		};
 	},
 	computed: {
@@ -2397,31 +2388,25 @@ export default {
 			}
 		},
 		getVisibleDenominations(payment) {
-			if (!this.invoice_doc) return [];
+			if (!this.invoice_doc || !payment) return [];
 			const currency = this.invoice_doc.currency;
-			const total = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
-			const allDenominations = this.currencyDenominations[currency] || [];
 
-			let visible = [];
+			const current_total_paid = this.total_payments;
+			const current_payment_amount =
+				parseFloat(formatUtils.fromArabicNumerals(String(payment.amount))) || 0;
 
-			if (allDenominations.length) {
-				visible = allDenominations.filter((d) => {
-					if (total <= 100) return true; // Show all if amount is small
-					if (total <= 500) return d > 100; // If amount > 100, show > 100
-					return d > 500; // If amount > 500, show > 500
-				});
-			}
+			const other_payments = current_total_paid - current_payment_amount;
 
-			// Add "Next Round Figure" (e.g. 280 -> 300, 340 -> 400)
-			if (total > 0) {
-				const nextRound = Math.ceil(total / 100) * 100;
-				if (nextRound > total) {
-					visible.push(nextRound);
-				}
-			}
+			const invoice_total = this.flt(
+				this.invoice_doc.rounded_total || this.invoice_doc.grand_total,
+				this.currency_precision,
+			);
 
-			// Dedup and sort
-			return [...new Set(visible)].sort((a, b) => a - b);
+			const amount_to_pay = invoice_total - other_payments;
+
+			if (amount_to_pay <= 0) return [];
+
+			return getSmartTenderSuggestions(amount_to_pay, currency);
 		},
 		isCashLikePayment(payment) {
 			if (!payment) {
