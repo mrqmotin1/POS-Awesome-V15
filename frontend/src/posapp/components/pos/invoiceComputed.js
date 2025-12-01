@@ -4,13 +4,12 @@ import { perfMarkStart, perfMarkEnd } from "../../utils/perf.js";
 import { parseBooleanSetting } from "../../utils/stock.js";
 
 export default {
-	// Calculate total quantity of all items
-	total_qty() {
-		const mark = perfMarkStart("pos:totals-total_qty");
-		this.close_payments();
-		const store = this.invoiceStore;
-		const storeValue = store?.totalQty?.value ?? store?.totalQty;
-		let qty;
+        // Calculate total quantity of all items
+        total_qty() {
+                const mark = perfMarkStart("pos:totals-total_qty");
+                const store = this.invoiceStore;
+                const storeValue = store?.totalQty?.value ?? store?.totalQty;
+                let qty;
 
 		if (typeof storeValue === "number" && !Number.isNaN(storeValue)) {
 			qty = storeValue;
@@ -47,14 +46,13 @@ export default {
 		const result = this.flt(sum, this.currency_precision);
 		perfMarkEnd("pos:totals-gross", mark);
 		return result;
-	},
-	// Calculate subtotal after discounts and delivery charges
-	subtotal() {
-		const mark = perfMarkStart("pos:totals-subtotal");
-		this.close_payments();
-		const store = this.invoiceStore;
-		const storeValue = store?.grossTotal?.value ?? store?.grossTotal;
-		let sum = typeof storeValue === "number" && !Number.isNaN(storeValue) ? storeValue : 0;
+        },
+        // Calculate subtotal after discounts and delivery charges
+        subtotal() {
+                const mark = perfMarkStart("pos:totals-subtotal");
+                const store = this.invoiceStore;
+                const storeValue = store?.grossTotal?.value ?? store?.grossTotal;
+                let sum = typeof storeValue === "number" && !Number.isNaN(storeValue) ? storeValue : 0;
 
 		if (!(typeof storeValue === "number" && !Number.isNaN(storeValue))) {
 			this.items.forEach((item) => {
