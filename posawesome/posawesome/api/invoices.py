@@ -142,6 +142,20 @@ def _is_stock_item(item):
     return bool(cint(frappe.get_cached_value("Item", item_code, "is_stock_item") or 0))
 
 
+def _allow_negative_stock(item):
+    """Return True if negative stock is allowed globally or for the item."""
+
+    # Global setting overrides everything
+    if cint(frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0):
+        return True
+
+    flag = item.get("allow_negative_stock")
+    if flag is None and item.get("item_code"):
+        flag = frappe.get_cached_value("Item", item.get("item_code"), "allow_negative_stock")
+
+    return bool(cint(flag or 0))
+
+
 def _collect_stock_errors(items):
     """Return list of items exceeding available stock."""
     errors = []
@@ -149,6 +163,8 @@ def _collect_stock_errors(items):
         if flt(d.get("qty")) < 0:
             continue
         if not _is_stock_item(d):
+            continue
+        if _allow_negative_stock(d):
             continue
         available = _get_available_stock(d)
         requested = flt(d.get("stock_qty") or (flt(d.get("qty")) * flt(d.get("conversion_factor") or 1)))
