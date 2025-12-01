@@ -882,26 +882,26 @@ export default {
 		const serverDiscountPercentage = Number.parseFloat(invoiceUpdates.additional_discount_percentage || 0);
 		const serverRules = invoiceUpdates.pricing_rules;
 
-		if (serverRules) {
-			// Rule applied by server
-			if (this.pos_profile?.posa_use_percentage_discount) {
-				if (serverDiscountPercentage > 0) {
-					this.additional_discount_percentage = serverDiscountPercentage;
+                if (serverRules) {
+                        // Rule applied by server
+                        if (this.pos_profile?.posa_use_percentage_discount) {
+                                if (serverDiscountPercentage > 0) {
+                                        this.additional_discount_percentage = serverDiscountPercentage;
 				} else if (serverDiscountAmount > 0 && this.Total > 0) {
 					this.additional_discount_percentage = (serverDiscountAmount / this.Total) * 100;
 				} else {
 					this.additional_discount_percentage = 0;
-				}
-				this.update_discount_umount();
-			} else {
-				this.additional_discount = serverDiscountAmount;
-				this.additional_discount_percentage = serverDiscountPercentage;
-				this.update_discount_umount();
-			}
-			if (this.invoice_doc) {
-				this.invoice_doc.pricing_rules = serverRules;
-			} else {
-				this.invoiceStore.mergeInvoiceDoc({ pricing_rules: serverRules });
+                                }
+                                this.update_discount_umount();
+                        } else {
+                                this.additional_discount = serverDiscountAmount;
+                                this.additional_discount_percentage = serverDiscountPercentage;
+                                this.discount_amount = this.additional_discount;
+                        }
+                        if (this.invoice_doc) {
+                                this.invoice_doc.pricing_rules = serverRules;
+                        } else {
+                                this.invoiceStore.mergeInvoiceDoc({ pricing_rules: serverRules });
 			}
 		} else if (this.invoice_doc?.pricing_rules) {
 			// No rules from server, but we had rules before. Clear them.
