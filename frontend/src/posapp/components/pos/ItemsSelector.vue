@@ -317,35 +317,26 @@
                                                                                                                         }}
                                                                                                                 </span>
                                                                                                         </div>
-                                                                                                        <div
-                                                                                                                v-if="item.last_invoice_rate"
-                                                                                                                class="card-item-last-rate"
-                                                                                                        >
-                                                                                                                <v-icon size="small" class="last-rate-icon">
-                                                                                                                        mdi-receipt-text-clock
-                                                                                                                </v-icon>
-                                                                                                                <span class="last-rate-label">
-                                                                                                                        {{ __('Last Invoice') }}
-                                                                                                                </span>
-                                                                                                                <span class="last-rate-value">
-                                                                                                                        <span class="currency-symbol">
-                                                                                                                                {{
-                                                                                                                                        currencySymbol(
-                                                                                                                                                item.last_invoice_currency || pos_profile.currency,
-                                                                                                                                        )
-                                                                                                                                }}
-                                                                                                                        </span>
-                                                                                                                        <span class="price-amount">
-                                                                                                                                {{
-                                                                                                                                        format_currency(
-                                                                                                                                                item.last_invoice_rate,
-                                                                                                                                                item.last_invoice_currency || pos_profile.currency,
-                                                                                                                                                ratePrecision(item.last_invoice_rate),
-                                                                                                                                        )
-                                                                                                                                }}
-                                                                                                                        </span>
-                                                                                                                </span>
-                                                                                                        </div>
+                                <div v-if="getLastInvoiceRate(item)" class="last-rate-chip">
+                                        <v-icon size="14" class="mr-1" color="secondary">mdi-history</v-icon>
+                                        <span class="last-rate-label">{{ __('Last') }}:</span>
+                                        <span class="last-rate-value">
+                                                {{
+                                                        currencySymbol(
+                                                                getLastInvoiceRate(item).currency ||
+                                                                        pos_profile.currency,
+                                                        )
+                                                }}
+                                                {{
+                                                        format_currency(
+                                                                getLastInvoiceRate(item).rate,
+                                                                getLastInvoiceRate(item).currency ||
+                                                                        pos_profile.currency,
+                                                                ratePrecision(getLastInvoiceRate(item).rate || 0),
+                                                        )
+                                                }}
+                                        </span>
+                                </div>
                                                                                                 </div>
                                                                                                 <div class="card-item-stock">
                                                                                                         <v-icon size="small" class="stock-icon">
@@ -391,54 +382,56 @@
                                                                                 <div class="text-primary">
                                                                                         {{
                                                                                                 currencySymbol(item.original_currency || pos_profile.currency)
-											}}
-											{{
-												format_currency(
-													item.base_price_list_rate ?? item.rate ?? 0,
-													item.original_currency || pos_profile.currency,
-													ratePrecision(
-														item.base_price_list_rate ?? item.rate ?? 0,
-													),
+                                                                                        }}
+                                                                                        {{
+                                                                                                format_currency(
+                                                                                                        item.base_price_list_rate ?? item.rate ?? 0,
+                                                                                                        item.original_currency || pos_profile.currency,
+                                                                                                        ratePrecision(
+                                                                                                                item.base_price_list_rate ?? item.rate ?? 0,
+                                                                                                        ),
                                                                                                 )
                                                                                         }}
                                                                                 </div>
                                                                                 <div
-                                                                                        v-if="
-                                                                                                pos_profile.posa_allow_multi_currency &&
-												selected_currency !== pos_profile.currency
-											"
-											class="text-success"
-										>
-											{{ currencySymbol(selected_currency) }}
-											{{
-												format_currency(
-													item.rate,
-													selected_currency,
-													ratePrecision(item.rate),
-                                                                                                )
-                                                                                        }}
-                                                                                </div>
-                                                                        </div>
-                                                                </template>
-                                                                <template v-slot:item.last_invoice_rate="{ item }">
-                                                                        <div class="text-body-2">
-                                                                                <template v-if="item.last_invoice_rate">
-                                                                                        <span class="currency-symbol">
+                                                                                        v-if="getLastInvoiceRate(item)"
+                                                                                        class="text-caption d-flex align-center last-rate-inline"
+                                                                                >
+                                                                                        <v-icon size="14" class="mr-1" color="secondary">mdi-history</v-icon>
+                                                                                        <span class="mr-1">{{ __('Last') }}:</span>
+                                                                                        <span class="font-weight-medium">
                                                                                                 {{
                                                                                                         currencySymbol(
-                                                                                                                item.last_invoice_currency || pos_profile.currency,
+                                                                                                                getLastInvoiceRate(item).currency ||
+                                                                                                                        pos_profile.currency,
+                                                                                                        )
+                                                                                                }}
+                                                                                                {{
+                                                                                                        format_currency(
+                                                                                                                getLastInvoiceRate(item).rate,
+                                                                                                                getLastInvoiceRate(item).currency ||
+                                                                                                                        pos_profile.currency,
+                                                                                                                ratePrecision(getLastInvoiceRate(item).rate || 0),
                                                                                                         )
                                                                                                 }}
                                                                                         </span>
+                                                                                </div>
+                                                                                <div
+                                                                                        v-if="
+                                                                                                pos_profile.posa_allow_multi_currency &&
+                                                                                                selected_currency !== pos_profile.currency
+                                                                                        "
+                                                                                        class="text-success"
+                                                                                >
+                                                                                        {{ currencySymbol(selected_currency) }}
                                                                                         {{
                                                                                                 format_currency(
-                                                                                                        item.last_invoice_rate,
-                                                                                                        item.last_invoice_currency || pos_profile.currency,
-                                                                                                        ratePrecision(item.last_invoice_rate),
+                                                                                                        item.rate,
+                                                                                                        selected_currency,
+                                                                                                        ratePrecision(item.rate),
                                                                                                 )
                                                                                         }}
-                                                                                </template>
-                                                                                <span v-else class="text-medium-emphasis">—</span>
+                                                                                </div>
                                                                         </div>
                                                                 </template>
                                                                 <template v-slot:item.actual_qty="{ item }">
@@ -708,9 +701,10 @@ export default {
                 keyboardScanMinLength: 6,
                 keyboardScanMaxInterval: 65,
                 keyboardScanProcessingDelay: 100,
+                lastInvoiceRateCache: new Map(),
                 lastInvoiceRates: {},
                 lastInvoiceRateScheduler: null,
-                lastInvoiceRateRequestToken: 0,
+                lastInvoiceRateLoading: false,
         }),
 
 	watch: {
@@ -720,7 +714,7 @@ export default {
                 },
                 customer: _.debounce(function () {
                         if (!this.customer) {
-                                this.applyLastInvoiceRates({});
+                                this.lastInvoiceRates = {};
                         }
                         this.scheduleLastInvoiceRateRefresh();
 
@@ -1504,82 +1498,87 @@ export default {
 
                 scheduleLastInvoiceRateRefresh() {
                         if (!this.lastInvoiceRateScheduler) {
-                                this.lastInvoiceRateScheduler = _.debounce(
-                                        () => this.loadLastInvoiceRates(),
-                                        350,
-                                );
+                                this.lastInvoiceRateScheduler = _.debounce(() => {
+                                        this.refreshLastInvoiceRatesForVisibleItems();
+                                }, 200);
                         }
+
                         this.lastInvoiceRateScheduler();
                 },
 
-                applyLastInvoiceRates(rateMap = {}) {
-                        this.lastInvoiceRates = rateMap || {};
+                async refreshLastInvoiceRatesForVisibleItems() {
+                        if (!this.displayedItems || !this.displayedItems.length) {
+                                this.lastInvoiceRates = {};
+                                return this.lastInvoiceRates;
+                        }
 
-                        const applyToItem = (item) => {
-                                if (!item || !item.item_code) {
-                                        return;
-                                }
-                                const info = this.lastInvoiceRates[item.item_code];
-                                if (info && typeof info.rate !== "undefined") {
-                                        item.last_invoice_rate = info.rate;
-                                        item.last_invoice_currency = info.currency || this.pos_profile?.currency;
-                                } else {
-                                        item.last_invoice_rate = null;
-                                        item.last_invoice_currency = null;
-                                }
-                        };
-
-                        [this.displayedItems, this.items, this.filteredItems].forEach((collection) => {
-                                if (Array.isArray(collection)) {
-                                        collection.forEach(applyToItem);
-                                }
-                        });
+                        const itemCodes = this.displayedItems.map((it) => it.item_code).filter(Boolean);
+                        return this.fetchLastInvoiceRates(itemCodes);
                 },
 
-                async loadLastInvoiceRates() {
-                        if (!this.customer || !Array.isArray(this.displayedItems) || !this.displayedItems.length) {
-                                this.applyLastInvoiceRates({});
-                                return;
+                async fetchLastInvoiceRates(itemCodes = []) {
+                        const customer = this.customer || this.selectedCustomer;
+
+                        if (!customer) {
+                                this.lastInvoiceRates = {};
+                                return {};
+                        }
+
+                        const normalizedCodes = Array.from(new Set(itemCodes.filter(Boolean)));
+                        const cachedForCustomer = this.lastInvoiceRateCache.get(customer) || new Map();
+                        this.lastInvoiceRates = Object.fromEntries(cachedForCustomer);
+
+                        const missingCodes = normalizedCodes.filter((code) => !cachedForCustomer.has(code));
+                        if (!missingCodes.length) {
+                                return this.lastInvoiceRates;
                         }
 
                         if (isOffline()) {
-                                this.applyLastInvoiceRates({});
-                                return;
+                                return this.lastInvoiceRates;
                         }
 
-                        const itemCodes = Array.from(
-                                new Set(
-                                        this.displayedItems
-                                                .map((it) => it && it.item_code)
-                                                .filter((code) => Boolean(code)),
-                                ),
-                        );
-
-                        if (!itemCodes.length) {
-                                this.applyLastInvoiceRates({});
-                                return;
-                        }
-
-                        const requestToken = ++this.lastInvoiceRateRequestToken;
-
+                        this.lastInvoiceRateLoading = true;
                         try {
-                                const { message } = await frappe.call({
-                                        method: "posawesome.posawesome.api.items.get_last_invoice_rates",
+                                const res = await frappe.call({
+                                        method: "posawesome.posawesome.api.invoices.get_last_invoice_rates",
                                         args: {
-                                                customer: this.customer,
-                                                item_codes: itemCodes,
+                                                customer,
+                                                item_codes: missingCodes,
                                                 company: this.pos_profile?.company,
                                         },
                                 });
 
-                                if (requestToken !== this.lastInvoiceRateRequestToken) {
-                                        return;
-                                }
+                                const rows = (res && res.message) || [];
+                                const updatedCache = new Map(cachedForCustomer);
+                                rows.forEach((row) => {
+                                        if (row && row.item_code) {
+                                                updatedCache.set(row.item_code, {
+                                                        rate: row.rate,
+                                                        currency: row.currency,
+                                                        invoice: row.invoice,
+                                                        posting_date: row.posting_date,
+                                                });
+                                        }
+                                });
 
-                                this.applyLastInvoiceRates(message || {});
+                                this.lastInvoiceRateCache.set(customer, updatedCache);
+                                this.lastInvoiceRates = Object.fromEntries(updatedCache);
+                                return this.lastInvoiceRates;
                         } catch (error) {
                                 console.error("Failed to fetch last invoice rates", error);
+                                this.lastInvoiceRates = Object.fromEntries(cachedForCustomer);
+                                return this.lastInvoiceRates;
+                        } finally {
+                                this.lastInvoiceRateLoading = false;
                         }
+                },
+
+                getLastInvoiceRate(item) {
+                        if (!item || !item.item_code) {
+                                return null;
+                        }
+
+                        return this.lastInvoiceRates[item.item_code] || null;
                 },
 
                 show_offers() {
@@ -1874,7 +1873,6 @@ export default {
                                                 key: "item_code",
                                         },
                                         { title: __("Rate"), key: "rate", align: "start" },
-                                        { title: __("Last Invoice Rate"), key: "last_invoice_rate", align: "start" },
                                         { title: __("Available QTY"), key: "actual_qty", align: "start" },
                                         { title: __("UOM"), key: "stock_uom", align: "start" },
                                 ];
@@ -4897,23 +4895,31 @@ export default {
         font-size: 0.875rem;
 }
 
-.card-item-last-rate {
-        display: inline-flex;
+.last-rate-chip {
+        display: flex;
         align-items: center;
-        gap: 6px;
-        color: var(--pos-text-secondary, #6c757d);
+        gap: 4px;
         font-size: 0.85rem;
-        font-weight: 600;
+        color: rgba(0, 0, 0, 0.65);
 }
 
-.last-rate-icon {
-        color: var(--primary-color, #1976d2);
+.last-rate-label {
+        font-weight: 600;
+        opacity: 0.8;
 }
 
 .last-rate-value {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
+        font-weight: 700;
+        color: var(--primary-color, #1976d2);
+}
+
+.last-rate-inline {
+        color: rgba(0, 0, 0, 0.6);
+}
+
+:deep(.v-theme--dark) .last-rate-chip,
+:deep(.v-theme--dark) .last-rate-inline {
+        color: rgba(255, 255, 255, 0.75);
 }
 
 .currency-symbol {
