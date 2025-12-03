@@ -746,6 +746,7 @@ import {
 
 import renderOfflineInvoiceHTML from "../../../offline_print_template";
 import { silentPrint, watchPrintWindow } from "../../plugins/print.js";
+import { rawSilentPrint} from "../../plugins/print.js";
 import { useInvoiceStore } from "../../stores/invoiceStore.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
@@ -1193,46 +1194,7 @@ export default {
 	},
 	methods: {
 		// --- FETCH RAW PRINT CONTENT FROM SERVER ---
-		async print_server_raw_content(content) {
-			try {
-				// Get global QZ instance
-				if (!QZ) {
-					frappe.throw("QZ Helper is not loaded.");
-					return;
-				}
-
-				// 1. Get the configured printer name using your global QZ helper
-				const printerName = await QZ.getPosPrinter();
-
-				if (!printerName) {
-					frappe.throw("No POS Printer Configured in User Settings.");
-					return;
-				}
-
-				// 2. Use the global 'qz' object to create the config
-				const config = qz.configs.create(printerName);
-
-				// 3. Send raw content to printer
-				// We wrap it in the QZ data format for raw commands
-				const data = [{
-					type: 'raw',
-					format: 'command',
-					flavor: 'plain',
-					data: content
-				}];
-
-				await qz.print(config, data);
-				frappe.show_alert({
-					message: 'Printed Successfully',
-					indicator: 'green'
-				});
-
-			} catch (err) {
-				console.error("QZ Error:", err);
-				frappe.msgprint("Printing Error: " + err);
-			}
-		},
-
+		
 		// Go back to invoice view and reset customer readonly
 		back_to_invoice() {
 			this.eventBus.emit("show_payment", "false");
@@ -1746,36 +1708,11 @@ export default {
 				allowOfflineFallback: isOffline(),
 			};
 
-			// === ADDED: Custom Raw Silent Print Check ===
+			// === ADDED: Custom Raw Silent Print Check 
 			if (this.pos_profile.custom_enable_raw_silent_print) {
-				if (isOffline()) {
-					this.print_offline_invoice(this.invoice_doc);
-				} else {
-					// FIX: Use API call instead of $.get to avoid HTML wrapping
-                    frappe.call({
-                        method: 'frappe.www.printview.get_html_and_style',
-                        args: {
-                            doc: this.invoice_doc,
-                            print_format: print_format,
-                            no_letterhead: letter_head
-                        },
-						
-                        callback: (r) => {
-                            if (!r.exc && r.message && r.message.html) {
-                                // r.message.html contains the raw command data from your Jinja template
-                                // We decode any HTML entities (like &lt; back to <) just in case
-                                const txt = document.createElement("textarea");
-                                txt.innerHTML = r.message.html;
-                                const rawContent = txt.value;
-                                this.print_server_raw_content(rawContent);
-                            }
-							console.log("Fetching raw print content for invoice:", print_format);
-							console.log("Print content response:", rawContent);
-                        }
-                    });
-				}
-			}
-			// === END ADDED ===
+				console.log("Using custom raw silent print for invoice:", this.invoice_doc.name);
+				rawSilentPrint(this.invoice_doc, print_format); 				
+			}				
 			else if (this.pos_profile.posa_silent_print) {
 				silentPrint(url, printOptions);
 			} else {
