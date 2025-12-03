@@ -231,3 +231,50 @@ export function silentPrint(url, options = {}) {
                 }
         }
 }
+
+
+//for raw silent print using QZ Tray #################
+
+export function rawSilentPrint(url) {
+    if (!url) return;
+    
+    // 1. Fetch the content from the URL (The rendered Jinja template)
+    $.get(url, async (response) => {
+        try {
+            // 2. Parse the response to strip HTML tags (<div>, <br>, etc)
+            // This leaves ONLY the raw text/commands you wrote in the Print Format
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(response, "text/html");
+            const rawCommands = doc.body.innerText; 
+
+            if (!rawCommands || rawCommands.trim().length === 0) {
+                throw new Error("Print format returned empty content.");
+            }
+
+            // 3. Initialize QZ using your Global Helper
+            if (!window.QZ) throw new Error("QZ Helper not found");
+            
+            const printerName = await QZ.getPosPrinter();
+            if (!printerName) throw new Error("No POS Printer selected in settings");
+
+            // 4. Create Config & Print
+            const config = qz.configs.create(printerName);
+            const data = [{
+                type: 'raw',
+                format: 'command',
+                flavor: 'plain',
+                data: rawCommands
+            }];
+
+            await qz.print(config, data);
+            frappe.show_alert({ message: 'Printed Successfully', indicator: 'green' });
+
+        } catch (err) {
+            console.error("Raw Silent Print Failed:", err);
+            frappe.msgprint(__("Printing Failed: ") + err.message);
+        }
+    }).fail((xhr) => {
+        console.error("Failed to fetch print format:", xhr);
+        frappe.msgprint(__("Failed to load print format from server."));
+    });
+}
