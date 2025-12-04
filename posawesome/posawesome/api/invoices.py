@@ -347,7 +347,7 @@ def update_invoice(data):
     invoice_doc.set_missing_values()
 
     # Reapply any custom item names after defaults are set
-    _apply_item_name_overrides(invoice_doc, overrides)
+    # _apply_item_name_overrides(invoice_doc, overrides)
 
     # Remove duplicate taxes from item and profile templates
     _merge_duplicate_taxes(invoice_doc)
@@ -484,7 +484,7 @@ def submit_invoice(invoice, data):
         invoice_doc.update(invoice)
 
     # Ensure item name overrides are respected on submit
-    _apply_item_name_overrides(invoice_doc)
+    # _apply_item_name_overrides(invoice_doc)
     if invoice.get("posa_delivery_date"):
         invoice_doc.update_stock = 0
     mop_cash_list = [
