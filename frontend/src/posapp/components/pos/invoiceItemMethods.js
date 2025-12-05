@@ -2101,7 +2101,7 @@ export default {
 				return;
 			}
 			const new_item = {
-				...item,
+				item_barcode: item.item_barcode,
 				item_code: item.item_code,
 				barcode: item.barcode,
 				// Retain the item name for offline invoices
