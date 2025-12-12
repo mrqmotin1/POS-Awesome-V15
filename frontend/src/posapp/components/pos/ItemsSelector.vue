@@ -62,7 +62,6 @@
 								v-model="search_input"
 								@keydown.esc="esc_event"
 								@keydown.enter="onEnter"
-								@keydown="handleSearchKeydown"
 								@click:clear="clearSearch"
 								@input="handleSearchInput"
 								@paste="handleSearchPaste"
