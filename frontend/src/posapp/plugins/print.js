@@ -248,10 +248,6 @@ export function rawSilentPrint(doc, print_format) {
                 txt.innerHTML = r.message.html;
                 const rawContent = txt.value;
                 try {                 
-                    if (!QZ) {
-                        frappe.throw("QZ Helper is not loaded.");
-                        return;
-                    }
                     // Get Printer
                     const printerName = await QZ.getPosPrinter();
                     console.log("Configured POS Printer:", printerName);
@@ -273,11 +269,11 @@ export function rawSilentPrint(doc, print_format) {
 
                 } catch (err) {
                     console.error("QZ Error:", err);
-                    frappe.msgprint("Printing Error: " + err);
+                   
                 }
             } else {
                 console.error("Failed to fetch print content", r);
-                frappe.msgprint("Could not fetch print format data.");
+                
             }
         }
     });
