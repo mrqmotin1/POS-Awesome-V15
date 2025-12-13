@@ -127,6 +127,8 @@ import { useRtl } from "../composables/useRtl.js";
 const ServerUsageGadget = defineAsyncComponent(() => import("./navbar/ServerUsageGadget.vue"));
 const DatabaseUsageGadget = defineAsyncComponent(() => import("./navbar/DatabaseUsageGadget.vue"));
 const DEFAULT_SNACK_TIMEOUT = 3000;
+const OFFLINE_WARNING_TITLE = "Connection lost. Some features might not work.";
+const OFFLINE_WARNING_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 export default {
 	name: "NavBar",
@@ -213,15 +215,16 @@ export default {
 			snack: false,
 			snackText: "",
 			snackColor: "success",
-			snackTimeout: DEFAULT_SNACK_TIMEOUT,
-			notificationQueue: [],
-			currentNotification: null,
-			clearQueuedOnClose: false,
-			clearingCache: false,
-			initialCacheRefreshRequested: false,
-			notificationUpdateHandle: null,
-			notificationUpdateUsesTimeout: false,
-		};
+                        snackTimeout: DEFAULT_SNACK_TIMEOUT,
+                        notificationQueue: [],
+                        currentNotification: null,
+                        clearQueuedOnClose: false,
+                        lastNotificationShownAt: {},
+                        clearingCache: false,
+                        initialCacheRefreshRequested: false,
+                        notificationUpdateHandle: null,
+                        notificationUpdateUsesTimeout: false,
+                };
 	},
 	watch: {
 		cacheReady: {
@@ -428,18 +431,22 @@ export default {
 		updateAfterDelete() {
 			this.$emit("update-after-delete");
 		},
-		showMessage(data) {
-			const notification = this.normalizeNotification(data);
+                showMessage(data) {
+                        const notification = this.normalizeNotification(data);
 
-			if (!notification.title) {
-				return;
-			}
+                        if (!notification.title) {
+                                return;
+                        }
 
-			if (this.currentNotification && this.currentNotification.key === notification.key) {
-				this.mergeNotifications(this.currentNotification, notification);
-				this.updateActiveNotification();
-				return;
-			}
+                        if (this.shouldThrottleNotification(notification)) {
+                                return;
+                        }
+
+                        if (this.currentNotification && this.currentNotification.key === notification.key) {
+                                this.mergeNotifications(this.currentNotification, notification);
+                                this.updateActiveNotification();
+                                return;
+                        }
 
 			const existingQueued = this.notificationQueue.find((item) => item.key === notification.key);
 
@@ -456,13 +463,15 @@ export default {
 		normalizeNotification(data = {}) {
 			const title = typeof data.title === "string" ? data.title.trim() : "";
 			const color = data.color || "success";
-			const timeout =
-				typeof data.timeout === "number" && data.timeout >= 0 ? data.timeout : DEFAULT_SNACK_TIMEOUT;
-			const summary = typeof data.summary === "string" ? data.summary.trim() : "";
-			const detail = typeof data.detail === "string" ? data.detail.trim() : "";
-			const count = Number.isFinite(data.count) && data.count > 0 ? Math.floor(data.count) : 1;
-			const providedKey =
-				(typeof data.groupId === "string" && data.groupId.trim()) ||
+                        const timeout =
+                                typeof data.timeout === "number" && data.timeout >= 0 ? data.timeout : DEFAULT_SNACK_TIMEOUT;
+                        const cooldownMs =
+                                typeof data.cooldownMs === "number" && data.cooldownMs >= 0 ? data.cooldownMs : undefined;
+                        const summary = typeof data.summary === "string" ? data.summary.trim() : "";
+                        const detail = typeof data.detail === "string" ? data.detail.trim() : "";
+                        const count = Number.isFinite(data.count) && data.count > 0 ? Math.floor(data.count) : 1;
+                        const providedKey =
+                                (typeof data.groupId === "string" && data.groupId.trim()) ||
 				(typeof data.groupKey === "string" && data.groupKey.trim()) ||
 				"";
 
@@ -470,14 +479,42 @@ export default {
 
 			return {
 				title,
-				color,
-				timeout,
-				count,
-				key: baseKey,
-				summary,
-				latestDetail: detail,
-			};
-		},
+                                color,
+                                timeout,
+                                count,
+                                key: baseKey,
+                                summary,
+                                latestDetail: detail,
+                                cooldownMs,
+                        };
+                },
+                shouldThrottleNotification(notification) {
+                        const effectiveCooldown = this.getNotificationCooldown(notification);
+                        if (!effectiveCooldown) {
+                                return false;
+                        }
+
+                        const lastShown = this.lastNotificationShownAt[notification.key] || 0;
+                        const now = Date.now();
+
+                        if (now - lastShown < effectiveCooldown) {
+                                return true;
+                        }
+
+                        this.lastNotificationShownAt[notification.key] = now;
+                        return false;
+                },
+                getNotificationCooldown(notification) {
+                        if (typeof notification.cooldownMs === "number") {
+                                return notification.cooldownMs;
+                        }
+
+                        if (notification.title === OFFLINE_WARNING_TITLE) {
+                                return OFFLINE_WARNING_COOLDOWN_MS;
+                        }
+
+                        return 0;
+                },
 		mergeNotifications(target, incoming) {
 			target.count += incoming.count;
 			target.timeout = Math.max(target.timeout, incoming.timeout);
