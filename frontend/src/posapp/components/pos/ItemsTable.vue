@@ -41,8 +41,9 @@
                                 <div class="d-flex align-center">
 									<div class="d-flex flex-column">
 										<div>{{ item.item_name }}</div>
-										<div>({{ item.barcode || item.item_barcode?.[0]?.barcode || ''}})</div>
-									</div>
+										<div v-if="item.barcode || item.item_barcode?.[0]?.barcode">
+											({{ item.barcode || item.item_barcode?.[0]?.barcode }})
+										</div>									</div>
                                         <v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">{{
                                                 __("Bundle")
                                         }}</v-chip>
