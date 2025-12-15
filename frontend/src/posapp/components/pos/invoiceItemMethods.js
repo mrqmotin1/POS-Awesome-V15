@@ -1303,7 +1303,7 @@ export default {
 	async add_item(item, options = {}) {
 		const res = await addItem(item, this);
 		this.schedulePricingRuleApplication();
-
+		
 		const shouldNotify =
 			options?.notifyOnSuccess === true && !options?.skipNotification && this.eventBus?.emit;
 
@@ -1875,7 +1875,8 @@ export default {
 		// 		});
 		// 	});
 		// 	doc.total_taxes_and_charges = totalTax;
-		// } else if (isOffline()) {
+		// } else 
+		if (isOffline()) {
 			const tmpl = getTaxTemplate(this.pos_profile.taxes_and_charges);
 			if (tmpl && Array.isArray(tmpl.taxes)) {
 				const inclusive = getTaxInclusiveSetting();
@@ -1886,7 +1887,8 @@ export default {
 					if (row.charge_type === "Actual") {
 						tax_amount = flt(row.tax_amount || 0);
 					} else if (inclusive) {
-						tax_amount = flt((doc.total * flt(row.rate)) / 100);
+						doc.net_total = flt((doc.total * 100 /(flt(row.rate)) + 100));
+						tax_amount = doc.total - doc.net_total;
 					} else {
 						tax_amount = flt((doc.net_total * flt(row.rate)) / 100);
 					}
@@ -1907,7 +1909,6 @@ export default {
 					});
 				});
 				if (inclusive) {
-					doc.net_total = doc.total - totalTax;
 					doc.base_net_total = doc.net_total * (this.exchange_rate || 1);
 					grandTotal = doc.total;
 				} else {
@@ -1915,7 +1916,7 @@ export default {
 				}
 				doc.total_taxes_and_charges = totalTax;
 			}
-		// }
+		}
 
 		if (isReturn && grandTotal > 0) grandTotal = -Math.abs(grandTotal);
 
@@ -2102,7 +2103,7 @@ export default {
 			}
 			const new_item = {
 				item_code: item.item_code,
-				barcode: item.barcode || item.item_barcode?.[0].barcode || null,
+				barcode: item.barcode || item.item_barcode?.[0]?.barcode || null,
 				// Retain the item name for offline invoices
 				// Fallback to item_code if item_name is not available
 				item_name: item.item_name || item.item_code,
