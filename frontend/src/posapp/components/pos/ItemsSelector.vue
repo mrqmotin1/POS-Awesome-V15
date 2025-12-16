@@ -4162,6 +4162,15 @@ export default {
 				const searchTerms = Array.from(new Set(searchTerm.split(/\s+/).filter(Boolean)));
 
 				filteredItems = filteredItems.filter((item) => {
+					// Use pre-computed search index if available (from itemsStore optimization)
+					if (item._search_index) {
+						// Note: searchTerm is already lowercased above:
+						// const searchTerm = this.get_search(this.first_search).trim().toLowerCase();
+						// searchTerms are derived from it, so they are lowercased.
+						// item._search_index is also lowercased in store.
+						return searchTerms.every((term) => item._search_index.includes(term));
+					}
+
 					const barcodeList = [];
 					if (Array.isArray(item.item_barcode)) {
 						barcodeList.push(...item.item_barcode.map((b) => b.barcode).filter(Boolean));
