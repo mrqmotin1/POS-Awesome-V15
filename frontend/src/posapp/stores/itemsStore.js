@@ -777,12 +777,7 @@ export const useItemsStore = defineStore("items", () => {
 			}
 
 			// Pre-compute search index for performance
-			const searchFields = [
-				item.item_code,
-				item.item_name,
-				item.barcode,
-				item.description,
-			];
+			const searchFields = [item.item_code, item.item_name, item.barcode, item.description];
 
 			if (Array.isArray(item.item_barcode)) {
 				item.item_barcode.forEach((b) => searchFields.push(b?.barcode));
@@ -833,12 +828,7 @@ export const useItemsStore = defineStore("items", () => {
 			}
 
 			// Fallback for items without index
-			const fields = [
-				item.item_code,
-				item.item_name,
-				item.barcode,
-				item.description,
-			];
+			const fields = [item.item_code, item.item_name, item.barcode, item.description];
 
 			if (Array.isArray(item.item_barcode)) {
 				item.item_barcode.forEach((entry) => fields.push(entry?.barcode));
@@ -852,9 +842,7 @@ export const useItemsStore = defineStore("items", () => {
 
 			// Note: Dynamic checking of serial/batch here is slow, but this is a fallback
 			// ideally all items should have _search_index
-			return fields
-				.filter(Boolean)
-				.some((field) => String(field).toLowerCase().includes(searchTerm));
+			return fields.filter(Boolean).some((field) => String(field).toLowerCase().includes(searchTerm));
 		});
 	};
 

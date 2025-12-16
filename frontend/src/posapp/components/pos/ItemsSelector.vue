@@ -671,10 +671,6 @@ export default {
 		items_per_page: 50,
 		temp_items_per_page: 50,
 		temp_force_server_items: false,
-		// Performance optimizations
-		searchCache: new Map(),
-		barcodeIndex: new Map(),
-		itemCache: new Map(),
 		virtualScrollEnabled: true,
 		virtualScrollBuffer: 200,
 		renderBuffer: 10,
@@ -725,7 +721,6 @@ export default {
                 keyboardScanMinLength: 6,
                 keyboardScanMaxInterval: 65,
                 keyboardScanProcessingDelay: 100,
-                lastInvoiceRateCache: new Map(),
                 lastInvoiceRates: {},
                 lastInvoiceRateScheduler: null,
                 lastInvoiceRateLoading: false,
@@ -4242,6 +4237,12 @@ export default {
 	},
 
 	async created() {
+		// Performance optimizations - non-reactive caches
+		this.searchCache = new Map();
+		this.barcodeIndex = new Map();
+		this.itemCache = new Map();
+		this.lastInvoiceRateCache = new Map();
+
 		console.log("ItemsSelector created - starting initialization with Pinia store");
 
 		this.stockUnsubscribe = stockCoordinator.subscribe(this.handleStockSnapshotUpdate);

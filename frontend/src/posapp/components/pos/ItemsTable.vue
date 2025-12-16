@@ -878,7 +878,6 @@ export default {
 			breakpoint: "xl",
 			columnVisibility: new Map(),
 			// Performance optimization caches
-			qtyLengthCache: new Map(),
 			expandedCache: new Map(),
 			lastUpdateTime: 0,
 			editing_qty_row_id: null,
@@ -895,6 +894,7 @@ export default {
 	created() {
 		// Non-reactive cache for performance
 		this.formatCache = new Map();
+		this.qtyLengthCache = new Map();
 	},
 	watch: {
 		displayCurrency() {
