@@ -601,7 +601,9 @@ export default {
 
 		// Initialize Pinia store integration
 		const itemsIntegration = useItemsIntegration({
-			enableDebounce: true,
+			// Disable integration debounce since ItemsSelector manages its own debounce
+			// This prevents a double-debounce delay (300ms + 300ms = 600ms)
+			enableDebounce: false,
 			debounceDelay: 300,
 		});
 
@@ -4148,70 +4150,43 @@ export default {
 			return Math.max(180, width);
 		},
 		displayedItems() {
-			const baseItems = Array.isArray(this.filteredItems) ? [...this.filteredItems] : [];
+			// PERF: Avoid unnecessary array cloning ([...this.filteredItems]) as it creates garbage and O(N) cost on every render
+			const baseItems = Array.isArray(this.filteredItems) ? this.filteredItems : [];
 
 			if (!baseItems.length) {
 				return [];
 			}
 
+			// Note: We use the store's filteredItems which is already filtered by search term and item group.
+			// Re-applying search filtering here is redundant unless we want immediate optimistic UI updates
+			// while waiting for the store debounce. However, doing so with a full array scan is expensive.
+			// We trust the store to be the source of truth.
+
 			const searchTerm = this.get_search(this.first_search).trim().toLowerCase();
 			let filteredItems = baseItems;
 
-			// Apply search filter only for queries with at least three characters
-			if (searchTerm.length >= 3) {
-				const searchTerms = Array.from(new Set(searchTerm.split(/\s+/).filter(Boolean)));
-
+			// Restore local filtering for immediate feedback (Auto Search)
+			// This provides instant results while the store debounces/fetches in the background.
+			if (searchTerm && searchTerm.length >= 3) {
+				const searchTerms = searchTerm.split(/\s+/).filter(Boolean);
 				filteredItems = filteredItems.filter((item) => {
-					// Use pre-computed search index if available (from itemsStore optimization)
+					// Use optimized search index if available
 					if (item._search_index) {
-						// Note: searchTerm is already lowercased above:
-						// const searchTerm = this.get_search(this.first_search).trim().toLowerCase();
-						// searchTerms are derived from it, so they are lowercased.
-						// item._search_index is also lowercased in store.
 						return searchTerms.every((term) => item._search_index.includes(term));
 					}
-
-					const barcodeList = [];
-					if (Array.isArray(item.item_barcode)) {
-						barcodeList.push(...item.item_barcode.map((b) => b.barcode).filter(Boolean));
-					} else if (item.item_barcode) {
-						barcodeList.push(String(item.item_barcode));
-					}
-					if (Array.isArray(item.barcodes)) {
-						barcodeList.push(...item.barcodes.map((b) => String(b)).filter(Boolean));
-					}
-
-					const searchFields = [
-						item.item_code,
-						item.item_name,
-						item.barcode,
-						item.description,
-						...barcodeList,
-						...(this.pos_profile?.posa_search_serial_no && Array.isArray(item.serial_no_data)
-							? item.serial_no_data.map((s) => s.serial_no)
-							: []),
-						...(this.pos_profile?.posa_search_batch_no && Array.isArray(item.batch_no_data)
-							? item.batch_no_data.map((b) => b.batch_no)
-							: []),
-					]
-						.filter(Boolean)
-						.map((field) => field.toLowerCase());
-
-					if (!searchTerms.length) {
-						return true;
-					}
-
-					return searchTerms.every((term) => searchFields.some((field) => field.includes(term)));
+					// Fallback for items without index
+					const rawIndex = (
+						(item.item_code || "") +
+						" " +
+						(item.item_name || "") +
+						" " +
+						(item.barcode || "")
+					).toLowerCase();
+					return searchTerms.every((term) => rawIndex.includes(term));
 				});
 			}
 
-			// Apply item group filter
-			if (this.item_group !== "ALL") {
-				filteredItems = filteredItems.filter(
-					(item) =>
-						item.item_group && item.item_group.toLowerCase() === this.item_group.toLowerCase(),
-				);
-			}
+			// Redundant item_group filter removed as store handles it.
 
 			// Apply zero rate filter
 			if (this.hide_zero_rate_items) {
