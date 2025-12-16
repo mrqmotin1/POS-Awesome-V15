@@ -26,6 +26,7 @@ function posawesomeBuildVersionPlugin(version) {
 }
 
 export default defineConfig({
+	base: "/assets/posawesome/dist/js/",
 	plugins: [
 		posawesomeBuildVersionPlugin(buildVersion),
 		frappeVueStyle(),
