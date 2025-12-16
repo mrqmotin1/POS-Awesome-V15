@@ -20,7 +20,7 @@ import { parseBooleanSetting } from "../../utils/stock.js";
 import stockCoordinator from "../../utils/stockCoordinator.js";
 import { useItemsStore } from "../../stores/itemsStore.js";
 import { usePricingRulesStore } from "../../stores/pricingRulesStore.js";
-import { applyLocalPricingRules, computeFreeItems } from "../../../lib/pricingEngine.js";
+import { evaluatePricingRules } from "../../../lib/pricingEngine.js";
 
 const ITEM_DETAIL_CACHE_TTL = 5000;
 const STOCK_CACHE_TTL = 5000;
@@ -239,7 +239,14 @@ export default {
 		}
 
 		const baseRate = this._resolveBaseRate(item);
-		const pricing = applyLocalPricingRules({ item, qty, docQty, baseRate, ctx, indexes });
+		const { pricing, freebies } = evaluatePricingRules({
+			item,
+			qty,
+			docQty,
+			baseRate,
+			ctx,
+			indexes,
+		});
 
 		this._updatePricingBadge(item, pricing.applied);
 
@@ -290,7 +297,6 @@ export default {
 			item.base_amount = this.flt ? this.flt(baseAmount, this.currency_precision) : baseAmount;
 		}
 
-		const freebies = computeFreeItems({ item, qty, docQty, ctx, indexes });
 		if (Array.isArray(freebies)) {
 			freebies.forEach((entry) => {
 				const key = `${entry.rule}::${entry.item_code}::${item.posa_row_id}`;
