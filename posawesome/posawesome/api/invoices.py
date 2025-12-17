@@ -14,9 +14,11 @@ from erpnext.stock.doctype.batch.batch import (
 )  # This should be from erpnext directly
 from frappe import _
 from frappe.utils import (
+    add_days,
     cint,
     cstr,
     flt,
+    formatdate,
     getdate,
     money_in_words,
     nowdate,
@@ -33,6 +35,58 @@ from posawesome.posawesome.api.utilities import (
 )  # Updated imports
 
 from .items import get_stock_availability
+
+
+def _get_return_validity_settings(pos_profile: str | None = None):
+    """Return whether return validity is enabled and the default days window.
+
+    Positional profile-specific configuration takes precedence over the
+    global POS Settings toggle, falling back to the global values when the
+    profile does not opt in.
+    """
+
+    enable_validity = 0
+    default_days = 0
+
+    if pos_profile:
+        profile = frappe.get_cached_doc("POS Profile", pos_profile)
+        enable_validity = cint(getattr(profile, "posa_enable_return_validity", 0))
+        if enable_validity:
+            default_days = cint(getattr(profile, "posa_return_validity_days", 0))
+
+    if not enable_validity:
+        settings = frappe.get_cached_doc("POS Settings")
+        enable_validity = cint(getattr(settings, "posa_enable_return_validity", 0))
+        if enable_validity:
+            default_days = cint(getattr(settings, "posa_return_validity_days", 0))
+
+    return enable_validity, default_days
+
+
+def _set_return_valid_upto(invoice_doc, enabled, default_days):
+    if not enabled or invoice_doc.is_return:
+        return
+
+    if invoice_doc.get("posa_return_valid_upto"):
+        return
+
+    posting_date = getdate(invoice_doc.get("posting_date") or nowdate())
+    if default_days:
+        invoice_doc.posa_return_valid_upto = add_days(posting_date, default_days)
+    else:
+        invoice_doc.posa_return_valid_upto = posting_date
+
+
+def _validate_return_window(invoice_doc, doctype, enabled):
+    if not enabled or not invoice_doc.is_return or not invoice_doc.get("return_against"):
+        return
+
+    original_invoice = frappe.get_doc(doctype, invoice_doc.return_against)
+    validity_date = original_invoice.get("posa_return_valid_upto")
+    if validity_date and getdate(nowdate()) > getdate(validity_date):
+        frappe.throw(
+            _("Returns are only allowed until {0}").format(formatdate(validity_date))
+        )
 
 
 def _sanitize_item_name(name: str) -> str:
@@ -88,6 +142,20 @@ def _is_stock_item(item):
     return bool(cint(frappe.get_cached_value("Item", item_code, "is_stock_item") or 0))
 
 
+def _allow_negative_stock(item):
+    """Return True if negative stock is allowed globally or for the item."""
+
+    # Global setting overrides everything
+    if cint(frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0):
+        return True
+
+    flag = item.get("allow_negative_stock")
+    if flag is None and item.get("item_code"):
+        flag = frappe.get_cached_value("Item", item.get("item_code"), "allow_negative_stock")
+
+    return bool(cint(flag or 0))
+
+
 def _collect_stock_errors(items):
     """Return list of items exceeding available stock."""
     errors = []
@@ -95,6 +163,8 @@ def _collect_stock_errors(items):
         if flt(d.get("qty")) < 0:
             continue
         if not _is_stock_item(d):
+            continue
+        if _allow_negative_stock(d):
             continue
         available = _get_available_stock(d)
         requested = flt(d.get("stock_qty") or (flt(d.get("qty")) * flt(d.get("conversion_factor") or 1)))
@@ -384,6 +454,8 @@ def update_invoice(data):
     # Ensure the document type is set for new invoices to prevent validation errors
     data.setdefault("doctype", doctype)
 
+    return_validity_enabled, default_validity_days = _get_return_validity_settings(pos_profile)
+
     if data.get("name"):
         invoice_doc = frappe.get_doc(doctype, data.get("name"))
         invoice_doc.update(data)
@@ -400,6 +472,8 @@ def update_invoice(data):
         )
         if not validation.get("valid"):
             frappe.throw(validation.get("message"))
+
+    _validate_return_window(invoice_doc, doctype, return_validity_enabled)
     selected_currency = data.get("currency")
     price_list_currency = data.get("price_list_currency")
     if not price_list_currency and invoice_doc.get("selling_price_list"):
@@ -446,6 +520,8 @@ def update_invoice(data):
 
     # Set missing values first
     invoice_doc.set_missing_values()
+
+    _set_return_valid_upto(invoice_doc, return_validity_enabled, default_validity_days)
 
     # Reapply any custom item names after defaults are set
     _apply_item_name_overrides(invoice_doc, overrides)
@@ -992,6 +1068,7 @@ def search_invoices_for_return(
     min_amount=None,
     max_amount=None,
     page=1,
+    pos_profile=None,
     doctype="Sales Invoice",
 ):
     """
@@ -1015,6 +1092,8 @@ def search_invoices_for_return(
         - invoices: List of invoice documents
         - has_more: Boolean indicating if there are more invoices to load
     """
+    enforce_return_validity, _ = _get_return_validity_settings(pos_profile)
+
     # Start with base filters
     filters = {
         "company": company,
@@ -1124,6 +1203,14 @@ def search_invoices_for_return(
     for invoice in invoices_list:
         invoice_doc = frappe.get_doc(doctype, invoice.name)
 
+        validity_date = invoice_doc.get("posa_return_valid_upto")
+        expired = False
+
+        if enforce_return_validity and validity_date:
+            expired = getdate(nowdate()) > getdate(validity_date)
+
+        invoice_doc.posa_return_expired = cint(expired)
+
         # Check if any items have already been returned
         has_returns = frappe.get_all(
             doctype,
@@ -1157,6 +1244,8 @@ def search_invoices_for_return(
                 # Create a copy of invoice with filtered items
                 filtered_invoice = frappe.get_doc(doctype, invoice.name)
                 filtered_invoice.items = filtered_items
+                filtered_invoice.posa_return_expired = cint(expired)
+                filtered_invoice.posa_return_valid_upto = validity_date
                 data.append(filtered_invoice)
         else:
             data.append(invoice_doc)
@@ -1195,6 +1284,91 @@ def update_invoice_from_order(data):
     _deduplicate_free_items(invoice_doc)
     invoice_doc.save()
     return invoice_doc
+
+
+def _normalize_item_codes(item_codes):
+    """Normalize provided item codes into a clean list."""
+
+    if isinstance(item_codes, str):
+        try:
+            parsed_codes = json.loads(item_codes)
+        except Exception:
+            parsed_codes = [item_codes]
+    else:
+        parsed_codes = item_codes or []
+
+    return [c for c in parsed_codes if c]
+
+
+@frappe.whitelist()
+def get_last_invoice_rates(customer, item_codes=None, company=None, limit_per_item=1):
+    """Return the most recent invoice rate for each requested item for a customer."""
+
+    normalized_codes = _normalize_item_codes(item_codes)
+    if not customer or not normalized_codes:
+        return []
+
+    params = {
+        "customer": customer,
+        "item_codes": normalized_codes,
+        "limit": max(len(normalized_codes) * cint(limit_per_item or 1), 10),
+    }
+
+    filters = ["si.docstatus = 1", "sii.item_code in %(item_codes)s", "si.customer = %(customer)s"]
+    pos_filters = ["pi.docstatus = 1", "pii.item_code in %(item_codes)s", "pi.customer = %(customer)s"]
+
+    if company:
+        params["company"] = company
+        filters.append("si.company = %(company)s")
+        pos_filters.append("pi.company = %(company)s")
+
+    sales_invoice_query = f"""
+        select
+            'Sales Invoice' as doctype,
+            sii.item_code,
+            sii.rate,
+            sii.uom,
+            si.currency,
+            si.name as invoice,
+            si.posting_date,
+            si.creation
+        from `tabSales Invoice Item` sii
+        inner join `tabSales Invoice` si on sii.parent = si.name
+        where {' and '.join(filters)}
+    """
+
+    pos_invoice_query = f"""
+        select
+            'POS Invoice' as doctype,
+            pii.item_code,
+            pii.rate,
+            pii.uom,
+            pi.currency,
+            pi.name as invoice,
+            pi.posting_date,
+            pi.creation
+        from `tabPOS Invoice Item` pii
+        inner join `tabPOS Invoice` pi on pii.parent = pi.name
+        where {' and '.join(pos_filters)}
+    """
+
+    query = (
+        f"{sales_invoice_query}\nUNION ALL\n{pos_invoice_query}\n"
+        "order by posting_date desc, creation desc\n"
+        "limit %(limit)s"
+    )
+
+    rows = frappe.db.sql(query, params, as_dict=True)
+    results = {}
+    for row in rows:
+        code = row.get("item_code")
+        if code and code not in results:
+            results[code] = row
+
+        if len(results) == len(normalized_codes):
+            break
+
+    return list(results.values())
 
 
 @frappe.whitelist()

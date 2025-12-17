@@ -445,6 +445,7 @@ def _build_search_plan(
         "has_serial_no",
         "max_discount",
         "brand",
+        "allow_negative_stock",
     ]
     if include_description:
         fields.append("description")
@@ -732,6 +733,7 @@ def get_item_variants(pos_profile, parent_item_code, price_list=None, customer=N
         "has_serial_no",
         "max_discount",
         "brand",
+        "allow_negative_stock",
     ]
 
     items_data = frappe.get_all(
@@ -898,6 +900,7 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
     res["max_discount"] = max_discount
     res["batch_no_data"] = batch_no_data
     res["serial_no_data"] = serial_no_data
+    res["allow_negative_stock"] = frappe.db.get_value("Item", item_code, "allow_negative_stock")
 
     # Add UOMs data directly from item document
     uoms = frappe.get_all(
@@ -1071,10 +1074,16 @@ def get_items_from_barcode(selling_price_list, currency, barcode):
     else:
         item_uom = None
 
-    if not item_code or not frappe.db.exists("Item", item_code):
+    if not item_code:
         return None
 
-    item_doc = frappe.get_cached_doc("Item", item_code)
+    try:
+        # OPTIMIZE: Remove redundant DB query from exists()
+        # frappe.get_cached_doc will raise DoesNotExistError if item is missing
+        # saving one DB round-trip per scan.
+        item_doc = frappe.get_cached_doc("Item", item_code)
+    except frappe.DoesNotExistError:
+        return None
 
     if not item_uom:
         item_uom = getattr(item_doc, "stock_uom", None)

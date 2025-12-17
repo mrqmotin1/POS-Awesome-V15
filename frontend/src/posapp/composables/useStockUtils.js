@@ -5,6 +5,9 @@ import { isOffline } from "../../offline/index.js";
 export function useStockUtils() {
 	// Calculate UOM conversion and update item rates
 	const calcUom = async (item, value, context) => {
+		if (!item || !value) return;
+		item.uom = value;
+
 		let new_uom = item.item_uoms.find((element) => element.uom == value);
 
 		// try cached uoms when not found on item
@@ -70,6 +73,7 @@ export function useStockUtils() {
 
 		if (uomRate) {
 			item._manual_rate_set = true;
+			item._manual_rate_set_from_uom = true;
 
 			// default rates based on fetched UOM price
 			let base_price = uomRate;
@@ -145,6 +149,7 @@ export function useStockUtils() {
 		// revert the displayed rate back to the single-unit price.
 		const shouldPreserveManualRate = value !== item.stock_uom || item.conversion_factor !== 1;
 		item._manual_rate_set = shouldPreserveManualRate;
+		item._manual_rate_set_from_uom = shouldPreserveManualRate;
 
 		// Reset discount if not offer
 		if (!item.posa_offer_applied) {

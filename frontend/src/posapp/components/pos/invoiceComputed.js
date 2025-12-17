@@ -7,7 +7,6 @@ export default {
 	// Calculate total quantity of all items
 	total_qty() {
 		const mark = perfMarkStart("pos:totals-total_qty");
-		this.close_payments();
 		const store = this.invoiceStore;
 		const storeValue = store?.totalQty?.value ?? store?.totalQty;
 		let qty;
@@ -51,7 +50,6 @@ export default {
 	// Calculate subtotal after discounts and delivery charges
 	subtotal() {
 		const mark = perfMarkStart("pos:totals-subtotal");
-		this.close_payments();
 		const store = this.invoiceStore;
 		const storeValue = store?.grossTotal?.value ?? store?.grossTotal;
 		let sum = typeof storeValue === "number" && !Number.isNaN(storeValue) ? storeValue : 0;
@@ -142,8 +140,7 @@ export default {
 		if (["Order", "Quotation"].includes(this.invoiceType)) {
 			return false;
 		}
-		const allowNegative = parseBooleanSetting(this.stock_settings?.allow_negative_stock);
-		return !allowNegative && Boolean(this.pos_profile?.posa_block_sale_beyond_available_qty);
+		return Boolean(this.pos_profile?.posa_block_sale_beyond_available_qty);
 	},
 	// Table headers for item table (for another table if needed)
 	itemTableHeaders() {

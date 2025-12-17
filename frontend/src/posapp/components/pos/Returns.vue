@@ -38,6 +38,7 @@
 								format="dd-MM-yyyy"
 								:enable-time-picker="false"
 								auto-apply
+								class="pos-themed-input"
 								@update:model-value="formatFromDate()"
 							/>
 						</v-col>
@@ -48,6 +49,7 @@
 								format="dd-MM-yyyy"
 								:enable-time-picker="false"
 								auto-apply
+								class="pos-themed-input"
 								@update:model-value="formatToDate()"
 							/>
 						</v-col>
@@ -182,6 +184,7 @@
 								v-model="selected"
 								select-strategy="single"
 								return-object
+								:item-class="returnRowClass"
 								:footer-props="{
 									'items-per-page-options': [10, 25, 50, 100],
 									'items-per-page-text': 'Invoices per page',
@@ -190,6 +193,22 @@
 							>
 								<template v-slot:item.posting_date="{ item }">
 									{{ formatDateDisplay(item.posting_date) }}
+								</template>
+								<template v-slot:item.posa_return_valid_upto="{ item }">
+									<div class="d-flex align-center">
+										<span v-if="item.posa_return_valid_upto">
+											{{ formatDateDisplay(item.posa_return_valid_upto) }}
+										</span>
+										<v-chip
+											v-if="item.posa_return_expired"
+											color="error"
+											size="small"
+											class="ml-2"
+											label
+										>
+											{{ __("Return window passed") }}
+										</v-chip>
+									</div>
 								</template>
 								<template v-slot:item.grand_total="{ item }">
 									{{ currencySymbol(item.currency) }}
@@ -281,6 +300,12 @@ export default {
 				sortable: true,
 			},
 			{
+				title: __("Return Valid Until"),
+				value: "posa_return_valid_upto",
+				align: "start",
+				sortable: false,
+			},
+			{
 				title: __("Amount"),
 				value: "grand_total",
 				align: "end",
@@ -298,6 +323,12 @@ export default {
 		},
 	},
 	methods: {
+		returnRowClass(item) {
+			if (!item || typeof item !== "object") {
+				return "";
+			}
+			return item.posa_return_expired ? "return-expired-row" : "";
+		},
 		formatDateDisplay(dateStr) {
 			if (!dateStr) return "";
 			try {
@@ -509,6 +540,7 @@ export default {
 				max_amount: maxAmount,
 				company: vm.company,
 				page: vm.page,
+				pos_profile: vm.pos_profile?.name,
 				doctype:
 					vm.pos_profile && vm.pos_profile.create_pos_invoice_instead_of_sales_invoice
 						? "POS Invoice"
@@ -660,3 +692,9 @@ export default {
 	},
 };
 </script>
+
+<style scoped>
+.return-expired-row {
+	background-color: #ffebee !important;
+}
+</style>

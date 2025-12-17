@@ -127,6 +127,9 @@ import { useRtl } from "../composables/useRtl.js";
 const ServerUsageGadget = defineAsyncComponent(() => import("./navbar/ServerUsageGadget.vue"));
 const DatabaseUsageGadget = defineAsyncComponent(() => import("./navbar/DatabaseUsageGadget.vue"));
 const DEFAULT_SNACK_TIMEOUT = 3000;
+const OFFLINE_WARNING_TITLE = "Connection lost. Some features might not work.";
+const OFFLINE_WARNING_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const OFFLINE_NOTIFICATION_KEY = "offline-connection-warning";
 
 export default {
 	name: "NavBar",
@@ -217,6 +220,7 @@ export default {
 			notificationQueue: [],
 			currentNotification: null,
 			clearQueuedOnClose: false,
+			lastNotificationShownAt: {},
 			clearingCache: false,
 			initialCacheRefreshRequested: false,
 			notificationUpdateHandle: null,
@@ -435,6 +439,10 @@ export default {
 				return;
 			}
 
+			if (this.shouldThrottleNotification(notification)) {
+				return;
+			}
+
 			if (this.currentNotification && this.currentNotification.key === notification.key) {
 				this.mergeNotifications(this.currentNotification, notification);
 				this.updateActiveNotification();
@@ -466,7 +474,17 @@ export default {
 				(typeof data.groupKey === "string" && data.groupKey.trim()) ||
 				"";
 
-			const baseKey = providedKey || `${color}::${summary || title}`;
+			const offlineWarning = this.isConnectionLossNotification(title, summary, detail);
+			const cooldownMs =
+				typeof data.cooldownMs === "number" && data.cooldownMs >= 0
+					? data.cooldownMs
+					: offlineWarning
+						? OFFLINE_WARNING_COOLDOWN_MS
+						: undefined;
+
+			const baseKey = offlineWarning
+				? OFFLINE_NOTIFICATION_KEY
+				: providedKey || `${color}::${summary || title}`;
 
 			return {
 				title,
@@ -476,7 +494,49 @@ export default {
 				key: baseKey,
 				summary,
 				latestDetail: detail,
+				cooldownMs,
+				isOfflineWarning: offlineWarning,
 			};
+		},
+		shouldThrottleNotification(notification) {
+			const effectiveCooldown = this.getNotificationCooldown(notification);
+			if (!effectiveCooldown) {
+				return false;
+			}
+
+			const lastShown = this.lastNotificationShownAt[notification.key] || 0;
+			const now = Date.now();
+
+			if (now - lastShown < effectiveCooldown) {
+				return true;
+			}
+
+			this.lastNotificationShownAt[notification.key] = now;
+			return false;
+		},
+		getNotificationCooldown(notification) {
+			if (typeof notification.cooldownMs === "number") {
+				return notification.cooldownMs;
+			}
+
+			if (notification.isOfflineWarning || notification.title === OFFLINE_WARNING_TITLE) {
+				return OFFLINE_WARNING_COOLDOWN_MS;
+			}
+
+			return 0;
+		},
+		isConnectionLossNotification(title = "", summary = "", detail = "") {
+			const combined = `${title} ${summary} ${detail}`.toLowerCase();
+			if (!combined) {
+				return false;
+			}
+
+			return (
+				combined.includes("connection lost") ||
+				combined.includes("not connected to internet") ||
+				(combined.includes("connection") && combined.includes("offline")) ||
+				(combined.includes("internet") && combined.includes("retry"))
+			);
 		},
 		mergeNotifications(target, incoming) {
 			target.count += incoming.count;

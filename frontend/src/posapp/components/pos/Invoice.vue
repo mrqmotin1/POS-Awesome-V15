@@ -358,6 +358,7 @@ import { useInvoiceStore } from "../../stores/invoiceStore.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
 import stockCoordinator from "../../utils/stockCoordinator.js";
+import { parseBooleanSetting } from "../../utils/stock.js";
 import { isOffline } from "../../../offline/index.js";
 
 export default {
@@ -1091,13 +1092,17 @@ export default {
 
 			const enforceStockLimits = this.shouldEnforceStockLimits(item);
 			// Enforce available stock limits
+			const allowNegativeStock =
+				(parseBooleanSetting(this.stock_settings?.allow_negative_stock) ||
+					parseBooleanSetting(item?.allow_negative_stock)) &&
+				!this.blockSaleBeyondAvailableQty;
+
 			if (
 				enforceStockLimits &&
 				item.max_qty !== undefined &&
 				this.flt(item[field_name]) > this.flt(item.max_qty)
 			) {
-				const blockSale =
-					!this.stock_settings.allow_negative_stock || this.blockSaleBeyondAvailableQty;
+				const blockSale = this.blockSaleBeyondAvailableQty || !allowNegativeStock;
 				if (blockSale) {
 					item[field_name] = item.max_qty;
 					parsedValue = item.max_qty;
@@ -1519,14 +1524,17 @@ export default {
 		// Increase quantity of an item (handles return logic)
 		add_one(item) {
 			const enforceStockLimits = this.shouldEnforceStockLimits(item);
+			const allowNegativeStock =
+				(parseBooleanSetting(this.stock_settings?.allow_negative_stock) ||
+					parseBooleanSetting(item?.allow_negative_stock)) &&
+				!this.blockSaleBeyondAvailableQty;
 			if (this.isReturnInvoice) {
 				// For returns, make quantity more negative
 				item.qty--;
 			} else {
 				const proposed = item.qty + 1;
 				const blockSale =
-					enforceStockLimits &&
-					(!this.stock_settings.allow_negative_stock || this.blockSaleBeyondAvailableQty);
+					enforceStockLimits && (this.blockSaleBeyondAvailableQty || !allowNegativeStock);
 				const exceedsAvailable =
 					enforceStockLimits && item.max_qty !== undefined && proposed > item.max_qty;
 				if (blockSale && exceedsAvailable) {

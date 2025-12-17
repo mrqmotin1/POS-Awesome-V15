@@ -18,7 +18,7 @@ app_license = "GPLv3"
 _asset_version = get_build_version()
 
 app_include_js = [
-    f"/assets/posawesome/dist/js/posawesome.umd.js?v={_asset_version}",
+    f"/assets/posawesome/dist/js/loader.js?v={_asset_version}",
 ]
 
 app_include_css = [
@@ -296,6 +296,12 @@ fixtures = [
                     "POS Profile-posa_enable_camera_scanning",
                     "POS Profile-posa_camera_scan_type",
                     "POS Profile-posa_language",
+                    "POS Profile-posa_enable_return_validity",
+                    "POS Profile-posa_return_validity_days",
+                    "POS Settings-posa_enable_return_validity",
+                    "POS Settings-posa_return_validity_days",
+                    "POS Invoice-posa_return_valid_upto",
+                    "Sales Invoice-posa_return_valid_upto",
                 ),
             ]
         ],

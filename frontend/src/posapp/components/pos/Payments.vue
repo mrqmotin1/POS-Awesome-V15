@@ -113,6 +113,31 @@
 							</v-btn>
 						</v-col>
 
+						<!-- Cash Denomination Buttons -->
+						<v-col
+							cols="12"
+							v-if="
+								payment.default === 1 &&
+								isCashLikePayment(payment) &&
+								getVisibleDenominations(payment).length
+							"
+							class="py-0 px-2 mt-n1 mb-2"
+						>
+							<div class="d-flex flex-wrap gap-2">
+								<v-btn
+									v-for="d in getVisibleDenominations(payment)"
+									:key="d"
+									size="x-small"
+									class="mr-1 mb-1"
+									color="secondary"
+									variant="tonal"
+									@click="setPaymentToDenomination(payment, d)"
+								>
+									{{ formatCurrency(d) }}
+								</v-btn>
+							</div>
+						</v-col>
+
 						<!-- M-Pesa Payment Button (if payment is M-Pesa) -->
 						<v-col cols="12" v-if="is_mpesa_c2b_payment(payment)" class="pl-3">
 							<v-btn block color="success" theme="dark" @click="mpesa_c2b_dialog(payment)">
@@ -337,6 +362,19 @@
 							auto-apply
 							class="sleek-field pos-themed-input"
 							@update:model-value="update_delivery_date()"
+						/>
+					</v-col>
+					<v-col cols="6" v-if="returnValidityEnabled && invoice_doc && !invoice_doc.is_return">
+						<VueDatePicker
+							v-model="return_valid_upto_date"
+							model-type="format"
+							format="dd-MM-yyyy"
+							:min-date="returnValidityMinDate"
+							:enable-time-picker="false"
+							auto-apply
+							class="sleek-field pos-themed-input"
+							:placeholder="frappe._('Return Valid Until')"
+							@update:model-value="updateReturnValidUpto"
 						/>
 					</v-col>
 					<!-- Shipping Address Selection (if delivery date is set) -->
@@ -765,6 +803,7 @@
 // Importing format mixin for currency and utility functions
 import format, { formatUtils } from "../../format";
 import { parseBooleanSetting } from "../../utils/stock.js";
+import { getSmartTenderSuggestions } from "../../../utils/smartTender.js";
 import {
 	saveOfflineInvoice,
 	syncOfflineInvoices,
@@ -795,7 +834,7 @@ export default {
 		return {
 			loading: false, // UI loading state
 			pos_profile: "", // POS profile settings
-			pos_settings: "", // POS settings
+			pos_settings: {}, // POS settings
 			stock_settings: "", // Stock settings
 			invoiceType: "Invoice", // Type of invoice
 			is_return: false, // Is this a return invoice?
@@ -818,6 +857,7 @@ export default {
 			new_credit_due_date: null, // New credit due date value
 			credit_due_days: null, // Number of days until due
 			credit_due_presets: [7, 14, 30], // Preset options for due days
+			return_valid_upto_date: null, // Return valid until display date
 			customer_info: "", // Customer info
 			mpesa_modes: [], // List of available M-Pesa modes
 			sales_persons: [], // List of sales persons
@@ -852,8 +892,7 @@ export default {
 			if (["Order", "Quotation"].includes(this.invoiceType)) {
 				return false;
 			}
-			const allowNegative = parseBooleanSetting(this.stock_settings?.allow_negative_stock);
-			return !allowNegative && Boolean(this.pos_profile?.posa_block_sale_beyond_available_qty);
+			return Boolean(this.pos_profile?.posa_block_sale_beyond_available_qty);
 		},
 		// Calculate total payments (all methods, loyalty, credit)
 		total_payments() {
@@ -1045,6 +1084,23 @@ export default {
 					(el) => el.fieldtype === "Button" && el.fieldname === "request_for_payment",
 				) || false
 			);
+		},
+		returnValidityEnabled() {
+			return Boolean(
+				this.pos_profile?.posa_enable_return_validity ||
+					this.pos_settings?.posa_enable_return_validity,
+			);
+		},
+		returnValidityMinDate() {
+			const postingDate = this.invoice_doc?.posting_date || frappe.datetime?.nowdate?.();
+			if (!postingDate) {
+				return new Date();
+			}
+			const parsed = new Date(postingDate);
+			if (Number.isNaN(parsed.getTime())) {
+				return new Date();
+			}
+			return parsed;
 		},
 	},
 	watch: {
@@ -2127,6 +2183,58 @@ export default {
 			this.applyDuePreset(this.custom_days_value);
 			this.custom_days_dialog = false;
 		},
+		calculateReturnValidUntil(baseDate) {
+			const formattedBase = this.formatDate(baseDate);
+			if (!formattedBase) {
+				return null;
+			}
+			const parsed = new Date(formattedBase);
+			if (Number.isNaN(parsed.getTime())) {
+				return null;
+			}
+			const profileDays = parseInt(this.pos_profile?.posa_return_validity_days ?? 0, 10);
+			const settingsDays = parseInt(this.pos_settings?.posa_return_validity_days ?? 0, 10);
+			const daysSetting = Number.isFinite(profileDays) && profileDays > 0 ? profileDays : settingsDays;
+			if (Number.isFinite(daysSetting) && daysSetting > 0) {
+				parsed.setDate(parsed.getDate() + daysSetting);
+			}
+			const year = parsed.getFullYear();
+			const month = `0${parsed.getMonth() + 1}`.slice(-2);
+			const day = `0${parsed.getDate()}`.slice(-2);
+			return `${year}-${month}-${day}`;
+		},
+		initializeReturnValidity(invoice_doc) {
+			if (!this.returnValidityEnabled || !invoice_doc || invoice_doc.is_return) {
+				this.return_valid_upto_date = null;
+				if (invoice_doc) {
+					invoice_doc.posa_return_valid_upto = null;
+				}
+				return;
+			}
+
+			const existing = invoice_doc.posa_return_valid_upto;
+			const proposedDate =
+				existing ||
+				this.calculateReturnValidUntil(invoice_doc.posting_date || frappe.datetime.nowdate());
+
+			if (proposedDate) {
+				const backendDate = this.formatDate(proposedDate);
+				invoice_doc.posa_return_valid_upto = backendDate;
+				this.return_valid_upto_date = this.formatDateDisplay(backendDate);
+			}
+		},
+		updateReturnValidUpto(value) {
+			if (!this.returnValidityEnabled) {
+				return;
+			}
+			const formatted = this.formatDate(value);
+			this.return_valid_upto_date = this.formatDateDisplay(formatted);
+			if (this.invoice_doc) {
+				this.invoice_doc.posa_return_valid_upto = formatted;
+			} else {
+				this.invoiceStore.mergeInvoiceDoc({ posa_return_valid_upto: formatted });
+			}
+		},
 		// Format date to YYYY-MM-DD
 		formatDate(date) {
 			if (!date) return null;
@@ -2216,53 +2324,87 @@ export default {
 			format.methods.setFormatedCurrency.call(this, payment, "amount", null, false, event);
 
 			this.$nextTick(() => {
-				// Auto-subtract from other payments if we have an excess
-				const invoice_total = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
-
-				// Calculate current total paid
-				let current_total_paid = 0;
-				if (this.invoice_doc && this.invoice_doc.payments) {
-					this.invoice_doc.payments.forEach((p) => {
-						current_total_paid +=
-							parseFloat(formatUtils.fromArabicNumerals(String(p.amount))) || 0;
-					});
-				}
-				current_total_paid = this.flt(current_total_paid, this.currency_precision);
-
-				const excess = this.flt(current_total_paid - invoice_total, this.currency_precision);
-
-				if (excess > 0) {
-					// Find other payments with amount > 0 to reduce
-					// We filter out the current payment being edited to avoid circular issues
-					const otherPayments = this.invoice_doc.payments.filter(
-						(p) => p !== payment && this.flt(p.amount) > 0,
-					);
-
-					// Sort by amount descending to reduce larger chunks first
-					otherPayments.sort((a, b) => this.flt(b.amount) - this.flt(a.amount));
-
-					let remaining_excess = excess;
-
-					for (const other of otherPayments) {
-						if (remaining_excess <= 0) break;
-
-						const otherAmount = this.flt(other.amount, this.currency_precision);
-						const reduction = Math.min(otherAmount, remaining_excess);
-						const newAmount = this.flt(otherAmount - reduction, this.currency_precision);
-
-						other.amount = newAmount;
-						if (other.base_amount !== undefined) {
-							// Approximate base amount update, though submit logic recalculates it
-							other.base_amount = this.flt(
-								newAmount / (this.exchange_rate || 1),
-								this.currency_precision,
-							);
-						}
-
-						remaining_excess = this.flt(remaining_excess - reduction, this.currency_precision);
-					}
-				}
+				this.autoBalancePayments(payment);
 			});
+		},
+		setPaymentToDenomination(payment, amount) {
+			payment.amount = amount;
+			if (payment.base_amount !== undefined) {
+				const conversion_rate = this.invoice_doc.conversion_rate || 1;
+				payment.base_amount = this.flt(amount * conversion_rate, this.currency_precision);
+			}
+			this.last_payment_change_was_cash = this.isCashLikePayment(payment);
+			this.$nextTick(() => {
+				this.autoBalancePayments(payment);
+			});
+		},
+		autoBalancePayments(excludePayment) {
+			// Auto-subtract from other payments if we have an excess
+			const invoice_total = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
+
+			// Calculate current total paid
+			let current_total_paid = 0;
+			if (this.invoice_doc && this.invoice_doc.payments) {
+				this.invoice_doc.payments.forEach((p) => {
+					current_total_paid += parseFloat(formatUtils.fromArabicNumerals(String(p.amount))) || 0;
+				});
+			}
+			current_total_paid = this.flt(current_total_paid, this.currency_precision);
+
+			const excess = this.flt(current_total_paid - invoice_total, this.currency_precision);
+
+			if (excess > 0) {
+				// Find other payments with amount > 0 to reduce
+				// We filter out the current payment being edited to avoid circular issues
+				const otherPayments = this.invoice_doc.payments.filter(
+					(p) => p !== excludePayment && this.flt(p.amount) > 0,
+				);
+
+				// Sort by amount descending to reduce larger chunks first
+				otherPayments.sort((a, b) => this.flt(b.amount) - this.flt(a.amount));
+
+				let remaining_excess = excess;
+
+				for (const other of otherPayments) {
+					if (remaining_excess <= 0) break;
+
+					const otherAmount = this.flt(other.amount, this.currency_precision);
+					const reduction = Math.min(otherAmount, remaining_excess);
+					const newAmount = this.flt(otherAmount - reduction, this.currency_precision);
+
+					other.amount = newAmount;
+					if (other.base_amount !== undefined) {
+						// Approximate base amount update, though submit logic recalculates it
+						other.base_amount = this.flt(
+							newAmount / (this.exchange_rate || 1),
+							this.currency_precision,
+						);
+					}
+
+					remaining_excess = this.flt(remaining_excess - reduction, this.currency_precision);
+				}
+			}
+		},
+		getVisibleDenominations(payment) {
+			if (!this.invoice_doc || !payment) return [];
+			const currency = this.invoice_doc.currency;
+
+			const current_total_paid = this.total_payments;
+			const current_payment_amount =
+				parseFloat(formatUtils.fromArabicNumerals(String(payment.amount))) || 0;
+
+			const other_payments = current_total_paid - current_payment_amount;
+
+			const invoice_total = this.flt(
+				this.invoice_doc.rounded_total || this.invoice_doc.grand_total,
+				this.currency_precision,
+			);
+
+			const amount_to_pay = invoice_total - other_payments;
+
+			if (amount_to_pay <= 0) return [];
+
+			return getSmartTenderSuggestions(amount_to_pay, currency);
 		},
 		isCashLikePayment(payment) {
 			if (!payment) {
@@ -2383,6 +2525,7 @@ export default {
 					);
 					this.is_credit_return = false;
 				}
+				this.initializeReturnValidity(invoice_doc);
 				this.loyalty_amount = 0;
 				this.redeemed_customer_credit = 0;
 				// Only get addresses if customer exists
@@ -2424,10 +2567,14 @@ export default {
 					// Ensure payments are negative for returns
 					this.ensureReturnPaymentsAreNegative();
 					this.is_credit_return = false;
+					this.return_valid_upto_date = null;
 				}
 			});
 			this.eventBus.on("set_pos_settings", (data) => {
-				this.pos_settings = data;
+				this.pos_settings = data || {};
+				if (this.invoice_doc && !this.invoice_doc.is_return) {
+					this.initializeReturnValidity(this.invoice_doc);
+				}
 			});
 			this.eventBus.on("set_mpesa_payment", (data) => {
 				this.set_mpesa_payment(data);
@@ -2437,6 +2584,7 @@ export default {
 				this.invoice_doc = "";
 				this.is_return = false;
 				this.is_credit_return = false;
+				this.return_valid_upto_date = null;
 			});
 			// Scroll to top when payment view is shown
 			this.eventBus.on("show_payment", this.handleShowPayment);

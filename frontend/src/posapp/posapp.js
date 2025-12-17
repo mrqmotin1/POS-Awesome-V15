@@ -112,7 +112,7 @@ frappe.PosApp.posapp = class {
 			window.location.hostname === "127.0.0.1"
 		) {
 			navigator.serviceWorker
-				.register("/assets/posawesome/dist/www/sw.js")
+				.register("/sw.js")
 				.then((registration) => {
 					console.log("SW registered successfully", registration);
 				})
