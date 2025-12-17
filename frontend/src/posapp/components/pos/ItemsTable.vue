@@ -86,7 +86,8 @@
 						size="small"
 						variant="flat"
 						class="pos-table__qty-btn pos-table__qty-btn--minus minus-btn qty-control-btn"
-						@click.stop="handleMinusClick(item)" :aria-label="__('Decrease quantity')"
+						@click.stop="handleMinusClick(item)"
+						:aria-label="__('Decrease quantity')"
 					>
 						<v-icon size="small">mdi-minus</v-icon>
 					</v-btn>
@@ -131,7 +132,8 @@
 						size="small"
 						variant="flat"
 						class="pos-table__qty-btn pos-table__qty-btn--plus plus-btn qty-control-btn"
-						@click.stop="addOne(item)" :aria-label="__('Increase quantity')"
+						@click.stop="addOne(item)"
+						:aria-label="__('Increase quantity')"
 					>
 						<v-icon size="small">mdi-plus</v-icon>
 					</v-btn>
@@ -144,7 +146,8 @@
 						size="x-small"
 						variant="flat"
 						class="pos-table__editor-btn uom-arrow"
-						@click.stop="changeUom(item, -1)" :aria-label="__('Previous unit of measure')"
+						@click.stop="changeUom(item, -1)"
+						:aria-label="__('Previous unit of measure')"
 						:disabled="!item.item_uoms || item.item_uoms.length <= 1"
 					>
 						<v-icon size="small">mdi-chevron-left</v-icon>
@@ -168,7 +171,8 @@
 						size="x-small"
 						variant="flat"
 						class="pos-table__editor-btn uom-arrow"
-						@click.stop="changeUom(item, 1)" :aria-label="__('Next unit of measure')"
+						@click.stop="changeUom(item, 1)"
+						:aria-label="__('Next unit of measure')"
 						:disabled="!item.item_uoms || item.item_uoms.length <= 1"
 					>
 						<v-icon size="small">mdi-chevron-right</v-icon>
@@ -185,7 +189,10 @@
 						@click.stop="openRateEdit(item)"
 					>
 						<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
-						<span class="amount-value" :class="{ 'negative-number': memoizedIsNegative(item.rate) }">
+						<span
+							class="amount-value"
+							:class="{ 'negative-number': memoizedIsNegative(item.rate) }"
+						>
 							{{ memoizedFormatCurrency(item.rate) }}
 						</span>
 					</div>
@@ -333,7 +340,8 @@
 					size="small"
 					variant="flat"
 					class="pos-table__delete-btn delete-action-btn"
-					@click.stop="removeItem(item)" :aria-label="__('Remove item')"
+					@click.stop="removeItem(item)"
+					:aria-label="__('Remove item')"
 				>
 					<v-icon size="small">mdi-delete-outline</v-icon>
 				</v-btn>
@@ -378,7 +386,10 @@
 											class="pos-themed-input"
 											hide-details
 											:model-value="
-												memoizedFormatFloat(item.qty, hide_qty_decimals ? 0 : undefined)
+												memoizedFormatFloat(
+													item.qty,
+													hide_qty_decimals ? 0 : undefined,
+												)
 											"
 											@change="handleQtyChange(item, $event)"
 											:rules="[isNumber]"
@@ -486,7 +497,9 @@
 											:label="frappe._('Discount Amount')"
 											class="pos-themed-input"
 											hide-details
-											:model-value="memoizedFormatCurrency(Math.abs(item.discount_amount || 0))"
+											:model-value="
+												memoizedFormatCurrency(Math.abs(item.discount_amount || 0))
+											"
 											@change="[
 												setFormatedCurrency(
 													item,
@@ -976,10 +989,10 @@ export default {
 			};
 		},
 
-                blockSaleBeyondAvailableQty() {
-                        if (["Order", "Quotation"].includes(this.invoiceType)) return false;
-                        return !!this.pos_profile?.posa_block_sale_beyond_available_qty;
-                },
+		blockSaleBeyondAvailableQty() {
+			if (["Order", "Quotation"].includes(this.invoiceType)) return false;
+			return !!this.pos_profile?.posa_block_sale_beyond_available_qty;
+		},
 
 		// Responsive headers based on container size
 		responsiveHeaders() {
@@ -1143,6 +1156,12 @@ export default {
 				return true;
 			}
 
+			// PERF: Use pre-computed search index if available to avoid expensive traversal
+			const rawItem = item?.raw ?? item;
+			if (rawItem?._search_index) {
+				return terms.every((term) => rawItem._search_index.includes(term));
+			}
+
 			const haystacks = [];
 			const collect = (input) => {
 				if (input == null) {
@@ -1168,16 +1187,15 @@ export default {
 			};
 
 			collect(value);
-			const raw = item?.raw ?? item;
-			collect(raw?.item_name);
-			collect(raw?.item_code);
-			collect(raw?.description);
-			collect(raw?.barcode);
-			collect(raw?.serial_no);
-			collect(raw?.batch_no);
-			collect(raw?.uom);
-			collect(raw?.item_barcode);
-			collect(raw?.barcodes);
+			collect(rawItem?.item_name);
+			collect(rawItem?.item_code);
+			collect(rawItem?.description);
+			collect(rawItem?.barcode);
+			collect(rawItem?.serial_no);
+			collect(rawItem?.batch_no);
+			collect(rawItem?.uom);
+			collect(rawItem?.item_barcode);
+			collect(rawItem?.barcodes);
 
 			if (!haystacks.length) {
 				return false;
@@ -1462,8 +1480,8 @@ export default {
 				this.calcUom(item, newUom);
 			}
 			// Find the correct component instance to blur
-			const uomSelectComponent = this.$refs.uomSelect.find(
-				(ref) => ref.$el.id.includes(item.posa_row_id),
+			const uomSelectComponent = this.$refs.uomSelect.find((ref) =>
+				ref.$el.id.includes(item.posa_row_id),
 			);
 			uomSelectComponent?.blur();
 		},
