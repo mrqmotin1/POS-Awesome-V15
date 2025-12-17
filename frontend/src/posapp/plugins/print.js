@@ -233,3 +233,54 @@ export function silentPrint(url, options = {}) {
 		}
 	}
 }
+
+//for raw silent print using QZ Tray #################
+export function rawSilentPrint(doc, print_format) {
+    // 1. Fetch the Raw Content from Server
+    frappe.call({
+        method: 'frappe.www.printview.get_html_and_style',
+        args: {
+            doc: doc,
+            print_format: print_format,
+        },
+        callback: async (r) => {
+            if (!r.exc && r.message && r.message.html) {
+                // 2. Parse the response to get clean ESC/POS commands
+                const txt = document.createElement("textarea");
+                txt.innerHTML = r.message.html;
+                const rawContent = txt.value;
+                try {                 
+                    if (!QZ) {
+                        frappe.throw("QZ Helper is not loaded.");
+                        return;
+                    }
+                    // Get Printer
+                    const printerName = await QZ.getPosPrinter();
+                    console.log("Configured POS Printer:", printerName);
+
+                    if (!printerName) {
+                        frappe.throw("No POS Printer Configured in User Settings.");
+                        return;
+                    }
+                    // Create Config & Print
+                    const config = qz.configs.create(printerName);
+                    const data = [{
+                        type: 'raw',
+                        format: 'command',
+                        flavor: 'plain',
+                        data: rawContent
+                    }];
+
+                    await qz.print(config, data);              
+
+                } catch (err) {
+                    console.error("QZ Error:", err);
+                    frappe.msgprint("Printing Error: " + err);
+                }
+            } else {
+                console.error("Failed to fetch print content", r);
+                frappe.msgprint("Could not fetch print format data.");
+            }
+        }
+    });
+}
