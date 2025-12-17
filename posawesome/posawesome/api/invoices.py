@@ -383,8 +383,13 @@ def validate_cart_items(items, pos_profile=None):
     return errors
 
 
-def get_latest_rate(from_currency: str, to_currency: str):
+def get_latest_rate(from_currency: str, to_currency: str, cache=None):
     """Return the most recent Currency Exchange rate and its date."""
+    if cache is not None:
+        key = (from_currency, to_currency)
+        if key in cache:
+            return cache[key]
+
     rate_doc = frappe.get_all(
         "Currency Exchange",
         filters={"from_currency": from_currency, "to_currency": to_currency},
@@ -393,9 +398,15 @@ def get_latest_rate(from_currency: str, to_currency: str):
         limit=1,
     )
     if rate_doc:
-        return flt(rate_doc[0].exchange_rate), rate_doc[0].date
-    rate = get_exchange_rate(from_currency, to_currency, nowdate())
-    return flt(rate), nowdate()
+        result = flt(rate_doc[0].exchange_rate), rate_doc[0].date
+    else:
+        rate = get_exchange_rate(from_currency, to_currency, nowdate())
+        result = flt(rate), nowdate()
+
+    if cache is not None:
+        cache[key] = result
+
+    return result
 
 
 @frappe.whitelist()
@@ -441,6 +452,7 @@ def validate_return_items(original_invoice_name, return_items, doctype="Sales In
 
 @frappe.whitelist()
 def update_invoice(data):
+    currency_cache = {}
     data = json.loads(data)
     _strip_client_freebies_from_payload(data)
     # Determine doctype based on POS Profile setting
@@ -548,6 +560,7 @@ def update_invoice(data):
         conversion_rate, exchange_rate_date = get_latest_rate(
             invoice_doc.currency,
             company_currency,
+            cache=currency_cache,
         )
         if not conversion_rate:
             frappe.throw(
@@ -561,6 +574,7 @@ def update_invoice(data):
             plc_conversion_rate, _ignored = get_latest_rate(
                 price_list_currency,
                 invoice_doc.currency,
+                cache=currency_cache,
             )
             if not plc_conversion_rate:
                 frappe.throw(
@@ -940,31 +954,21 @@ def submit_invoice(invoice, data):
         invoice_doc.pos_profile,
         "posa_allow_submissions_in_background_job",
     ):
-        invoices_list = frappe.get_all(
-            invoice_doc.doctype,
-            filters={
-                "posa_pos_opening_shift": invoice_doc.posa_pos_opening_shift,
-                "docstatus": 0,
-                "posa_is_printed": 1,
+        enqueue(
+            method=submit_in_background_job,
+            queue="short",
+            timeout=1000,
+            is_async=True,
+            kwargs={
+                "invoice": invoice_doc.name,
+                "doctype": invoice_doc.doctype,
+                "data": data,
+                "is_payment_entry": is_payment_entry,
+                "total_cash": total_cash,
+                "cash_account": cash_account,
+                "payments": payments,
             },
         )
-        for invoice in invoices_list:
-            enqueue(
-                method=submit_in_background_job,
-                queue="short",
-                timeout=1000,
-                is_async=True,
-                kwargs={
-                    "invoice": invoice.name,
-                    "doctype": invoice_doc.doctype,
-                    "invoice_doc": invoice_doc,
-                    "data": data,
-                    "is_payment_entry": is_payment_entry,
-                    "total_cash": total_cash,
-                    "cash_account": cash_account,
-                    "payments": payments,
-                },
-            )
     else:
         invoice_doc.submit()
         _create_change_payment_entries(invoice_doc, data, pos_profile, cash_account)
