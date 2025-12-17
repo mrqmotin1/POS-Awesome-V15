@@ -1349,8 +1349,9 @@ export default {
 
 			this.abortController = new AbortController();
 
+			let timeoutId;
 			const timeoutPromise = new Promise((_, reject) => {
-				setTimeout(() => reject(new Error("Request timed out")), 5000);
+				timeoutId = setTimeout(() => reject(new Error("Request timed out")), 5000);
 			});
 
 			const requestPromise = frappe.call({
@@ -1364,7 +1365,20 @@ export default {
 				signal: this.abortController.signal,
 			});
 
-			this.itemDetailsRequestCache.promise = Promise.race([requestPromise, timeoutPromise]);
+			const wrappedRequestPromise = requestPromise
+				.then((res) => {
+					clearTimeout(timeoutId);
+					return res;
+				})
+				.catch((err) => {
+					clearTimeout(timeoutId);
+					throw err;
+				});
+
+			this.itemDetailsRequestCache.promise = Promise.race([
+				wrappedRequestPromise,
+				timeoutPromise,
+			]);
 
 			try {
 				const r = await this.itemDetailsRequestCache.promise;
@@ -1379,6 +1393,8 @@ export default {
 						this.abortController.abort();
 					}
 					console.warn("Item details fetch timed out, proceeding with local data.");
+					// Prevent unhandled rejection from the aborted request
+					wrappedRequestPromise.catch(() => {});
 				} else if (err.name !== "AbortError") {
 					console.error("Error fetching item details:", err);
 				}
