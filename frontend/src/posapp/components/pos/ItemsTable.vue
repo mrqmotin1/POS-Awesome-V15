@@ -233,6 +233,21 @@
 			<!-- Discount percentage column -->
 			<template v-slot:item.discount_value="{ item }">
 				<div class="pos-table__editor-box">
+					<v-btn
+						:disabled="
+							!pos_profile.posa_allow_user_to_edit_item_discount ||
+							!!item.posa_is_replace ||
+							!!item.posa_offer_applied ||
+							item.discount_percentage <= 0
+						"
+						size="small"
+						variant="flat"
+						class="pos-table__qty-btn pos-table__qty-btn--minus minus-btn qty-control-btn"
+						@click.stop="minusOneDiscountPercent(item)"
+						:aria-label="__('Decrease percentage')"
+					>
+						<v-icon size="small">mdi-minus</v-icon>
+					</v-btn>
 					<div
 						v-if="editing_discount_percent_row_id !== item.posa_row_id"
 						class="pos-table__editor-display"
@@ -248,7 +263,7 @@
 												: 0),
 									),
 								)
-							}}%
+							}}
 						</span>
 					</div>
 					<v-text-field
@@ -270,6 +285,21 @@
 							!!item.posa_offer_applied
 						"
 					></v-text-field>
+					<v-btn
+						:disabled="
+							!pos_profile.posa_allow_user_to_edit_item_discount ||
+							!!item.posa_is_replace ||
+							!!item.posa_offer_applied ||
+							item.discount_percentage >= 100
+						"
+						size="small"
+						variant="flat"
+						class="pos-table__qty-btn pos-table__qty-btn--plus plus-btn qty-control-btn"
+						@click.stop="plusOneDiscountPercent(item)"
+						:aria-label="__('Increase percentage')"
+					>
+						<v-icon size="small">mdi-plus</v-icon>
+					</v-btn>
 				</div>
 			</template>
 
@@ -1019,7 +1049,7 @@ export default {
 						return ["item_name", "qty", "rate", "amount", "actions"].includes(header.key);
 					} else if (this.containerWidth < 900) {
 						// Medium: hide advanced columns
-						return !["discount_value", "price_list_rate"].includes(header.key);
+						return !["discount_amount", "price_list_rate"].includes(header.key);
 					}
 
 					// Large: show all columns
@@ -1566,6 +1596,30 @@ export default {
 				}
 				this.editing_discount_percent_row_id = null;
 				this.editing_discount_percent_value = null;
+			}
+		},
+		plusOneDiscountPercent(item) {
+			let newValue = Number(item.discount_percentage || 0) + 1;
+
+			// Clamp between 0 and 100
+			newValue = Math.min(100, Math.max(0, newValue));
+			if (newValue !== item.discount_percentage) {
+				this.setFormatedCurrency(item, "discount_percentage", null, false, {
+					target: { value: newValue },
+				});
+				this.calcPrices(item, newValue, { target: { id: "discount_percentage" } });
+			}
+		},
+		minusOneDiscountPercent(item) {
+			let newValue = Number(item.discount_percentage || 0) - 1;
+
+			// Clamp between 0 and 100
+			newValue = Math.min(100, Math.max(0, newValue));
+			if (newValue !== item.discount_percentage) {
+				this.setFormatedCurrency(item, "discount_percentage", null, false, {
+					target: { value: newValue },
+				});
+				this.calcPrices(item, newValue, { target: { id: "discount_percentage" } });
 			}
 		},
 		openDiscountAmountEdit(item) {
