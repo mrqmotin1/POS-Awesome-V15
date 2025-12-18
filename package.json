@@ -77,7 +77,8 @@
     "linux": {
       "target": ["AppImage"],
       "artifactName": "POSAwesome-${version}.${ext}",
-      "category": "Office"
+      "category": "Office",
+      "publish": "never"
     },
     "protocols": [
       {
