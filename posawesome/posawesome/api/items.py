@@ -445,6 +445,7 @@ def _build_search_plan(
         "has_serial_no",
         "max_discount",
         "brand",
+        "custom_generic_name",
         "allow_negative_stock",
     ]
     if include_description:
@@ -487,6 +488,7 @@ def _collect_searchable_values(row: Dict[str, Any]) -> List[str]:
         row.get("description"),
         row.get("barcode"),
         row.get("brand"),
+        row.get("custom_generic_name"),
         row.get("item_group"),
         row.get("attributes"),
     ]

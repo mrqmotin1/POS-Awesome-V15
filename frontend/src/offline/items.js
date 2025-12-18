@@ -137,6 +137,7 @@ export function saveItemDetailsCache(profileName, priceList, items) {
 				rate: it.rate,
 				price_list_rate: it.price_list_rate,
 				currency: it.currency,
+				custom_generic_name: it.custom_generic_name,
 			}));
 			cleanItems = JSON.parse(JSON.stringify(cleanItems));
 		} catch (err) {
@@ -284,6 +285,7 @@ export async function searchStoredItems({ search = "", itemGroup = "", limit = 1
 			pushValue(item.description);
 			pushValue(item.barcode);
 			pushValue(item.brand);
+			pushValue(item.custom_generic_name);
 			pushValue(item.item_group);
 			pushValue(item.attributes);
 

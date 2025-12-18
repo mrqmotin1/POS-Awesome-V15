@@ -759,6 +759,7 @@ export function saveItemDetailsCache(profileName, priceList, items) {
 				item_uoms: it.item_uoms,
 				rate: it.rate,
 				price_list_rate: it.price_list_rate,
+				custom_generic_name: it.custom_generic_name,
 			}));
 			cleanItems = JSON.parse(JSON.stringify(cleanItems));
 		} catch (err) {
