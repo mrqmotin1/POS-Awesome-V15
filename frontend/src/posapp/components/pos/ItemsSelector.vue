@@ -1935,7 +1935,7 @@ export default {
 		getItemsHeaders() {
 			const items_headers = [
 				{
-					title: __("Name"),
+					title: __("Product"),
 					align: "start",
 					sortable: true,
 					key: "item_name",
@@ -1946,11 +1946,11 @@ export default {
 					sortable: true,
 					key: "item_code",
 				},
-				{ title: __("Generic"), key: "custom_generic_name", align: "start" },
 				{ title: __("Category"), key: "item_group", align: "start" },
+				{ title: __("MRP"), key: "rate", align: "start" },
+				{ title: __("Stock"), key: "actual_qty", align: "start" },
+				{ title: __("Generic"), key: "custom_generic_name", align: "start" },
 				{ title: __("Vendor"), key: "brand", align: "start" },
-				{ title: __("Rate"), key: "rate", align: "start" },
-				{ title: __("Available QTY"), key: "actual_qty", align: "start" },
 				// { title: __("UOM"), key: "stock_uom", align: "start" },
 			];
 			if (!this.pos_profile.posa_display_item_code) {
