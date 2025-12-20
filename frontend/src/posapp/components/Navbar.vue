@@ -18,8 +18,6 @@
 					:server-online="serverOnline"
 					:server-connecting="serverConnecting"
 					:is-ip-host="isIpHost"
-					:sync-totals="syncTotals"
-					:cache-ready="cacheReady"
 				/>
 			</template>
 
@@ -194,7 +192,6 @@ export default {
 			type: Object,
 			default: () => ({ total: 0, indexedDB: 0, localStorage: 0 }),
 		},
-		cacheReady: Boolean,
 		loadingProgress: {
 			type: Number,
 			default: 0,
@@ -233,29 +230,28 @@ export default {
 			clearQueuedOnClose: false,
 			lastNotificationShownAt: {},
 			clearingCache: false,
-			initialCacheRefreshRequested: false,
 			notificationUpdateHandle: null,
 			notificationUpdateUsesTimeout: false,
 			notificationCenter: {
 				items: [],
 				unread: 0,
 			},
+			lastSyncTotalsSnapshot: { pending: 0, synced: 0, drafted: 0 },
+			syncNotificationPrimed: false,
 		};
 	},
 	watch: {
-		cacheReady: {
-			handler(newVal) {
-				if (newVal && !this.initialCacheRefreshRequested) {
-					this.initialCacheRefreshRequested = true;
-					this.refreshCacheUsage();
-				}
-			},
-			immediate: true,
-		},
 		snack(newVal, oldVal) {
 			if (!newVal && oldVal) {
 				this.handleSnackbarClosed();
 			}
+		},
+		syncTotals: {
+			handler(newTotals, oldTotals) {
+				this.handleSyncTotalsNotification(newTotals, oldTotals);
+			},
+			deep: true,
+			immediate: true,
 		},
 	},
 	computed: {
@@ -448,6 +444,101 @@ export default {
 		},
 		updateAfterDelete() {
 			this.$emit("update-after-delete");
+		},
+		handleSyncTotalsNotification(newTotals = {}, oldTotals = {}) {
+			const normalized = this.normalizeSyncTotals(newTotals);
+			const previous = this.syncNotificationPrimed
+				? this.normalizeSyncTotals(this.lastSyncTotalsSnapshot)
+				: this.normalizeSyncTotals(oldTotals);
+
+			// Prime state without spamming when component mounts
+			if (!this.syncNotificationPrimed) {
+				this.syncNotificationPrimed = true;
+				this.lastSyncTotalsSnapshot = normalized;
+
+				if (this.hasOfflineSyncCounts(normalized)) {
+					this.addBellNotification({
+						title: this.__("Offline invoices status"),
+						detail: this.__("Pending: {0} | Synced: {1} | Draft: {2}", [
+							normalized.pending,
+							normalized.synced,
+							normalized.drafted,
+						]),
+						color: normalized.pending ? "warning" : "success",
+					});
+				}
+				return;
+			}
+
+			const diffSynced = Math.max(0, normalized.synced - previous.synced);
+			const diffDrafted = Math.max(0, normalized.drafted - previous.drafted);
+
+			if (normalized.pending !== previous.pending) {
+				const pendingTitle =
+					normalized.pending > 0
+						? this.__("{0} offline invoice{1} pending", [
+								normalized.pending,
+								normalized.pending > 1 ? "s" : "",
+							])
+						: this.__("No pending offline invoices");
+
+				this.addBellNotification({
+					title: pendingTitle,
+					detail: this.__("Pending count updated from {0} to {1}", [
+						previous.pending,
+						normalized.pending,
+					]),
+					color: normalized.pending ? "warning" : "success",
+				});
+			}
+
+			if (diffSynced > 0) {
+				this.addBellNotification({
+					title: this.__("{0} offline invoice{1} synced", [
+						diffSynced,
+						diffSynced > 1 ? "s" : "",
+					]),
+					detail: this.__("Pending: {0}", [normalized.pending]),
+					color: "success",
+				});
+			}
+
+			if (diffDrafted > 0) {
+				this.addBellNotification({
+					title: this.__("{0} offline invoice{1} saved as draft", [
+						diffDrafted,
+						diffDrafted > 1 ? "s" : "",
+					]),
+					detail: this.__("Pending: {0}", [normalized.pending]),
+					color: "warning",
+				});
+			}
+
+			if (normalized.pending === 0 && previous.pending > 0 && diffSynced === 0 && diffDrafted === 0) {
+				this.addBellNotification({
+					title: this.__("Offline invoices synced"),
+					detail: this.__("All pending invoices are up to date"),
+					color: "success",
+				});
+			}
+
+			this.lastSyncTotalsSnapshot = normalized;
+		},
+		normalizeSyncTotals(totals = {}) {
+			const toNumber = (value) => {
+				const parsed = Number(value);
+				return Number.isFinite(parsed) ? parsed : 0;
+			};
+
+			return {
+				pending: toNumber(totals.pending),
+				synced: toNumber(totals.synced),
+				drafted: toNumber(totals.drafted),
+			};
+		},
+		hasOfflineSyncCounts(totals = {}) {
+			const normalized = this.normalizeSyncTotals(totals);
+			return normalized.pending > 0 || normalized.synced > 0 || normalized.drafted > 0;
 		},
 		handleInvoiceSubmissionFailed(payload = {}) {
 			const invoiceNumber =
