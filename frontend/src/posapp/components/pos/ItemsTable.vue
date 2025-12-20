@@ -21,6 +21,7 @@
 			:item-height="virtualScrollConfig.itemHeight"
 			:buffer-size="virtualScrollConfig.bufferSize"
 			expand-on-click
+			fixed-header
 			:density="tableDensity"
 			hide-default-footer
 			:single-expand="true"
