@@ -81,6 +81,9 @@
 					</v-tooltip>
 				</v-btn>
 
+				<!-- Notification bell between offline invoices and menu -->
+				<slot name="notification-bell"></slot>
+
 				<!-- Mobile Menu - contains all other items -->
 				<slot name="menu"></slot>
 			</template>
@@ -159,6 +162,9 @@
 						{{ __("Offline Invoices") }} ({{ pendingInvoices }})
 					</v-tooltip>
 				</v-btn>
+
+				<!-- Notification bell between offline invoices and menu -->
+				<slot name="notification-bell"></slot>
 
 				<!-- Menu component slot -->
 				<slot name="menu"></slot>
@@ -407,12 +413,16 @@ export default {
 	order: 4;
 }
 
+.ltr-actions-section .notification-bell-btn {
+	order: 5;
+}
+
 /* Menu should be the last element */
 .ltr-actions-section> :last-child,
 /* menu slot */
 .ltr-actions-section .v-menu,
 .ltr-actions-section [role="menu"] {
-	order: 5 !important;
+	order: 6 !important;
 }
 
 /* RTL adjustments for gadgets - reverse the order */
@@ -426,6 +436,10 @@ export default {
 
 .rtl-actions-section .offline-invoices-btn {
 	order: 2;
+}
+
+.rtl-actions-section .notification-bell-btn {
+	order: 1;
 }
 
 /* RTL Menu should be first */

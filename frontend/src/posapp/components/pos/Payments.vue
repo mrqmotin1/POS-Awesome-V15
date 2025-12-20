@@ -1641,6 +1641,16 @@ export default {
                                 });
 
 				if (!r.message) {
+					if (
+						this.pos_profile?.posa_allow_submissions_in_background_job &&
+						this.eventBus &&
+						typeof this.eventBus.emit === "function"
+					) {
+						this.eventBus.emit("invoice_submission_failed", {
+							invoice: this.invoice_doc?.name,
+							reason: __("No response from server"),
+						});
+					}
 					this.eventBus.emit("show_message", {
 						title: __("Error submitting invoice: No response from server"),
 						color: "error",
@@ -1706,6 +1716,16 @@ export default {
 						this.submit_invoice(print);
 					}, 500);
 				} else {
+					if (
+						this.pos_profile?.posa_allow_submissions_in_background_job &&
+						this.eventBus &&
+						typeof this.eventBus.emit === "function"
+					) {
+						this.eventBus.emit("invoice_submission_failed", {
+							invoice: this.invoice_doc?.name,
+							reason: errorMsg,
+						});
+					}
 					this.eventBus.emit("show_message", {
 						title: __("Error submitting invoice: ") + errorMsg,
 						color: "error",
