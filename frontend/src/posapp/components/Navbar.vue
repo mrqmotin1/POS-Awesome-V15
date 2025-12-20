@@ -43,6 +43,15 @@
 				<DatabaseUsageGadget />
 			</template>
 
+			<template #notification-bell>
+				<NotificationBell
+					:notifications="notificationCenter.items"
+					:unread-count="notificationCenter.unread"
+					@mark-read="markBellNotificationsRead"
+					@clear="clearBellNotifications"
+				/>
+			</template>
+
 			<!-- Slot for menu -->
 			<template #menu>
 				<NavbarMenu
@@ -114,6 +123,7 @@ import { defineAsyncComponent } from "vue";
 import NavbarAppBar from "./navbar/NavbarAppBar.vue";
 import NavbarDrawer from "./navbar/NavbarDrawer.vue";
 import NavbarMenu from "./navbar/NavbarMenu.vue";
+import NotificationBell from "./navbar/NotificationBell.vue";
 import StatusIndicator from "./navbar/StatusIndicator.vue";
 import CacheUsageMeter from "./navbar/CacheUsageMeter.vue";
 import AboutDialog from "./navbar/AboutDialog.vue";
@@ -145,6 +155,7 @@ export default {
 		NavbarAppBar,
 		NavbarDrawer,
 		NavbarMenu,
+		NotificationBell,
 		StatusIndicator,
 		CacheUsageMeter,
 		AboutDialog,
@@ -225,6 +236,10 @@ export default {
 			initialCacheRefreshRequested: false,
 			notificationUpdateHandle: null,
 			notificationUpdateUsesTimeout: false,
+			notificationCenter: {
+				items: [],
+				unread: 0,
+			},
 		};
 	},
 	watch: {
@@ -271,6 +286,7 @@ export default {
 			this.eventBus.off("freeze", this.handleFreeze);
 			this.eventBus.off("unfreeze", this.handleUnfreeze);
 			this.eventBus.off("set_company", this.handleSetCompany);
+			this.eventBus.off("invoice_submission_failed", this.handleInvoiceSubmissionFailed);
 		}
 	},
 	methods: {
@@ -351,6 +367,7 @@ export default {
 				this.eventBus.on("freeze", this.handleFreeze);
 				this.eventBus.on("unfreeze", this.handleUnfreeze);
 				this.eventBus.on("set_company", this.handleSetCompany);
+				this.eventBus.on("invoice_submission_failed", this.handleInvoiceSubmissionFailed);
 			}
 		},
 		handleNavClick() {
@@ -431,6 +448,55 @@ export default {
 		},
 		updateAfterDelete() {
 			this.$emit("update-after-delete");
+		},
+		handleInvoiceSubmissionFailed(payload = {}) {
+			const invoiceNumber =
+				payload.invoice || payload.invoiceId || payload.invoice_name || payload.name || payload.reference;
+			const rawReason = (payload.reason || payload.error || payload.message || "").toString().trim();
+			const reasonText =
+				rawReason || this.__("The invoice stayed in draft. Please review and submit it manually.");
+			const title = invoiceNumber
+				? this.__("Invoice {0} submission failed", [invoiceNumber])
+				: this.__("Invoice submission failed");
+
+			this.addBellNotification({
+				title,
+				detail: this.__("Saved as draft because: {0}", [reasonText]),
+				color: "error",
+				timestamp: payload.timestamp || Date.now(),
+			});
+
+			this.showMessage({
+				title,
+				summary: title,
+				detail: reasonText,
+				color: "error",
+				groupId: "invoice-submission-failed",
+			});
+		},
+		addBellNotification(notification = {}) {
+			const title = notification.title || this.__("Notification");
+			const detail = notification.detail || "";
+			const color = notification.color || "info";
+			const timestamp = notification.timestamp || Date.now();
+
+			const entry = {
+				id: `${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+				title,
+				detail,
+				color,
+				timestamp,
+			};
+
+			this.notificationCenter.items = [entry, ...this.notificationCenter.items].slice(0, 20);
+			this.notificationCenter.unread += 1;
+		},
+		markBellNotificationsRead() {
+			this.notificationCenter.unread = 0;
+		},
+		clearBellNotifications() {
+			this.notificationCenter.items = [];
+			this.notificationCenter.unread = 0;
 		},
 		showMessage(data) {
 			const notification = this.normalizeNotification(data);
