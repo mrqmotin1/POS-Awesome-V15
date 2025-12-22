@@ -1836,6 +1836,7 @@ export default {
 			(doc.price_list_currency === doc.currency ? 1 : this.exchange_rate);
 
 		// Other fields
+		doc.custom_pay_type = "Cash";
 		doc.campaign = doc.campaign || this.pos_profile.campaign;
 		doc.selling_price_list = this.pos_profile.selling_price_list;
 		doc.naming_series = doc.naming_series || this.pos_profile.naming_series;

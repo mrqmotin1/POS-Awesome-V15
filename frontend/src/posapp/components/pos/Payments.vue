@@ -526,6 +526,25 @@
 				<!-- Switches for Write Off and Credit Sale -->
 				<v-row class="pa-1" align="start" no-gutters>
 					<v-col
+						cols="12"
+						v-if="invoice_doc && pos_profile.posa_allow_credit_sale"
+					>
+						<v-radio-group
+							v-model="invoice_doc.custom_pay_type"
+							:label="frappe._('Payment Type')"
+							@change="onPaymentTypeChange"
+						>
+							<v-row>
+								<v-col cols="auto">
+								<v-radio label="Cash" value="Cash"></v-radio>
+								</v-col>
+								<v-col cols="auto">
+								<v-radio label="Card" value="Card"></v-radio>
+								</v-col>
+						</v-row>
+						</v-radio-group>
+					</v-col>
+					<v-col
 						cols="6"
 						v-if="
 							invoice_doc &&
@@ -2481,6 +2500,15 @@ export default {
 				}
 			}
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
+		},
+		onPaymentTypeChange(event) {
+			const value = event.target.value;
+			console.log("Payment type changed to:", value);
+			if (value === "Card") {
+				this.invoice_doc.custom_pay_type = "Card";
+			} else {
+				this.invoice_doc.custom_pay_type = "Cash";
+			}
 		},
 	},
 	// Lifecycle hook: created

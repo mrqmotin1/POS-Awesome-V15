@@ -93,6 +93,20 @@
 			<!-- Action Buttons -->
 			<v-col cols="12" md="5">
 				<v-row dense>
+					<v-col cols="12">
+						<v-btn
+							block
+							color="success"
+							theme="dark"
+							size="large"
+							prepend-icon="mdi-credit-card"
+							@click="handleShowPayment"
+							class="summary-btn pay-btn"
+							:loading="paymentLoading"
+						>
+							{{ __("PAY") }}
+						</v-btn>
+					</v-col>
 					<v-col cols="6">
 						<v-btn
 							block
@@ -182,20 +196,6 @@
 							:loading="applyOffersLoading"
 						>
 							{{ __("Apply Offers") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="12">
-						<v-btn
-							block
-							color="success"
-							theme="dark"
-							size="large"
-							prepend-icon="mdi-credit-card"
-							@click="handleShowPayment"
-							class="summary-btn pay-btn"
-							:loading="paymentLoading"
-						>
-							{{ __("PAY") }}
 						</v-btn>
 					</v-col>
 				</v-row>
