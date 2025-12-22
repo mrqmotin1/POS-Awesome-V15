@@ -2323,9 +2323,9 @@ export default {
 			this.last_payment_change_was_cash = this.isCashLikePayment(payment);
 			format.methods.setFormatedCurrency.call(this, payment, "amount", null, false, event);
 
-			this.$nextTick(() => {
-				this.autoBalancePayments(payment);
-			});
+			// this.$nextTick(() => {
+			// 	this.autoBalancePayments(payment);
+			// });
 		},
 		setPaymentToDenomination(payment, amount) {
 			payment.amount = amount;
@@ -2334,9 +2334,9 @@ export default {
 				payment.base_amount = this.flt(amount * conversion_rate, this.currency_precision);
 			}
 			this.last_payment_change_was_cash = this.isCashLikePayment(payment);
-			this.$nextTick(() => {
-				this.autoBalancePayments(payment);
-			});
+			// this.$nextTick(() => {
+			// 	this.autoBalancePayments(payment);
+			// });
 		},
 		autoBalancePayments(excludePayment) {
 			// Auto-subtract from other payments if we have an excess
