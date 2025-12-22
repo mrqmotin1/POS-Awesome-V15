@@ -825,6 +825,7 @@ import {
 
 import renderOfflineInvoiceHTML from "../../../offline_print_template";
 import { silentPrint, watchPrintWindow } from "../../plugins/print.js";
+import { rawSilentPrint} from "../../plugins/print.js";
 import { useInvoiceStore } from "../../stores/invoiceStore.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
@@ -1833,7 +1834,12 @@ export default {
 				invoiceDoc: this.invoice_doc,
 				allowOfflineFallback: isOffline(),
 			};
-			if (this.pos_profile.posa_silent_print) {
+			// === ADDED: Custom Raw Silent Print Check 
+			if (this.pos_profile.custom_enable_raw_silent_print) {
+				console.log("Using custom raw silent print for invoice:", this.invoice_doc.name);
+				rawSilentPrint(this.invoice_doc, print_format); 				
+			}	 			
+			else if(this.pos_profile.posa_silent_print) {
 				silentPrint(url, printOptions);
 			} else {
 				const printWindow = window.open(url, "Print");
