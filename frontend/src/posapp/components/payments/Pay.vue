@@ -14,7 +14,7 @@
 								<p>
 									<strong>{{ __("Invoices") }}</strong>
 									<span v-if="total_outstanding_amount" class="text-primary"
-										>{{ __("- Total Outstanding") }} :
+										>{{ __(" - Total Outstanding") }} :
 										{{ currencySymbol(pos_profile.currency) }}
 										{{ formatCurrency(total_outstanding_amount) }}</span
 									>
@@ -336,18 +336,20 @@
 								</v-col>
 								<v-col md="5">
 									<div class="d-flex align-center">
-										<div class="mr-1 text-primary">
+										<!-- <div class="mr-1 text-primary">
 											{{ currencySymbol(pos_profile.currency) }}
-										</div>
+										</div> -->
 										<v-text-field
-											class="p-0 m-0 pos-themed-input"
+											class="sleek-field pos-themed-input"
 											density="compact"
 											color="primary"
-											hide-details
-											v-model="method.amount"
-											type="number"
 											flat
-											@input="$forceUpdate()"
+											hide-details
+											:model-value="formatCurrency(method.amount)"
+											@change="handlePaymentAmountChange(method, $event)"
+											:rules="[isNumber]"
+											:prefix="currencySymbol(pos_profile.currency)"
+											@focus="set_rest_amount(method.mode_of_payment)"
 										></v-text-field>
 									</div>
 								</v-col>
@@ -380,7 +382,6 @@
 									block
 									size="large"
 									color="primary"
-									theme="dark"
 									@click="submit"
 									:disabled="vaildatPayment || isSubmitting"
 									:loading="isSubmitting"
@@ -962,7 +963,7 @@ export default {
 			this.pos_profile.payments.forEach((method) => {
 				this.payment_methods.push({
 					mode_of_payment: method.mode_of_payment,
-					amount: 0,
+					amount: method.mode_of_payment == this.selected_invoices?.[0]?.custom_pay_type ? this.total_selected_invoices : 0,
 					row_id: method.name,
 				});
 			});
@@ -1204,6 +1205,16 @@ export default {
 				});
 			}
 		},
+		handlePaymentAmountChange(payment, event) {
+			format.methods.setFormatedCurrency.call(this, payment, "amount", null, false, event);
+		},
+		set_rest_amount(mode_of_payment) {
+			this.payment_methods.forEach((payment) => {
+				if (payment.mode_of_payment === mode_of_payment && payment.amount === 0 && this.total_of_diff > 0) {
+					payment.amount = this.total_of_diff;
+				}
+			});
+		},
 	},
 
 	computed: {
@@ -1264,6 +1275,16 @@ export default {
 			});
 
 			return flt(invoiceTotal - paymentTotal);
+		},
+	},
+
+	watch: {
+		selected_invoices: {
+			handler() {
+				this.set_payment_methods();
+			},
+			deep: true,
+			immediate: true,
 		},
 	},
 

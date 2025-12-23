@@ -187,6 +187,7 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                 "pos_profile",
                 "customer",
                 "customer_name",
+                "custom_pay_type",
             ],
             order_by="posting_date desc",
         )
