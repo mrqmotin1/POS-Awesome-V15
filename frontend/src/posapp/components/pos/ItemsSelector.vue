@@ -4091,9 +4091,6 @@ export default {
 				if (aStarts && !bStarts) return -1;
 				if (!aStarts && bStarts) return 1;
 
-				if (aContains && !bContains) return -1;
-				if (!aContains && bContains) return 1;
-
 				// fallback alphabetical
 				return aName.localeCompare(bName);
 			});}
