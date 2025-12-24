@@ -17,3 +17,7 @@ This journal records critical performance learnings, anti-patterns, and insights
 ## 2025-12-19 - [Cart merge scans don't scale]
 **Learning:** Both the POS item addition flow and the ItemsTable component used repeated `Array.find` scans to merge incoming items with existing lines. With 100+ rows, burst additions became O(n²) and measured ~6ms per 500 merges versus ~1ms when using a keyed Map.
 **Action:** Prefer non-reactive merge maps keyed by item_code/uom/rate (plus batch when needed) and refresh them incrementally so burst additions stay O(1) per item.
+
+## 2025-12-19 - [Refine local search results]
+**Learning:** Filtering the entire item catalog (potentially thousands of items) on every keystroke (O(N)) is wasteful when the user is simply appending characters to refine a search.
+**Action:** When a search term is an extension of the previous term (e.g., "app" -> "appl") and the result set was not empty, filter the *previous* result set instead of the full list. This reduces the search space from O(N) to O(K) where K << N.

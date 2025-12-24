@@ -494,10 +494,7 @@ export default {
 
 			if (diffSynced > 0) {
 				this.addBellNotification({
-					title: this.__("{0} offline invoice{1} synced", [
-						diffSynced,
-						diffSynced > 1 ? "s" : "",
-					]),
+					title: this.__("{0} offline invoice{1} synced", [diffSynced, diffSynced > 1 ? "s" : ""]),
 					detail: this.__("Pending: {0}", [normalized.pending]),
 					color: "success",
 				});
@@ -542,7 +539,11 @@ export default {
 		},
 		handleInvoiceSubmissionFailed(payload = {}) {
 			const invoiceNumber =
-				payload.invoice || payload.invoiceId || payload.invoice_name || payload.name || payload.reference;
+				payload.invoice ||
+				payload.invoiceId ||
+				payload.invoice_name ||
+				payload.name ||
+				payload.reference;
 			const rawReason = (payload.reason || payload.error || payload.message || "").toString().trim();
 			const reasonText =
 				rawReason || this.__("The invoice stayed in draft. Please review and submit it manually.");

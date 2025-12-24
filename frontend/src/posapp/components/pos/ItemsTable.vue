@@ -1219,7 +1219,7 @@ export default {
 		isColumnVisible(key) {
 			// Check if column is in selected columns (or required)
 			// responsiveHeaders already filters by visibility, so we check if key exists there
-			return this.responsiveHeaders.some(h => h.key === key);
+			return this.responsiveHeaders.some((h) => h.key === key);
 		},
 
 		handleQtyUpdate(item, newQty) {

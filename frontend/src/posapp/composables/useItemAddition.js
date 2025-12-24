@@ -38,10 +38,7 @@ export function useItemAddition() {
 
 	// PERF: maintain an O(1) lookup map for mergeable lines to avoid repeated O(n) scans when 100+ items are added
 	const shouldIndexItem = (entry) =>
-		entry &&
-		!entry.posa_is_offer &&
-		!entry.posa_is_replace &&
-		Number.parseFloat(entry.qty) > 0;
+		entry && !entry.posa_is_offer && !entry.posa_is_replace && Number.parseFloat(entry.qty) > 0;
 
 	const buildMergeKey = (entry, requireBatch) => {
 		const batchPart = requireBatch ? entry?.batch_no || "" : "";
@@ -101,8 +98,7 @@ export function useItemAddition() {
 		if (!context || !entry) return;
 		const cache = ensureMergeCache(context);
 		const itemsRef = context.items || [];
-		const index =
-			typeof indexHint === "number" && indexHint >= 0 ? indexHint : itemsRef.indexOf(entry);
+		const index = typeof indexHint === "number" && indexHint >= 0 ? indexHint : itemsRef.indexOf(entry);
 
 		if (index === -1) {
 			cache.signature = -1;
@@ -188,7 +184,7 @@ export function useItemAddition() {
 				posa_offers: JSON.stringify([]),
 				posa_offer_applied: 0,
 				posa_is_offer: 0,
-				_needs_update: true // Mark for background update
+				_needs_update: true, // Mark for background update
 			};
 			context.packed_items.push(child);
 
@@ -277,7 +273,7 @@ export function useItemAddition() {
 				if (context.setSerialNo) context.setSerialNo(item);
 
 				// Resolve all promises waiting for this update
-				data.resolvers.forEach(r => r(item));
+				data.resolvers.forEach((r) => r(item));
 			}
 		}
 
@@ -356,10 +352,7 @@ export function useItemAddition() {
 					}
 				}
 
-				if (
-					(!context.pos_profile.posa_auto_set_batch && item.has_batch_no) ||
-					item.has_serial_no
-				) {
+				if ((!context.pos_profile.posa_auto_set_batch && item.has_batch_no) || item.has_serial_no) {
 					nextTick(() => {
 						context.expanded = [item.posa_row_id];
 					});
@@ -367,10 +360,10 @@ export function useItemAddition() {
 
 				// Resolve all promises waiting for this new item
 				if (Array.isArray(resolvers)) {
-					resolvers.forEach(r => r(item));
+					resolvers.forEach((r) => r(item));
 				} else {
 					// Fallback if structure mismatches (shouldn't happen with new logic)
-					if (typeof resolvers === 'function') resolvers(item);
+					if (typeof resolvers === "function") resolvers(item);
 					else if (resolvers && resolvers.resolve) resolvers.resolve(item);
 				}
 			});
@@ -594,7 +587,7 @@ export function useItemAddition() {
 			} else {
 				// Existing item update
 				const cur_item = context.items[index];
-				const qtyDelta = context.isReturnInvoice ? -Math.abs(new_item.qty || 1) : (new_item.qty || 1);
+				const qtyDelta = context.isReturnInvoice ? -Math.abs(new_item.qty || 1) : new_item.qty || 1;
 
 				if (context.invoiceStore) {
 					// Use batching for updates

@@ -4438,7 +4438,7 @@ export default {
 
 		if (!Array.isArray(items)) return;
 
-		items.forEach(item => {
+		items.forEach((item) => {
 			if (!item) return;
 			// Check if item is marked dirty or needs sync
 			// We can also check if essential fields are missing (like price_list_rate if 0?)
@@ -4457,7 +4457,7 @@ export default {
 			await this.update_items_details(itemsToUpdate);
 
 			// Mark as synced
-			itemsToUpdate.forEach(item => {
+			itemsToUpdate.forEach((item) => {
 				item._needs_update = false;
 				item._detailSynced = true;
 			});

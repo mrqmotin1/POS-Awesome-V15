@@ -139,28 +139,17 @@
 		</td>
 
 		<!-- Price List Rate (Optional) -->
-		<td
-			v-if="showPriceListRate"
-			class="text-end"
-			:data-column-key="'price_list_rate'"
-		>
+		<td v-if="showPriceListRate" class="text-end" :data-column-key="'price_list_rate'">
 			<div class="currency-display right-aligned">
 				<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
-				<span
-					class="amount-value"
-					:class="{ 'negative-number': isNegative(item.price_list_rate) }"
-				>
+				<span class="amount-value" :class="{ 'negative-number': isNegative(item.price_list_rate) }">
 					{{ formatCurrency(item.price_list_rate) }}
 				</span>
 			</div>
 		</td>
 
 		<!-- Discount % (Optional) -->
-		<td
-			v-if="showDiscountPercent"
-			class="text-center"
-			:data-column-key="'discount_value'"
-		>
+		<td v-if="showDiscountPercent" class="text-center" :data-column-key="'discount_value'">
 			<div class="pos-table__editor-box">
 				<div
 					v-if="!isEditingDiscountPercent"
@@ -168,7 +157,16 @@
 					@click.stop="openDiscountPercentEdit"
 				>
 					<span class="amount-value">
-						{{ formatFloat(Math.abs(item.discount_percentage || (item.price_list_rate ? (item.discount_amount / item.price_list_rate) * 100 : 0))) }}%
+						{{
+							formatFloat(
+								Math.abs(
+									item.discount_percentage ||
+										(item.price_list_rate
+											? (item.discount_amount / item.price_list_rate) * 100
+											: 0),
+								),
+							)
+						}}%
 					</span>
 				</div>
 				<v-text-field
@@ -189,11 +187,7 @@
 		</td>
 
 		<!-- Discount Amount (Optional) -->
-		<td
-			v-if="showDiscountAmount"
-			class="text-center"
-			:data-column-key="'discount_amount'"
-		>
+		<td v-if="showDiscountAmount" class="text-center" :data-column-key="'discount_amount'">
 			<div class="pos-table__editor-box">
 				<div
 					v-if="!isEditingDiscountAmount"
@@ -201,7 +195,9 @@
 					@click.stop="openDiscountAmountEdit"
 				>
 					<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
-					<span class="amount-value">{{ formatCurrency(Math.abs(item.discount_amount || 0)) }}</span>
+					<span class="amount-value">{{
+						formatCurrency(Math.abs(item.discount_amount || 0))
+					}}</span>
 				</div>
 				<v-text-field
 					v-else
@@ -223,16 +219,9 @@
 		<!-- Rate Column -->
 		<td class="text-center" :data-column-key="'rate'">
 			<div class="pos-table__editor-box">
-				<div
-					v-if="!isEditingRate"
-					class="pos-table__editor-display"
-					@click.stop="openRateEdit"
-				>
+				<div v-if="!isEditingRate" class="pos-table__editor-display" @click.stop="openRateEdit">
 					<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
-					<span
-						class="amount-value"
-						:class="{ 'negative-number': isNegative(item.rate) }"
-					>
+					<span class="amount-value" :class="{ 'negative-number': isNegative(item.rate) }">
 						{{ formatCurrency(item.rate) }}
 					</span>
 				</div>
@@ -257,10 +246,7 @@
 		<td class="text-center" :data-column-key="'amount'">
 			<div class="currency-display right-aligned">
 				<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
-				<span
-					class="amount-value"
-					:class="{ 'negative-number': isNegative(item.qty * item.rate) }"
-				>
+				<span class="amount-value" :class="{ 'negative-number': isNegative(item.qty * item.rate) }">
 					{{ formatCurrency(item.qty * item.rate) }}
 				</span>
 			</div>
@@ -360,7 +346,7 @@ export default {
 				this.isEditingRate,
 				this.isEditingUom,
 				this.isEditingDiscountPercent,
-				this.isEditingDiscountAmount
+				this.isEditingDiscountAmount,
 			];
 		},
 		qtyLength() {
@@ -415,15 +401,15 @@ export default {
 				if (this.editingQtyValue !== "" && this.editingQtyValue != null) {
 					const newQty = parseFloat(this.editingQtyValue);
 					// Emit event to update parent state
-					const val = (!newQty || newQty <= 0) ? 1 : newQty;
-					this.$emit('update-qty', this.item, val);
+					const val = !newQty || newQty <= 0 ? 1 : newQty;
+					this.$emit("update-qty", this.item, val);
 				}
 				this.isEditingQty = false;
 				this.editingQtyValue = "";
 			}
 		},
 		handleMinusClick() {
-			this.$emit('minus-click', this.item);
+			this.$emit("minus-click", this.item);
 		},
 		changeUom(direction) {
 			const uoms = this.item.item_uoms.map((u) => u.uom);
@@ -438,12 +424,12 @@ export default {
 
 			const newUom = uoms[newIndex];
 			if (newUom !== this.item.uom) {
-				this.$emit('calc-uom', this.item, newUom);
+				this.$emit("calc-uom", this.item, newUom);
 			}
 		},
 		handleUomSelect(newUom) {
 			if (newUom && newUom !== this.item.uom) {
-				this.$emit('calc-uom', this.item, newUom);
+				this.$emit("calc-uom", this.item, newUom);
 			}
 			// Find the correct component instance to blur - ref is local now
 			this.$refs.uomSelect?.blur();
@@ -464,7 +450,7 @@ export default {
 						// We need to pass the "event-like" object that useDiscounts expects or handle it in parent
 						// For isolation, let's emit value and let parent handler construct event if needed
 						// But ItemsTable methods expect (item, value, event)
-						this.$emit('update-rate', this.item, newRate);
+						this.$emit("update-rate", this.item, newRate);
 					}
 				}
 				this.isEditingRate = false;
@@ -484,7 +470,7 @@ export default {
 				if (this.editingDiscountPercentValue !== "" && this.editingDiscountPercentValue != null) {
 					const newDiscount = parseFloat(this.editingDiscountPercentValue);
 					if (Number.isFinite(newDiscount) && newDiscount !== this.item.discount_percentage) {
-						this.$emit('update-discount-percent', this.item, newDiscount);
+						this.$emit("update-discount-percent", this.item, newDiscount);
 					}
 				}
 				this.isEditingDiscountPercent = false;
@@ -504,14 +490,14 @@ export default {
 				if (this.editingDiscountAmountValue !== "" && this.editingDiscountAmountValue != null) {
 					const newDiscount = parseFloat(this.editingDiscountAmountValue);
 					if (Number.isFinite(newDiscount) && newDiscount !== this.item.discount_amount) {
-						this.$emit('update-discount-amount', this.item, newDiscount);
+						this.$emit("update-discount-amount", this.item, newDiscount);
 					}
 				}
 				this.isEditingDiscountAmount = false;
 				this.editingDiscountAmountValue = "";
 			}
 		},
-	}
+	},
 };
 </script>
 
@@ -602,7 +588,7 @@ export default {
 [dir="rtl"] .pos-table__qty-counter .pos-table__qty-display,
 .pos-table__qty-counter.rtl-layout .pos-table__qty-display {
 	order: 2 !important;
-    direction: ltr !important;
+	direction: ltr !important;
 	text-align: center;
 }
 
@@ -626,7 +612,10 @@ export default {
 		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
 		sans-serif;
 	font-variant-numeric: lining-nums tabular-nums;
-	font-feature-settings: "tnum" 1, "lnum" 1, "kern" 1;
+	font-feature-settings:
+		"tnum" 1,
+		"lnum" 1,
+		"kern" 1;
 	color: var(--pos-primary);
 	font-size: 0.75rem;
 	transition: all 0.2s ease;
@@ -898,9 +887,14 @@ export default {
 .amount-value {
 	font-weight: 500;
 	text-align: left;
-	font-family: "SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma", sans-serif;
+	font-family:
+		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
+		sans-serif;
 	font-variant-numeric: lining-nums tabular-nums;
-	font-feature-settings: "tnum" 1, "lnum" 1, "kern" 1;
+	font-feature-settings:
+		"tnum" 1,
+		"lnum" 1,
+		"kern" 1;
 }
 
 .amount-value.right-aligned {
