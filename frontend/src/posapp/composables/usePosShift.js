@@ -7,6 +7,7 @@ import {
 	clearOpeningStorage,
 	setTaxTemplate,
 } from "../../offline/index.js";
+import { th } from "vuetify/locale";
 
 export function usePosShift(openDialog) {
 	const { proxy } = getCurrentInstance();
@@ -103,13 +104,16 @@ export function usePosShift(openDialog) {
 			});
 	}
 
-	function submit_closing_pos(data) {
+	function submit_closing_pos(data, CustomPrint = false) {
+		console.log("data ----------------", data);
+		console.log("Print ----------------", CustomPrint);
 		frappe
 			.call("posawesome.posawesome.doctype.pos_closing_shift.pos_closing_shift.submit_closing_shift", {
-				closing_shift: data,
+				closing_shift: data,				
 			})
 			.then((r) => {
 				if (r.message) {
+					console.log("POS Shift Closed Successfully", r.message);
 					pos_opening_shift.value = null;
 					pos_profile.value = null;
 					clearOpeningStorage();
@@ -117,10 +121,47 @@ export function usePosShift(openDialog) {
 						title: `POS Shift Closed`,
 						color: "success",
 					});
+					console.log("Print Value", CustomPrint);
+					if (CustomPrint === true) {
+						console.log("Print is true");
+						load_print_page(r.message);
+						console.log("Print page loaded", r.message);
+					}
 					check_opening_entry();
 				}
 			});
 	}
 
+	// Open print page for invoice
+		function load_print_page(x) {
+			console.log("XxXXXXX",x);
+			const print_format = "POS Closing Report";
+			const doctype = "POS Closing Shift";
+			const url =
+				frappe.urllib.get_base_url() +
+				"/printview?doctype=" +
+				encodeURIComponent(doctype) +
+				"&name=" +x+
+				"&trigger_print=1" +
+				"&format=" +
+				print_format;
+
+			console.log("Print URL", url);
+			window.open(url, "Print");
+			
+			// const printOptions = {
+			// 	invoiceDoc: this.invoice_doc,
+			// 	allowOfflineFallback: isOffline(),
+			// };
+			// if (this.pos_profile.posa_silent_print) {
+			// 	silentPrint(url, printOptions);
+			// } else {
+			// 	const printWindow = window.open(url, "Print");
+			// 	watchPrintWindow(printWindow, printOptions);
+			// }
+		}
+
+
+	
 	return { pos_profile, pos_opening_shift, check_opening_entry, get_closing_data, submit_closing_pos };
 }

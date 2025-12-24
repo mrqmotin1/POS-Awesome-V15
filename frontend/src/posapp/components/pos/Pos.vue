@@ -170,8 +170,10 @@ export default {
 			this.eventBus.on("open_closing_dialog", () => {
 				this.get_closing_data();
 			});
-			this.eventBus.on("submit_closing_pos", (data) => {
-				this.submit_closing_pos(data);
+			this.eventBus.on("submit_closing_pos", (payload) => {
+				const { data, print } = payload;
+    			console.log("Received CustomPrint Value:", print);
+    			this.submit_closing_pos(data, print);
 			});
 
 			this.eventBus.on("items_loaded", () => {
