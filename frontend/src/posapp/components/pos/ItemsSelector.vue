@@ -62,7 +62,6 @@
 								v-model="search_input"
 								@keydown.esc="esc_event"
 								@keydown.enter="onEnter"
-								@keydown="handleSearchKeydown"
 								@click:clear="clearSearch"
 								@input="handleSearchInput"
 								@paste="handleSearchPaste"
@@ -2198,10 +2197,10 @@ export default {
 			vm.first_search = trimmedQuery;
 
 			// If the input is a numeric string longer than 6 characters, treat it as a barcode
-			if (/^\d{7,}$/.test(trimmedQuery)) {
-				vm.onBarcodeScanned(trimmedQuery);
-				return;
-			}
+			// if (/^\d{7,}$/.test(trimmedQuery)) {
+			// 	vm.onBarcodeScanned(trimmedQuery);
+			// 	return;
+			// }
 
 			// Require a minimum of three characters before running a search
 			if (!trimmedQuery || trimmedQuery.length < 3) {
@@ -4076,6 +4075,29 @@ export default {
 				console.error("Failed to load item selector settings:", e);
 			}
 		},
+		sortItemsBySearchKey (items, searchKey) {
+			{if (!searchKey) return items;
+
+			const key = searchKey.toLowerCase();
+
+			return [...items].sort((a, b) => {
+				const aName = (a.item_name || "").toLowerCase();
+				const bName = (b.item_name || "").toLowerCase();
+
+				const aStarts = aName.startsWith(key);
+				const bStarts = bName.startsWith(key);
+
+				// startsWith priority
+				if (aStarts && !bStarts) return -1;
+				if (!aStarts && bStarts) return 1;
+
+				if (aContains && !bContains) return -1;
+				if (!aContains && bContains) return 1;
+
+				// fallback alphabetical
+				return aName.localeCompare(bName);
+			});}
+		}
 	},
 
 	computed: {
@@ -4236,6 +4258,8 @@ export default {
 					).toLowerCase();
 					return searchTerms.every((term) => rawIndex.includes(term));
 				});
+				// Apply sorting to prioritize best matches
+				filteredItems = this.sortItemsBySearchKey(filteredItems, searchTerm);
 			}
 
 			// Redundant item_group filter removed as store handles it.
