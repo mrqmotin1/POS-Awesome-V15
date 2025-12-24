@@ -867,6 +867,16 @@
 						<v-icon start>mdi-check-circle-outline</v-icon>
 						<span>{{ __("Submit") }}</span>
 					</v-btn>
+					<v-btn
+						theme="dark"
+						@click="submit_dialog(true)"
+						class="pos-action-btn submit-action-btn-print"
+						size="large"
+						elevation="2"
+					>
+						<v-icon start>mdi-check-circle-outline</v-icon>
+						<span>{{ __("Submit & Print") }}</span>
+					</v-btn>
 				</v-card-actions>
 			</v-card>
 		</v-dialog>
@@ -959,7 +969,7 @@ export default {
 			this.overview = null;
 			this.overviewLoading = false;
 		},
-		submit_dialog() {
+		submit_dialog(CustomPrint = false) {
 			const invalid = (this.dialog_data.payments || []).some((p) =>
 				isNaN(parseFloat(p.closing_amount)),
 			);
@@ -967,7 +977,11 @@ export default {
 				alert(this.__("Invalid closing amount"));
 				return;
 			}
-			this.eventBus.emit("submit_closing_pos", this.dialog_data);
+			console.log("Submitting closing dialog", this.dialog_data, CustomPrint);
+			this.eventBus.emit("submit_closing_pos",{ 
+				data: this.dialog_data,
+    			print: CustomPrint,
+		});
 			this.closingDialog = false;
 		},
 		fetchOverview(openingShift) {
@@ -1883,6 +1897,10 @@ export default {
 
 .submit-action-btn {
 	background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%) !important;
+}
+
+.submit-action-btn-print {
+	background: linear-gradient(135deg, #388e3c 0%, #1b76dd 100%) !important;
 }
 
 .submit-action-btn:hover {
