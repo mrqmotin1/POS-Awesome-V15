@@ -84,6 +84,11 @@
 												? __('Acknowledge the error to resume scanning')
 												: __('Scan with Camera')
 										"
+										:aria-label="
+											scannerLocked
+												? __('Acknowledge the error to resume scanning')
+												: __('Scan with Camera')
+										"
 									>
 									</v-btn>
 								</template>
@@ -147,6 +152,7 @@
 												variant="text"
 												density="compact"
 												@click="show_item_settings = false"
+												:aria-label="__('Close Settings')"
 											>
 											</v-btn>
 										</v-card-title>
@@ -227,6 +233,30 @@
 						<div v-if="items_view == 'card'" class="items-card-container">
 							<div v-if="loading" class="items-card-grid">
 								<Skeleton v-for="n in 8" :key="n" class="mb-4" height="120" />
+							</div>
+							<div
+								v-else-if="displayedItems.length === 0"
+								class="d-flex flex-column align-center justify-center text-center fill-height pa-4"
+								style="height: 100%; min-height: 200px"
+							>
+								<v-icon size="64" color="grey-lighten-1" class="mb-4"
+									>mdi-package-variant-closed</v-icon
+								>
+								<div class="text-h6 text-medium-emphasis mb-1">
+									{{ __("No items found") }}
+								</div>
+								<div class="text-body-2 text-medium-emphasis">
+									{{ __("Try adjusting your search or filters") }}
+								</div>
+								<v-btn
+									v-if="search_input || (item_group && item_group !== 'ALL')"
+									variant="text"
+									color="primary"
+									class="mt-4"
+									@click="clearSearch"
+								>
+									{{ __("Clear Search") }}
+								</v-btn>
 							</div>
 							<RecycleScroller
 								v-else
