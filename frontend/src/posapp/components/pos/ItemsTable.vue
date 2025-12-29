@@ -13,7 +13,6 @@
 			:headers="responsiveHeaders"
 			:items="items"
 			:expanded="expanded"
-			show-expand
 			item-value="posa_row_id"
 			class="pos-table elevation-2 pos-themed-card"
 			:class="tableClasses"
@@ -1046,7 +1045,7 @@ export default {
 						return ["item_name", "qty", "amount", "actions"].includes(header.key);
 					} else if (this.containerWidth < 700) {
 						// Compact: essential + rate
-						return ["item_name", "qty", "rate", "amount", "actions"].includes(header.key);
+						return ["item_name", "qty", "discount_value", "amount", "actions"].includes(header.key);
 					} else if (this.containerWidth < 900) {
 						// Medium: hide advanced columns
 						return !["discount_amount", "price_list_rate"].includes(header.key);
