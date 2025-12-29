@@ -1940,6 +1940,7 @@ export default {
 					encodeURIComponent(doctype) +
 					"&name=" +
 					this.invoice_doc.name +
+					"&trigger_print=1" +
 					"&format=" +
 					print_format;
 
