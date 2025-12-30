@@ -2655,7 +2655,6 @@ export default {
 			}
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
 		},
-	},
 		get_print_formats() {
 			frappe.call({
 				method: "posawesome.posawesome.api.print_formats.get_print_formats",
@@ -2678,6 +2677,7 @@ export default {
 				}
 			}
 		},
+	},
 	// Lifecycle hook: created
 	created() {
 		// Register keyboard shortcut for payment
