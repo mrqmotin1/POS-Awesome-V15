@@ -4269,10 +4269,10 @@ export default {
 			// Check other filters
 			const hideZeroRate = this.hide_zero_rate_items;
 			const hideVariants = this.pos_profile?.posa_hide_variants_items;
+			const limit = this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage;
 
 			// PERF: If no filters needed, just slice and return to avoid O(N) filtering
 			if (!needsLocalSearch && !hideZeroRate && !hideVariants) {
-				const limit = this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage;
 				return baseItems.slice(0, limit);
 			}
 
@@ -4282,8 +4282,12 @@ export default {
 				searchTerms = searchTerm.split(/\s+/).filter(Boolean);
 			}
 
-			// PERF: Combine all filters into a single pass
-			const filtered = baseItems.filter((item) => {
+			// PERF: Use a single loop to filter and paginate simultaneously.
+			// This avoids iterating the entire array when we only need the first 'limit' items.
+			const result = [];
+			for (let i = 0; i < baseItems.length; i++) {
+				const item = baseItems[i];
+
 				// 1. Search Filter
 				if (needsLocalSearch) {
 					let matches = false;
@@ -4301,27 +4305,28 @@ export default {
 						).toLowerCase();
 						matches = searchTerms.every((term) => rawIndex.includes(term));
 					}
-					if (!matches) return false;
+					if (!matches) continue;
 				}
 
 				// 2. Zero Rate Filter
 				if (hideZeroRate) {
 					// Use loose inequality to catch '0', 0, 0.0 etc.
-					if (parseFloat(item.rate || 0) <= 0) return false;
+					if (parseFloat(item.rate || 0) <= 0) continue;
 				}
 
 				// 3. Variant Filter
 				if (hideVariants) {
-					if (item.variant_of) return false;
+					if (item.variant_of) continue;
 				}
 
-				return true;
-			});
+				result.push(item);
 
-			// Apply pagination
-			const limit = this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage;
-			// PERF: Removed side-effect loop that mutated actual_qty. Display formatters handle nulls safely.
-			return filtered.slice(0, limit);
+				if (result.length >= limit) {
+					break;
+				}
+			}
+
+			return result;
 		},
 		debounce_search: {
 			get() {
