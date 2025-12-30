@@ -5270,6 +5270,9 @@ export default {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	letter-spacing: 0.01em;
+	white-space: normal !important;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 /* Dark theme row styling */
