@@ -5,7 +5,7 @@
 	>
 		<v-row dense>
 			<!-- Summary Info -->
-			<v-col cols="12" md="7">
+			<v-col cols="12" md="8">
 				<v-row dense>
 					<!-- Total Qty -->
 					<v-col cols="6">
@@ -87,65 +87,7 @@
 							class="summary-field"
 						/>
 					</v-col>
-				</v-row>
-			</v-col>
 
-			<!-- Action Buttons -->
-			<v-col cols="12" md="5">
-				<v-row dense>
-					<v-col cols="12">
-						<v-btn
-							block
-							color="success"
-							theme="dark"
-							size="large"
-							prepend-icon="mdi-credit-card"
-							@click="handleShowPayment"
-							class="summary-btn pay-btn"
-							:loading="paymentLoading"
-						>
-							{{ __("PAY") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6">
-						<v-btn
-							block
-							color="accent"
-							theme="dark"
-							prepend-icon="mdi-content-save"
-							@click="handleSaveAndClear"
-							class="summary-btn"
-							:loading="saveLoading"
-						>
-							{{ __("Save & Clear") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6">
-						<v-btn
-							block
-							color="warning"
-							theme="dark"
-							prepend-icon="mdi-file-document"
-							@click="handleLoadDrafts"
-							class="white-text-btn summary-btn"
-							:loading="loadDraftsLoading"
-						>
-							{{ __("Load Drafts") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6" v-if="pos_profile.custom_allow_select_sales_order == 1">
-						<v-btn
-							block
-							color="info"
-							theme="dark"
-							prepend-icon="mdi-book-search"
-							@click="handleSelectOrder"
-							class="summary-btn"
-							:loading="selectOrderLoading"
-						>
-							{{ __("Select S.O") }}
-						</v-btn>
-					</v-col>
 					<v-col cols="6">
 						<v-btn
 							block
@@ -172,7 +114,66 @@
 							{{ __("Sales Return") }}
 						</v-btn>
 					</v-col>
-					<v-col cols="6" v-if="pos_profile.posa_allow_print_draft_invoices">
+				</v-row>
+			</v-col>
+
+			<!-- Action Buttons -->
+			<v-col cols="12" md="4">
+				<v-row dense>
+					<v-col cols="12">
+						<v-btn
+							block
+							color="success"
+							theme="dark"
+							size="large"
+							prepend-icon="mdi-credit-card"
+							@click="handleShowPayment"
+							class="summary-btn pay-btn"
+							:loading="paymentLoading"
+						>
+							{{ __("PAY") }}
+						</v-btn>
+					</v-col>
+					<v-col cols="12">
+						<v-btn
+							block
+							color="accent"
+							theme="dark"
+							prepend-icon="mdi-content-save"
+							@click="handleSaveAndClear"
+							class="summary-btn"
+							:loading="saveLoading"
+						>
+							{{ __("Save & Clear") }}
+						</v-btn>
+					</v-col>
+					<v-col cols="12">
+						<v-btn
+							block
+							color="warning"
+							theme="dark"
+							prepend-icon="mdi-file-document"
+							@click="handleLoadDrafts"
+							class="white-text-btn summary-btn"
+							:loading="loadDraftsLoading"
+						>
+							{{ __("Load Drafts") }}
+						</v-btn>
+					</v-col>
+					<v-col cols="12" v-if="pos_profile.custom_allow_select_sales_order == 1">
+						<v-btn
+							block
+							color="info"
+							theme="dark"
+							prepend-icon="mdi-book-search"
+							@click="handleSelectOrder"
+							class="summary-btn"
+							:loading="selectOrderLoading"
+						>
+							{{ __("Select S.O") }}
+						</v-btn>
+					</v-col>
+					<v-col cols="12" v-if="pos_profile.posa_allow_print_draft_invoices">
 						<v-btn
 							block
 							color="primary"
@@ -185,7 +186,7 @@
 							{{ __("Print Draft") }}
 						</v-btn>
 					</v-col>
-					<v-col cols="6">
+					<v-col cols="12">
 						<v-btn
 							block
 							color="info"
