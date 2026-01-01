@@ -3,6 +3,7 @@
 		<AppLoadingOverlay :visible="globalLoading" />
 		<UpdatePrompt />
 		<v-main class="main-content">
+			<ClosingDialog />
 			<Navbar
 				:pos-profile="posProfile"
 				:pending-invoices="pendingInvoices"
@@ -42,9 +43,11 @@
 import Navbar from "./components/Navbar.vue";
 import POS from "./components/pos/Pos.vue";
 import Payments from "./components/payments/Pay.vue";
+import ClosingDialog from "./components/pos/ClosingDialog.vue";
 import AppLoadingOverlay from "./components/ui/LoadingOverlay.vue";
 import UpdatePrompt from "./components/ui/UpdatePrompt.vue";
 import { useLoading } from "./composables/useLoading.js";
+import { usePosShift } from "./composables/usePosShift.js";
 import { loadingState, initLoadingSources, setSourceProgress, markSourceLoaded } from "./utils/loading.js";
 import { useCustomersStore } from "./stores/customersStore.js";
 import { storeToRefs } from "pinia";
@@ -80,11 +83,13 @@ export default {
 	setup() {
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
 		const { overlayVisible } = useLoading();
+		const { get_closing_data } = usePosShift();
 		return {
 			isRtl,
 			rtlStyles,
 			rtlClasses,
 			globalLoading: overlayVisible,
+			get_closing_data,
 		};
 	},
 	data: function () {
@@ -147,6 +152,7 @@ export default {
 		Navbar,
 		POS,
 		Payments,
+		ClosingDialog,
 		AppLoadingOverlay,
 		UpdatePrompt,
 	},
@@ -331,8 +337,7 @@ export default {
 		},
 
 		handleCloseShift() {
-			// Trigger POS closing dialog via event bus
-			this.eventBus.emit("open_closing_dialog");
+			this.get_closing_data();
 		},
 
 		handlePrintLastInvoice() {
