@@ -1011,8 +1011,8 @@ def process_pos_payment(payload):
             msg += "<tr><td>{0}</td></tr>".format(error)
         msg += "</tbody>"
         msg += "</table>"
-    if len(msg) > 0:
-        frappe.msgprint(msg)
+    # if len(msg) > 0:
+    #     frappe.msgprint(msg)
 
     return {
         "new_payments_entry": new_payments_entry,

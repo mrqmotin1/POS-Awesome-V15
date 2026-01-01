@@ -981,7 +981,7 @@ export default {
 			this.eventBus.emit("submit_closing_pos",{ 
 				data: this.dialog_data,
     			print: CustomPrint,
-		});
+			});
 			this.closingDialog = false;
 		},
 		fetchOverview(openingShift) {

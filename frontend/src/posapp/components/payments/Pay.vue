@@ -1094,7 +1094,13 @@ export default {
 				if (!response || !response.message) {
 					return;
 				}
-
+				this.eventBus.emit("show_message", {
+					title:
+						response.message.new_payments_entry && response.message.new_payments_entry.length > 0
+							? __("New Payments {0} is Submitted", [response.message.new_payments_entry[0].name])
+							: __("New Payments is Submitted"),
+					color: "success",
+				});
 				frappe.utils.play_sound("submit");
 
 				if (printAfter) {
