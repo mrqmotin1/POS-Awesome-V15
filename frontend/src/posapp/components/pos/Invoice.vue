@@ -51,6 +51,7 @@
 
 				<!-- Delivery Charges Section (Only if enabled in POS profile) -->
 				<DeliveryCharges
+					ref="deliveryChargesComponent"
 					:pos_profile="pos_profile"
 					:delivery_charges="delivery_charges"
 					:selected_delivery_charge="selected_delivery_charge"
@@ -69,6 +70,7 @@
 
 				<!-- Posting Date and Customer Balance Section -->
 				<PostingDateRow
+					ref="postingDateComponent"
 					:pos_profile="pos_profile"
 					:posting_date_display="posting_date_display"
 					:customer_balance="customer_balance"
@@ -423,6 +425,11 @@ export default {
 			selected_price_list: "", // Currently selected price list
 			price_list_currency: "", // Currency of the selected price list
 			_shortcutHandlers: {},
+			shortcutCycle: {
+				qty: 0,
+				uom: 0,
+				rate: 0,
+			},
 			selected_columns: [], // Selected columns for items table
 			temp_selected_columns: [], // Temporary array for column selection
 			available_columns: [], // All available columns
@@ -1606,19 +1613,8 @@ export default {
 		);
 		this._shortcutHandlers = this._shortcutHandlers || {};
 
-		this._shortcutHandlers.shortOpenPayment = this.shortOpenPayment.bind(this);
-		this._shortcutHandlers.shortDeleteFirstItem = this.shortDeleteFirstItem.bind(this);
-		this._shortcutHandlers.shortOpenFirstItem = this.shortOpenFirstItem.bind(this);
-		this._shortcutHandlers.shortSelectDiscount = this.shortSelectDiscount.bind(this);
-		this._shortcutHandlers.shortFocusCustomer = this.shortFocusCustomer.bind(this);
-		this._shortcutHandlers.shortFocusItem = this.shortFocusItem.bind(this);
-
-		document.addEventListener("keydown", this._shortcutHandlers.shortOpenPayment);
-		document.addEventListener("keydown", this._shortcutHandlers.shortDeleteFirstItem);
-		document.addEventListener("keydown", this._shortcutHandlers.shortOpenFirstItem);
-		document.addEventListener("keydown", this._shortcutHandlers.shortSelectDiscount);
-		document.addEventListener("keydown", this._shortcutHandlers.shortFocusCustomer);
-		document.addEventListener("keydown", this._shortcutHandlers.shortFocusItem);
+		this._shortcutHandlers.handleInvoiceShortcut = this.handleInvoiceShortcut.bind(this);
+		document.addEventListener("keydown", this._shortcutHandlers.handleInvoiceShortcut);
 	},
 	// Remove global keyboard shortcuts when component is unmounted
 	unmounted() {
@@ -1626,12 +1622,7 @@ export default {
 			return;
 		}
 
-		document.removeEventListener("keydown", this._shortcutHandlers.shortOpenPayment);
-		document.removeEventListener("keydown", this._shortcutHandlers.shortDeleteFirstItem);
-		document.removeEventListener("keydown", this._shortcutHandlers.shortOpenFirstItem);
-		document.removeEventListener("keydown", this._shortcutHandlers.shortSelectDiscount);
-		document.removeEventListener("keydown", this._shortcutHandlers.shortFocusCustomer);
-		document.removeEventListener("keydown", this._shortcutHandlers.shortFocusItem);
+		document.removeEventListener("keydown", this._shortcutHandlers.handleInvoiceShortcut);
 
 		this._shortcutHandlers = {};
 	},

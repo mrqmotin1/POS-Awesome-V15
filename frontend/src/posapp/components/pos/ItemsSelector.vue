@@ -2004,6 +2004,12 @@ export default {
 			}
 			this.add_item(item);
 		},
+		selectTopItem() {
+			if (!this.displayedItems || !this.displayedItems.length) {
+				return;
+			}
+			this.add_item(this.displayedItems[0]);
+		},
 		async click_item_row(event, { item }) {
 			const targets = document.querySelectorAll(".items-table-container");
 			const target = targets[targets.length - 1];
@@ -4464,6 +4470,12 @@ export default {
 		this.eventBus.on("focus_item_search", () => {
 			this.focusItemSearch();
 		});
+		this.eventBus.on("select_top_item", () => {
+			this.selectTopItem();
+		});
+		this.eventBus.on("toggle_item_selector_settings", () => {
+			this.toggleItemSettings();
+		});
 
 		// Manually trigger a full item reload when requested
 		this.eventBus.on("force_reload_items", async () => {
@@ -4621,6 +4633,8 @@ export default {
 		this.eventBus.off("update_customer_price_list");
 		this.eventBus.off("force_reload_items");
 		this.eventBus.off("focus_item_search");
+		this.eventBus.off("select_top_item");
+		this.eventBus.off("toggle_item_selector_settings");
 		window.removeEventListener("resize", this.checkItemContainerOverflow);
 		if (this.metricsRaf) {
 			cancelAnimationFrame(this.metricsRaf);

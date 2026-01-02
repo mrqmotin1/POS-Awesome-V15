@@ -886,6 +886,8 @@ export default {
 			highlightSubmit: false, // Highlight state for submit button
 			last_payment_change_was_cash: null, // Track last edited payment type
 			backgroundStatusCheck: null,
+			paymentVisible: false,
+			_shortcutHandlers: {},
 		};
 	},
 	computed: {
@@ -1374,6 +1376,7 @@ export default {
 		// Highlight and focus the submit button when payment screen opens
 		handleShowPayment(data) {
 			if (data === "true") {
+				this.paymentVisible = true;
 				this.$nextTick(() => {
 					setTimeout(() => {
 						const btn = this.$refs.submitButton;
@@ -1386,6 +1389,7 @@ export default {
 					}, 100);
 				});
 			} else {
+				this.paymentVisible = false;
 				this.highlightSubmit = false;
 			}
 		},
@@ -2005,14 +2009,26 @@ export default {
 				this.invoice_doc.due_date = today;
 			}
 		},
-		// Keyboard shortcut for payment submit (Ctrl+X)
-		shortPay(e) {
-			if (e.key.toLowerCase() === "x" && (e.ctrlKey || e.metaKey)) {
-				e.preventDefault();
-				e.stopPropagation();
-				if (this.invoice_doc && this.invoice_doc.payments) {
-					this.submit_invoice();
-				}
+		// Keyboard shortcuts for payment submit (Alt+X) and submit+print (Alt+P)
+		handlePaymentShortcut(event) {
+			if (!this.paymentVisible) {
+				return;
+			}
+
+			const isAltOnly = event.altKey && !event.ctrlKey && !event.metaKey;
+			const key = event.key.toLowerCase();
+
+			if (isAltOnly && key === "p") {
+				event.preventDefault();
+				event.stopPropagation();
+				this.submit(null, false, true);
+				return;
+			}
+
+			if ((isAltOnly || event.ctrlKey || event.metaKey) && key === "x") {
+				event.preventDefault();
+				event.stopPropagation();
+				this.submit(null, false, false);
 			}
 		},
 		// Get available customer credit and auto-allocate
@@ -2684,7 +2700,9 @@ export default {
 	// Lifecycle hook: created
 	created() {
 		// Register keyboard shortcut for payment
-		document.addEventListener("keydown", this.shortPay.bind(this));
+		this._shortcutHandlers = this._shortcutHandlers || {};
+		this._shortcutHandlers.handlePaymentShortcut = this.handlePaymentShortcut.bind(this);
+		document.addEventListener("keydown", this._shortcutHandlers.handlePaymentShortcut);
 		this.syncPendingInvoices();
 		this.eventBus.on("network-online", this.syncPendingInvoices);
 		// Also sync when the server connection is re-established
@@ -2814,7 +2832,11 @@ export default {
 	// Lifecycle hook: unmounted
 	unmounted() {
 		// Remove keyboard shortcut listener
-		document.removeEventListener("keydown", this.shortPay);
+		if (!this._shortcutHandlers) {
+			return;
+		}
+		document.removeEventListener("keydown", this._shortcutHandlers.handlePaymentShortcut);
+		this._shortcutHandlers = {};
 	},
 };
 </script>

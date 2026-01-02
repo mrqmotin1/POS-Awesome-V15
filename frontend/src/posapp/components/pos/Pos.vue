@@ -154,6 +154,9 @@ export default {
 				this.showOffers = false;
 				this.coupons = false;
 			});
+			this.eventBus.on("open_shift_details", () => {
+				this.get_closing_data();
+			});
 			this.eventBus.on("show_offers", (data) => {
 				this.showOffers = data === "true";
 				this.payment = false;
@@ -179,6 +182,7 @@ export default {
 		this.eventBus.off("register_pos_data");
 		this.eventBus.off("register_pos_profile");
 		this.eventBus.off("LoadPosProfile");
+		this.eventBus.off("open_shift_details");
 		this.eventBus.off("show_offers");
 		this.eventBus.off("show_coupons");
 		this.eventBus.off("submit_closing_pos");

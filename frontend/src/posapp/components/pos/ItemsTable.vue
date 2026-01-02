@@ -904,6 +904,49 @@ export default {
 			}
 			return Array.isArray(item?.serial_no_data) ? item.serial_no_data : [];
 		},
+		focusItemField(index, field) {
+			const rows = this.$el?.querySelectorAll?.("tr.cart-item-row");
+			const row = rows?.[index];
+			if (!row) {
+				return false;
+			}
+
+			row.scrollIntoView({ block: "center" });
+
+			const findCell = (key) => row.querySelector(`td[data-column-key='${key}']`);
+			const cell = findCell(field);
+			if (!cell) {
+				return false;
+			}
+
+			if (field === "qty") {
+				cell.querySelector(".pos-table__qty-display")?.click();
+				this.$nextTick(() => {
+					cell.querySelector(".pos-table__qty-input input")?.focus?.();
+				});
+				return true;
+			}
+
+			if (field === "uom") {
+				const input = cell.querySelector(".uom-select input") || cell.querySelector("input");
+				if (input) {
+					input.focus();
+					return true;
+				}
+				cell.querySelector(".uom-select")?.click?.();
+				return true;
+			}
+
+			if (field === "rate") {
+				cell.querySelector(".pos-table__editor-display")?.click();
+				this.$nextTick(() => {
+					cell.querySelector(".pos-table__editor-input input")?.focus?.();
+				});
+				return true;
+			}
+
+			return false;
+		},
 
 		customItemFilter(value, search, item) {
 			if (search == null) {
