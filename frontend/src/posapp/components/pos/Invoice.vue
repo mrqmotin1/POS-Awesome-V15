@@ -120,7 +120,7 @@
 				<div class="items-table-wrapper">
 					<!-- Column selector button moved outside the table -->
 					<div class="column-selector-container">
-						<v-text-field
+						<!-- <v-text-field
 							ref="itemSearchField"
 							v-model="itemSearch"
 							density="compact"
@@ -132,6 +132,19 @@
 							hide-details
 							clearable
 							autocomplete="off"
+						></v-text-field> -->
+						<v-text-field
+							id="discount_percentage"
+							v-model="discount_percent_for_all"
+							density="compact"
+							variant="solo"
+							color="primary"
+							class="item-search-field pos-themed-input"
+							:label="__('Discount % for all items')"
+							hide-details
+							clearable
+							autocomplete="off"
+							@change="apply_discount_percent_to_all_items($event)"
 						></v-text-field>
 						<v-btn
 							density="compact"
@@ -143,7 +156,7 @@
 						>
 							{{ __("Columns") }}
 						</v-btn>
-						<v-btn
+						<!-- <v-btn
 							density="compact"
 							variant="text"
 							color="primary"
@@ -154,7 +167,7 @@
 							:disabled="pricing_reconcile_in_progress"
 						>
 							{{ __("Recalculate Prices") }}
-						</v-btn>
+						</v-btn> -->
 
 						<v-dialog v-model="show_column_selector" max-width="500px">
 							<v-card>
@@ -444,6 +457,7 @@ export default {
 			paymentVisible: false, // Track current payment view state
 			_busHandlers: {},
 			pricing_reconcile_in_progress: false,
+			discount_percent_for_all: 0,
 		};
 	},
 
@@ -1719,6 +1733,29 @@ export default {
 		},
 		handleShowPayment(data) {
 			this.paymentVisible = data === "true";
+		},
+		apply_discount_percent_to_all_items(event) {
+			let discount = parseFloat(this.discount_percent_for_all);
+
+			if (isNaN(discount) || discount < 0) {
+				this.$toast?.error(__('Invalid discount percentage'));
+				return;
+			}
+
+			// Limit discount (optional safety)
+			if (discount > 100) discount = 100;
+
+			// POSAwesome cart items (usually in store or local state)
+			const items = this.invoiceStore.items || [];
+
+			if (!items.length) {
+				this.$toast?.warning(__('No items in cart'));
+				return;
+			}
+
+			items.forEach(item => {
+				this.calc_prices(item, discount, event);
+			});
 		},
 	},
 
