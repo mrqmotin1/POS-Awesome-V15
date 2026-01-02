@@ -2031,6 +2031,15 @@ export default {
 				this.submit(null, false, false);
 			}
 		},
+		handleSubmitPaymentShortcut({ print = false } = {}) {
+			if (!this.paymentVisible) {
+				return;
+			}
+
+			this.$nextTick(() => {
+				this.submit(null, false, print);
+			});
+		},
 		// Get available customer credit and auto-allocate
 		get_available_credit(use_credit) {
 			this.clear_all_amounts();
@@ -2803,6 +2812,7 @@ export default {
 			this.eventBus.on("set_mpesa_payment", (data) => {
 				this.set_mpesa_payment(data);
 			});
+			this.eventBus.on("submit_payment_shortcut", this.handleSubmitPaymentShortcut);
 			// Clear any stored invoice when parent emits clear_invoice
 			this.eventBus.on("clear_invoice", () => {
 				this.invoice_doc = "";
@@ -2823,6 +2833,7 @@ export default {
 		this.eventBus.off("update_invoice_type");
 		this.eventBus.off("set_pos_settings");
 		this.eventBus.off("set_mpesa_payment");
+		this.eventBus.off("submit_payment_shortcut", this.handleSubmitPaymentShortcut);
 		this.eventBus.off("clear_invoice");
 		this.eventBus.off("network-online", this.syncPendingInvoices);
 		this.eventBus.off("server-online", this.syncPendingInvoices);

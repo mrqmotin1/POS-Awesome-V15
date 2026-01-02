@@ -9,7 +9,7 @@ const isDigit = (event, digit) =>
 const isBackquote = (event) => event.key === "`" || event.code === "Backquote";
 
 export default {
-	handleInvoiceShortcut(event) {
+	async handleInvoiceShortcut(event) {
 		if (event.defaultPrevented) {
 			return;
 		}
@@ -197,6 +197,20 @@ export default {
 		if (keyLower === "d") {
 			consumeEvent(event);
 			this.show_payment?.();
+			return;
+		}
+
+		if (keyLower === "x" || keyLower === "p") {
+			consumeEvent(event);
+			if (this.paymentVisible) {
+				return;
+			}
+
+			const shouldPrint = keyLower === "p";
+			await this.show_payment?.();
+			if (this.paymentVisible) {
+				this.eventBus.emit("submit_payment_shortcut", { print: shouldPrint });
+			}
 		}
 	},
 
