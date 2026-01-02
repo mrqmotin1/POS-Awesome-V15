@@ -27,20 +27,28 @@
 					</template>
 					<span>{{ item.pricing_rule_badge.tooltip }}</span>
 				</v-tooltip>
-				<v-icon
+				<v-btn
 					v-if="posProfile.posa_allow_line_item_name_override && !item.posa_is_replace"
+					icon
 					size="x-small"
+					variant="text"
 					class="ml-1"
 					@click.stop="$emit('open-name-dialog', item)"
-					>mdi-pencil</v-icon
+					:aria-label="__('Edit item name')"
 				>
-				<v-icon
+					<v-icon size="small">mdi-pencil</v-icon>
+				</v-btn>
+				<v-btn
 					v-if="item.name_overridden"
+					icon
 					size="x-small"
+					variant="text"
 					class="ml-1"
 					@click.stop="$emit('reset-item-name', item)"
-					>mdi-undo</v-icon
+					:aria-label="__('Reset item name')"
 				>
+					<v-icon size="small">mdi-undo</v-icon>
+				</v-btn>
 			</div>
 		</td>
 
@@ -67,6 +75,11 @@
 					:data-length="qtyLength"
 					:title="formatFloat(item.qty, hideQtyDecimals ? 0 : undefined)"
 					@click.stop="openQtyEdit"
+					tabindex="0"
+					role="button"
+					:aria-label="__('Edit quantity')"
+					@keydown.enter.prevent="openQtyEdit"
+					@keydown.space.prevent="openQtyEdit"
 				>
 					{{ formatFloat(item.qty, hideQtyDecimals ? 0 : undefined) }}
 				</div>
@@ -155,6 +168,11 @@
 					v-if="!isEditingDiscountPercent"
 					class="pos-table__editor-display"
 					@click.stop="openDiscountPercentEdit"
+					tabindex="0"
+					role="button"
+					:aria-label="__('Edit discount percentage')"
+					@keydown.enter.prevent="openDiscountPercentEdit"
+					@keydown.space.prevent="openDiscountPercentEdit"
 				>
 					<span class="amount-value">
 						{{
@@ -193,6 +211,11 @@
 					v-if="!isEditingDiscountAmount"
 					class="pos-table__editor-display"
 					@click.stop="openDiscountAmountEdit"
+					tabindex="0"
+					role="button"
+					:aria-label="__('Edit discount amount')"
+					@keydown.enter.prevent="openDiscountAmountEdit"
+					@keydown.space.prevent="openDiscountAmountEdit"
 				>
 					<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
 					<span class="amount-value">{{
@@ -219,7 +242,16 @@
 		<!-- Rate Column -->
 		<td class="text-center" :data-column-key="'rate'">
 			<div class="pos-table__editor-box">
-				<div v-if="!isEditingRate" class="pos-table__editor-display" @click.stop="openRateEdit">
+				<div
+					v-if="!isEditingRate"
+					class="pos-table__editor-display"
+					@click.stop="openRateEdit"
+					tabindex="0"
+					role="button"
+					:aria-label="__('Edit rate')"
+					@keydown.enter.prevent="openRateEdit"
+					@keydown.space.prevent="openRateEdit"
+				>
 					<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
 					<span class="amount-value" :class="{ 'negative-number': isNegative(item.rate) }">
 						{{ formatCurrency(item.rate) }}
@@ -920,5 +952,13 @@ td {
 	text-align: center;
 	color: var(--pos-text-primary);
 	position: relative;
+}
+
+/* Keyboard focus styles */
+.pos-table__qty-display:focus-visible,
+.pos-table__editor-display:focus-visible {
+	outline: 2px solid var(--pos-primary);
+	outline-offset: 2px;
+	z-index: 10;
 }
 </style>

@@ -4,7 +4,6 @@
 		:class="rtlClasses"
 		:style="[responsiveStyles, rtlStyles]"
 	>
-		<ClosingDialog></ClosingDialog>
 		<Drafts></Drafts>
 		<SalesOrders></SalesOrders>
 		<Returns></Returns>
@@ -50,7 +49,6 @@ import PosOffers from "./PosOffers.vue";
 import PosCoupons from "./PosCoupons.vue";
 import Drafts from "./Drafts.vue";
 import SalesOrders from "./SalesOrders.vue";
-import ClosingDialog from "./ClosingDialog.vue";
 import NewAddress from "./NewAddress.vue";
 import Variants from "./Variants.vue";
 import Returns from "./Returns.vue";
@@ -104,7 +102,6 @@ export default {
 		OpeningDialog,
 		Payments,
 		Drafts,
-		ClosingDialog,
 
 		Returns,
 		PosOffers,
@@ -167,9 +164,6 @@ export default {
 				this.showOffers = false;
 				this.payment = false;
 			});
-			this.eventBus.on("open_closing_dialog", () => {
-				this.get_closing_data();
-			});
 			this.eventBus.on("submit_closing_pos", (data) => {
 				this.submit_closing_pos(data);
 			});
@@ -187,7 +181,6 @@ export default {
 		this.eventBus.off("LoadPosProfile");
 		this.eventBus.off("show_offers");
 		this.eventBus.off("show_coupons");
-		this.eventBus.off("open_closing_dialog");
 		this.eventBus.off("submit_closing_pos");
 		this.eventBus.off("items_loaded");
 	},

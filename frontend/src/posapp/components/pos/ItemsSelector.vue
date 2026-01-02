@@ -1126,6 +1126,7 @@ export default {
 			// Filter by search term only if it exists and is long enough
 			if (searchTerm && searchTerm.trim() && searchTerm.trim().length >= 3) {
 				const term = searchTerm.toLowerCase();
+				const searchWords = term.split(/\s+/).filter(Boolean);
 				filtered = filtered.filter((item) => {
 					if (!searchWords.length) {
 						return true;
@@ -4260,54 +4261,72 @@ export default {
 
 			const searchTerm = this.get_search(this.first_search).trim().toLowerCase();
 			const activeStoreSearch = (this.search || "").trim().toLowerCase();
-			let filteredItems = baseItems;
 
-			// Restore local filtering for immediate feedback (Auto Search)
-			// This provides instant results while the store debounces/fetches in the background.
-			// PERF: Skip local filtering if the store has already filtered by the same term
-			if (searchTerm && searchTerm.length >= 3 && searchTerm !== activeStoreSearch) {
-				const searchTerms = searchTerm.split(/\s+/).filter(Boolean);
-				filteredItems = filteredItems.filter((item) => {
+			// Check if we need to apply local search filtering
+			// This happens when the user types but the store hasn't updated yet (debounce)
+			const needsLocalSearch = searchTerm && searchTerm.length >= 3 && searchTerm !== activeStoreSearch;
+
+			// Check other filters
+			const hideZeroRate = this.hide_zero_rate_items;
+			const hideVariants = this.pos_profile?.posa_hide_variants_items;
+			const limit = this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage;
+
+			// PERF: If no filters needed, just slice and return to avoid O(N) filtering
+			if (!needsLocalSearch && !hideZeroRate && !hideVariants) {
+				return baseItems.slice(0, limit);
+			}
+
+			// Prepare search terms if needed
+			let searchTerms = null;
+			if (needsLocalSearch) {
+				searchTerms = searchTerm.split(/\s+/).filter(Boolean);
+			}
+
+			// PERF: Use a single loop to filter and paginate simultaneously.
+			// This avoids iterating the entire array when we only need the first 'limit' items.
+			const result = [];
+			for (let i = 0; i < baseItems.length; i++) {
+				const item = baseItems[i];
+
+				// 1. Search Filter
+				if (needsLocalSearch) {
+					let matches = false;
 					// Use optimized search index if available
 					if (item._search_index) {
-						return searchTerms.every((term) => item._search_index.includes(term));
+						matches = searchTerms.every((term) => item._search_index.includes(term));
+					} else {
+						// Fallback for items without index
+						const rawIndex = (
+							(item.item_code || "") +
+							" " +
+							(item.item_name || "") +
+							" " +
+							(item.barcode || "")
+						).toLowerCase();
+						matches = searchTerms.every((term) => rawIndex.includes(term));
 					}
-					// Fallback for items without index
-					const rawIndex = (
-						(item.item_code || "") +
-						" " +
-						(item.item_name || "") +
-						" " +
-						(item.barcode || "")
-					).toLowerCase();
-					return searchTerms.every((term) => rawIndex.includes(term));
-				});
-			}
-
-			// Redundant item_group filter removed as store handles it.
-
-			// Apply zero rate filter
-			if (this.hide_zero_rate_items) {
-				filteredItems = filteredItems.filter((item) => parseFloat(item.rate || 0) > 0);
-			}
-
-			// Apply template/variant filter
-			if (this.pos_profile?.posa_hide_variants_items) {
-				filteredItems = filteredItems.filter((item) => !item.variant_of);
-			}
-
-			// Apply pagination
-			const limit = this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage;
-			filteredItems = filteredItems.slice(0, limit);
-
-			// Ensure quantities are defined
-			filteredItems.forEach((item) => {
-				if (item.actual_qty === undefined || item.actual_qty === null) {
-					item.actual_qty = 0;
+					if (!matches) continue;
 				}
-			});
 
-			return filteredItems;
+				// 2. Zero Rate Filter
+				if (hideZeroRate) {
+					// Use loose inequality to catch '0', 0, 0.0 etc.
+					if (parseFloat(item.rate || 0) <= 0) continue;
+				}
+
+				// 3. Variant Filter
+				if (hideVariants) {
+					if (item.variant_of) continue;
+				}
+
+				result.push(item);
+
+				if (result.length >= limit) {
+					break;
+				}
+			}
+
+			return result;
 		},
 		debounce_search: {
 			get() {
