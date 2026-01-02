@@ -158,6 +158,8 @@ export default {
 	},
 	mounted() {
 		this.remove_frappe_nav();
+		this.adjust_frappe_sidebar_offset();
+		window.addEventListener("resize", this.adjust_frappe_sidebar_offset);
 		initLoadingSources(["init", "items", "customers"]);
 		this.initializeData();
 		this.setupNetworkListeners();
@@ -479,10 +481,28 @@ export default {
 		},
 
 		remove_frappe_nav() {
-			this.$nextTick(function () {
+			this.$nextTick(() => {
 				$(".page-head").remove();
 				$(".navbar.navbar-default.navbar-fixed-top").remove();
+				this.adjust_frappe_sidebar_offset();
 			});
+		},
+		adjust_frappe_sidebar_offset() {
+			const sidebar = document.querySelector(
+				".desk-sidebar, .app-sidebar, .sidebar, .side-section, .layout-side-section",
+			);
+			let sidebarWidth = 0;
+			if (sidebar) {
+				const sidebarStyles = window.getComputedStyle(sidebar);
+				const rect = sidebar.getBoundingClientRect();
+				if (sidebarStyles.display !== "none" && rect.width > 0) {
+					sidebarWidth = rect.width;
+				}
+			}
+			document.documentElement.style.setProperty(
+				"--posa-desk-sidebar-width",
+				`${sidebarWidth}px`,
+			);
 		},
 	},
 	beforeUnmount() {
@@ -490,6 +510,7 @@ export default {
 			this.eventBus.off("pending_invoices_changed");
 			this.eventBus.off("data-loaded");
 		}
+		window.removeEventListener("resize", this.adjust_frappe_sidebar_offset);
 	},
 	created: function () {
 		setTimeout(() => {
@@ -505,6 +526,8 @@ export default {
 	height: 100dvh;
 	max-height: 100dvh;
 	overflow: hidden;
+	padding-inline-start: var(--posa-desk-sidebar-width, 0px);
+	box-sizing: border-box;
 }
 
 .main-content {
