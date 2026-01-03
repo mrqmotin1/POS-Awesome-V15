@@ -1587,34 +1587,8 @@ export default {
 					frappe.utils.play_sound("error");
 					return;
 				}
-				// Validate stock availability before submitting
-				const isBackground = this.pos_profile.posa_allow_submissions_in_background_job;
-				if (!isOffline() && isBackground) {
-					try {
-						const itemsToCheck = this.invoice_doc.items.filter((it) => !it.is_bundle);
-						const stockCheck = await frappe.call({
-							method: "posawesome.posawesome.api.invoices.validate_cart_items",
-							args: { items: JSON.stringify(itemsToCheck) },
-						});
-						if (stockCheck.message && stockCheck.message.length) {
-							const errorMsg = this.formatStockErrors(stockCheck.message);
-							const blocking =
-								!this.stock_settings.allow_negative_stock || this.blockSaleBeyondAvailableQty;
-							this.eventBus.emit("show_message", {
-								title: errorMsg,
-								color: blocking ? "error" : "warning",
-							});
-							if (blocking) {
-								frappe.utils.play_sound("error");
-								return;
-							}
-						}
-					} catch (e) {
-						console.error("Stock validation failed", e);
-					}
-				}
-
 				// Proceed to submit the invoice
+				// We rely on backend validation in submit_invoice to catch stock issues
 				await this.submit_invoice(print);
 			} catch (error) {
 				console.error("An error occurred during submission:", error);
