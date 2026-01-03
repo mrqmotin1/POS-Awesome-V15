@@ -239,12 +239,8 @@ export default {
 			paymentLoading: false,
 			additionalDiscountDisplay: null,
 			additionalDiscountPercentageDisplay: null,
-			previousAdditionalDiscount: null,
-			previousAdditionalDiscountPercentage: null,
 			isEditingAdditionalDiscount: false,
 			isEditingAdditionalDiscountPercentage: false,
-			isAdditionalDiscountDirty: false,
-			isAdditionalDiscountPercentageDirty: false,
 		};
 	},
 	emits: [
@@ -277,37 +273,38 @@ export default {
 	watch: {
 		additional_discount(value) {
 			if (!this.isEditingAdditionalDiscount) {
-				this.additionalDiscountDisplay = value;
+				this.additionalDiscountDisplay = this.normalizeDiscountDisplay(value);
 			}
 		},
 		additional_discount_percentage(value) {
 			if (!this.isEditingAdditionalDiscountPercentage) {
-				this.additionalDiscountPercentageDisplay = value;
+				this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(value);
 			}
 		},
 	},
 	created() {
-		this.additionalDiscountDisplay = this.additional_discount;
-		this.additionalDiscountPercentageDisplay = this.additional_discount_percentage;
+		this.additionalDiscountDisplay = this.normalizeDiscountDisplay(this.additional_discount);
+		this.additionalDiscountPercentageDisplay = this.normalizeDiscountDisplay(
+			this.additional_discount_percentage,
+		);
 	},
 	methods: {
+		normalizeDiscountDisplay(value) {
+			if (value === 0 || value === "0") {
+				return "";
+			}
+			return value;
+		},
 		// Debounced handlers for better performance
 		handleAdditionalDiscountUpdate(value) {
-			this.isAdditionalDiscountDirty = true;
 			this.$emit("update:additional_discount", value);
 		},
 
 		handleAdditionalDiscountFocus() {
 			this.isEditingAdditionalDiscount = true;
-			this.isAdditionalDiscountDirty = false;
-			this.previousAdditionalDiscount = this.additional_discount;
-			this.additionalDiscountDisplay = "";
 		},
 
 		handleAdditionalDiscountBlur() {
-			if (!this.isAdditionalDiscountDirty) {
-				this.$emit("update:additional_discount", this.previousAdditionalDiscount);
-			}
 			this.isEditingAdditionalDiscount = false;
 		},
 
@@ -321,24 +318,14 @@ export default {
 		},
 
 		handleAdditionalDiscountPercentageUpdate(value) {
-			this.isAdditionalDiscountPercentageDirty = true;
 			this.$emit("update:additional_discount_percentage", value);
 		},
 
 		handleAdditionalDiscountPercentageFocus() {
 			this.isEditingAdditionalDiscountPercentage = true;
-			this.isAdditionalDiscountPercentageDirty = false;
-			this.previousAdditionalDiscountPercentage = this.additional_discount_percentage;
-			this.additionalDiscountPercentageDisplay = "";
 		},
 
 		handleAdditionalDiscountPercentageBlur() {
-			if (!this.isAdditionalDiscountPercentageDirty) {
-				this.$emit(
-					"update:additional_discount_percentage",
-					this.previousAdditionalDiscountPercentage,
-				);
-			}
 			this.isEditingAdditionalDiscountPercentage = false;
 		},
 
