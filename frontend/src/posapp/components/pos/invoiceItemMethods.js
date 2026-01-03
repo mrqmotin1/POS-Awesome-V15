@@ -2174,6 +2174,9 @@ export default {
 				// the referenced Sales or POS Invoice
 				...(item.sales_invoice_item && { sales_invoice_item: item.sales_invoice_item }),
 				...(item.pos_invoice_item && { pos_invoice_item: item.pos_invoice_item }),
+				// Explicitly include stock status to optimize backend validation loops
+				// where O(N) cache lookups occur if this flag is missing.
+				is_stock_item: item.is_stock_item,
 				discount_percentage: flt(item.discount_percentage),
 				batch_no: item.batch_no,
 				posa_notes: item.posa_notes,
