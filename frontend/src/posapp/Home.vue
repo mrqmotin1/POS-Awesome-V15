@@ -499,10 +499,7 @@ export default {
 					sidebarWidth = rect.width;
 				}
 			}
-			document.documentElement.style.setProperty(
-				"--posa-desk-sidebar-width",
-				`${sidebarWidth}px`,
-			);
+			document.documentElement.style.setProperty("--posa-desk-sidebar-width", `${sidebarWidth}px`);
 		},
 	},
 	beforeUnmount() {

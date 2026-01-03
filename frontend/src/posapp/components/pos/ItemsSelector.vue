@@ -276,7 +276,10 @@
 									<div
 										v-if="item"
 										:key="item.item_code"
-										:class="['card-item-card', { 'item-highlighted': isItemHighlighted(item) }]"
+										:class="[
+											'card-item-card',
+											{ 'item-highlighted': isItemHighlighted(item) },
+										]"
 										:style="{
 											width: cardColumnWidth + 'px',
 											height: cardRowHeight + 'px',
@@ -3554,8 +3557,7 @@ export default {
 				}
 
 				const tableRef = this.$refs.itemsTable;
-				const scrollToIndex =
-					tableRef?.scrollToIndex || tableRef?.$?.exposed?.scrollToIndex || null;
+				const scrollToIndex = tableRef?.scrollToIndex || tableRef?.$?.exposed?.scrollToIndex || null;
 				if (scrollToIndex) {
 					const scheduleScroll =
 						typeof requestAnimationFrame === "function"
@@ -5108,7 +5110,9 @@ export default {
 
 .card-item-card.item-highlighted {
 	border-color: var(--primary-color, #1976d2);
-	box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.35), 0 8px 20px rgba(25, 118, 210, 0.2);
+	box-shadow:
+		0 0 0 3px rgba(25, 118, 210, 0.35),
+		0 8px 20px rgba(25, 118, 210, 0.2);
 	transform: translate3d(0, -2px, 0);
 	background: rgba(25, 118, 210, 0.08);
 }

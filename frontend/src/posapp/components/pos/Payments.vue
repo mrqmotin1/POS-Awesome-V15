@@ -1344,6 +1344,16 @@ export default {
 					const parsed = JSON.parse(exc._server_messages);
 					if (Array.isArray(parsed) && parsed.length) {
 						const first = parsed[0];
+						// Check if message is a JSON string containing errors (stock validation)
+						try {
+							const msgObj = JSON.parse(first);
+							if (msgObj.errors && Array.isArray(msgObj.errors)) {
+								return this.formatStockErrors(msgObj.errors);
+							}
+						} catch {
+							/* Not a JSON string */
+						}
+
 						if (typeof first === "string") {
 							return frappe.utils.strip_html(first);
 						}
@@ -1353,9 +1363,27 @@ export default {
 				}
 			}
 			if (exc?.message) {
+				try {
+					const parsed = JSON.parse(exc.message);
+					if (parsed.errors && Array.isArray(parsed.errors)) {
+						return this.formatStockErrors(parsed.errors);
+					}
+				} catch {
+					/* Not a JSON string */
+				}
 				return exc.message;
 			}
 			return exc.toString ? exc.toString() : __("Unknown error");
+		},
+		formatStockErrors(errors) {
+			const msg = errors
+				.map((e) => `${e.item_code} (${e.warehouse}) - ${this.formatFloat(e.available_qty)}`)
+				.join("\n");
+			const blocking = !this.stock_settings.allow_negative_stock || this.blockSaleBeyondAvailableQty;
+
+			return blocking
+				? __("Insufficient stock:\n{0}", [msg])
+				: __("Stock is lower than requested:\n{0}", [msg]);
 		},
 		// Go back to invoice view and reset customer readonly
 		back_to_invoice() {
@@ -1560,7 +1588,8 @@ export default {
 					return;
 				}
 				// Validate stock availability before submitting
-				if (!isOffline()) {
+				const isBackground = this.pos_profile.posa_allow_submissions_in_background_job;
+				if (!isOffline() && isBackground) {
 					try {
 						const itemsToCheck = this.invoice_doc.items.filter((it) => !it.is_bundle);
 						const stockCheck = await frappe.call({
@@ -1568,20 +1597,11 @@ export default {
 							args: { items: JSON.stringify(itemsToCheck) },
 						});
 						if (stockCheck.message && stockCheck.message.length) {
-							const msg = stockCheck.message
-								.map(
-									(e) =>
-										`${e.item_code} (${e.warehouse}) - ${this.formatFloat(
-											e.available_qty,
-										)}`,
-								)
-								.join("\n");
+							const errorMsg = this.formatStockErrors(stockCheck.message);
 							const blocking =
 								!this.stock_settings.allow_negative_stock || this.blockSaleBeyondAvailableQty;
 							this.eventBus.emit("show_message", {
-								title: blocking
-									? __("Insufficient stock:\n{0}", [msg])
-									: __("Stock is lower than requested:\n{0}", [msg]),
+								title: errorMsg,
 								color: blocking ? "error" : "warning",
 							});
 							if (blocking) {

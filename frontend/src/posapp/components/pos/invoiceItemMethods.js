@@ -2273,7 +2273,11 @@ export default {
 
 	// Prepare payments array for invoice doc
 	get_payments() {
-		if (this.isReturnInvoice && Array.isArray(this.invoice_doc?.payments) && this.invoice_doc.payments.length) {
+		if (
+			this.isReturnInvoice &&
+			Array.isArray(this.invoice_doc?.payments) &&
+			this.invoice_doc.payments.length
+		) {
 			const total_amount = Math.abs(this.subtotal);
 			const sourcePayments = this.invoice_doc.payments.filter((payment) => payment?.mode_of_payment);
 			const sourceTotal = sourcePayments.reduce(
@@ -2286,7 +2290,8 @@ export default {
 				let remaining_amount = total_amount;
 
 				return sourcePayments.map((payment, index) => {
-					const share = Math.abs(this.flt(payment.amount || 0, this.currency_precision)) / sourceTotal;
+					const share =
+						Math.abs(this.flt(payment.amount || 0, this.currency_precision)) / sourceTotal;
 					let payment_amount =
 						index === sourcePayments.length - 1
 							? remaining_amount
