@@ -90,9 +90,7 @@ def _validate_return_window(invoice_doc, doctype, enabled):
     validity_date = original_invoice.get("posa_return_valid_upto")
     return_date = getdate(invoice_doc.get("posting_date") or nowdate())
     if validity_date and return_date > getdate(validity_date):
-        frappe.throw(
-            _("Returns are only allowed until {0}").format(formatdate(validity_date))
-        )
+        frappe.throw(_("Returns are only allowed until {0}").format(formatdate(validity_date)))
 
 
 def _sanitize_item_name(name: str) -> str:
@@ -171,7 +169,9 @@ def _allow_negative_stock(item, global_allow_negative=None):
 
     # Global setting overrides everything
     if global_allow_negative is None:
-        global_allow_negative = cint(frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0)
+        global_allow_negative = cint(
+            frappe.db.get_single_value("Stock Settings", "allow_negative_stock") or 0
+        )
 
     if global_allow_negative:
         return True
@@ -400,6 +400,17 @@ def _auto_set_return_batches(invoice_doc):
                 d.batch_no = batch_list[0].get("batch_no")
             elif not allow_free:
                 frappe.throw(_("No batches available in {0} for {1}.").format(d.warehouse, d.item_code))
+
+
+def _is_non_original_return_item_error(error) -> bool:
+    """Return True when the validation error matches non-original return item checks."""
+
+    message = cstr(error)
+    if "Returned Item" not in message:
+        return False
+    if "does not exist in" not in message:
+        return False
+    return True
 
 
 @frappe.whitelist()
@@ -690,21 +701,14 @@ def update_invoice(data):
     try:
         invoice_doc.save()
     except frappe.ValidationError as e:
-        if (
-            invoice_doc.is_return
-            and invoice_doc.return_against
-            and "Returned Item" in str(e)
-            and "does not exist in Sales Invoice" in str(e)
-        ):
+        if invoice_doc.is_return and invoice_doc.return_against and _is_non_original_return_item_error(e):
             frappe.msgprint(
                 _("Warning: Return link removed to allow non-original items."),
                 title=_("Warning"),
                 indicator="orange",
             )
             # Reload timestamp to prevent TimestampMismatchError on retry
-            latest_modified = frappe.db.get_value(
-                invoice_doc.doctype, invoice_doc.name, "modified"
-            )
+            latest_modified = frappe.db.get_value(invoice_doc.doctype, invoice_doc.name, "modified")
             if latest_modified:
                 invoice_doc.modified = latest_modified
             invoice_doc.return_against = None
@@ -1002,21 +1006,14 @@ def submit_invoice(invoice, data, submit_in_background=False):
     try:
         invoice_doc.save()
     except frappe.ValidationError as e:
-        if (
-            invoice_doc.is_return
-            and invoice_doc.return_against
-            and "Returned Item" in str(e)
-            and "does not exist in Sales Invoice" in str(e)
-        ):
+        if invoice_doc.is_return and invoice_doc.return_against and _is_non_original_return_item_error(e):
             frappe.msgprint(
                 _("Warning: Return link removed to allow non-original items."),
                 title=_("Warning"),
                 indicator="orange",
             )
             # Reload timestamp to prevent TimestampMismatchError on retry
-            latest_modified = frappe.db.get_value(
-                invoice_doc.doctype, invoice_doc.name, "modified"
-            )
+            latest_modified = frappe.db.get_value(invoice_doc.doctype, invoice_doc.name, "modified")
             if latest_modified:
                 invoice_doc.modified = latest_modified
             invoice_doc.return_against = None
@@ -1059,16 +1056,9 @@ def submit_invoice(invoice, data, submit_in_background=False):
         try:
             invoice_doc.submit()
         except frappe.ValidationError as e:
-            if (
-                invoice_doc.is_return
-                and invoice_doc.return_against
-                and "Returned Item" in str(e)
-                and "does not exist in Sales Invoice" in str(e)
-            ):
+            if invoice_doc.is_return and invoice_doc.return_against and _is_non_original_return_item_error(e):
                 # Reload timestamp to prevent TimestampMismatchError on retry
-                latest_modified = frappe.db.get_value(
-                    invoice_doc.doctype, invoice_doc.name, "modified"
-                )
+                latest_modified = frappe.db.get_value(invoice_doc.doctype, invoice_doc.name, "modified")
                 if latest_modified:
                     invoice_doc.modified = latest_modified
                 invoice_doc.return_against = None
@@ -1108,7 +1098,9 @@ def submit_in_background_job(kwargs):
         invoice_doc.remarks = _build_invoice_remarks(invoice_doc)
 
         if invoice_doc.redeem_loyalty_points and not invoice_doc.loyalty_program:
-            invoice_doc.loyalty_program = frappe.db.get_value("Customer", invoice_doc.customer, "loyalty_program")
+            invoice_doc.loyalty_program = frappe.db.get_value(
+                "Customer", invoice_doc.customer, "loyalty_program"
+            )
 
         if invoice_doc.redeem_loyalty_points and invoice_doc.loyalty_program:
             if not invoice_doc.loyalty_redemption_account:
@@ -1122,16 +1114,9 @@ def submit_in_background_job(kwargs):
         try:
             invoice_doc.save()
         except frappe.ValidationError as e:
-            if (
-                invoice_doc.is_return
-                and invoice_doc.return_against
-                and "Returned Item" in str(e)
-                and "does not exist in Sales Invoice" in str(e)
-            ):
+            if invoice_doc.is_return and invoice_doc.return_against and _is_non_original_return_item_error(e):
                 # Reload timestamp to prevent TimestampMismatchError on retry
-                latest_modified = frappe.db.get_value(
-                    invoice_doc.doctype, invoice_doc.name, "modified"
-                )
+                latest_modified = frappe.db.get_value(invoice_doc.doctype, invoice_doc.name, "modified")
                 if latest_modified:
                     invoice_doc.modified = latest_modified
                 invoice_doc.return_against = None
@@ -1142,16 +1127,9 @@ def submit_in_background_job(kwargs):
         try:
             invoice_doc.submit()
         except frappe.ValidationError as e:
-            if (
-                invoice_doc.is_return
-                and invoice_doc.return_against
-                and "Returned Item" in str(e)
-                and "does not exist in Sales Invoice" in str(e)
-            ):
+            if invoice_doc.is_return and invoice_doc.return_against and _is_non_original_return_item_error(e):
                 # Reload timestamp to prevent TimestampMismatchError on retry
-                latest_modified = frappe.db.get_value(
-                    invoice_doc.doctype, invoice_doc.name, "modified"
-                )
+                latest_modified = frappe.db.get_value(invoice_doc.doctype, invoice_doc.name, "modified")
                 if latest_modified:
                     invoice_doc.modified = latest_modified
                 invoice_doc.return_against = None
@@ -1439,9 +1417,7 @@ def search_invoices_for_return(
                 new_item["amount"] = remaining_qty * item.rate
                 if item.get("stock_qty"):
                     new_item["stock_qty"] = (
-                        (item.stock_qty / item.qty * remaining_qty)
-                        if item.qty
-                        else remaining_qty
+                        (item.stock_qty / item.qty * remaining_qty) if item.qty else remaining_qty
                     )
                 filtered_items.append(new_item)
 
@@ -1536,7 +1512,7 @@ def get_last_invoice_rates(customer, item_codes=None, company=None, limit_per_it
             si.creation
         from `tabSales Invoice Item` sii
         inner join `tabSales Invoice` si on sii.parent = si.name
-        where {' and '.join(filters)}
+        where {" and ".join(filters)}
     """
 
     pos_invoice_query = f"""
@@ -1551,7 +1527,7 @@ def get_last_invoice_rates(customer, item_codes=None, company=None, limit_per_it
             pi.creation
         from `tabPOS Invoice Item` pii
         inner join `tabPOS Invoice` pi on pii.parent = pi.name
-        where {' and '.join(pos_filters)}
+        where {" and ".join(pos_filters)}
     """
 
     query = (
