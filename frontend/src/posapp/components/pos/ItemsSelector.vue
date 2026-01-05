@@ -24,6 +24,37 @@
 				</v-card-actions>
 			</v-card>
 		</v-dialog>
+		<v-dialog
+			v-model="qtyDialog"
+			max-width="300"
+			persistent
+			@after-leave="onQtyDialogClosed"
+			>
+			<v-card>
+				<v-card-title class="text-subtitle-1">
+				Enter Quantity
+				</v-card-title>
+
+				<v-card-text>
+				<v-text-field
+					ref="qtyInput"
+					v-model.number="qty"
+					type="number"
+					min="1"
+					density="compact"
+					autofocus
+					@keydown.enter.prevent="confirmQty"
+					@keydown.esc.prevent="cancelQty"
+				/>
+				</v-card-text>
+
+				<v-card-actions>
+				<v-spacer />
+				<v-btn variant="text" @click="cancelQty">Cancel</v-btn>
+				<v-btn color="primary" @click="confirmQty">OK</v-btn>
+				</v-card-actions>
+			</v-card>
+			</v-dialog>
 		<v-card
 			:class="[
 				'selection mx-auto my-0 py-0 mt-3 pos-card dynamic-card resizable pos-themed-card',
@@ -61,6 +92,8 @@
 								hide-details
 								v-model="search_input"
 								@keydown.esc="esc_event"
+								@keydown.down.prevent="fromSearchDown"
+								@keydown.up.prevent="fromSearchUp"
 								@keydown.enter="onEnter"
 								@click:clear="clearSearch"
 								@input="handleSearchInput"
@@ -384,94 +417,105 @@
 							</RecycleScroller>
 						</div>
 						<div v-else class="items-table-container">
-							<v-data-table-virtual
-								:headers="headers"
-								:items="displayedItems"
-								class="sleek-data-table overflow-y-auto"
-								:style="{ height: 'calc(100% - 80px)' }"
-								item-key="item_code"
-								fixed-header
-								height="100%"
-								:header-props="headerProps"
-								:no-data-text="__('No items found')"
-								@click:row="click_item_row"
-								@scroll.passive="onListScroll"
+							<div
+								ref="tableWrapper"
+								class="table-keyboard-wrapper"
+								tabindex="0"
+								@keydown.up.prevent="onKeyUp"
+								@keydown.down.prevent="onKeyDown"
+								@keydown.enter.prevent="onItemEnter"
+								@keydown.esc.stop.prevent="focusSearch"
 							>
-								<template v-slot:item.rate="{ item }">
-									<div>
-										<div class="text-primary">
-											{{
-												currencySymbol(item.original_currency || pos_profile.currency)
-											}}
-											{{
-												memoizedFormatCurrency(
-													item.base_price_list_rate ?? item.rate ?? 0,
-													item.original_currency || pos_profile.currency,
-													ratePrecision(
-														item.base_price_list_rate ?? item.rate ?? 0,
-													),
-												)
-											}}
-										</div>
-										<div
-											v-if="getLastInvoiceRate(item)"
-											class="text-caption d-flex align-center last-rate-inline"
-										>
-											<v-icon size="14" class="mr-1" color="secondary"
-												>mdi-history</v-icon
-											>
-											<span class="mr-1">{{ __("Last") }}:</span>
-											<span class="font-weight-medium">
+								<v-data-table-virtual
+									:headers="headers"
+									:items="displayedItems"
+									class="sleek-data-table overflow-y-auto"
+									:style="{ height: 'calc(100% - 80px)' }"
+									item-key="item_code"
+									fixed-header
+									height="100%"
+									:header-props="headerProps"
+									:no-data-text="__('No items found')"
+									@click:row="click_item_row"
+									@scroll.passive="onListScroll"
+									:row-props="rowProps"
+								>
+									<template v-slot:item.rate="{ item }">
+										<div>
+											<div class="text-primary">
 												{{
-													currencySymbol(
-														getLastInvoiceRate(item).currency ||
-															pos_profile.currency,
-													)
+													currencySymbol(item.original_currency || pos_profile.currency)
 												}}
 												{{
 													memoizedFormatCurrency(
-														getLastInvoiceRate(item).rate,
-														getLastInvoiceRate(item).currency ||
-															pos_profile.currency,
-														ratePrecision(getLastInvoiceRate(item).rate || 0),
+														item.base_price_list_rate ?? item.rate ?? 0,
+														item.original_currency || pos_profile.currency,
+														ratePrecision(
+															item.base_price_list_rate ?? item.rate ?? 0,
+														),
 													)
 												}}
-												<span
-													v-if="getLastInvoiceRate(item).uom"
-													class="last-rate-uom"
+											</div>
+											<div
+												v-if="getLastInvoiceRate(item)"
+												class="text-caption d-flex align-center last-rate-inline"
+											>
+												<v-icon size="14" class="mr-1" color="secondary"
+													>mdi-history</v-icon
 												>
-													/{{ getLastInvoiceRate(item).uom }}
+												<span class="mr-1">{{ __("Last") }}:</span>
+												<span class="font-weight-medium">
+													{{
+														currencySymbol(
+															getLastInvoiceRate(item).currency ||
+																pos_profile.currency,
+														)
+													}}
+													{{
+														memoizedFormatCurrency(
+															getLastInvoiceRate(item).rate,
+															getLastInvoiceRate(item).currency ||
+																pos_profile.currency,
+															ratePrecision(getLastInvoiceRate(item).rate || 0),
+														)
+													}}
+													<span
+														v-if="getLastInvoiceRate(item).uom"
+														class="last-rate-uom"
+													>
+														/{{ getLastInvoiceRate(item).uom }}
+													</span>
 												</span>
-											</span>
+											</div>
+											<div
+												v-if="
+													pos_profile.posa_allow_multi_currency &&
+													selected_currency !== pos_profile.currency
+												"
+												class="text-success"
+											>
+												{{ currencySymbol(selected_currency) }}
+												{{
+													memoizedFormatCurrency(
+														item.rate,
+														selected_currency,
+														ratePrecision(item.rate),
+													)
+												}}
+											</div>
 										</div>
-										<div
-											v-if="
-												pos_profile.posa_allow_multi_currency &&
-												selected_currency !== pos_profile.currency
-											"
-											class="text-success"
+									</template>
+									<template v-slot:item.actual_qty="{ item }">
+										<span
+											class="golden--text"
+											:class="{ 'negative-number': isNegative(item.actual_qty) }"
+											>{{
+												memoizedFormatNumber(item.actual_qty, hide_qty_decimals ? 0 : 4)
+											}}</span
 										>
-											{{ currencySymbol(selected_currency) }}
-											{{
-												memoizedFormatCurrency(
-													item.rate,
-													selected_currency,
-													ratePrecision(item.rate),
-												)
-											}}
-										</div>
-									</div>
-								</template>
-								<template v-slot:item.actual_qty="{ item }">
-									<span
-										class="golden--text"
-										:class="{ 'negative-number': isNegative(item.actual_qty) }"
-										>{{
-											memoizedFormatNumber(item.actual_qty, hide_qty_decimals ? 0 : 4)
-										}}</span
-									>
-								</template>
-							</v-data-table-virtual>
+									</template>
+								</v-data-table-virtual>
+							</div>
 						</div>
 					</v-col>
 				</v-row>
@@ -734,6 +778,9 @@ export default {
 		lastInvoiceRates: {},
 		lastInvoiceRateScheduler: null,
 		lastInvoiceRateLoading: false,
+		activeIndex: -1,
+		qtyDialog: false,
+		qtyDialogAction: null,
 	}),
 
 	watch: {
@@ -1987,6 +2034,110 @@ export default {
 			}
 			await this.add_item(item);
 		},
+		ensureRowVisible() {
+			this.$nextTick(() => {
+				const row = document.querySelector(
+					`[data-row-index="${this.activeIndex}"]`
+				);
+				row?.scrollIntoView({ block: "nearest" });
+			});
+		},
+		onQtyDialogClosed() {
+			// 🔥 GUARANTEED dialog is gone
+			this.$nextTick(() => {
+				if (this.qtyDialogAction === "cancel") {
+					this.$refs.tableWrapper?.focus({ preventScroll: true });
+				}
+				if (this.qtyDialogAction === "confirm") {
+					this.$refs.debounce_search?.focus({ preventScroll: true });
+				}
+				this.qtyDialogAction = null;
+			});
+		},
+		cancelQty() {
+			this.qtyDialogAction = "cancel";
+			this.qtyDialog = false;
+			this.qty = 1;
+		},
+		confirmQty() {
+			this.$nextTick(() => {
+				const row = document.querySelector(
+					`[data-row-index="${this.activeIndex}"]`
+				);
+
+				const rect = row?.getBoundingClientRect();
+
+				const fakeEvent = rect
+					? {
+						clientX: rect.left + rect.width / 2,
+						clientY: rect.top + rect.height / 2,
+					}
+					: {
+						clientX: window.innerWidth / 2,
+						clientY: window.innerHeight / 2,
+					};
+
+				const item = this.displayedItems[this.activeIndex];
+				this.click_item_row(fakeEvent, { item });
+			});
+			this.qtyDialogAction = "confirm";
+			this.qtyDialog = false;
+		},
+		onItemEnter() {
+			if (this.activeIndex < 0) return;
+			this.qtyDialog = true;
+
+			// focus qty input without scroll jump
+			this.$nextTick(() => {
+				this.$refs.qtyInput?.focus({ preventScroll: true });
+			});
+		},
+		fromSearchDown() {
+			if (!this.displayedItems.length) return;
+			this.$refs.debounce_search?.blur();
+			if (this.activeIndex === -1) this.activeIndex = 0;
+			this.focusTable();
+		},
+
+		fromSearchUp() {
+			if (!this.displayedItems.length) return;
+			this.$refs.debounce_search?.blur();
+			if (this.activeIndex === -1)
+				this.activeIndex = this.displayedItems.length - 1;
+			this.focusTable();
+		},
+
+		focusTable() {
+			this.$nextTick(() => {
+				this.$refs.tableWrapper?.focus({ preventScroll: true });
+			});
+		},
+		focusSearch() {
+			this.$refs.tableWrapper?.blur();
+			this.$nextTick(() => {
+				this.$refs.debounce_search?.focus({ preventScroll: true });
+			});
+		},
+		onKeyDown() {
+			if (!this.displayedItems.length) return;
+			if (this.activeIndex < this.displayedItems.length - 1) {
+				this.activeIndex++;
+				this.ensureRowVisible();			
+			}
+		},
+		onKeyUp() {
+			if (!this.displayedItems.length) return;
+			if (this.activeIndex > 0) {
+				this.activeIndex--;
+				this.ensureRowVisible();
+			}
+		},
+		rowProps({ index, item }) {
+			return {
+				class: index === this.activeIndex ? "keyboard-active-row" : "",
+				"data-row-index": index,
+			};
+		},
 		async add_item(item, options = {}) {
 			const { suppressNegativeWarning = false } = options;
 			item = { ...item };
@@ -2013,6 +2164,7 @@ export default {
 			);
 
 			if (!isValid) {
+				this.qty = 1;
 				// Validation failed, error message already shown by validator
 				return;
 			}
@@ -3035,6 +3187,7 @@ export default {
 		},
 		handleItemSearchFocus() {
 			this.search_input = "";
+			this.activeIndex = -1;
 		},
 
 		focusItemSearch() {
@@ -5329,6 +5482,14 @@ export default {
 .cards {
 	margin-top: var(--dynamic-sm) !important;
 	padding: var(--dynamic-sm) !important;
+}
+
+.table-keyboard-wrapper {
+  	outline: none;
+}
+
+:deep(tr.keyboard-active-row > td) {
+  background-color: rgba(25, 118, 210, 0.18) !important;
 }
 
 /* Responsive breakpoints */

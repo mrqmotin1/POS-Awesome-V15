@@ -1115,21 +1115,7 @@ export default {
 		// Lazy loading helper for expanded content with cache
 		isItemExpanded() {
 			return (itemId) => {
-				const cacheKey = `${itemId}_${this.expanded.length}`;
-
-				if (this.expandedCache.has(cacheKey)) {
-					return this.expandedCache.get(cacheKey);
-				}
-
-				const isExpanded = this.expanded.includes(itemId);
-				this.expandedCache.set(cacheKey, isExpanded);
-
-				// Clear cache periodically to prevent memory bloat
-				if (this.expandedCache.size > 100) {
-					this.expandedCache.clear();
-				}
-
-				return isExpanded;
+				return this.expanded[0] === itemId;
 			};
 		},
 		hide_qty_decimals() {
