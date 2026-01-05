@@ -2015,7 +2015,7 @@ export default {
 
 .item-search-field {
 	width: 100%;
-	max-width: 320px;
+	max-width: 220px;
 	flex: 1 1 240px;
 	margin-right: auto;
 }
