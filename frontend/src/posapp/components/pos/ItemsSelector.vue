@@ -131,6 +131,13 @@
 									{{ __("Settings") }}
 								</v-btn>
 								<v-spacer></v-spacer>
+								<span
+									v-if="enable_background_sync"
+									class="text-caption text-medium-emphasis last-sync-label"
+								>
+									{{ __("Last sync:") }} {{ formatBackgroundSyncTime() }}
+								</span>
+								<v-spacer></v-spacer>
 								<v-btn
 									density="compact"
 									variant="text"
@@ -710,6 +717,7 @@ export default {
 		qty: 1,
 		background_sync_timer: null,
 		background_sync_in_flight: false,
+		last_background_sync_time: null,
 		abortController: null,
 		itemDetailsRequestCache: { key: null, promise: null, result: null },
 		itemDetailsRetryCount: 0,
@@ -4338,6 +4346,17 @@ export default {
 				console.error("Failed to load item selector settings:", e);
 			}
 		},
+		formatBackgroundSyncTime() {
+			const lastSync = this.last_background_sync_time;
+			if (!lastSync) {
+				return __("Never");
+			}
+			const parsed = new Date(lastSync);
+			if (Number.isNaN(parsed.getTime())) {
+				return __("Never");
+			}
+			return parsed.toLocaleTimeString();
+		},
 		normalizeBackgroundSyncInterval(value) {
 			const parsed = parseInt(value, 10);
 			if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -4367,12 +4386,14 @@ export default {
 		async ensureBackgroundSyncBaseline() {
 			const lastSync = getItemsLastSync();
 			if (lastSync) {
+				this.last_background_sync_time = lastSync;
 				return lastSync;
 			}
 
 			const serverTimestamp = await this.fetchServerItemsTimestamp();
 			if (serverTimestamp) {
 				setItemsLastSync(serverTimestamp);
+				this.last_background_sync_time = serverTimestamp;
 				return serverTimestamp;
 			}
 
@@ -4404,6 +4425,7 @@ export default {
 				// Benchmark note: keeps background sync payloads small even for large catalogs.
 				await this.ensureBackgroundSyncBaseline();
 				const { items: updatedItems } = await this.refreshModifiedItems();
+				this.last_background_sync_time = getItemsLastSync() || new Date().toISOString();
 
 				if (updatedItems && updatedItems.length) {
 					await this.update_items_details(updatedItems, { forceRefresh: true });
@@ -4684,6 +4706,7 @@ export default {
 
 		// Load settings
 		this.loadItemSettings();
+		this.last_background_sync_time = getItemsLastSync();
 		await this.ensureScaleBarcodeSettings();
 
 		// Initialize after memory is ready
@@ -5067,6 +5090,10 @@ export default {
 
 .text-success {
 	color: #4caf50 !important;
+}
+
+.last-sync-label {
+	white-space: nowrap;
 }
 
 /* Enhanced Arabic number support for ItemsSelector */
