@@ -447,6 +447,7 @@ export default {
 	},
 	data: function () {
 		return {
+			invoicePoller: null, // Poller for invoices
 			dialog: false,
 			pos_profile: "",
 			pos_opening_shift: "",
@@ -608,7 +609,24 @@ export default {
 		UpdateCustomer,
 	},
 
-	methods: {
+	methods: { 
+		// polling for new invoices
+		startInvoicePolling() {
+			if (this.invoicePoller) return;
+
+			console.log("🔁 Invoice polling started");
+
+			this.invoicePoller = setInterval(() => {
+				// DO NOT poll while cashier is selecting invoices
+				if (this.selected_invoices?.length > 0) {
+				return;
+				}
+
+				console.log("🔄 Polling outstanding invoices");
+				this.get_outstanding_invoices();
+			}, 3000); // every 3 seconds
+			},
+
 		async check_opening_entry() {
 			var vm = this;
 			await initPromise;
@@ -1301,6 +1319,16 @@ export default {
 	},
 
 	mounted() {
+		console.log("🟢 Pay.vue mounted");
+		// wait a bit so POS Awesome finishes initialization
+		setTimeout(() => {
+			console.log("🟢 Initial invoice load");
+			this.get_outstanding_invoices();
+
+			// start polling
+			this.startInvoicePolling();
+		}, 1000);
+
 		this.$watch(
 			() => this.selectedCustomer,
 			(customerName) => {
@@ -1338,6 +1366,11 @@ export default {
 		});
 	},
 	beforeUnmount() {
+		if (this.invoicePoller) {
+    clearInterval(this.invoicePoller);
+    this.invoicePoller = null;
+    console.log("🛑 Invoice polling stopped");
+  }
 		this.eventBus.off("network-online", this.syncPendingPayments);
 		this.eventBus.off("server-online", this.syncPendingPayments);
 	},
