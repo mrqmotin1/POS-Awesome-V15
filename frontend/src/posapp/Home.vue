@@ -3,6 +3,7 @@
 		<AppLoadingOverlay :visible="globalLoading" />
 		<UpdatePrompt />
 		<v-main class="main-content">
+			<ClosingDialog />
 			<Navbar
 				:pos-profile="posProfile"
 				:pending-invoices="pendingInvoices"
@@ -43,9 +44,11 @@
 import Navbar from "./components/Navbar.vue";
 import POS from "./components/pos/Pos.vue";
 import Payments from "./components/payments/Pay.vue";
+import ClosingDialog from "./components/pos/ClosingDialog.vue";
 import AppLoadingOverlay from "./components/ui/LoadingOverlay.vue";
 import UpdatePrompt from "./components/ui/UpdatePrompt.vue";
 import { useLoading } from "./composables/useLoading.js";
+import { usePosShift } from "./composables/usePosShift.js";
 import { loadingState, initLoadingSources, setSourceProgress, markSourceLoaded } from "./utils/loading.js";
 import { useCustomersStore } from "./stores/customersStore.js";
 import { storeToRefs } from "pinia";
@@ -82,11 +85,17 @@ export default {
 	setup() {
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
 		const { overlayVisible } = useLoading();
+		const shift = usePosShift(() => {
+			if (instance && instance.proxy) {
+				instance.proxy.dialog = true;
+			}
+		});
 		return {
 			isRtl,
 			rtlStyles,
 			rtlClasses,
 			globalLoading: overlayVisible,
+			...shift,
 		};
 	},
 	data: function () {
@@ -150,6 +159,7 @@ export default {
 		Navbar,
 		POS,
 		Payments,
+		ClosingDialog,
 		AppLoadingOverlay,
 		UpdatePrompt,
 	},
@@ -180,6 +190,14 @@ export default {
 			},
 			{ immediate: true },
 		);
+		this.$nextTick(() => {
+			this.eventBus.on("submit_closing_pos", (payload) => {
+				const { data, print } = payload;
+    			console.log("Received CustomPrint Value:", print);
+    			this.submit_closing_pos(data, print);
+			});
+		});
+		
 	},
 	methods: {
 		setupNetworkListeners,
@@ -337,8 +355,7 @@ export default {
 		},
 
 		handleCloseShift() {
-			// Trigger POS closing dialog via event bus
-			this.eventBus.emit("open_closing_dialog");
+			this.get_closing_data();
 		},
 
 		handlePrintLastInvoice() {
@@ -490,6 +507,7 @@ export default {
 		if (this.eventBus) {
 			this.eventBus.off("pending_invoices_changed");
 			this.eventBus.off("data-loaded");
+			this.eventBus.off("submit_closing_pos");
 		}
 	},
 	created: function () {
