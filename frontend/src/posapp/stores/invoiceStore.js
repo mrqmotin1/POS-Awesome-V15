@@ -153,6 +153,13 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		}, 0);
 	});
 
+	const total_amount_without_discount = computed(() => {
+		return items.value.reduce((sum, item) => {
+			const qty = Math.abs(toNumber(item.qty));
+			return sum + qty * toNumber(item.price_list_rate || 0);
+		}, 0);
+		});
+
 	const itemsCount = computed(() => items.value.length);
 
 	const itemsMap = computed(() => {
@@ -192,6 +199,7 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		clearItems,
 		setPackedItems,
 		clear,
+		total_amount_without_discount,
 	};
 });
 
