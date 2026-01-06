@@ -156,6 +156,21 @@
 						>
 							{{ __("Columns") }}
 						</v-btn>
+						<v-text-field
+							:model-value="isEditing? editedValue : total_items_discount_amount"
+							@update:modelValue="editedValue = $event"
+							density="compact"
+							variant="solo"
+							color="primary"
+							class="discount-amount-field pos-themed-input"
+							:label="__('Discount Amount for all items')"
+							hide-details
+							clearable
+							autocomplete="off"
+							@focus="startEditing"
+							@keydown.enter.prevent="apply_discount_amount_to_all_items"
+							@blur="apply_discount_amount_to_all_items"
+						></v-text-field>
 						<!-- <v-btn
 							density="compact"
 							variant="text"
@@ -458,6 +473,7 @@ export default {
 			_busHandlers: {},
 			pricing_reconcile_in_progress: false,
 			discount_percent_for_all: 0,
+			isEditing: false,
 		};
 	},
 
@@ -1757,6 +1773,24 @@ export default {
 				this.calc_prices(item, discount, event);
 			});
 		},
+		apply_discount_amount_to_all_items() {
+			const fakeEvent = {
+				type: 'blur',
+				target: {
+					id: 'discount_percentage',
+				},
+				bubbles: true,
+				cancelable: true,
+			};
+			this.isEditing = false;
+
+			this.discount_percent_for_all = parseFloat((this.editedValue / (this.invoiceStore.total_amount_without_discount || 1)) * 100);
+			this.apply_discount_percent_to_all_items(fakeEvent);
+		},
+		startEditing() {
+			this.isEditing = true;
+			this.editedValue = this.flt(this.invoiceStore.discountTotal || 0, 2);
+		},
 	},
 
 	mounted() {
@@ -2016,6 +2050,13 @@ export default {
 .item-search-field {
 	width: 100%;
 	max-width: 220px;
+	flex: 1 1 240px;
+	margin-right: auto;
+}
+
+.discount-amount-field {
+	width: 100%;
+	max-width: 320px;
 	flex: 1 1 240px;
 	margin-right: auto;
 }
