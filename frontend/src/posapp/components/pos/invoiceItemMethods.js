@@ -3521,6 +3521,16 @@ export default {
 					item.allow_negative_stock = updated_item.allow_negative_stock;
 					item.batch_no_data = updated_item.batch_no_data;
 					item.serial_no_data = updated_item.serial_no_data;
+					// Benchmark note: Apply auto-batch assignment during bulk updates to avoid extra UI expand cycles.
+					if (
+						item.has_batch_no &&
+						this.pos_profile?.posa_auto_set_batch &&
+						!item.batch_no &&
+						Array.isArray(item.batch_no_data) &&
+						item.batch_no_data.length > 0
+					) {
+						this.set_batch_qty(item, null, false);
+					}
 
 					if (updated_item.price_list_currency) {
 						item.price_list_currency = updated_item.price_list_currency;
