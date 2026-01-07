@@ -41,6 +41,7 @@
 
 <script>
 /* global frappe, $ */
+import { getCurrentInstance } from "vue";
 import Navbar from "./components/Navbar.vue";
 import POS from "./components/pos/Pos.vue";
 import Payments from "./components/payments/Pay.vue";
@@ -67,7 +68,10 @@ import {
 	getPendingOfflineInvoiceCount,
 	isOffline,
 	getLastSyncTotals,
+	forceClearAllCache,
 } from "../offline/index.js";
+import { clearAllCaches } from "../utils/clearAllCaches.js";
+
 import { silentPrint, watchPrintWindow } from "./plugins/print.js";
 import {
 	setupNetworkListeners,
@@ -83,6 +87,7 @@ import { useRtl } from "./composables/useRtl.js";
 
 export default {
 	setup() {
+		const instance = getCurrentInstance();
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
 		const { overlayVisible } = useLoading();
 		const shift = usePosShift(() => {
@@ -124,6 +129,7 @@ export default {
 			cacheReady: false,
 
 			// Loading progress handled via utility
+			clearingCache : false,
 		};
 	},
 	computed: {
@@ -190,14 +196,18 @@ export default {
 			},
 			{ immediate: true },
 		);
-		this.$nextTick(() => {
-			this.eventBus.on("submit_closing_pos", (payload) => {
-				const { data, print } = payload;
-    			console.log("Received CustomPrint Value:", print);
-    			this.submit_closing_pos(data, print);
-			});
-		});
-		
+		this.onSubmitClosingPos = async (payload = {}) => {
+			const { data = null, print = false } = payload;
+			this.submit_closing_pos(data, print);
+			if (this.page !== "POS") {
+				this.setPage("POS");
+				await this.check_opening_entry();
+			}
+			else {
+				await this.clearCache();
+			}
+		};
+		this.eventBus.on("submit_closing_pos", this.onSubmitClosingPos);
 	},
 	methods: {
 		setupNetworkListeners,
@@ -502,12 +512,57 @@ export default {
 				$(".navbar.navbar-default.navbar-fixed-top").remove();
 			});
 		},
+		async clearCache() {
+			if (this.clearingCache) {
+				return;
+			}
+			if (isOffline()) {
+				this.eventBus.emit("show_message", {
+					color: "warning",
+					title: this.__("Cannot clear cache while offline"),
+				});
+				return;
+			}
+			let shouldReload = false;
+			try {
+				this.clearingCache = true;
+				this.eventBus.emit("show_message", {
+					color: "info",
+					title: this.__("Clearing local cache..."),
+				});
+				let westernPref = null;
+				if (typeof localStorage !== "undefined") {
+					westernPref = localStorage.getItem("use_western_numerals");
+				}
+				await forceClearAllCache();
+				await clearAllCaches({ confirmBeforeClear: false }).catch(() => {});
+				if (westernPref !== null && typeof localStorage !== "undefined") {
+					localStorage.setItem("use_western_numerals", westernPref);
+				}
+				this.eventBus.emit("show_message", {
+					color: "success",
+					title: this.__("Cache cleared successfully"),
+				});
+				shouldReload = true;
+			} catch (e) {
+				console.error("Failed to clear cache", e);
+				this.eventBus.emit("show_message", {
+					color: "error",
+					title: this.__("Failed to clear cache"),
+				});
+			} finally {
+				this.clearingCache = false;
+				if (shouldReload) {
+					setTimeout(() => location.reload(), 1000);
+				}
+			}
+		}
 	},
 	beforeUnmount() {
 		if (this.eventBus) {
 			this.eventBus.off("pending_invoices_changed");
 			this.eventBus.off("data-loaded");
-			this.eventBus.off("submit_closing_pos");
+			this.eventBus.off("submit_closing_pos", this.onSubmitClosingPos);
 		}
 	},
 	created: function () {

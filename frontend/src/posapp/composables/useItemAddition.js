@@ -314,14 +314,14 @@ export function useItemAddition() {
 				}
 
 				// Expand new item if it has batch or serial number
-				if (
-					(!context.pos_profile.posa_auto_set_batch && new_item.has_batch_no) ||
-					new_item.has_serial_no
-				) {
-					nextTick(() => {
-						context.expanded = [new_item.posa_row_id];
-					});
-				}
+				// if (
+				// 	(!context.pos_profile.posa_auto_set_batch && new_item.has_batch_no) ||
+				// 	new_item.has_serial_no
+				// ) {
+				// 	nextTick(() => {
+				// 		context.expanded = [new_item.posa_row_id];
+				// 	});
+				// }
 			} else {
 				const cur_item = context.items[index];
 				const previousQty = cur_item.qty;
@@ -447,12 +447,12 @@ export function useItemAddition() {
 		}
 
 		// Only try to expand if new_item exists and should be expanded
-		if (
-			new_item &&
-			((!context.pos_profile.posa_auto_set_batch && new_item.has_batch_no) || new_item.has_serial_no)
-		) {
-			context.expanded = [new_item.posa_row_id];
-		}
+		// if (
+		// 	new_item &&
+		// 	((!context.pos_profile.posa_auto_set_batch && new_item.has_batch_no) || new_item.has_serial_no)
+		// ) {
+		// 	context.expanded = [new_item.posa_row_id];
+		// }
 	});
 
 	// Create a new item object with default and calculated fields
@@ -542,10 +542,10 @@ export function useItemAddition() {
 			new_item.serial_no_selected_count = 0;
 		}
 		// Expand row if batch/serial required
-		if ((!context.pos_profile.posa_auto_set_batch && new_item.has_batch_no) || new_item.has_serial_no) {
-			// Only store the row ID to keep expanded array consistent
-			context.expanded.push(new_item.posa_row_id);
-		}
+		// if ((!context.pos_profile.posa_auto_set_batch && new_item.has_batch_no) || new_item.has_serial_no) {
+		// 	// Only store the row ID to keep expanded array consistent
+		// 	context.expanded.push(new_item.posa_row_id);
+		// }
 		return new_item;
 	};
 

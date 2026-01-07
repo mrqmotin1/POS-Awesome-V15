@@ -134,7 +134,6 @@ export function usePosShift(openDialog) {
 						load_print_page(r.message);
 						console.log("Print page loaded", r.message);
 					}
-					check_opening_entry();
 				}
 			});
 	}
