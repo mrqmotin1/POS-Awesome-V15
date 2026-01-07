@@ -3098,6 +3098,8 @@ export default {
 				return;
 			}
 
+			await this.ensure_auto_batch_selection();
+
 			let invoice_doc;
 			if (
 				this.invoiceType === "Order" &&
@@ -3474,6 +3476,41 @@ export default {
 		}
 
 		this.eventBus.emit("show_payment", "false");
+	},
+
+	// Ensure auto-batch items have batch numbers before payment/submit
+	async ensure_auto_batch_selection() {
+		if (!this.pos_profile?.posa_auto_set_batch) {
+			return;
+		}
+
+		if (!Array.isArray(this.items) || this.items.length === 0) {
+			return;
+		}
+
+		const pending = [];
+		const ready = [];
+
+		this.items.forEach((item) => {
+			if (!item?.has_batch_no || item.batch_no) {
+				return;
+			}
+
+			if (Array.isArray(item.batch_no_data) && item.batch_no_data.length > 0) {
+				ready.push(item);
+			} else {
+				pending.push(item);
+			}
+		});
+
+		// Benchmark note: assign batch numbers before payment to avoid backend validation errors.
+		ready.forEach((item) => {
+			this.set_batch_qty(item, null, false);
+		});
+
+		if (pending.length > 0) {
+			await this.update_items_details(pending);
+		}
 	},
 
 	// Update details for all items (fetch from backend)
