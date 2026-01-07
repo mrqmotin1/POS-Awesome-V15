@@ -5,10 +5,10 @@
 	>
 		<v-row dense>
 			<!-- Summary Info -->
-			<v-col cols="12" md="8">
+			<v-col cols="12" md="6">
 				<v-row dense>
 					<!-- Total Qty -->
-					<v-col cols="6">
+					<v-col cols="12">
 						<v-text-field
 							:model-value="formatFloat(total_qty, hide_qty_decimals ? 0 : undefined)"
 							:label="frappe._('Total Qty')"
@@ -20,7 +20,7 @@
 						/>
 					</v-col>
 					<!-- Additional Discount (Amount or Percentage) -->
-					<v-col cols="6" v-if="!pos_profile.posa_use_percentage_discount">
+					<!-- <v-col cols="6" v-if="!pos_profile.posa_use_percentage_discount">
 						<v-text-field
 							:model-value="additional_discount"
 							@update:model-value="handleAdditionalDiscountUpdate"
@@ -56,10 +56,10 @@
 							"
 							class="summary-field"
 						/>
-					</v-col>
+					</v-col> -->
 
 					<!-- Items Discount -->
-					<v-col cols="6">
+					<!-- <v-col cols="6">
 						<v-text-field
 							:model-value="formatCurrency(total_items_discount_amount)"
 							:prefix="currencySymbol(displayCurrency)"
@@ -71,10 +71,10 @@
 							readonly
 							class="summary-field"
 						/>
-					</v-col>
+					</v-col> -->
 
 					<!-- Total (moved to maintain row alignment) -->
-					<v-col cols="6">
+					<v-col cols="12">
 						<v-text-field
 							:model-value="formatCurrency(subtotal)"
 							:prefix="currencySymbol(displayCurrency)"
@@ -118,7 +118,7 @@
 			</v-col>
 
 			<!-- Action Buttons -->
-			<v-col cols="12" md="4">
+			<v-col cols="12" md="6">
 				<v-row dense>
 					<v-col cols="12">
 						<v-btn

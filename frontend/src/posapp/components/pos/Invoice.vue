@@ -134,8 +134,8 @@
 							autocomplete="off"
 						></v-text-field> -->
 						<v-text-field
-							id="discount_percentage"
-							v-model="discount_percent_for_all"
+							:model-value="discount_percent_for_all"
+							@update:model-value="discount_percent_for_all = Number($event) || 0"
 							density="compact"
 							variant="solo"
 							color="primary"
@@ -144,7 +144,9 @@
 							hide-details
 							clearable
 							autocomplete="off"
-							@change="apply_discount_percent_to_all_items($event)"
+							:disabled="invoiceStore.items.length === 0"
+							@keydown.enter.prevent="apply_discount_percent_to_all_items"
+							@blur="apply_discount_percent_to_all_items"
 						></v-text-field>
 						<v-btn
 							density="compact"
@@ -167,6 +169,7 @@
 							hide-details
 							clearable
 							autocomplete="off"
+							:disabled="invoiceStore.items.length === 0"
 							@focus="startEditing"
 							@keydown.enter.prevent="apply_discount_amount_to_all_items"
 							@blur="apply_discount_amount_to_all_items"
@@ -1750,7 +1753,7 @@ export default {
 		handleShowPayment(data) {
 			this.paymentVisible = data === "true";
 		},
-		apply_discount_percent_to_all_items(event) {
+		apply_discount_percent_to_all_items() {
 			let discount = parseFloat(this.discount_percent_for_all);
 
 			if (isNaN(discount) || discount < 0) {
@@ -1769,11 +1772,6 @@ export default {
 				return;
 			}
 
-			items.forEach(item => {
-				this.calc_prices(item, discount, event);
-			});
-		},
-		apply_discount_amount_to_all_items() {
 			const fakeEvent = {
 				type: 'blur',
 				target: {
@@ -1782,10 +1780,15 @@ export default {
 				bubbles: true,
 				cancelable: true,
 			};
-			this.isEditing = false;
 
+			items.forEach(item => {
+				this.calc_prices(item, discount, fakeEvent);
+			});
+		},
+		apply_discount_amount_to_all_items() {
+			this.isEditing = false;
 			this.discount_percent_for_all = parseFloat((this.editedValue / (this.invoiceStore.total_amount_without_discount || 1)) * 100);
-			this.apply_discount_percent_to_all_items(fakeEvent);
+			this.apply_discount_percent_to_all_items();
 		},
 		startEditing() {
 			this.isEditing = true;
@@ -1907,7 +1910,14 @@ export default {
 
 		this._shortcutHandlers = {};
 	},
-	watch: invoiceWatchers,
+	watch: {
+		...invoiceWatchers,
+		'invoiceStore.items.length'(len) {
+			if (len === 0) {
+				this.discount_percent_for_all = 0;
+			}
+		}
+	},
 };
 </script>
 
