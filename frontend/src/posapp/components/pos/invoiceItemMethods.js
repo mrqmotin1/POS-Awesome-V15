@@ -2300,10 +2300,10 @@ export default {
 					: adjusted_amount;
 
 			payments.push({
-				amount: adjusted_amount, // Keep in selected currency (e.g. USD)
-				base_amount: base_amount, // Convert to base currency (e.g. PKR)
+				amount: 0, // Keep in selected currency (e.g. USD)
+				base_amount: 0, // Convert to base currency (e.g. PKR)
 				mode_of_payment: payment.mode_of_payment,
-				default: payment.default,
+				default: 0,
 				account: payment.account || "",
 				type: payment.type || "Cash",
 				currency: this.selected_currency || this.pos_profile.currency,

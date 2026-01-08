@@ -527,7 +527,6 @@
 				<v-row class="pa-1" align="start" no-gutters>
 					<v-col
 						cols="12"
-						v-if="invoice_doc && pos_profile.posa_allow_credit_sale"
 					>
 						<v-radio-group
 							v-model="invoice_doc.custom_pay_type"
@@ -1406,19 +1405,19 @@ export default {
 					this.ensureReturnPaymentsAreNegative();
 				}
 				// Validate total payments only if not credit sale and invoice total is not zero
-				if (
-					!this.is_credit_sale &&
-					!this.invoice_doc.is_return &&
-					this.total_payments <= 0 &&
-					(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
-				) {
-					this.eventBus.emit("show_message", {
-						title: `Please enter payment amount`,
-						color: "error",
-					});
-					frappe.utils.play_sound("error");
-					return;
-				}
+				// if (
+				// 	!this.is_credit_sale &&
+				// 	!this.invoice_doc.is_return &&
+				// 	this.total_payments <= 0 &&
+				// 	(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
+				// ) {
+				// 	this.eventBus.emit("show_message", {
+				// 		title: `Please enter payment amount`,
+				// 		color: "error",
+				// 	});
+				// 	frappe.utils.play_sound("error");
+				// 	return;
+				// }
 				// Validate cash payments when credit sale is off
 				// if (!this.is_credit_sale && !this.invoice_doc.is_return) {
 				// 	let has_cash_payment = false;
