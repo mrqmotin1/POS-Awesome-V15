@@ -136,7 +136,13 @@ export function useBatchSerial() {
 			item.batch_no_expiry_date = batch_to_use.expiry_date;
 			item.batch_no_is_expired = batch_to_use.is_expired;
 
-			if (batch_to_use.batch_price) {
+			const hasPriceListRate =
+				item.price_list_rate !== undefined &&
+				item.price_list_rate !== null &&
+				Number(item.price_list_rate) !== 0;
+			const shouldApplyBatchPrice = batch_to_use.batch_price && (update || !hasPriceListRate);
+
+			if (shouldApplyBatchPrice) {
 				// Store batch price in base currency
 				item.base_batch_price = batch_to_use.batch_price;
 
