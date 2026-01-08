@@ -26,7 +26,7 @@ export default {
 			return;
 		}
 
-		if (key === "F5") {
+		if (key === "F6") {
 			consumeEvent(event);
 			this.$refs.customerComponent?.openNewCustomer?.();
 			return;
