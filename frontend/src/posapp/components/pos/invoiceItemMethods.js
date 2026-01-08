@@ -1386,6 +1386,7 @@ export default {
 			customer_price_list: this.customer_info?.customer_price_list || null,
 			pos_profile_price_list: this.pos_profile?.selling_price_list || null,
 			effective_price_list: this.get_price_list(),
+			selected_price_list: this.selected_price_list || null,
 			invoice_selling_price_list: this.invoice_doc?.selling_price_list || null,
 			item_before: this._buildPriceListSnapshot([item]),
 		};
@@ -2449,6 +2450,7 @@ export default {
 				customer_price_list: this.customer_info?.customer_price_list || null,
 				pos_profile_price_list: this.pos_profile?.selling_price_list || null,
 				effective_price_list: this.get_price_list(),
+				selected_price_list: this.selected_price_list || null,
 				invoice_selling_price_list: doc.selling_price_list,
 				items_before: this._buildPriceListSnapshot(doc.items),
 			});
@@ -2462,6 +2464,7 @@ export default {
 			const message = response?.message;
 			if (message) {
 				this._logPriceListDebug("update_invoice_response", {
+					effective_price_list: this.get_price_list(),
 					invoice_selling_price_list: message.selling_price_list,
 					items_after: this._buildPriceListSnapshot(message.items),
 				});
@@ -2547,6 +2550,7 @@ export default {
 			customer_price_list: this.customer_info?.customer_price_list || null,
 			pos_profile_price_list: this.pos_profile?.selling_price_list || null,
 			effective_price_list: this.get_price_list(),
+			selected_price_list: this.selected_price_list || null,
 			invoice_selling_price_list: doc.selling_price_list,
 			items_before: this._buildPriceListSnapshot(doc.items),
 		});
@@ -2622,6 +2626,14 @@ export default {
 			const current = this.invoice_doc || {};
 			const name = current.name;
 			let doctype = current.doctype;
+			const effectivePriceList = this.get_price_list();
+			this._logPriceListDebug("reload_invoice_request", {
+				customer: this.customer,
+				customer_price_list: this.customer_info?.customer_price_list || null,
+				pos_profile_price_list: this.pos_profile?.selling_price_list || null,
+				effective_price_list: effectivePriceList,
+				invoice_selling_price_list: current.selling_price_list || null,
+			});
 
 			if (!doctype) {
 				if (this.invoiceType === "Quotation") {
@@ -2648,6 +2660,11 @@ export default {
 
 			const doc = r?.message;
 			if (doc) {
+				this._logPriceListDebug("reload_invoice_response", {
+					effective_price_list: effectivePriceList,
+					invoice_selling_price_list: doc.selling_price_list,
+					items_after: this._buildPriceListSnapshot(doc.items),
+				});
 				if (manualOverrides.length) {
 					this._applyManualRateOverridesToDoc(doc, manualOverrides);
 				}
@@ -3135,6 +3152,7 @@ export default {
 				customer_price_list: this.customer_info?.customer_price_list || null,
 				pos_profile_price_list: this.pos_profile?.selling_price_list || null,
 				effective_price_list: this.get_price_list(),
+				selected_price_list: this.selected_price_list || null,
 				invoice_selling_price_list: this.invoice_doc?.selling_price_list || null,
 				items_before: this._buildPriceListSnapshot(this.items),
 			});
@@ -4130,15 +4148,21 @@ export default {
 	},
 
 	// Get price list for current customer
-	get_price_list() {
-		// Customer price list has highest priority, then manual selection, then POS Profile default.
+	get_effective_price_list() {
+		// Benchmark note: keep this resolver O(1) to avoid extra lookups in pricing loops.
 		const customerPriceList = this.customer_info?.customer_price_list || null;
-		return customerPriceList || this.selected_price_list || this.pos_profile.selling_price_list;
+		const profilePriceList = this.pos_profile?.selling_price_list || null;
+		return customerPriceList || profilePriceList;
+	},
+
+	get_price_list() {
+		// Customer price list has highest priority, then POS Profile default.
+		return this.get_effective_price_list();
 	},
 
 	// Update price list for customer
 	update_price_list() {
-		const price_list = this.pos_profile?.selling_price_list || null;
+		const price_list = this.get_effective_price_list();
 		const hasChanged = this.selected_price_list !== price_list;
 		if (hasChanged) {
 			this.selected_price_list = price_list;
