@@ -135,7 +135,9 @@
 						></v-text-field> -->
 						<v-text-field
 							:model-value="discount_percent_for_all"
-							@update:model-value="discount_percent_for_all = Number($event) || 0"
+							@update:model-value="onDiscountPercentUpdate"
+							:max="isCounterManager ? 20 : 7"
+							:min="0"
 							density="compact"
 							variant="solo"
 							color="primary"
@@ -515,6 +517,9 @@ export default {
 			},
 		},
 		...invoiceComputed,
+		isCounterManager() {
+			return frappe.user_roles.includes("Counter Manager") || false;
+		}
 	},
 
 	methods: {
@@ -1753,6 +1758,11 @@ export default {
 		handleShowPayment(data) {
 			this.paymentVisible = data === "true";
 		},
+		onDiscountPercentUpdate(val) {
+			let num = Number(val);
+			if (Number.isNaN(num)) num = 0;
+			this.discount_percent_for_all = Math.min(Math.max(num, 0), this.isCounterManager ? 20 : 7);
+		},
 		apply_discount_percent_to_all_items() {
 			let discount = parseFloat(this.discount_percent_for_all);
 
@@ -1787,7 +1797,8 @@ export default {
 		},
 		apply_discount_amount_to_all_items() {
 			this.isEditing = false;
-			this.discount_percent_for_all = parseFloat((this.editedValue / (this.invoiceStore.total_amount_without_discount || 1)) * 100);
+			const num = parseFloat((this.editedValue / (this.invoiceStore.total_amount_without_discount || 1)) * 100);
+			this.discount_percent_for_all = Math.min(Math.max(num, 0), this.isCounterManager ? 20 : 7);
 			this.apply_discount_percent_to_all_items();
 		},
 		startEditing() {

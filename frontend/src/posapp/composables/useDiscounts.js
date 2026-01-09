@@ -98,7 +98,10 @@ export function useDiscounts() {
 					break;
 
 				case "discount_amount":
-					newValue = Math.min(newValue, item.price_list_rate);
+					newValue = Math.min(
+						newValue,
+						(item.price_list_rate * (frappe.user_roles.includes("Counter Manager") ? 20 : 7)) / 100
+					);
 					item.discount_amount = newValue;
 
 					item.base_discount_amount = context.flt(
@@ -125,7 +128,7 @@ export function useDiscounts() {
 					break;
 
 				case "discount_percentage":
-					newValue = Math.min(newValue, 100);
+					newValue = Math.min(newValue, frappe.user_roles.includes("Counter Manager") ? 20 : 7);
 					item.discount_percentage = context.flt(newValue, context.float_precision);
 
 					item.base_discount_amount = context.flt(

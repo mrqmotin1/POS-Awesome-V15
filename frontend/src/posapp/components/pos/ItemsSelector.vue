@@ -5489,7 +5489,7 @@ export default {
 }
 
 :deep(tr.keyboard-active-row > td) {
-  background-color: rgba(25, 118, 210, 0.18) !important;
+  background-color: #4caf50 !important;
 }
 
 /* Responsive breakpoints */
