@@ -2942,14 +2942,14 @@ export default {
 			const base_rate = price_list_rate * (item.plc_conversion_rate || 1);
 
 			item.base_rate = base_rate;
-			item.base_price_list_rate = price_list_rate;
+			item.base_price_list_rate = base_rate;
 
-			// If the price list currency matches the selected currency,
-			// don't apply any conversion
-			const converted_rate =
-				item.original_currency === this.selected_currency
-					? price_list_rate
-					: price_list_rate * (this.exchange_rate || 1);
+			let converted_rate;
+			if (this.selected_currency === this.pos_profile.currency) {
+				converted_rate = base_rate;
+			} else {
+				converted_rate = base_rate / (this.exchange_rate || 1);
+			}
 
 			item.rate = this.flt(converted_rate, this.currency_precision);
 			item.currency = this.selected_currency;
