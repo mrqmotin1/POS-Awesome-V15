@@ -349,7 +349,9 @@ def _auto_set_return_batches(invoice_doc):
             continue
 
         has_batch = frappe.db.get_value("Item", d.item_code, "has_batch_no")
-        if has_batch and not d.get("batch_no"):
+           
+        if has_batch and d.get("batch_no"):
+            d.use_serial_batch_fields = 1
             batch_list = get_batch_qty(item_code=d.item_code, warehouse=d.warehouse) or []
             batch_list = [b for b in batch_list if flt(b.get("qty")) > 0]
             if batch_list:
