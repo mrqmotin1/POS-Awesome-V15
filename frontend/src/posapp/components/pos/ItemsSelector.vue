@@ -351,13 +351,13 @@
 														<span class="price-amount">
 															{{
 																memoizedFormatCurrency(
-																	item.base_price_list_rate ??
+																	item.original_rate ??
 																		item.rate ??
 																		0,
 																	item.original_currency ||
 																		pos_profile.currency,
 																	ratePrecision(
-																		item.base_price_list_rate ??
+																		item.original_rate ??
 																			item.rate ??
 																			0,
 																	),
@@ -469,10 +469,10 @@
 											}}
 											{{
 												memoizedFormatCurrency(
-													item.base_price_list_rate ?? item.rate ?? 0,
+													item.original_rate ?? item.rate ?? 0,
 													item.original_currency || pos_profile.currency,
 													ratePrecision(
-														item.base_price_list_rate ?? item.rate ?? 0,
+														item.original_rate ?? item.rate ?? 0,
 													),
 												)
 											}}
