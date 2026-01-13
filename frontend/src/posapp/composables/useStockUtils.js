@@ -1,4 +1,5 @@
 import { isOffline } from "../../offline/index.js";
+import { getBaseCurrency, getCompanyCurrency, toSelectedCurrency } from "../utils/currencyConversion.js";
 
 /* global __, frappe */
 
@@ -76,8 +77,8 @@ export function useStockUtils() {
 			item._manual_rate_set_from_uom = true;
 
 			// Determine if we need to convert from Price List Currency to Company Currency
-			const baseCurrency = context.price_list_currency || context.pos_profile.currency;
-			const companyCurrency = context.pos_profile.currency;
+			const baseCurrency = getBaseCurrency(context);
+			const companyCurrency = getCompanyCurrency(context);
 			let conversionFactor = 1;
 
 			if (baseCurrency && companyCurrency && baseCurrency !== companyCurrency) {
@@ -147,24 +148,9 @@ export function useStockUtils() {
 			// But we are converting from Company -> Selected.
 			// conversion_rate is Selected -> Company. So we divide by conversion_rate.
 
-			const selectedCurrency = context.selected_currency;
-			const conversion_rate = context.conversion_rate || 1;
-
-			if (selectedCurrency !== companyCurrency) {
-				item.price_list_rate = context.flt(
-					base_price / conversion_rate,
-					context.currency_precision,
-				);
-				item.rate = context.flt(base_rate / conversion_rate, context.currency_precision);
-				item.discount_amount = context.flt(
-					base_discount / conversion_rate,
-					context.currency_precision,
-				);
-			} else {
-				item.price_list_rate = base_price;
-				item.rate = base_rate;
-				item.discount_amount = base_discount;
-			}
+			item.price_list_rate = toSelectedCurrency(context, base_price);
+			item.rate = toSelectedCurrency(context, base_rate);
+			item.discount_amount = toSelectedCurrency(context, base_discount);
 
 			if (context.calc_stock_qty) context.calc_stock_qty(item, item.qty);
 			if (context.forceUpdate) context.forceUpdate();
@@ -219,7 +205,7 @@ export function useStockUtils() {
 				item.base_price_list_rate = base_price;
 
 				// Convert to selected currency
-				const baseCurrency = context.price_list_currency || context.pos_profile.currency;
+				const baseCurrency = getBaseCurrency(context);
 				if (context.selected_currency !== baseCurrency) {
 					item.rate = context.flt(
 						converted_rate / context.exchange_rate,
@@ -276,7 +262,7 @@ export function useStockUtils() {
 				item.base_rate = context.flt(updated_base_price - base_discount, context.currency_precision);
 
 				// Convert to selected currency if needed
-				const baseCurrency = context.price_list_currency || context.pos_profile.currency;
+				const baseCurrency = getBaseCurrency(context);
 				if (context.selected_currency !== baseCurrency) {
 					item.price_list_rate = context.flt(
 						updated_base_price / context.exchange_rate,
@@ -307,7 +293,7 @@ export function useStockUtils() {
 			}
 
 			// Convert to selected currency
-			const baseCurrency = context.price_list_currency || context.pos_profile.currency;
+			const baseCurrency = getBaseCurrency(context);
 			if (context.selected_currency !== baseCurrency) {
 				item.rate = context.flt(item.base_rate / context.exchange_rate, context.currency_precision);
 				item.price_list_rate = context.flt(
