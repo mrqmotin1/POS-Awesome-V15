@@ -183,6 +183,8 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                 "grand_total as invoice_amount",
                 "due_date",
                 "posting_date",
+                "posting_time",
+                "owner",
                 "currency",
                 "pos_profile",
                 "customer",
