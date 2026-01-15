@@ -1052,7 +1052,7 @@ export default {
 					this.total_selected_mpesa_payments +
 					this.total_payment_methods;
 
-				if (total_payments <= 0) {
+				if (total_payments == 0) {
 					frappe.throw(__("Please make a payment or select an payment"));
 				}
 
@@ -1173,21 +1173,16 @@ export default {
 			}
 		},
 		isInvoiceSelected(item) {
-			return this.selected_invoices.some((i) => i.voucher_no === item.voucher_no);
-		},
-		toggleInvoiceSelection(item) {
-			if (this.isInvoiceSelected(item)) {
-				// If already selected, unselect it
-				this.selected_invoices = this.selected_invoices.filter(
-					(i) => i.voucher_no !== item.voucher_no,
-				);
-			} else {
-				// Add this invoice to selection - support multiple selection
-				this.selected_invoices.push(item);
+			return this.selected_invoices.length &&
+					this.selected_invoices[0].voucher_no === item.voucher_no;
+			},
 
-				if (item.customer && !this.customer_name) {
-					useCustomersStore().setSelectedCustomer(item.customer);
-				}
+			toggleInvoiceSelection(item) {
+			// Always keep ONLY ONE invoice in the list
+			this.selected_invoices = [item];
+
+			if (item.customer && !this.customer_name) {
+				useCustomersStore().setSelectedCustomer(item.customer);
 			}
 
 			// Force UI update
