@@ -109,7 +109,6 @@
 								{{ item.posting_time ? item.posting_time.slice(0, 8) : "" }}
 							</template>
 
-
 							<template v-slot:item.actions="{ item }">
 								<v-checkbox
 									:model-value="isInvoiceSelected(item)"
@@ -506,7 +505,7 @@ export default {
 					title: __("Sellar"),
 					align: "start",
 					sortable: true,
-					key: "owner",
+					key: "seller_name",
 				},
 				{
 					title: __("Date"),

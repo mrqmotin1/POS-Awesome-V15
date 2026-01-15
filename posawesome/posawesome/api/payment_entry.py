@@ -194,11 +194,19 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
             ],
             order_by="posting_date desc",
         )
+        user_map = {
+            u.name: u.first_name
+            for u in frappe.get_all(
+                "User",
+                fields=["name", "first_name"]
+            )
+        }
 
         # Ensure all amounts are properly formatted
         for invoice in outstanding_invoices:
             invoice.outstanding_amount = flt(invoice.outstanding_amount)
             invoice.invoice_amount = flt(invoice.invoice_amount)
+            invoice["seller_name"] = user_map.get(invoice["owner"])
 
         frappe.logger().debug(f"Found {len(outstanding_invoices)} outstanding invoices")
         frappe.logger().debug(
