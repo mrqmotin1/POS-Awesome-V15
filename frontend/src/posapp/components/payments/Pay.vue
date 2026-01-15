@@ -32,7 +32,7 @@
 							</v-col>
 						</v-row>
 						<v-row align="center" no-gutters class="mb-1">
-							<v-col md="4" cols="12">
+							<!-- <v-col md="4" cols="12">
 								<v-select
 									density="compact"
 									variant="outlined"
@@ -44,7 +44,7 @@
 									item-value="name"
 									label="Select POS Profile"
 								></v-select>
-							</v-col>
+							</v-col> -->
 							<v-col> </v-col>
 							<v-col md="3" cols="12">
 								<v-btn block color="warning" theme="dark" @click="get_outstanding_invoices">{{
@@ -73,7 +73,7 @@
 							"
 							class="mb-2"
 						>
-							<v-col md="4" cols="12" class="pb-1">
+							<!-- <v-col md="4" cols="12" class="pb-1">
 								<v-btn
 									block
 									color="primary"
@@ -84,7 +84,7 @@
 								>
 									{{ __("Auto Reconcile") }}
 								</v-btn>
-							</v-col>
+							</v-col> -->
 							<v-col md="8" cols="12" v-if="auto_reconcile_summary">
 								<div class="text-caption text-medium-emphasis">
 									{{ auto_reconcile_summary }}
@@ -100,6 +100,16 @@
 							@click:row="selectSingleInvoice"
 							:item-class="isSelected"
 						>
+							<!-- format invoice no, time etc -->
+							<template v-slot:item.voucher_no="{ item }">
+								{{ item.voucher_no ? item.voucher_no.split('-').pop() : '' }}
+							</template>
+
+							<template v-slot:item.posting_time="{ item }">
+								{{ item.posting_time ? item.posting_time.slice(0, 8) : "" }}
+							</template>
+
+
 							<template v-slot:item.actions="{ item }">
 								<v-checkbox
 									:model-value="isInvoiceSelected(item)"
@@ -487,10 +497,16 @@ export default {
 					key: "voucher_no",
 				},
 				{
-					title: __("Customer"),
+					title: __("Counter"),
 					align: "start",
 					sortable: true,
-					key: "customer_name",
+					key: "pos_profile",
+				},
+				{
+					title: __("Sellar"),
+					align: "start",
+					sortable: true,
+					key: "owner",
 				},
 				{
 					title: __("Date"),
@@ -499,10 +515,10 @@ export default {
 					key: "posting_date",
 				},
 				{
-					title: __("Due Date"),
+					title: __("Time"),
 					align: "start",
 					sortable: true,
-					key: "due_date",
+					key: "posting_time",
 				},
 				{
 					title: __("Total"),
@@ -1036,7 +1052,7 @@ export default {
 					this.total_selected_mpesa_payments +
 					this.total_payment_methods;
 
-				if (total_payments <= 0) {
+				if (total_payments == 0) {
 					frappe.throw(__("Please make a payment or select an payment"));
 				}
 
@@ -1157,21 +1173,16 @@ export default {
 			}
 		},
 		isInvoiceSelected(item) {
-			return this.selected_invoices.some((i) => i.voucher_no === item.voucher_no);
-		},
-		toggleInvoiceSelection(item) {
-			if (this.isInvoiceSelected(item)) {
-				// If already selected, unselect it
-				this.selected_invoices = this.selected_invoices.filter(
-					(i) => i.voucher_no !== item.voucher_no,
-				);
-			} else {
-				// Add this invoice to selection - support multiple selection
-				this.selected_invoices.push(item);
+			return this.selected_invoices.length &&
+					this.selected_invoices[0].voucher_no === item.voucher_no;
+			},
 
-				if (item.customer && !this.customer_name) {
-					useCustomersStore().setSelectedCustomer(item.customer);
-				}
+			toggleInvoiceSelection(item) {
+			// Always keep ONLY ONE invoice in the list
+			this.selected_invoices = [item];
+
+			if (item.customer && !this.customer_name) {
+				useCustomersStore().setSelectedCustomer(item.customer);
 			}
 
 			// Force UI update

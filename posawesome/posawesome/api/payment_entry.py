@@ -31,6 +31,7 @@ def create_payment_entry(
     reference_no=None,
     posting_date=None,
     cost_center=None,
+    payment_type=None,
     submit=0,
 ):
     date = nowdate() if not posting_date else posting_date
@@ -51,7 +52,6 @@ def create_payment_entry(
                 "Currency is not correct, party account currency is {party_account_currency} and transaction currency is {currency}"
             ).format(party_account_currency=party_account_currency, currency=currency)
         )
-    payment_type = "Receive"
 
     # Get bank details in one call
     bank = get_bank_cash_account(company, mode_of_payment)
@@ -162,9 +162,9 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
         filters = {
             "company": company,
             "customer": customer,
-            "outstanding_amount": (">", 0),
+            "outstanding_amount": ("!=", 0),
             "docstatus": 1,
-            "is_return": 0,
+            #"is_return": 0,
         }
 
         if currency:
@@ -183,11 +183,14 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                 "grand_total as invoice_amount",
                 "due_date",
                 "posting_date",
+                "posting_time",
+                "owner",
                 "currency",
                 "pos_profile",
                 "customer",
                 "customer_name",
                 "custom_pay_type",
+                "is_return",
             ],
             order_by="posting_date desc",
         )
@@ -690,18 +693,23 @@ def process_pos_payment(payload):
     today = nowdate()
 
     # prepare invoice list once so allocations can update remaining amounts
+    payment_type = "Receive"
     remaining_invoices = []
     for invoice in data.selected_invoices:
         invoice_name = invoice.get("voucher_no") or invoice.get("name")
         if not invoice_name:
             continue
+        if cint(invoice.get("is_return")) == 1:
+            payment_type = "Pay" 
         outstanding = flt(invoice.get("outstanding_amount"))
-        if outstanding <= 0:
-            try:
-                si = frappe.get_doc("Sales Invoice", invoice_name)
-                outstanding = flt(si.outstanding_amount)
-            except Exception:
-                outstanding = 0
+                 
+        # if outstanding <= 0:
+        #     try:
+        #         si = frappe.get_doc("Sales Invoice", invoice_name)
+        #         outstanding = abs(flt(si.outstanding_amount))
+        #         print("Fetched outstanding from doc:", outstanding)
+        #     except Exception:
+        #         outstanding = 0
         remaining_invoices.append({"name": invoice_name, "outstanding_amount": outstanding})
 
     new_payments_entry = []
@@ -918,7 +926,7 @@ def process_pos_payment(payload):
                 )
 
     # then process the new payments and allocate invoices
-    if allow_make_new_payments and len(data.payment_methods) > 0 and data.total_payment_methods > 0:
+    if allow_make_new_payments and len(data.payment_methods) > 0 and data.total_payment_methods != 0:
         for payment_method in data.payment_methods:
             try:
                 amount = flt(payment_method.get("amount"))
@@ -935,18 +943,19 @@ def process_pos_payment(payload):
                     reference_no=pos_opening_shift_name,
                     reference_date=today,
                     cost_center=data.pos_profile.get("cost_center"),
+                    payment_type=payment_type,
                     submit=0,
                 )
 
                 remaining_amount = amount
                 allocated_amount = 0
                 for inv in remaining_invoices:
-                    if remaining_amount <= 0:
+                    if remaining_amount == 0:
                         break
-                    if inv["outstanding_amount"] <= 0:
+                    if inv["outstanding_amount"] == 0:
                         continue
                     allocation = min(remaining_amount, inv["outstanding_amount"])
-                    if allocation <= 0:
+                    if allocation == 0:
                         continue
                     payment_entry.append(
                         "references",
