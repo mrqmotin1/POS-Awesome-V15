@@ -54,6 +54,7 @@ def _fetch_item_prices(
 
     if not item_codes:
         return []
+    price_list_doc = frappe.get_cached_doc("Price List", price_list)
 
     params = {
         "price_list": price_list,
@@ -62,7 +63,15 @@ def _fetch_item_prices(
         "today": today,
         "customer": customer or "",
     }
-    query = """
+    price_type_condition = ""
+    if price_list_doc.selling:
+        params["selling"] = 1
+        price_type_condition = "AND selling = %(selling)s"
+    elif price_list_doc.buying:
+        params["buying"] = 1
+        price_type_condition = "AND buying = %(buying)s"
+
+    query = f"""
         SELECT
             item_code,
             price_list_rate,
@@ -83,7 +92,7 @@ def _fetch_item_prices(
                 price_list = %(price_list)s
                 AND item_code IN %(item_codes)s
                 AND currency = %(currency)s
-                AND selling = 1
+                {price_type_condition} 
                 AND (valid_from IS NULL OR valid_from <= %(today)s)
                 AND IFNULL(customer, '') IN ('', %(customer)s)
                 AND (valid_upto IS NULL OR valid_upto = '' OR valid_upto >= %(today)s)
@@ -348,6 +357,7 @@ def get_serials(warehouse: Optional[str], item_codes: Sequence[str], ttl: Option
 @dataclass(frozen=True)
 class ItemLookupData:
     price_map: Dict[str, Dict[str, frappe._dict]]
+    buying_price_map: Dict[str, Dict[str, frappe._dict]]
     stock_map: Dict[str, float]
     meta_map: Dict[str, frappe._dict]
     uom_map: Dict[str, List[Dict[str, Any]]]
@@ -405,6 +415,9 @@ def merge_item_row(
     price_row = _select_price(
         lookup_data.price_map.get(item_code, {}), item.get("uom"), meta.get("stock_uom")
     )
+    buying_price_row = _select_price(
+        lookup_data.buying_price_map.get(item_code, {}), item.get("uom"), meta.get("stock_uom")
+    )
     price_currency = price_row.get("currency") if price_row else None
 
     row = dict(item)
@@ -420,6 +433,7 @@ def merge_item_row(
             "serial_no_data": lookup_data.serial_map.get(item_code, []),
             "rate": price_row.get("price_list_rate") if price_row else 0,
             "price_list_rate": price_row.get("price_list_rate") if price_row else 0,
+            "buying_price_rate": buying_price_row.get("price_list_rate") if buying_price_row else 0,
             "currency": price_currency or price_list_currency,
             "price_list_currency": price_list_currency,
             "plc_conversion_rate": exchange_rate,
@@ -443,6 +457,7 @@ class ItemDetailAggregator:
         self.pos_profile = pos_profile
         self.customer = customer
         self.price_list = price_list or pos_profile.get("selling_price_list")
+        self.buying_price_list = 'Standard Buying'
         self.cache_ttl = self._resolve_ttl()
         self.today = nowdate()
         self.warehouse = pos_profile.get("warehouse")
@@ -509,6 +524,18 @@ class ItemDetailAggregator:
                 today=self.today,
                 ttl=self.cache_ttl,
             )
+
+        buying_price_rows = []
+        if self.buying_price_list:
+            buying_price_rows = get_item_prices(
+                self.buying_price_list,
+                self.price_list_currency or self.pos_profile.get("currency"),
+                item_codes_tuple,
+                self.customer,
+                today=self.today,
+                ttl=self.cache_ttl,
+            )
+
         # Stock, metadata, UOM and barcode data are reused both for batches and the
         # final merged item rows, so collect them up front.
         stock_rows = get_bin_qty(self.warehouse, item_codes_tuple, ttl=self.cache_ttl)
@@ -524,7 +551,10 @@ class ItemDetailAggregator:
         price_map: Dict[str, Dict[str, frappe._dict]] = {}
         for row in price_rows:
             price_map.setdefault(row.item_code, {})[row.get("uom") or "None"] = row
-
+        
+        buying_price_map: Dict[str, Dict[str, frappe._dict]] = {}
+        for row in buying_price_rows:
+            buying_price_map.setdefault(row.item_code, {})[row.get("uom") or "None"] = row
         stock_map = {row.item_code: row.actual_qty for row in stock_rows}
         meta_map = {row.name: row for row in meta_rows}
 
@@ -566,6 +596,7 @@ class ItemDetailAggregator:
             barcode_map=barcode_map,
             batch_map=batch_map,
             serial_map=serial_map,
+            buying_price_map=buying_price_map,
         )
 
     def build_details(self, items_data: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
