@@ -944,17 +944,17 @@ export default {
 
 			// When limit search is enabled, wait for an explicit Enter key press
 			if (this.usesLimitSearch) {
-				if (oldLen >= 3 && newLen === 0) {
+				if (oldLen >= 1 && newLen === 0) {
 					// Reset items only when search is fully cleared
 					this.clearSearch();
 				}
 				return;
 			}
 
-			if (newLen >= 3) {
+			if (newLen >= 1) {
 				// Call without arguments so search_onchange treats it like an Enter key
 				this.search_onchange();
-			} else if (oldLen >= 3 && newLen === 0) {
+			} else if (oldLen >= 1 && newLen === 0) {
 				// Reset items only when search is fully cleared
 				this.clearSearch();
 			}
@@ -1115,7 +1115,7 @@ export default {
 			}
 
 			// Filter by search term only if it exists and is long enough
-			if (searchTerm && searchTerm.trim() && searchTerm.trim().length >= 3) {
+			if (searchTerm && searchTerm.trim() && searchTerm.trim().length >= 1) {
 				const term = searchTerm.toLowerCase();
 				filtered = filtered.filter((item) => {
 					if (!searchWords.length) {
@@ -4393,7 +4393,7 @@ export default {
 			// Restore local filtering for immediate feedback (Auto Search)
 			// This provides instant results while the store debounces/fetches in the background.
 			// PERF: Skip local filtering if the store has already filtered by the same term
-			if (searchTerm && searchTerm.length >= 3 && searchTerm !== activeStoreSearch) {
+			if (searchTerm && searchTerm.length >= 1 && searchTerm !== activeStoreSearch) {
 				const searchTerms = searchTerm.split(/\s+/).filter(Boolean);
 				filteredItems = filteredItems.filter((item) => {
 					// Use optimized search index if available
