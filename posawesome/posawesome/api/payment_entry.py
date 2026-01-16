@@ -202,11 +202,26 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
             )
         }
 
+        filtered_invoices = []
         # Ensure all amounts are properly formatted
         for invoice in outstanding_invoices:
-            invoice.outstanding_amount = flt(invoice.outstanding_amount)
-            invoice.invoice_amount = flt(invoice.invoice_amount)
+            #invoice.outstanding_amount = flt(invoice.outstanding_amount)
+            #invoice.invoice_amount = flt(invoice.invoice_amount)
             invoice["seller_name"] = user_map.get(invoice["owner"])
+
+            outstanding = flt(invoice.outstanding_amount)
+            invoice_amount = flt(invoice.invoice_amount)
+
+            # keep only same-sign invoices
+            if (outstanding > 0 and invoice_amount > 0) or (
+                outstanding < 0 and invoice_amount < 0
+            ):
+                invoice.outstanding_amount = outstanding
+                invoice.invoice_amount = invoice_amount
+                invoice["seller_name"] = user_map.get(invoice["owner"])
+                filtered_invoices.append(invoice)
+
+        outstanding_invoices = filtered_invoices
 
         frappe.logger().debug(f"Found {len(outstanding_invoices)} outstanding invoices")
         frappe.logger().debug(
