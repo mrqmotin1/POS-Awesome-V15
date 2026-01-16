@@ -1898,6 +1898,8 @@ export default {
 
 		doc.additional_discount_percentage = discountPercentage;
 
+		doc.custom_total_items_discount = this.total_items_discount_amount;
+
 		// Calculate grand total with correct sign for returns
 		let grandTotal = this.subtotal;
 
