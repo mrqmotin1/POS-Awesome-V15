@@ -1751,24 +1751,40 @@ export default {
 			});
 		},
 		async forceReloadItems() {
-			console.log("[ItemsSelector] forceReloadItems called");
-			// Clear cached price list items so the reload always
-			// fetches the latest data from the server
-			await clearPriceListCache();
-			console.log("[ItemsSelector] price list cache cleared");
-			await this.ensureStorageHealth();
-			console.log("[ItemsSelector] storage health ensured");
+			if (isOffline()) {
+				frappe.msgprint(__("Cannot reload items while offline. Please connect to the internet."));
+				return;
+			}
 
-			// When no search term is entered, reset the search so
-			// we fetch the entire item list from the server.
+			console.log("[ItemsSelector] forceReloadItems called - Full Refresh");
+
+			// 1. Clear local component caches
+			this.itemDetailsRequestCache = { key: null, promise: null, result: null };
+			if (this.lastInvoiceRateCache) {
+				this.lastInvoiceRateCache.clear();
+			}
+			this.lastInvoiceRates = {};
+
+			// 2. Reset search if empty to ensure full load
 			if (!this.first_search || !this.first_search.trim()) {
-				console.log("[ItemsSelector] resetting empty search before reload");
 				this.first_search = "";
 				this.search = "";
 			}
 
-			console.log("[ItemsSelector] loading items from server");
-			await this.get_items(true);
+			// 3. Delegate to Store for full cache wipe and reload
+			// This calls itemsStore.refreshItems() which:
+			// - Clears memory/session/IDB caches
+			// - Resets pagination
+			// - Forces server fetch
+			// - Triggers background details sync
+			try {
+				await this.refreshItems();
+				frappe.show_alert({ message: __("Items reloaded from server"), indicator: "green" });
+			} catch (error) {
+				console.error("Failed to reload items:", error);
+				frappe.msgprint(__("Failed to reload items"));
+			}
+
 			console.log("[ItemsSelector] forceReloadItems finished");
 		},
 		async verifyServerItemCount() {
