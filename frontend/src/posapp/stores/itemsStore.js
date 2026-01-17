@@ -314,6 +314,10 @@ export const useItemsStore = defineStore("items", () => {
 			abortControllers.value.set(cacheKey, abortController);
 
 			// Fetch from server
+			if (!posProfile.value) {
+				console.warn("Attempted to load items without POS Profile");
+				return [];
+			}
 			const requestProfile = JSON.parse(JSON.stringify(posProfile.value));
 			if (forceServer) {
 				requestProfile.posa_use_server_cache = 0;

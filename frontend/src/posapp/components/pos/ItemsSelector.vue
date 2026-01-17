@@ -4810,6 +4810,10 @@ export default {
 		this.eventBus.on("register_pos_profile", async (data) => {
 			this.pos_profile = data.pos_profile;
 			this.stock_settings = data.stock_settings || {};
+			// Initialize Store with the new profile
+			if (this.pos_profile && this.pos_profile.name) {
+				await this.initializeStore(this.pos_profile, this.customer, this.customer_price_list);
+			}
 			await this.ensureScaleBarcodeSettings(true);
 			this.get_items_groups();
 			await this.initializeItems();
