@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from "vue";
+import { ref, onUnmounted, getCurrentInstance } from "vue";
 
 // Singleton state
 const isOnline = ref(navigator.onLine);
