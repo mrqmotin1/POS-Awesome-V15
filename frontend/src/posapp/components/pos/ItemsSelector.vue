@@ -4437,6 +4437,9 @@ export default {
 			return null;
 		},
 		shouldRunBackgroundSync() {
+			if (!this.pos_profile || !this.pos_profile.name) {
+				return false;
+			}
 			if (!this.enable_background_sync) {
 				return false;
 			}
@@ -4804,6 +4807,13 @@ export default {
 			} catch (error) {
 				console.error("Error during initialization:", error);
 			}
+
+			// Start workers if we have profile
+			if (this.pos_profile && this.pos_profile.name) {
+				this.startItemWorker();
+				this.update_cur_items_details();
+				this.startBackgroundSyncScheduler();
+			}
 		});
 
 		// Event listeners
@@ -4813,9 +4823,15 @@ export default {
 			// Initialize Store with the new profile
 			if (this.pos_profile && this.pos_profile.name) {
 				await this.initializeStore(this.pos_profile, this.customer, this.customer_price_list);
+				
+				// Start workers now that we have profile
+				this.startItemWorker();
+				this.update_cur_items_details();
+				this.startBackgroundSyncScheduler();
 			}
 			await this.ensureScaleBarcodeSettings(true);
 			this.get_items_groups();
+			// Legacy fallback
 			await this.initializeItems();
 			this.items_view = this.pos_profile.posa_default_card_view ? "card" : "list";
 		});
@@ -4868,7 +4884,6 @@ export default {
 			}
 		});
 
-		// Refresh item quantities when connection to server is restored
 		this.eventBus.on("server-online", async () => {
 			if (this.items && this.items.length > 0) {
 				await this.update_items_details(this.items);
@@ -4876,13 +4891,8 @@ export default {
 			await this.performBackgroundSync({ source: "server-online" });
 		});
 
-		this.startItemWorker();
-
-		// Setup auto-refresh for item quantities
-		// Trigger an immediate refresh once items are available
-		this.update_cur_items_details();
-		this.startBackgroundSyncScheduler();
-
+		// Workers are now started in memoryInitPromise.then or register_pos_profile
+		
 		// Add new event listener for currency changes
 		this.eventBus.on("update_currency", (data) => {
 			this.selected_currency = data.currency;
