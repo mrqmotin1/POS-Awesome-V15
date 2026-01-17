@@ -967,17 +967,9 @@ export default {
 			const newLen = (val || "").trim().length;
 			const oldLen = (oldVal || "").trim().length;
 
-			// When limit search is enabled, wait for an explicit Enter key press
-			if (this.usesLimitSearch) {
-				if (oldLen >= 3 && newLen === 0) {
-					// Reset items only when search is fully cleared
-					this.clearSearch();
-				}
-				return;
-			}
-
+			// Check if we should trigger search
 			if (newLen >= 3) {
-				// Call without arguments so search_onchange treats it like an Enter key
+				// Call without arguments so search_onchange treats it like an Enter key/Auto trigger
 				this.search_onchange();
 			} else if (oldLen >= 3 && newLen === 0) {
 				// Reset items only when search is fully cleared
@@ -1156,49 +1148,50 @@ export default {
 
 			// Filter by item group
 			if (itemGroup !== "ALL") {
+				const group = itemGroup.toLowerCase();
 				filtered = filtered.filter(
-					(item) =>
-						item.item_group && item.item_group.toLowerCase().includes(itemGroup.toLowerCase()),
+					(item) => item.item_group && item.item_group.toLowerCase() === group,
 				);
 			}
 
-			// Filter by search term only if it exists and is long enough
-			if (searchTerm && searchTerm.trim() && searchTerm.trim().length >= 3) {
-				const term = searchTerm.toLowerCase();
+			// Filter by search term
+			const rawSearch = (searchTerm || "").trim();
+			if (rawSearch && rawSearch.length >= 3) {
+				const term = rawSearch.toLowerCase();
 				const searchWords = term.split(/\s+/).filter(Boolean);
+				
 				filtered = filtered.filter((item) => {
-					if (!searchWords.length) {
-						return true;
-					}
+					if (!searchWords.length) return true;
 
-					const name = (item.item_name || "").toLowerCase();
-					const code = (item.item_code || "").toLowerCase();
+					// Collect all searchable values into a single string or array for checking
+					const searchable = [];
+					const pushValue = (v) => { 
+						if (v) searchable.push(String(v).toLowerCase()); 
+					};
 
-					const barcodeValues = [];
+					pushValue(item.item_code);
+					pushValue(item.item_name);
+					pushValue(item.barcode);
+					pushValue(item.description);
+					pushValue(item.brand);
+					
+					// Handle arrays (barcodes, serials, batches)
 					if (Array.isArray(item.item_barcode)) {
-						item.item_barcode.forEach((b) => {
-							if (b?.barcode) {
-								barcodeValues.push(String(b.barcode).toLowerCase());
-							}
-						});
+						item.item_barcode.forEach(b => pushValue(b?.barcode));
 					}
 					if (Array.isArray(item.barcodes)) {
-						item.barcodes.forEach((bc) => {
-							if (bc) {
-								barcodeValues.push(String(bc).toLowerCase());
-							}
-						});
+						item.barcodes.forEach(b => pushValue(b));
 					}
-					if (item.barcode) {
-						barcodeValues.push(String(item.barcode).toLowerCase());
+					if (Array.isArray(item.serial_no_data)) {
+						item.serial_no_data.forEach(s => pushValue(s?.serial_no));
+					}
+					if (Array.isArray(item.batch_no_data)) {
+						item.batch_no_data.forEach(b => pushValue(b?.batch_no));
 					}
 
-					return searchWords.every((word) => {
-						return (
-							code.includes(word) ||
-							name.includes(word) ||
-							barcodeValues.some((barcode) => barcode.includes(word))
-						);
+					// Verify EVERY search word is present in AT LEAST ONE of the fields
+					return searchWords.every(word => {
+						return searchable.some(field => field.includes(word));
 					});
 				});
 			}
@@ -4907,7 +4900,10 @@ export default {
 		// Load items if we have a profile and haven't loaded yet
 		if (this.pos_profile && this.pos_profile.name && !this.itemsLoaded) {
 			this.get_items_groups();
-			await this.get_items();
+			// Only load all items if NOT using limit search (memory optimization)
+			if (!this.usesLimitSearch) {
+				await this.get_items();
+			}
 		}
 
 		// Setup barcode scanner if enabled
