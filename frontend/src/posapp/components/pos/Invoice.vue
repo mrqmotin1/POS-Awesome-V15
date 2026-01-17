@@ -316,10 +316,10 @@
 						{{ __("Cancel") }}
 					</v-btn>
 					<v-btn
+						ref="confirmPaymentBtn"
 						color="primary"
 						variant="text"
 						@click="resolvePaymentConfirmation(true)"
-						autofocus
 					>
 						{{ __("Yes") }}
 					</v-btn>
@@ -1670,7 +1670,19 @@ export default {
 
 		this._shortcutHandlers = {};
 	},
-	watch: invoiceWatchers,
+	watch: {
+		...invoiceWatchers,
+		confirm_payment_dialog(val) {
+			if (val) {
+				this.$nextTick(() => {
+					// Add a small delay for the dialog animation
+					setTimeout(() => {
+						this.$refs.confirmPaymentBtn?.$el?.focus();
+					}, 100);
+				});
+			}
+		},
+	},
 };
 </script>
 
