@@ -323,17 +323,6 @@ def create_purchase_order(data):
         # Fallback to company currency if supplier has no default
         supplier_currency = frappe.get_value("Company", company, "default_currency")
 
-    po_doc = frappe.get_doc(
-        {
-            "doctype": "Purchase Order",
-            "supplier": supplier,
-            "company": company,
-            "transaction_date": transaction_date,
-            "schedule_date": schedule_date,
-            "currency": supplier_currency,
-        }
-    )
-
     # Validate price list currency matches (RECOMMENDED)
     buying_price_list = _resolve_buying_price_list()
     price_list_currency = frappe.get_value("Price List", buying_price_list, "currency")
