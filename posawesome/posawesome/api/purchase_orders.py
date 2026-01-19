@@ -136,7 +136,7 @@ def _create_purchase_receipt(po_doc, payload, default_warehouse, transaction_dat
                 "rate": po_item.rate,
                 "warehouse": po_item.warehouse or default_warehouse,
                 "purchase_order": po_doc.name,
-                "po_detail": po_item.name,
+                "purchase_order_item": po_item.name,
                 "schedule_date": po_item.schedule_date,
             },
         )
@@ -380,12 +380,16 @@ def create_purchase_order(data):
         po_doc.submit()
 
     receipt_name = None
+    receipt_doc = None
     if receive_now:
         receipt_name = _create_purchase_receipt(po_doc, payload, warehouse, transaction_date)
+        if receipt_name:
+            receipt_doc = frappe.get_doc("Purchase Receipt", receipt_name)
     invoice_name = None
     if cint(payload.get("create_invoice", 0)):
-        invoice_name = _create_purchase_invoice(po_doc, payload, warehouse, transaction_date)
-
+        invoice_name = _create_purchase_invoice(
+            po_doc, payload, warehouse, transaction_date, receipt_doc=receipt_doc
+        )
 
     return {
         "purchase_order": po_doc.name,
@@ -418,7 +422,7 @@ def search_items(search_text=None, limit=20):
     ]
 
 
-def _create_purchase_invoice(po_doc, payload, default_warehouse, transaction_date):
+def _create_purchase_invoice(po_doc, payload, default_warehouse, transaction_date, receipt_doc=None):
     invoice_date = payload.get("invoice_date") or payload.get("invoice_posting_date") or transaction_date
     invoice = frappe.get_doc(
         {
@@ -433,27 +437,32 @@ def _create_purchase_invoice(po_doc, payload, default_warehouse, transaction_dat
         invoice.set_warehouse = default_warehouse
 
     items_by_code = _build_items_map(payload.get("items"))
+    receipt_items = {
+        item.purchase_order_item: item for item in (receipt_doc.items or [])
+    } if receipt_doc else {}
     for po_item in po_doc.items:
         payload_row = _resolve_input_row(items_by_code, po_item.item_code)
         qty = flt(payload_row.get("qty") or po_item.qty)
         if qty <= 0:
             continue
-        invoice.append(
-            "items",
-            {
-                "item_code": po_item.item_code,
-                "item_name": po_item.item_name,
-                "qty": qty,
-                "uom": po_item.uom,
-                "stock_uom": po_item.stock_uom,
-                "conversion_factor": po_item.conversion_factor or 1,
-                "rate": po_item.rate,
-                "warehouse": po_item.warehouse or default_warehouse,
-                "purchase_order": po_doc.name,
-                "po_detail": po_item.name,
-                "schedule_date": po_item.schedule_date,
-            },
-        )
+        invoice_item = {
+            "item_code": po_item.item_code,
+            "item_name": po_item.item_name,
+            "qty": qty,
+            "uom": po_item.uom,
+            "stock_uom": po_item.stock_uom,
+            "conversion_factor": po_item.conversion_factor or 1,
+            "rate": po_item.rate,
+            "warehouse": po_item.warehouse or default_warehouse,
+            "purchase_order": po_doc.name,
+            "purchase_order_item": po_item.name,
+            "schedule_date": po_item.schedule_date,
+        }
+        receipt_item = receipt_items.get(po_item.name)
+        if receipt_item:
+            invoice_item["purchase_receipt"] = receipt_doc.name
+            invoice_item["pr_detail"] = receipt_item.name
+        invoice.append("items", invoice_item)
 
     if not invoice.items:
         frappe.throw(_("No items to invoice. Please ensure there are items on the Purchase Order."))
