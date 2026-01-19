@@ -14,7 +14,7 @@
 			></v-progress-linear>
 			<div ref="paymentContainer" class="overflow-y-auto pa-2" style="max-height: 67vh">
 				<!-- Payment Summary (Paid, To Be Paid, Change) -->
-				<v-row v-if="invoice_doc" class="pa-1" dense>
+				<v-row v-if="invoice_doc && !pos_profile.posa_allow_credit_sale" class="pa-1" dense>
 					<v-col cols="7">
 						<v-text-field
 							variant="solo"
@@ -31,6 +31,25 @@
 					</v-col>
 					<v-col cols="5">
 						<v-text-field
+							density="compact"
+							variant="solo"
+							color="primary"
+							:label="diff_label"
+							class="sleek-field pos-themed-input"
+							hide-details
+							:model-value="
+								formatCurrency(
+									diff_payment < 0 ? -diff_payment : diff_payment,
+									displayCurrency,
+								)
+							"
+							readonly
+							:prefix="currencySymbol()"
+							persistent-placeholder
+						></v-text-field>
+					</v-col>
+					<!-- <v-col cols="5">
+						<v-text-field
 							variant="solo"
 							color="primary"
 							label="To Be Paid"
@@ -42,10 +61,10 @@
 							@focus="showDiffPayment"
 							persistent-placeholder
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 
 					<!-- Paid Change (if applicable) -->
-					<v-col cols="7" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
+					<!-- <v-col cols="7" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
 						<v-text-field
 							variant="solo"
 							color="primary"
@@ -59,10 +78,10 @@
 							type="text"
 							@click="showPaidChange"
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 
 					<!-- Credit Change (if applicable) -->
-					<v-col cols="5" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
+					<!-- <v-col cols="5" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
 						<v-text-field
 							variant="solo"
 							color="primary"
@@ -77,13 +96,13 @@
 								updateCreditChange(this.credit_change);
 							"
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 				</v-row>
 
 				<v-divider></v-divider>
 
 				<!-- Payment Inputs (All Payment Methods) -->
-				<div v-if="is_cashback && invoice_doc && Array.isArray(invoice_doc.payments)">
+				<div v-if="!pos_profile.posa_allow_credit_sale && invoice_doc && Array.isArray(invoice_doc.payments)">
 					<v-row class="payments pa-1" v-for="payment in invoice_doc.payments" :key="payment.name">
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
 							<v-text-field
@@ -117,7 +136,6 @@
 						<v-col
 							cols="12"
 							v-if="
-								payment.default === 1 &&
 								isCashLikePayment(payment) &&
 								getVisibleDenominations(payment).length
 							"
@@ -247,7 +265,7 @@
 
 				<!-- Invoice Totals (Net, Tax, Total, Discount, Grand, Rounded) -->
 				<v-row v-if="invoice_doc" class="pa-1">
-					<v-col cols="6">
+					<!-- <v-col cols="6">
 						<v-text-field
 							density="compact"
 							variant="solo"
@@ -275,7 +293,7 @@
 							:prefix="currencySymbol()"
 							persistent-placeholder
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 					<v-col cols="6">
 						<v-text-field
 							density="compact"
@@ -290,7 +308,7 @@
 							persistent-placeholder
 						></v-text-field>
 					</v-col>
-					<v-col cols="6">
+					<!-- <v-col cols="6">
 						<v-text-field
 							density="compact"
 							variant="solo"
@@ -308,7 +326,7 @@
 							:prefix="currencySymbol()"
 							persistent-placeholder
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 					<v-col cols="6">
 						<v-text-field
 							density="compact"
@@ -547,7 +565,7 @@
 							</v-row>
 						</v-radio-group>
 					</v-col>
-					<v-col
+					<!-- <v-col
 						cols="6"
 						v-if="
 							invoice_doc &&
@@ -632,7 +650,7 @@
 							class="my-0 pa-1"
 							@update:model-value="get_available_credit(redeem_customer_credit)"
 						></v-switch>
-					</v-col>
+					</v-col> -->
 				</v-row>
 
 				<!-- Customer Credit Details -->
