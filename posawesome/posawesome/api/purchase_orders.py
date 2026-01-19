@@ -112,6 +112,9 @@ def _create_purchase_receipt(po_doc, payload, default_warehouse, transaction_dat
 
     for po_item in po_doc.items:
         payload_row = _resolve_input_row(items_by_code, po_item.item_code)
+        if payload.get("receive") and not payload_row.get("received_qty") and not payload_row.get("receive_qty"):
+            payload_row["receive_qty"] = po_item.qty
+            payload_row["received_qty"] = po_item.qty
         received_qty = flt(
             payload_row.get("received_qty")
             or payload_row.get("receive_qty")
@@ -137,7 +140,7 @@ def _create_purchase_receipt(po_doc, payload, default_warehouse, transaction_dat
                 "schedule_date": po_item.schedule_date,
             },
         )
-
+ 
     if not receipt.items:
         frappe.throw(_("No items to receive. Please enter received quantities."))
 
@@ -243,6 +246,7 @@ def create_purchase_item(data):
             "is_stock_item": 1,
             "disabled": 0,
             "default_warehouse": profile.get("warehouse"),
+            "standard_rate": flt(payload.get("buying_price") or 0),
         }
     )
 
@@ -250,6 +254,7 @@ def create_purchase_item(data):
         item_doc.append("barcodes", {"barcode": barcode})
 
     item_doc.flags.ignore_permissions = True
+    item_doc.flags.ignore_mandatory = True
     item_doc.insert()
 
     selling_price_list = payload.get("selling_price_list") or profile.get("selling_price_list")
@@ -272,6 +277,9 @@ def create_purchase_item(data):
         uom=stock_uom,
         buying=True,
     )
+
+    if buying_price is not None:
+        item_doc.db_set("standard_rate", flt(buying_price), update_modified=False)
 
     return {
         "item": item_doc.as_dict(),
@@ -345,6 +353,9 @@ def create_purchase_order(data):
         item_name = row.get("item_name") or (meta.item_name if meta else item_code)
         uom = row.get("uom") or stock_uom
         conversion_factor = flt(row.get("conversion_factor") or 1)
+        if not conversion_factor:
+            conversion_factor = 1
+
 
         po_doc.append(
             "items",
@@ -372,10 +383,122 @@ def create_purchase_order(data):
         po_doc.submit()
 
     receipt_name = None
+    receipt_doc = None
     if receive_now:
         receipt_name = _create_purchase_receipt(po_doc, payload, warehouse, transaction_date)
+        if receipt_name:
+            receipt_doc = frappe.get_doc("Purchase Receipt", receipt_name)
+    invoice_name = None
+    if cint(payload.get("create_invoice", 0)):
+        invoice_name = _create_purchase_invoice(
+            po_doc, payload, warehouse, transaction_date, receipt_doc=receipt_doc
+        )
 
     return {
         "purchase_order": po_doc.name,
         "purchase_receipt": receipt_name,
+        "purchase_invoice": invoice_name,
     }
+
+
+@frappe.whitelist()
+def search_items(search_text=None, limit=20):
+    filters = {"disabled": 0}
+    or_filters = None
+    if search_text:
+        like_value = f"%{search_text}%"
+        or_filters = {
+            "name": ["like", like_value],
+            "item_name": ["like", like_value],
+        }
+
+    items = frappe.get_all(
+        "Item",
+        filters=filters,
+        or_filters=or_filters,
+        fields=["name", "item_name", "stock_uom"],
+        limit_page_length=limit,
+        order_by="name asc",
+    )
+    item_codes = [it.get("name") for it in items if it.get("name")]
+    uom_rows = []
+    if item_codes:
+        uom_rows = frappe.get_all(
+            "UOM Conversion Detail",
+            filters={"parent": ["in", item_codes]},
+            fields=["parent", "uom", "conversion_factor"],
+        )
+    uom_map = {}
+    for row in uom_rows:
+        uom_map.setdefault(row.parent, []).append(
+            {"uom": row.uom, "conversion_factor": row.conversion_factor}
+        )
+
+    results = []
+    for it in items:
+        item_code = it.get("name")
+        stock_uom = it.get("stock_uom")
+        uoms = uom_map.get(item_code, [])
+        if stock_uom and not any(u.get("uom") == stock_uom for u in uoms):
+            uoms.append({"uom": stock_uom, "conversion_factor": 1})
+        results.append(
+            {
+                "item_code": item_code,
+                "item_name": it.get("item_name"),
+                "stock_uom": stock_uom,
+                "item_uoms": uoms,
+            }
+        )
+    return results
+
+
+def _create_purchase_invoice(po_doc, payload, default_warehouse, transaction_date, receipt_doc=None):
+    invoice_date = payload.get("invoice_date") or payload.get("invoice_posting_date") or transaction_date
+    invoice = frappe.get_doc(
+        {
+            "doctype": "Purchase Invoice",
+            "supplier": po_doc.supplier,
+            "company": po_doc.company,
+            "posting_date": invoice_date,
+            "purchase_order": po_doc.name,
+        }
+    )
+    if default_warehouse:
+        invoice.set_warehouse = default_warehouse
+
+    items_by_code = _build_items_map(payload.get("items"))
+    receipt_items = {
+        item.purchase_order_item: item for item in (receipt_doc.items or [])
+    } if receipt_doc else {}
+    for po_item in po_doc.items:
+        payload_row = _resolve_input_row(items_by_code, po_item.item_code)
+        qty = flt(payload_row.get("qty") or po_item.qty)
+        if qty <= 0:
+            continue
+        invoice_item = {
+            "item_code": po_item.item_code,
+            "item_name": po_item.item_name,
+            "qty": qty,
+            "uom": po_item.uom,
+            "stock_uom": po_item.stock_uom,
+            "conversion_factor": po_item.conversion_factor or 1,
+            "rate": po_item.rate,
+            "warehouse": po_item.warehouse or default_warehouse,
+            "purchase_order": po_doc.name,
+            "po_detail": po_item.name,
+            "schedule_date": po_item.schedule_date,
+        }
+        receipt_item = receipt_items.get(po_item.name)
+        if receipt_item and receipt_doc:
+            invoice_item["purchase_receipt"] = receipt_doc.name
+            invoice_item["pr_detail"] = receipt_item.name
+        invoice.append("items", invoice_item)
+
+    if not invoice.items:
+        frappe.throw(_("No items to invoice. Please ensure there are items on the Purchase Order."))
+
+    invoice.flags.ignore_permissions = True
+    frappe.flags.ignore_account_permission = True
+    invoice.insert()
+    invoice.submit()
+    return invoice.name
