@@ -36,22 +36,22 @@
 				</v-card-title>
 
 				<v-card-text>
-				<v-text-field
-					ref="qtyInput"
-					v-model.number="qty"
-					type="number"
-					min="1"
-					density="compact"
-					autofocus
-					@keydown.enter.prevent="confirmQty"
-					@keydown.esc.prevent="cancelQty"
-				/>
+					<v-text-field
+						ref="qtyInput"
+						v-model.number="qtyInputValue"
+						type="number"
+						min="0"
+						density="compact"
+						autofocus
+						@keydown.enter.prevent="confirmQty"
+						@keydown.esc.prevent="cancelQty"
+					/>
 				</v-card-text>
 
 				<v-card-actions>
-				<v-spacer />
-				<v-btn variant="text" @click="cancelQty">Cancel</v-btn>
-				<v-btn color="primary" @click="confirmQty">OK</v-btn>
+					<v-spacer />
+					<v-btn variant="text" @click="cancelQty">Cancel</v-btn>
+					<v-btn color="primary" @click="confirmQty">OK</v-btn>
 				</v-card-actions>
 			</v-card>
 			</v-dialog>
@@ -781,6 +781,7 @@ export default {
 		activeIndex: -1,
 		qtyDialog: false,
 		qtyDialogAction: null,
+		qtyInputValue: 0,
 	}),
 
 	watch: {
@@ -2055,11 +2056,14 @@ export default {
 			});
 		},
 		cancelQty() {
+			this.qtyInputValue = 0;
 			this.qtyDialogAction = "cancel";
 			this.qtyDialog = false;
-			this.qty = 1;
 		},
 		confirmQty() {
+			if (this.qtyInputValue > 0) {
+				this.qty = this.qtyInputValue;
+			}
 			this.$nextTick(() => {
 				const row = document.querySelector(
 					`[data-row-index="${this.activeIndex}"]`
@@ -2080,6 +2084,7 @@ export default {
 				const item = this.displayedItems[this.activeIndex];
 				this.click_item_row(fakeEvent, { item });
 			});
+			this.qtyInputValue = 0;
 			this.qtyDialogAction = "confirm";
 			this.qtyDialog = false;
 		},

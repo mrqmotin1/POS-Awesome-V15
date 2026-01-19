@@ -556,11 +556,11 @@ export default {
 					width: "120px",
 				},
 				{ title: __("Rate"), key: "rate", align: "center", required: false },
-				{ title: __("Discount %"), key: "discount_value", align: "center", required: false },
+				{ title: __("Discount %"), key: "discount_value", align: "center", sortable: false, required: false },
 				{ title: __("Discount Amount"), key: "discount_amount", align: "end", required: false },
 				{ title: __("Amount"), key: "amount", align: "center", required: true },
 				{ title: __("Offer?"), key: "posa_is_offer", align: "center", required: false },
-				{ title: __("Actions"), key: "actions", align: "center", required: true, sortable: false },
+				{ title: __("Actions"), key: "actions", align: "center", required: false, sortable: false },
 			];
 
 			// Initialize selected columns if empty

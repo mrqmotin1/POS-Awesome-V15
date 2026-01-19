@@ -76,7 +76,7 @@
 			<!-- Quantity column -->
 			<template v-slot:item.qty="{ item }">
 				<div class="pos-table__qty-counter" :class="{ 'rtl-layout': isRTL }" :title="`RTL: ${isRTL}`">
-					<v-btn
+					<!-- <v-btn
 						:disabled="
 							!!item.posa_is_replace ||
 							(isReturnInvoice &&
@@ -89,7 +89,7 @@
 						:aria-label="__('Decrease quantity')"
 					>
 						<v-icon size="small">mdi-minus</v-icon>
-					</v-btn>
+					</v-btn> -->
 					<div
 						v-if="editing_qty_row_id !== item.posa_row_id"
 						class="pos-table__qty-display amount-value number-field-rtl"
@@ -101,7 +101,7 @@
 						:title="memoizedFormatFloat(item.qty, hide_qty_decimals ? 0 : undefined)"
 						@click.stop="openQtyEdit(item)"
 					>
-						{{ memoizedFormatFloat(item.qty, hide_qty_decimals ? 0 : undefined) }}
+						{{ memoizedFormatFloat(item.qty, 0) }}
 					</div>
 					<v-text-field
 						v-else
@@ -121,21 +121,7 @@
 							(item.is_free_item || item.posa_is_offer || item.posa_is_replace)
 						"
 					></v-text-field>
-					<v-btn
-						:disabled="
-							!!item.posa_is_replace ||
-							item.disable_increment ||
-							(isReturnInvoice &&
-								(item.is_free_item || item.posa_is_offer || item.posa_is_replace))
-						"
-						size="small"
-						variant="flat"
-						class="pos-table__qty-btn pos-table__qty-btn--plus plus-btn qty-control-btn"
-						@click.stop="addOne(item)"
-						:aria-label="__('Increase quantity')"
-					>
-						<v-icon size="small">mdi-plus</v-icon>
-					</v-btn>
+					<!-- s -->
 				</div>
 			</template>
 			<!-- UOM column -->
@@ -232,7 +218,7 @@
 			<!-- Discount percentage column -->
 			<template v-slot:item.discount_value="{ item }">
 				<div class="pos-table__editor-box">
-					<v-btn
+					<!-- <v-btn
 						:disabled="
 							!pos_profile.posa_allow_user_to_edit_item_discount ||
 							!!item.posa_is_replace ||
@@ -246,7 +232,7 @@
 						:aria-label="__('Decrease percentage')"
 					>
 						<v-icon size="small">mdi-minus</v-icon>
-					</v-btn>
+					</v-btn> -->
 					<div
 						v-if="editing_discount_percent_row_id !== item.posa_row_id"
 						class="pos-table__editor-display"
@@ -284,7 +270,7 @@
 							!!item.posa_offer_applied
 						"
 					></v-text-field>
-					<v-btn
+					<!-- <v-btn
 						:disabled="
 							!pos_profile.posa_allow_user_to_edit_item_discount ||
 							!!item.posa_is_replace ||
@@ -298,7 +284,7 @@
 						:aria-label="__('Increase percentage')"
 					>
 						<v-icon size="small">mdi-plus</v-icon>
-					</v-btn>
+					</v-btn> -->
 				</div>
 			</template>
 
@@ -1056,7 +1042,7 @@ export default {
 					// Hide columns based on container width
 					if (this.containerWidth < 500) {
 						// Ultra-compact: only essential columns
-						return ["item_name", "qty", "amount", "actions"].includes(header.key);
+						return ["item_name", "qty", "discount_value", "amount"].includes(header.key);
 					} else if (this.containerWidth < 700) {
 						// Compact: essential + rate
 						return ["item_name", "qty", "discount_value", "amount", "actions"].includes(header.key);
@@ -1279,7 +1265,7 @@ export default {
 		calculateMinColumnWidth(header) {
 			const minWidths = {
 				item_name: 100,
-				qty: 60,
+				qty: 50,
 				rate: 60,
 				amount: 60,
 				discount_value: 50,
@@ -2428,8 +2414,8 @@ body[dir="rtl"] .expanded-content .pos-table__qty-display {
 }
 
 .responsive-table-container.compact-view .pos-table__qty-counter {
-	min-width: 110px;
-	max-width: 140px;
+	min-width: 50px;
+	max-width: 80px;
 	width: auto;
 	gap: 4px;
 }
