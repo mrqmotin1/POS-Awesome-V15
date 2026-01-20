@@ -673,14 +673,15 @@
 							></v-select>
 						</v-col>
 						<v-col cols="6">
-							<v-text-field
+							<v-autocomplete
 								v-model="newItemForm.stock_uom"
+								:items="uom_list"
 								:label="frappe._('Stock UOM')"
 								density="compact"
 								variant="outlined"
 								class="pos-themed-input"
 								:rules="[(v) => !!v || __('* Required')]"
-							></v-text-field>
+							></v-autocomplete>
 						</v-col>
 						<v-col cols="6">
 							<v-text-field
@@ -817,6 +818,7 @@ export default {
 			stock_uom: "Nos",
 			standard_rate: 0,
 		},
+		uom_list: [],
 		pos_profile: {},
 		stock_settings: {},
 		flags: {},
@@ -1153,7 +1155,28 @@ export default {
 				stock_uom: "Nos",
 				standard_rate: 0,
 			};
+			this.get_uoms();
 			this.newItemDialog = true;
+		},
+		async get_uoms() {
+			if (this.uom_list.length) return;
+			try {
+				const r = await frappe.call({
+					method: "frappe.client.get_list",
+					args: {
+						doctype: "UOM",
+						fields: ["name"],
+						limit_page_length: 0,
+					},
+				});
+				if (r.message) {
+					this.uom_list = r.message.map((d) => d.name);
+				}
+			} catch (e) {
+				console.error("Failed to fetch UOMs", e);
+				// Fallback
+				this.uom_list = ["Nos", "Kg", "Meter", "Box"];
+			}
 		},
 		closeNewItemDialog() {
 			this.newItemDialog = false;
