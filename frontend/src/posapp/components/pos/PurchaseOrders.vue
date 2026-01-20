@@ -440,6 +440,8 @@
 import format, { formatUtils } from "../../format";
 import { useStockUtils } from "../../composables/useStockUtils";
 import { getOpeningStorage } from "../../../offline/index.js";
+import { useItemsStore } from "../../stores/itemsStore";
+import { mapStores } from "pinia";
 
 export default {
 	mixins: [format],
@@ -491,6 +493,7 @@ export default {
 		submitLoading: false,
 	}),
 	computed: {
+		...mapStores(useItemsStore),
 		allowCreateSupplier() {
 			return !!this.pos_profile?.posa_allow_create_purchase_suppliers;
 		},
@@ -598,31 +601,60 @@ export default {
 			}
 		},
 		async handleItemSearch(term) {
+			// Debounce search
 			if (this.itemSearchTimeout) {
 				clearTimeout(this.itemSearchTimeout);
 			}
-			this.itemSearchTimeout = setTimeout(async () => {
-				await this.searchItems(term);
+			this.itemSearchTimeout = setTimeout(() => {
+				this.searchItems(term);
 			}, 300);
 		},
 		async searchItems(searchText = "") {
-			const searchValue = formatUtils.fromArabicNumerals(String(searchText || "")).trim();
 			this.itemLoading = true;
 			try {
-				const { message } = await frappe.call({
-					method: "posawesome.posawesome.api.purchase_orders.search_items",
-					args: {
-						search_text: searchValue || null,
-						limit: 20,
-					},
-				});
-				const results = Array.isArray(message) ? message : [];
+				// Ensure store is initialized if empty
+				if (this.itemsStore.items.length === 0 && !this.itemsStore.itemsLoaded) {
+					await this.itemsStore.initialize(this.pos_profile);
+				}
+
+				const term = (searchText || "").toLowerCase().trim();
+				let results = [];
+
+				if (!term) {
+					// Return first 20 items if no search term
+					results = this.itemsStore.items.slice(0, 20);
+				} else {
+					// Use local filtering from store items
+					// Optimization: Filter and limit in one pass
+					const maxResults = 50;
+					const allItems = this.itemsStore.items;
+
+					for (let i = 0; i < allItems.length; i++) {
+						if (results.length >= maxResults) break;
+
+						const item = allItems[i];
+						if (
+							(item.item_code && item.item_code.toLowerCase().includes(term)) ||
+							(item.item_name && item.item_name.toLowerCase().includes(term)) ||
+							(item.barcode && item.barcode.toLowerCase().includes(term)) ||
+							(item.description && item.description.toLowerCase().includes(term))
+						) {
+							results.push(item);
+						}
+					}
+				}
+
 				this.itemResults = results.map((row) => ({
-					...row,
+					item_code: row.item_code,
+					item_name: row.item_name,
+					stock_uom: row.stock_uom,
+					item_group: row.item_group,
 					item_uoms: row.item_uoms || [{ uom: row.stock_uom, conversion_factor: 1 }],
+					// Add buying price if available, though currently store might not have it populated
+					buying_price: row.standard_rate || 0,
 				}));
 			} catch (error) {
-				console.error("Failed to fetch items:", error);
+				console.error("Failed to search items:", error);
 				this.itemResults = [];
 			} finally {
 				this.itemLoading = false;
