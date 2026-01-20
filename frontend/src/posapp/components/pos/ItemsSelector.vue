@@ -782,6 +782,7 @@ export default {
 		qtyDialog: false,
 		qtyDialogAction: null,
 		qtyInputValue: 0,
+		activeItemCode:null,
 	}),
 
 	watch: {
@@ -2051,6 +2052,7 @@ export default {
 				}
 				if (this.qtyDialogAction === "confirm") {
 					this.$refs.debounce_search?.focus({ preventScroll: true });
+					this.activeIndex = -1
 				}
 				this.qtyDialogAction = null;
 			});
@@ -2081,7 +2083,7 @@ export default {
 						clientY: window.innerHeight / 2,
 					};
 
-				const item = this.displayedItems[this.activeIndex];
+				const item = this.displayedItems.find(x => x.item_code === this.activeItemCode);
 				this.click_item_row(fakeEvent, { item });
 			});
 			this.qtyInputValue = 0;
@@ -2138,9 +2140,11 @@ export default {
 			}
 		},
 		rowProps({ index, item }) {
+			if (index === this.activeIndex) this.activeItemCode = item.item_code
 			return {
 				class: index === this.activeIndex ? "keyboard-active-row" : "",
 				"data-row-index": index,
+				"data-row-code": item.item_code,
 			};
 		},
 		async add_item(item, options = {}) {
