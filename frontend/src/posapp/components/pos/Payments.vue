@@ -534,13 +534,17 @@
 							@change="onPaymentTypeChange"
 						>
 							<v-row>
-								<v-col cols="auto">
-								<v-radio label="Cash" value="Cash"></v-radio>
+								<v-col
+								cols="auto"
+								v-for="p in pos_profile.payments"
+								:key="p.mode_of_payment"
+								>
+								<v-radio
+									:label="p.mode_of_payment"
+									:value="p.mode_of_payment"
+								/>
 								</v-col>
-								<v-col cols="auto">
-								<v-radio label="Card" value="Card"></v-radio>
-								</v-col>
-						</v-row>
+							</v-row>
 						</v-radio-group>
 					</v-col>
 					<v-col
@@ -2503,11 +2507,7 @@ export default {
 		onPaymentTypeChange(event) {
 			const value = event.target.value;
 			console.log("Payment type changed to:", value);
-			if (value === "Card") {
-				this.invoice_doc.custom_pay_type = "Card";
-			} else {
-				this.invoice_doc.custom_pay_type = "Cash";
-			}
+				this.invoice_doc.custom_pay_type = value;		
 		},
 	},
 	// Lifecycle hook: created
