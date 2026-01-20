@@ -148,15 +148,40 @@ export default {
 				return;
 			}
 
-			// Get full item details including barcode
+			// 1. Try to find barcode in the passed item object
 			let barcode = item.barcode;
+
+			// 2. Check item_barcode child table (array of objects)
+			if (!barcode && Array.isArray(item.item_barcode) && item.item_barcode.length > 0) {
+				barcode = item.item_barcode[0].barcode;
+			}
+
+			// 3. Check barcodes array (if flattened)
+			if (!barcode && Array.isArray(item.barcodes) && item.barcodes.length > 0) {
+				barcode = item.barcodes[0];
+			}
+
+			// 4. If still not found, fetch details from server
 			if (!barcode) {
 				try {
-					const details = await this.itemsStore.getItemByCode(item.item_code);
-					if (details && details.barcodes && details.barcodes.length > 0) {
-						barcode = details.barcodes[0].barcode;
-					} else if (details && details.barcode) {
-						barcode = details.barcode;
+					const res = await frappe.call({
+						method: "posawesome.posawesome.api.items.get_items_details",
+						args: {
+							items_data: JSON.stringify([{ item_code: item.item_code }]),
+							pos_profile: JSON.stringify(this.pos_profile || {}),
+							price_list: this.pos_profile?.selling_price_list || "",
+						},
+					});
+
+					const details = res.message && res.message[0];
+					if (details) {
+						if (details.barcode) {
+							barcode = details.barcode;
+						} else if (Array.isArray(details.item_barcode) && details.item_barcode.length > 0) {
+							barcode = details.item_barcode[0].barcode;
+						} else if (Array.isArray(details.barcodes) && details.barcodes.length > 0) {
+							barcode = details.barcodes[0];
+						}
 					}
 				} catch (e) {
 					console.warn("Failed to fetch item details for barcode", e);
