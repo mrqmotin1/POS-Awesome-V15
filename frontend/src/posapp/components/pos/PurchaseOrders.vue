@@ -709,26 +709,30 @@ export default {
 		},
 		openQtyEdit(item) {
 			item._isEditingQty = true;
-			item._editingQtyValue = item.qty;
+			item._editingQtyValue = "";
 		},
 		closeQtyEdit(item) {
 			if (item._isEditingQty) {
-				const val = parseFloat(item._editingQtyValue);
-				if (!isNaN(val) && val >= 0) {
-					this.updateItemQty(item, val);
+				if (item._editingQtyValue !== "" && item._editingQtyValue != null) {
+					const val = parseFloat(item._editingQtyValue);
+					if (!isNaN(val) && val >= 0) {
+						this.updateItemQty(item, val);
+					}
 				}
 				item._isEditingQty = false;
 			}
 		},
 		openRateEdit(item) {
 			item._isEditingRate = true;
-			item._editingRateValue = item.rate;
+			item._editingRateValue = "";
 		},
 		closeRateEdit(item) {
 			if (item._isEditingRate) {
-				const val = parseFloat(item._editingRateValue);
-				if (!isNaN(val) && val >= 0) {
-					this.updateItemRate(item, val);
+				if (item._editingRateValue !== "" && item._editingRateValue != null) {
+					const val = parseFloat(item._editingRateValue);
+					if (!isNaN(val) && val >= 0) {
+						this.updateItemRate(item, val);
+					}
 				}
 				item._isEditingRate = false;
 			}
