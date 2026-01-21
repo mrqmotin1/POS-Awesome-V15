@@ -2162,21 +2162,21 @@ export default {
 
 			// Validate item before adding to cart
 			const requestedQty = this.qty != null ? Math.abs(this.qty) : 1;
-			const isValid = await this.cartValidation.validateCartItem(
-				item,
-				requestedQty,
-				this.pos_profile,
-				this.stock_settings,
-				this.eventBus,
-				this.blockSaleBeyondAvailableQty,
-				!suppressNegativeWarning,
-			);
+			// const isValid = await this.cartValidation.validateCartItem(
+			// 	item,
+			// 	requestedQty,
+			// 	this.pos_profile,
+			// 	this.stock_settings,
+			// 	this.eventBus,
+			// 	this.blockSaleBeyondAvailableQty,
+			// 	!suppressNegativeWarning,
+			// );
 
-			if (!isValid) {
-				this.qty = 1;
-				// Validation failed, error message already shown by validator
-				return;
-			}
+			// if (!isValid) {
+			// 	this.qty = 1;
+			// 	// Validation failed, error message already shown by validator
+			// 	return;
+			// }
 
 			// Prepare item for cart
 			await this.prepareItemForCart(item, requestedQty);
