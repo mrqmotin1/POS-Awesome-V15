@@ -128,31 +128,31 @@ export function useItemAddition() {
 			item.allow_negative_stock === true ||
 			item.allow_negative_stock === "1";
 
-		if (item.is_stock_item && item.actual_qty <= 0 && !allowNegativeStock) {
-			context.eventBus.emit("show_message", {
-				title: __("Item is out of stock"),
-				text: __("Cannot add an item with zero or negative quantity."),
-				color: "error",
-			});
-			return;
-		}
+		// if (item.is_stock_item && item.actual_qty <= 0 && !allowNegativeStock) {
+		// 	context.eventBus.emit("show_message", {
+		// 		title: __("Item is out of stock"),
+		// 		text: __("Cannot add an item with zero or negative quantity."),
+		// 		color: "error",
+		// 	});
+		// 	return;
+		// }
 
-		if (blockSale && !allowNegativeStock) {
-			const existingItem = context.items.find(
-				(i) => i.item_code === item.item_code && i.uom === item.uom,
-			);
-			const currentQty = existingItem ? existingItem.qty : 0;
-			const requestedQty = item.qty || 1;
-			const maxQty = item._base_actual_qty / (item.conversion_factor || 1);
+		// if (blockSale && !allowNegativeStock) {
+		// 	const existingItem = context.items.find(
+		// 		(i) => i.item_code === item.item_code && i.uom === item.uom,
+		// 	);
+		// 	const currentQty = existingItem ? existingItem.qty : 0;
+		// 	const requestedQty = item.qty || 1;
+		// 	const maxQty = item._base_actual_qty / (item.conversion_factor || 1);
 
-			if (currentQty + requestedQty > maxQty) {
-				context.eventBus.emit("show_message", {
-					title: __("Quantity exceeds available stock"),
-					color: "warning",
-				});
-				return;
-			}
-		}
+		// 	if (currentQty + requestedQty > maxQty) {
+		// 		context.eventBus.emit("show_message", {
+		// 			title: __("Quantity exceeds available stock"),
+		// 			color: "warning",
+		// 		});
+		// 		return;
+		// 	}
+		// }
 
 		if (!item.uom) {
 			item.uom = item.stock_uom;
