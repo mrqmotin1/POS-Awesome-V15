@@ -390,7 +390,7 @@
 								<v-btn
 									block
 									size="large"
-									color="primary"
+									color="info"
 									@click="submit"
 									:disabled="vaildatPayment || isSubmitting"
 									:loading="isSubmitting"

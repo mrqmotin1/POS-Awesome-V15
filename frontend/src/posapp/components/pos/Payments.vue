@@ -14,7 +14,7 @@
 			></v-progress-linear>
 			<div ref="paymentContainer" class="overflow-y-auto pa-2" style="max-height: 67vh">
 				<!-- Payment Summary (Paid, To Be Paid, Change) -->
-				<v-row v-if="invoice_doc" class="pa-1" dense>
+				<v-row v-if="invoice_doc && !pos_profile.posa_allow_credit_sale" class="pa-1" dense>
 					<v-col cols="7">
 						<v-text-field
 							variant="solo"
@@ -31,6 +31,25 @@
 					</v-col>
 					<v-col cols="5">
 						<v-text-field
+							density="compact"
+							variant="solo"
+							color="primary"
+							:label="diff_label"
+							class="sleek-field pos-themed-input"
+							hide-details
+							:model-value="
+								formatCurrency(
+									diff_payment < 0 ? -diff_payment : diff_payment,
+									displayCurrency,
+								)
+							"
+							readonly
+							:prefix="currencySymbol()"
+							persistent-placeholder
+						></v-text-field>
+					</v-col>
+					<!-- <v-col cols="5">
+						<v-text-field
 							variant="solo"
 							color="primary"
 							label="To Be Paid"
@@ -42,10 +61,10 @@
 							@focus="showDiffPayment"
 							persistent-placeholder
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 
 					<!-- Paid Change (if applicable) -->
-					<v-col cols="7" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
+					<!-- <v-col cols="7" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
 						<v-text-field
 							variant="solo"
 							color="primary"
@@ -59,10 +78,10 @@
 							type="text"
 							@click="showPaidChange"
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 
 					<!-- Credit Change (if applicable) -->
-					<v-col cols="5" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
+					<!-- <v-col cols="5" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
 						<v-text-field
 							variant="solo"
 							color="primary"
@@ -77,13 +96,13 @@
 								updateCreditChange(this.credit_change);
 							"
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 				</v-row>
 
 				<v-divider></v-divider>
 
 				<!-- Payment Inputs (All Payment Methods) -->
-				<div v-if="is_cashback && invoice_doc && Array.isArray(invoice_doc.payments)">
+				<div v-if="!pos_profile.posa_allow_credit_sale && invoice_doc && Array.isArray(invoice_doc.payments)">
 					<v-row class="payments pa-1" v-for="payment in invoice_doc.payments" :key="payment.name">
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
 							<v-text-field
@@ -117,7 +136,6 @@
 						<v-col
 							cols="12"
 							v-if="
-								payment.default === 1 &&
 								isCashLikePayment(payment) &&
 								getVisibleDenominations(payment).length
 							"
@@ -247,7 +265,7 @@
 
 				<!-- Invoice Totals (Net, Tax, Total, Discount, Grand, Rounded) -->
 				<v-row v-if="invoice_doc" class="pa-1">
-					<v-col cols="6">
+					<!-- <v-col cols="6">
 						<v-text-field
 							density="compact"
 							variant="solo"
@@ -275,7 +293,7 @@
 							:prefix="currencySymbol()"
 							persistent-placeholder
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 					<v-col cols="6">
 						<v-text-field
 							density="compact"
@@ -290,7 +308,7 @@
 							persistent-placeholder
 						></v-text-field>
 					</v-col>
-					<v-col cols="6">
+					<!-- <v-col cols="6">
 						<v-text-field
 							density="compact"
 							variant="solo"
@@ -308,7 +326,7 @@
 							:prefix="currencySymbol()"
 							persistent-placeholder
 						></v-text-field>
-					</v-col>
+					</v-col> -->
 					<v-col cols="6">
 						<v-text-field
 							density="compact"
@@ -524,30 +542,36 @@
 				<v-divider></v-divider>
 
 				<!-- Switches for Write Off and Credit Sale -->
-				<v-row class="pa-1" align="start" no-gutters>
-					<v-col
-						cols="12"
-					>
-						<v-radio-group
+				<v-row v-if="invoice_doc" class="pa-1" align="start" no-gutters>
+					<v-col cols="12">
+						<div class="text-caption text-medium-emphasis mb-2">
+							{{ frappe._("Payment Type") }}
+						</div>
+
+						<v-btn-toggle
 							v-model="invoice_doc.custom_pay_type"
-							:label="frappe._('Payment Type')"
-							@change="onPaymentTypeChange"
+							mandatory
+							class="payment-toggle w-100"
+							divided
+							density="comfortable"
+							rounded="lg"
+							@update:modelValue="onPaymentTypeChange"
 						>
-							<v-row>
-								<v-col
-								cols="auto"
+							<v-btn
 								v-for="p in pos_profile.payments"
 								:key="p.mode_of_payment"
-								>
-								<v-radio
-									:label="p.mode_of_payment"
-									:value="p.mode_of_payment"
-								/>
-								</v-col>
-							</v-row>
-						</v-radio-group>
+								:value="p.mode_of_payment"
+								variant="tonal"
+								class="payment-btn text-none flex-grow-1"
+							>
+								<v-icon start size="16">
+									{{ isCashLikePayment(p) ? 'mdi-cash' : 'mdi-credit-card-outline' }}
+								</v-icon>
+									{{ p.mode_of_payment }}
+							</v-btn>
+						</v-btn-toggle>
 					</v-col>
-					<v-col
+					<!-- <v-col
 						cols="6"
 						v-if="
 							invoice_doc &&
@@ -632,7 +656,7 @@
 							class="my-0 pa-1"
 							@update:model-value="get_available_credit(redeem_customer_credit)"
 						></v-switch>
-					</v-col>
+					</v-col> -->
 				</v-row>
 
 				<!-- Customer Credit Details -->
@@ -2435,10 +2459,10 @@ export default {
 
 			const configuredCashMOP = String(this.pos_profile?.posa_cash_mode_of_payment || "").toLowerCase();
 
-			const type = String(payment.type || "").toLowerCase();
-			if (type === "cash") {
-				return true;
-			}
+			// const type = String(payment.type || "").toLowerCase();
+			// if (type === "cash") {
+			// 	return true;
+			// }
 
 			const mode = String(payment.mode_of_payment || "").toLowerCase();
 			if (configuredCashMOP && mode === configuredCashMOP) {
@@ -2504,10 +2528,8 @@ export default {
 			}
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
 		},
-		onPaymentTypeChange(event) {
-			const value = event.target.value;
-			console.log("Payment type changed to:", value);
-				this.invoice_doc.custom_pay_type = value;		
+		onPaymentTypeChange(value) {
+			this.invoice_doc.custom_pay_type = value;		
 		},
 	},
 	// Lifecycle hook: created
@@ -2703,5 +2725,38 @@ export default {
 .payment-method-btn:focus-visible::before,
 .payment-method-btn:active::before {
 	opacity: 0 !important;
+}
+
+/* Toggle container background */
+.payment-toggle {
+  background: rgba(76, 175, 80, 0.08); /* light green */
+  padding: 4px;
+}
+
+/* Normal button */
+.payment-btn {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+/* Hover effect */
+.payment-btn:hover {
+  background-color: rgba(76, 175, 80, 0.15);
+}
+
+/* Selected button */
+.payment-toggle .v-btn--active {
+  background: linear-gradient(
+    135deg,
+    #43a047,
+    #2e7d32
+  ) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 6px rgba(46, 125, 50, 0.35);
+}
+
+/* Selected icon */
+.payment-toggle .v-btn--active .v-icon {
+  color: #ffffff !important;
 }
 </style>
