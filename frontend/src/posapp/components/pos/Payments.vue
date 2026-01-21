@@ -542,28 +542,34 @@
 				<v-divider></v-divider>
 
 				<!-- Switches for Write Off and Credit Sale -->
-				<v-row class="pa-1" align="start" no-gutters>
-					<v-col
-						cols="12"
-					>
-						<v-radio-group
+				<v-row v-if="invoice_doc" class="pa-1" align="start" no-gutters>
+					<v-col cols="12">
+						<div class="text-caption text-medium-emphasis mb-2">
+							{{ frappe._("Payment Type") }}
+						</div>
+
+						<v-btn-toggle
 							v-model="invoice_doc.custom_pay_type"
-							:label="frappe._('Payment Type')"
-							@change="onPaymentTypeChange"
+							mandatory
+							class="payment-toggle w-100"
+							divided
+							density="comfortable"
+							rounded="lg"
+							@update:modelValue="onPaymentTypeChange"
 						>
-							<v-row>
-								<v-col
-								cols="auto"
+							<v-btn
 								v-for="p in pos_profile.payments"
 								:key="p.mode_of_payment"
-								>
-								<v-radio
-									:label="p.mode_of_payment"
-									:value="p.mode_of_payment"
-								/>
-								</v-col>
-							</v-row>
-						</v-radio-group>
+								:value="p.mode_of_payment"
+								variant="tonal"
+								class="payment-btn text-none flex-grow-1"
+							>
+								<v-icon start size="16">
+									{{ isCashLikePayment(p) ? 'mdi-cash' : 'mdi-credit-card-outline' }}
+								</v-icon>
+									{{ p.mode_of_payment }}
+							</v-btn>
+						</v-btn-toggle>
 					</v-col>
 					<!-- <v-col
 						cols="6"
@@ -2522,10 +2528,8 @@ export default {
 			}
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
 		},
-		onPaymentTypeChange(event) {
-			const value = event.target.value;
-			console.log("Payment type changed to:", value);
-				this.invoice_doc.custom_pay_type = value;		
+		onPaymentTypeChange(value) {
+			this.invoice_doc.custom_pay_type = value;		
 		},
 	},
 	// Lifecycle hook: created
@@ -2721,5 +2725,38 @@ export default {
 .payment-method-btn:focus-visible::before,
 .payment-method-btn:active::before {
 	opacity: 0 !important;
+}
+
+/* Toggle container background */
+.payment-toggle {
+  background: rgba(76, 175, 80, 0.08); /* light green */
+  padding: 4px;
+}
+
+/* Normal button */
+.payment-btn {
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+/* Hover effect */
+.payment-btn:hover {
+  background-color: rgba(76, 175, 80, 0.15);
+}
+
+/* Selected button */
+.payment-toggle .v-btn--active {
+  background: linear-gradient(
+    135deg,
+    #43a047,
+    #2e7d32
+  ) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 6px rgba(46, 125, 50, 0.35);
+}
+
+/* Selected icon */
+.payment-toggle .v-btn--active .v-icon {
+  color: #ffffff !important;
 }
 </style>
