@@ -487,6 +487,36 @@ export default {
 		}
 	},
 
+	calculateOfferQty(offer) {
+		let qty = offer.given_qty;
+		if (offer.is_recursive) {
+			let transaction_qty = 0;
+			if (offer.items) {
+				const itemsRowID = typeof offer.items === "string" ? JSON.parse(offer.items) : offer.items;
+				if (Array.isArray(itemsRowID)) {
+					itemsRowID.forEach((row_id) => {
+						const row_item = this.getItemFromRowID(row_id);
+						if (row_item) {
+							transaction_qty += this._resolveOfferQty(row_item);
+						}
+					});
+				}
+			}
+
+			transaction_qty = transaction_qty - (offer.apply_recursion_over || 0);
+			if (transaction_qty > 0) {
+				const recurse_for = offer.recurse_for || 1;
+				qty = (transaction_qty * offer.given_qty) / recurse_for;
+				if (offer.round_free_qty) {
+					qty = Math.floor(transaction_qty / recurse_for) * (offer.given_qty || 1);
+				}
+			} else {
+				qty = 0;
+			}
+		}
+		return qty;
+	},
+
 	getItemOffer(offer, context = {}) {
 		if (!offer || offer.apply_on !== "Item Code") {
 			return null;
@@ -533,6 +563,10 @@ export default {
 		}
 
 		offer.items = items;
+		if (offer.offer === "Give Product") {
+			offer.given_qty = this.calculateOfferQty(offer);
+			if (offer.given_qty <= 0) return null;
+		}
 		return offer;
 	},
 
@@ -582,6 +616,10 @@ export default {
 		}
 
 		offer.items = items;
+		if (offer.offer === "Give Product") {
+			offer.given_qty = this.calculateOfferQty(offer);
+			if (offer.given_qty <= 0) return null;
+		}
 		return offer;
 	},
 
@@ -636,6 +674,10 @@ export default {
 		}
 
 		offer.items = items;
+		if (offer.offer === "Give Product") {
+			offer.given_qty = this.calculateOfferQty(offer);
+			if (offer.given_qty <= 0) return null;
+		}
 		return offer;
 	},
 	getTransactionOffer(offer, context = {}) {
@@ -658,6 +700,10 @@ export default {
 		}
 
 		offer.items = bucket.items.map((item) => item.posa_row_id);
+		if (offer.offer === "Give Product") {
+			offer.given_qty = this.calculateOfferQty(offer);
+			if (offer.given_qty <= 0) return null;
+		}
 		return offer;
 	},
 
