@@ -1139,6 +1139,7 @@ export default {
 				enforceStockLimits &&
 				item.max_qty !== undefined &&
 				this.flt(item[field_name]) > this.flt(item.max_qty)
+				&& !this.isReturnInvoice
 			) {
 				const blockSale = this.blockSaleBeyondAvailableQty || !allowNegativeStock;
 				if (blockSale) {
