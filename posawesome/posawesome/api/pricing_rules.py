@@ -487,8 +487,12 @@ def reconcile_line_prices(cart_payload: dict | str | None = None):
                  if rule_def.other_item_group == args.item_group:
                      is_target = True
                  else:
-                     # Check hierarchy
-                     is_target = frappe.db.is_a(args.item_group, rule_def.other_item_group)
+                     # Check hierarchy manually since frappe.db.is_a is not available in all versions or context
+                     lft, rgt = frappe.db.get_value("Item Group", rule_def.other_item_group, ["lft", "rgt"])
+                     child_lft, child_rgt = frappe.db.get_value("Item Group", args.item_group, ["lft", "rgt"])
+                     if lft and rgt and child_lft and child_rgt:
+                         if lft <= child_lft and rgt >= child_rgt:
+                             is_target = True
             elif apply_on_other == "Brand" and rule_def.other_brand == args.brand:
                 is_target = True
             
