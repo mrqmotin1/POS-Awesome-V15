@@ -350,15 +350,15 @@ def _auto_set_return_batches(invoice_doc):
 
         has_batch = frappe.db.get_value("Item", d.item_code, "has_batch_no")
            
-        if has_batch and d.get("batch_no"):
+        if has_batch:
             d.use_serial_batch_fields = 1
-            batch_list = get_batch_qty(item_code=d.item_code, warehouse=d.warehouse) or []
-            batch_list = [b for b in batch_list if flt(b.get("qty")) > 0]
-            if batch_list:
-                # FIFO: batches are already sorted by posting/expiry in ERPNext
-                d.batch_no = batch_list[0].get("batch_no")
-            elif not allow_free:
-                frappe.throw(_("No batches available in {0} for {1}.").format(d.warehouse, d.item_code))
+            if not d.get("batch_no"): 
+                batch_list = get_batch_qty(item_code=d.item_code, warehouse=d.warehouse) or []
+                if batch_list:
+                    # FIFO: batches are already sorted by posting/expiry in ERPNext
+                    d.batch_no = batch_list[-1].get("batch_no")
+                elif not allow_free:
+                    frappe.throw(_("No batches available in {0} for {1}.").format(d.warehouse, d.item_code))
 
 
 @frappe.whitelist()
