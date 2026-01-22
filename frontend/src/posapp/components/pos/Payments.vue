@@ -1398,14 +1398,14 @@ export default {
 			}
 			// Check if any payment amount is set
 			let hasPaymentSet = false;
-			this.invoice_doc.payments.forEach((payment) => {
+			this.invoice_doc?.payments?.forEach((payment) => {
 				if (Math.abs(payment.amount) > 0) {
 					hasPaymentSet = true;
 				}
 			});
 			// If no payment set, set the default one
 			if (!hasPaymentSet) {
-				const default_payment = this.invoice_doc.payments.find((payment) => payment.default === 1);
+				const default_payment = this.invoice_doc?.payments?.find((payment) => payment.default === 1);
 				if (default_payment) {
 					const amount = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
 					default_payment.amount = -Math.abs(amount);
@@ -1415,7 +1415,7 @@ export default {
 				}
 			}
 			// Ensure all set payments are negative
-			this.invoice_doc.payments.forEach((payment) => {
+			this.invoice_doc?.payments?.forEach((payment) => {
 				if (payment.amount > 0) {
 					payment.amount = -Math.abs(payment.amount);
 				}
