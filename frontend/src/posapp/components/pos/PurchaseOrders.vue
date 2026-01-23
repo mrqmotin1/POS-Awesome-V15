@@ -841,6 +841,7 @@ export default {
 					supplier: this.supplier,
 					company: this.pos_profile.company,
 					warehouse: this.warehouse,
+					currency: this.supplierCurrency,
 					transaction_date: this.formatDateForBackend(this.transactionDate),
 					schedule_date: this.formatDateForBackend(this.scheduleDate),
 					receive: this.receiveNow ? 1 : 0,

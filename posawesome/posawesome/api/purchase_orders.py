@@ -588,6 +588,7 @@ def _create_purchase_invoice(po_doc, payload, default_warehouse, transaction_dat
             "company": po_doc.company,
             "posting_date": invoice_date,
             "purchase_order": po_doc.name,
+            "currency": payload.get("currency") or po_doc.currency,
         }
     )
     if default_warehouse:
