@@ -86,6 +86,23 @@ import {
 } from "./composables/useNetwork.js";
 import { useRtl } from "./composables/useRtl.js";
 
+/**
+ * Frappe Desk UI selectors to hide in POS view.
+ * Used by: remove_frappe_nav(), pollForFrappeNav(), setup_sidebar_observer()
+ */
+const FRAPPE_NAV_SELECTORS = [
+	".body-sidebar-container",
+	".body-sidebar",
+	".desk-sidebar",
+	".app-sidebar",
+	".layout-side-section",
+	".page-head",
+	".navbar.navbar-default.navbar-fixed-top",
+	".sidebar-overlay",
+];
+
+const FRAPPE_NAV_SELECTOR_STRING = FRAPPE_NAV_SELECTORS.join(", ");
+
 export default {
 	setup() {
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
@@ -122,8 +139,7 @@ export default {
 			cacheUsage: 0,
 			cacheUsageLoading: false,
 			cacheUsageDetails: { total: 0, indexedDB: 0, localStorage: 0 },
-
-			// Loading progress handled via utility
+			_sidebarObserver: null, // Store observer reference
 		};
 	},
 	computed: {
@@ -166,14 +182,17 @@ export default {
 		UpdatePrompt,
 	},
 	mounted() {
-		this.remove_frappe_nav();
-		this.adjust_frappe_sidebar_offset();
+		// Poll for Frappe sidebar instead of fixed timeout
+		this.pollForFrappeNav();
+
+		// Rest of your initialization code...
 		window.addEventListener("resize", this.adjust_frappe_sidebar_offset);
 		initLoadingSources(["init", "items", "customers"]);
 		this.initializeData();
 		this.setupNetworkListeners();
 		this.setupEventListeners();
 		this.handleRefreshCacheUsage();
+		
 		const customersStore = useCustomersStore();
 		const { loadProgress, customersLoaded } = storeToRefs(customersStore);
 		this.$watch(
@@ -193,7 +212,44 @@ export default {
 			{ immediate: true },
 		);
 	},
+	beforeUnmount() {
+		// Clean up event bus listeners
+		if (this.eventBus) {
+			this.eventBus.off("pending_invoices_changed");
+			this.eventBus.off("data-loaded");
+			this.eventBus.off("register_pos_profile");
+			this.eventBus.off("set_last_invoice");
+			this.eventBus.off("data-load-progress");
+			this.eventBus.off("print_last_invoice");
+			this.eventBus.off("sync_invoices");
+			this.eventBus.off("open_purchase_orders");
+		}
+		
+		// Remove resize listener
+		window.removeEventListener("resize", this.adjust_frappe_sidebar_offset);
+		
+		// CRITICAL FIX: Disconnect MutationObserver to prevent memory leak
+		if (this._sidebarObserver) {
+			this._sidebarObserver.disconnect();
+			this._sidebarObserver = null;
+		}
+	},
 	methods: {
+		pollForFrappeNav(maxAttempts = 50, interval = 100) {
+			let attempts = 0;
+			const checkAndRemove = () => {
+				attempts++;
+				const hasSidebar = FRAPPE_NAV_SELECTORS.some((sel) => document.querySelector(sel));
+				
+				if (hasSidebar || attempts >= maxAttempts) {
+					this.remove_frappe_nav();
+					this.setup_sidebar_observer();
+				} else {
+					setTimeout(checkAndRemove, interval);
+				}
+			};
+			checkAndRemove();
+		},
 		setupNetworkListeners,
 		checkNetworkConnectivity,
 		detectHostType,
@@ -267,6 +323,7 @@ export default {
 				this.eventBus.on("data-loaded", (name) => {
 					markSourceLoaded(name);
 				});
+				
 				this.eventBus.on("data-load-progress", ({ name, progress }) => {
 					setSourceProgress(name, progress);
 				});
@@ -495,38 +552,46 @@ export default {
 		},
 
 		remove_frappe_nav() {
-			this.$nextTick(() => {
-				$(".page-head").remove();
-				$(".navbar.navbar-default.navbar-fixed-top").remove();
-				this.adjust_frappe_sidebar_offset();
+			FRAPPE_NAV_SELECTORS.forEach((selector) => {
+				const elements = document.querySelectorAll(selector);
+				elements.forEach((el) => el.remove());
 			});
+			
+			document.documentElement.style.setProperty("--posa-desk-sidebar-width", "0px");
 		},
-		adjust_frappe_sidebar_offset() {
-			const sidebar = document.querySelector(
-				".desk-sidebar, .app-sidebar, .sidebar, .side-section, .layout-side-section",
-			);
-			let sidebarWidth = 0;
-			if (sidebar) {
-				const sidebarStyles = window.getComputedStyle(sidebar);
-				const rect = sidebar.getBoundingClientRect();
-				if (sidebarStyles.display !== "none" && rect.width > 0) {
-					sidebarWidth = rect.width;
-				}
+
+		setup_sidebar_observer() {
+			// Disconnect existing observer if any
+			if (this._sidebarObserver) {
+				this._sidebarObserver.disconnect();
 			}
-			document.documentElement.style.setProperty("--posa-desk-sidebar-width", `${sidebarWidth}px`);
+
+			const observer = new MutationObserver((mutations) => {
+				for (const mutation of mutations) {
+					for (const node of mutation.addedNodes) {
+						if (node.nodeType === Node.ELEMENT_NODE) {
+							if (node.matches(FRAPPE_NAV_SELECTOR_STRING) || 
+								node.querySelector(FRAPPE_NAV_SELECTOR_STRING)) {
+								this.remove_frappe_nav();
+								return;
+							}
+						}
+					}
+				}
+			});
+
+			observer.observe(document.body, {
+				childList: true,
+				subtree: true,
+			});
+			
+			this._sidebarObserver = observer;
 		},
-	},
-	beforeUnmount() {
-		if (this.eventBus) {
-			this.eventBus.off("pending_invoices_changed");
-			this.eventBus.off("data-loaded");
-		}
-		window.removeEventListener("resize", this.adjust_frappe_sidebar_offset);
-	},
-	created: function () {
-		setTimeout(() => {
-			this.remove_frappe_nav();
-		}, 1000);
+
+		adjust_frappe_sidebar_offset() {
+			// Always return 0 since sidebar should be removed
+			document.documentElement.style.setProperty("--posa-desk-sidebar-width", "0px");
+		},
 	},
 };
 </script>
