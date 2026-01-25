@@ -6,7 +6,7 @@
 			<ClosingDialog />
 			<Navbar
 				:pos-profile="posProfile"
-				:pending-invoices="pendingInvoices"
+				:pending-invoices="pendingInvoicesCount"
 				:last-invoice-id="lastInvoiceId"
 				:network-online="networkOnline"
 				:server-online="serverOnline"
@@ -53,6 +53,7 @@ import { useLoading } from "./composables/useLoading.js";
 import { usePosShift } from "./composables/usePosShift.js";
 import { loadingState, initLoadingSources, setSourceProgress, markSourceLoaded } from "./utils/loading.js";
 import { useCustomersStore } from "./stores/customersStore.js";
+import { useSyncStore } from "./stores/syncStore.js";
 import { storeToRefs } from "pinia";
 import {
 	getOpeningStorage,
@@ -110,19 +111,22 @@ export default {
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
 		const { overlayVisible } = useLoading();
 		const { get_closing_data } = usePosShift();
+		const syncStore = useSyncStore();
+		const { pendingInvoicesCount } = storeToRefs(syncStore);
 		return {
 			isRtl,
 			rtlStyles,
 			rtlClasses,
 			globalLoading: overlayVisible,
 			get_closing_data,
+			syncStore,
+			pendingInvoicesCount,
 		};
 	},
 	data: function () {
 		return {
 			// POS Profile data
 			posProfile: {},
-			pendingInvoices: 0,
 			lastInvoiceId: "",
 
 			// Network status
@@ -216,7 +220,6 @@ export default {
 	beforeUnmount() {
 		// Clean up event bus listeners
 		if (this.eventBus) {
-			this.eventBus.off("pending_invoices_changed");
 			this.eventBus.off("data-loaded");
 			this.eventBus.off("register_pos_profile");
 			this.eventBus.off("set_last_invoice");
@@ -279,7 +282,7 @@ export default {
 				purgeOldQueueEntries();
 			}
 
-			this.pendingInvoices = getPendingOfflineInvoiceCount();
+			await this.syncStore.updatePendingCount();
 			this.syncTotals = getLastSyncTotals();
 
 			getCacheUsageEstimate()
@@ -335,11 +338,6 @@ export default {
 				// Manual trigger to sync offline invoices
 				this.eventBus.on("sync_invoices", () => {
 					this.handleSyncInvoices();
-				});
-
-				// Update pending invoice count when other modules emit the change
-				this.eventBus.on("pending_invoices_changed", (count) => {
-					this.pendingInvoices = count;
 				});
 
 				this.eventBus.on("open_purchase_orders", () => {
@@ -469,7 +467,7 @@ export default {
 					});
 				}
 			}
-			this.pendingInvoices = getPendingOfflineInvoiceCount();
+			this.syncStore.updatePendingCount();
 			this.syncTotals = result || this.syncTotals;
 		},
 

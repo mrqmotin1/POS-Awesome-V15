@@ -820,6 +820,7 @@
 // Importing format mixin for currency and utility functions
 import format, { formatUtils } from "../../format";
 import { getSmartTenderSuggestions } from "../../../utils/smartTender.js";
+import { useSyncStore } from "../../stores/syncStore.js";
 import {
 	saveOfflineInvoice,
 	syncOfflineInvoices,
@@ -870,6 +871,7 @@ export default {
 	},
 	data() {
 		return {
+			syncStore: useSyncStore(),
 			loading: false, // UI loading state
 			pos_profile: "", // POS profile settings
 			pos_settings: {}, // POS settings
@@ -1684,7 +1686,7 @@ export default {
 			if (isOffline()) {
 				try {
 					saveOfflineInvoice({ data: data, invoice: this.invoice_doc });
-					this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
+					this.syncStore.updatePendingCount();
 					this.eventBus.emit("show_message", {
 						title: __("Invoice saved offline"),
 						color: "warning",
@@ -2718,7 +2720,7 @@ export default {
 					title: `${pending} invoice${pending > 1 ? "s" : ""} pending for sync`,
 					color: "warning",
 				});
-				this.eventBus.emit("pending_invoices_changed", pending);
+				this.syncStore.updatePendingCount();
 			}
 			if (isOffline()) {
 				// Don't attempt to sync while offline; just update the counter
@@ -2739,7 +2741,7 @@ export default {
 					});
 				}
 			}
-			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
+			this.syncStore.updatePendingCount();
 		},
 		get_print_formats() {
 			frappe.call({

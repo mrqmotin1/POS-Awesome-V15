@@ -95,7 +95,9 @@ _Removing "Event Soup" and centralizing business logic._
             - [x] Updated `BarcodePrinting.vue`, `Pos.vue`, and `PurchaseOrders.vue` to listen to the event.
             - Decoupled `add_item` global event from `ItemsSelector`.
         4.  **Refactor `pending_invoices_changed`**:
-            - Make `pendingInvoices` a reactive getter in `useInvoiceStore`. Components should watch this store state.
+            - [x] Create `syncStore` (Pinia) to manage pending invoices count.
+            - [x] Update `Payments.vue` to update store instead of emitting event.
+            - [x] Update `Home.vue` to use store state instead of event listener.
 
 - [x] **2.2 Centralize API Services**
     - **Current Status:** `frappe.call` is scattered. `Invoice.vue` & `invoiceItemMethods.js` contain ~20 raw calls. `customersStore.js` contains mixed API/Store logic.
