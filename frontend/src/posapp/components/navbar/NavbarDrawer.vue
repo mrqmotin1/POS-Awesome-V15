@@ -29,8 +29,10 @@
 				v-for="(item, index) in items"
 				:key="item.text"
 				:value="index"
-				@click="changePage(item.text)"
+				:to="item.to"
+				@click="handleItemClick"
 				class="drawer-item"
+				active-class="active-item"
 			>
 				<template v-slot:prepend>
 					<v-icon class="drawer-icon">{{ item.icon }}</v-icon>
@@ -109,9 +111,8 @@ export default {
 				this.mini = true;
 			}, 250);
 		},
-		changePage(key) {
-			this.$emit("change-page", key);
-			// Close drawer after selection
+		handleItemClick() {
+			// Close drawer after selection if mobile
 			if (window.innerWidth < 1024) {
 				this.closeDrawer();
 			}

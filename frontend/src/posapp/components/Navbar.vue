@@ -211,10 +211,10 @@ export default {
 			mini: true,
 			item: 0,
 			items: [
-				{ text: "POS", icon: "mdi-network-pos" },
-				{ text: "Payments", icon: "mdi-credit-card" },
-				{ text: "Purchase Order", icon: "mdi-cart-plus" },
-				{ text: "Barcode Printing", icon: "mdi-barcode" },
+				{ text: "POS", icon: "mdi-network-pos", to: "/pos" },
+				{ text: "Payments", icon: "mdi-credit-card", to: "/payments" },
+				{ text: "Purchase Order", icon: "mdi-cart-plus", to: "/orders" },
+				{ text: "Barcode Printing", icon: "mdi-barcode", to: "/barcode" },
 			],
 			company: "POS Awesome",
 			companyImg: posLogo,
@@ -375,9 +375,7 @@ export default {
 		goDesk() {
 			window.location.href = "/app";
 		},
-		changePage(page) {
-			this.$emit("change-page", page);
-		},
+
 		openCloseShift() {
 			this.$emit("close-shift");
 		},

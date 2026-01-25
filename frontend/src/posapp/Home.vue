@@ -20,7 +20,6 @@
 				:loading-progress="loadingProgress"
 				:loading-active="loadingActive"
 				:loading-message="loadingMessage"
-				@change-page="setPage($event)"
 				@nav-click="handleNavClick"
 				@close-shift="handleCloseShift"
 				@print-last-invoice="handlePrintLastInvoice"
@@ -32,7 +31,9 @@
 				@update-after-delete="handleUpdateAfterDelete"
 			/>
 			<div class="page-content">
-				<component v-bind:is="page" class="mx-4 md-4"></component>
+				<router-view v-slot="{ Component }">
+					<component :is="Component" class="mx-4 md-4" />
+				</router-view>
 			</div>
 		</v-main>
 	</v-app>
@@ -118,7 +119,6 @@ export default {
 	},
 	data: function () {
 		return {
-			page: "POS",
 			// POS Profile data
 			posProfile: {},
 			pendingInvoices: 0,
@@ -258,9 +258,7 @@ export default {
 		checkCurrentOrigin,
 		checkExternalConnectivity,
 		checkWebSocketConnectivity,
-		setPage(page) {
-			this.page = page;
-		},
+
 
 		async initializeData() {
 			await initPromise;
@@ -344,7 +342,7 @@ export default {
 				});
 
 				this.eventBus.on("open_purchase_orders", () => {
-					this.setPage("Purchase Order");
+					this.$router.push("/orders");
 				});
 			}
 

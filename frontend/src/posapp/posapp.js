@@ -16,6 +16,7 @@ import "./styles/theme.css";
 import eventBus from "./bus";
 import themePlugin from "./plugins/theme.js";
 import { pinia } from "./stores/index.js";
+import router from "./router/index.js";
 import "../sw-updater.js"; // Initialize service worker auto-updater
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
@@ -97,6 +98,7 @@ frappe.PosApp.posapp = class {
 		const app = createApp(Home);
 		app.component("VueDatePicker", VueDatePicker);
 		app.use(pinia);
+		app.use(router);
 		app.use(eventBus);
 		app.use(vuetify);
 		app.use(themePlugin, { vuetify });

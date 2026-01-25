@@ -73,6 +73,13 @@ Notes:
 
 ### Main Features
 
+#### 🏗️ Architecture (New)
+
+- **Vue Router**: Fully Client-Side Routing for instant navigation between POS, Orders, and Payments.
+- **Modular Design**: Separated concerns using Vue 3 Composition API.
+
+#### 🎨 UI/UX & Interface
+
 #### 🎨 UI/UX & Interface
 
 - **Modern Interface**: User-friendly design using Vue.js and Vuetify, optimized for speed and experience.
@@ -182,6 +189,7 @@ Notes:
 - [Frappe](https://github.com/frappe/frappe)
 - [Erpnext](https://github.com/frappe/erpnext)
 - [Vue.js](https://github.com/vuejs/vue)
+- [Vue Router](https://router.vuejs.org/) (New Architecture)
 - [Vuetify.js](https://github.com/vuetifyjs/vuetify)
 
 ---
