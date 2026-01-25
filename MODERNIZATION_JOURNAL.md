@@ -73,6 +73,9 @@ _Building the backbone for a scalable Single Page Application (SPA)._
         3.  Define interfaces for core entities: `Invoice`, `Customer`, `Item`, `POSProfile`.
         4.  Typed Pinia Stores.
 
+- [ ] **1.5 Documentation Update**
+    - **Action:** Update `README.md` to mention the new Router-based architecture and requirements.
+
 ---
 
 ## 🧠 Phase 2: State Management & Logic Clean-up
@@ -103,6 +106,9 @@ _Removing "Event Soup" and centralizing business logic._
             - Extract calls from `customersStore.js`: `get_customer_names`, `get_customers_count`.
         4.  **Create `frontend/src/posapp/services/itemService.ts`**:
             - Extract calls from `itemsStore.js`.
+
+- [ ] **2.3 Documentation Update**
+    - **Action:** Update `README.md` to document the new Store/Service architecture for contributors.
 
 ---
 
@@ -148,6 +154,9 @@ _Making it look and feel premium._
         2.  `Payments.vue` will be its own page (on mobile) or a side-drawer (on desktop).
         3.  **Mobile First:** Ensure `v-app-bar` handles navigation on small screens.
 
+- [ ] **3.4 Documentation Update**
+    - **Action:** Update `README.md` to highlight "Modern UI/UX" features and specific theme customization guide.
+
 ---
 
 ## ⚡ Phase 4: Performance & Optimization
@@ -166,6 +175,9 @@ _Speed and Offline-First reliability._
         1.  **Strategy Shift:** Change `assets-cache` strategy to `CacheFirst` (or `StaleWhileRevalidate`). Since hashed filenames change on every build, we can safely cache aggressivey.
         2.  **Offline Indicator:** Ensure `DefaultLayout.vue` shows a global banner when `useNetwork().isOnline` is false.
         3.  **Background Sync:** Use `workbox-background-sync` for failed API requests (if `frappe.call` fails).
+
+- [ ] **4.3 Documentation Update**
+    - **Action:** Update `README.md` with "Offline First" capabilities and technical details on caching strategies.
 
 ---
 
@@ -197,6 +209,9 @@ _Stability and Confidence._
                   yarn test
             ```
         2.  **Linting:** Add `yarn run lint` to the CI pipeline to enforce code style.
+
+- [ ] **5.3 Documentation Update**
+    - **Action:** Update `README.md` with instructions on how to run E2E tests and contributing guidelines using the new CI flow.
 
 ---
 
