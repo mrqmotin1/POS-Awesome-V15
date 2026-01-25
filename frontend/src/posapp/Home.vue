@@ -32,7 +32,9 @@
 			/>
 			<div class="page-content">
 				<router-view v-slot="{ Component }">
-					<component :is="Component" class="mx-4 md-4" />
+					<transition name="fade-page" mode="out-in">
+						<component :is="Component" class="mx-4 md-4" />
+					</transition>
 				</router-view>
 			</div>
 		</v-main>
@@ -622,5 +624,19 @@ export default {
 	flex-direction: column;
 	min-height: 100%;
 	height: 100%;
+}
+
+/* Page Transition Styles */
+.fade-page-enter-active,
+.fade-page-leave-active {
+	transition:
+		opacity 0.2s ease,
+		transform 0.2s ease;
+}
+
+.fade-page-enter-from,
+.fade-page-leave-to {
+	opacity: 0;
+	transform: translateY(5px);
 }
 </style>

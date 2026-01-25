@@ -145,7 +145,11 @@
 						>
 							{{ __("Columns") }}
 						</v-btn>
-						<v-dialog v-model="show_column_selector" max-width="500px">
+						<v-dialog
+							v-model="show_column_selector"
+							max-width="500px"
+							transition="dialog-bottom-transition"
+						>
 							<v-card>
 								<v-card-title class="text-h6 pa-4 d-flex align-center">
 									<span>{{ __("Select Columns to Display") }}</span>
@@ -229,7 +233,11 @@
 						@item-dropped="showDropFeedback(false)"
 						@view-packed="openPackedItems"
 					/>
-					<v-dialog v-model="show_packed_dialog" max-width="800px">
+					<v-dialog
+						v-model="show_packed_dialog"
+						max-width="800px"
+						transition="dialog-bottom-transition"
+					>
 						<v-card>
 							<v-card-title class="d-flex align-center">
 								<span>{{ __("Packing List") }} ({{ packed_dialog_items.length }})</span>
@@ -302,7 +310,11 @@
 		</v-card>
 
 		<!-- Payment Confirmation Dialog -->
-		<v-dialog v-model="confirm_payment_dialog" max-width="400">
+		<v-dialog
+			v-model="confirm_payment_dialog"
+			max-width="400"
+			transition="dialog-bottom-transition"
+		>
 			<v-card>
 				<v-card-title class="text-h6">
 					{{ __("Open Payments?") }}

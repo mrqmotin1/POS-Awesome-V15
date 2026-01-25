@@ -222,3 +222,5 @@ _Stability and Confidence._
 | 2026-01-25 | Phase 2.2 Refactor                  | Completed | Created `api.js`, `authService.js`, `invoiceService.js` to centralize API calls.                                                     |
 | 2026-01-26 | Refactor `pending_invoices_changed` | Completed | Created `syncStore.js` and updated `Payments.vue` and `Home.vue` to use it.                                                          |
 | 2026-01-26 | Phase 2.2 Finalization              | Completed | Implemented `itemService.js` and refactored `itemsStore.js` & `invoiceOfferMethods.js`. cleanup `customer_changed` event assumption. |
+| 2026-01-26 | Phase 3.1 Design System             | Completed | Migrated Vuetify theme to `plugins/vuetify.ts` and updated `posapp.js`.                                                              |
+| 2026-01-26 | Phase 3.2 Micro-Interactions        | Completed | Added page transitions to `Home.vue` and dialog transitions to `Invoice` and `CancelSaleDialog`.                                     |
