@@ -201,12 +201,37 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                 fields=["name", "first_name"]
             )
         }
+        # 2️⃣ Fetch ALL items in one query (IMPORTANT for performance)
+        invoice_names = [inv["voucher_no"] for inv in outstanding_invoices]
+
+        items = frappe.get_all(
+			"Sales Invoice Item",
+			filters={
+				"parent": ["in", invoice_names],
+				"parenttype": "Sales Invoice",
+			},
+			fields=[
+				"parent as voucher_no",
+				"item_name",
+				"qty",
+				"rate",
+				"discount_amount",
+                "discount_percentage",
+				"net_amount",
+			],
+		)
+
+		# 3️⃣ Group items by invoice
+        items_by_invoice = {}
+        for item in items:
+            items_by_invoice.setdefault(item["voucher_no"], []).append(item)
 
         filtered_invoices = []
         # Ensure all amounts are properly formatted
         for invoice in outstanding_invoices:
             #invoice.outstanding_amount = flt(invoice.outstanding_amount)
             #invoice.invoice_amount = flt(invoice.invoice_amount)
+            invoice["items"] = items_by_invoice.get(invoice["voucher_no"], [])
             invoice["seller_name"] = user_map.get(invoice["owner"])
 
             outstanding = flt(invoice.outstanding_amount)
@@ -227,6 +252,7 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
         frappe.logger().debug(
             f"First invoice data: {outstanding_invoices[0] if outstanding_invoices else 'No invoices'}"
         )
+        print("First invoice items:", outstanding_invoices[0]["items"] if outstanding_invoices else [])
 
         return outstanding_invoices
     except Exception as e:
