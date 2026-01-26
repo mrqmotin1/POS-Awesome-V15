@@ -32,6 +32,10 @@ const routes = [
 		path: "/closing",
 		component: () => import("../components/pos/ClosingDialog.vue"),
 		meta: { title: "Close Shift", layout: "default" }
+	},
+	{
+		path: "/:pathMatch(.*)*",
+		redirect: "/pos"
 	}
 ];
 
