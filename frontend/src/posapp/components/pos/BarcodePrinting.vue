@@ -225,13 +225,12 @@ import ItemsSelector from "./ItemsSelector.vue";
 import { useItemsStore } from "../../stores/itemsStore";
 import { useToastStore } from "../../stores/toastStore";
 import { mapStores } from "pinia";
-import draggable from "vuedraggable";
 import format from "../../format";
 import { useUIStore } from "../../stores/uiStore.js";
 
 export default {
 	name: "BarcodePrinting",
-	components: { ItemsSelector, draggable },
+	components: { ItemsSelector },
 	mixins: [format],
 	setup() {
 		const toastStore = useToastStore();
@@ -899,10 +898,12 @@ export default {
 	text-align: center;
 	font-weight: 600;
 	-moz-appearance: textfield;
+	appearance: textfield;
 }
 .pos-table__qty-input :deep(input::-webkit-outer-spin-button),
 .pos-table__qty-input :deep(input::-webkit-inner-spin-button) {
 	-webkit-appearance: none;
+	appearance: none;
 	margin: 0;
 }
 .pos-table__qty-input :deep(.v-input__control) {
