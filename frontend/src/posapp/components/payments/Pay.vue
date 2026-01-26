@@ -97,13 +97,19 @@
 							item-key="voucher_no"
 							class="elevation-1 mt-0"
 							:loading="invoices_loading"
-							@click:row="selectSingleInvoice"
 							:item-class="isSelected"
 						>
 							<!-- format invoice no, time etc -->
 							<template v-slot:item.voucher_no="{ item }">
-								{{ item.voucher_no ? item.voucher_no.split('-').pop() : '' }}
+								<span
+								style="cursor: pointer;"
+									class="invoice-link"
+									@click.stop="selectSingleInvoice(item)"
+								>
+									{{ item.voucher_no ? item.voucher_no.split('-').pop() : '' }}
+								</span>
 							</template>
+
 
 							<template v-slot:item.posting_time="{ item }">
 								{{ item.posting_time ? item.posting_time.slice(0, 8) : "" }}
@@ -114,6 +120,7 @@
 									:model-value="isInvoiceSelected(item)"
 									color="primary"
 									@click.stop="toggleInvoiceSelection(item)"
+									style="cursor: pointer;"
 								>
 								</v-checkbox>
 							</template>
@@ -269,15 +276,86 @@
 				</v-card>
 			</v-col>
 			<v-col md="4" cols="12" class="pb-3">
+
+				<v-data-table
+				:headers="itemHeaders"
+				:items="selected_invoice_items"
+				dense
+				:items-per-page="-1"
+    			hide-default-footer
+				class="mt-2"
+				>
+					<template v-slot:item.discount_percentage="{ item }">
+						{{ item.discount_percentage || 0 }}
+					</template>
+
+					<template v-slot:item.amount="{ item }">
+						{{ currencySymbol(selected_invoice.currency) }}
+						{{ formatCurrency(item.net_amount) }}
+					</template>
+				</v-data-table>
+
+
 				<v-card
 					class="invoices mx-auto mt-3 p-3 pos-themed-card"
 					style="max-height: 94vh; height: 94vh"
 				>
 					<strong>
-						<h4 class="text-primary">Totals</h4>
-						<v-row>
-							<v-col md="7" class="mt-1">
-								<span>{{ __("Total Invoices:") }}</span>
+						<v-btn
+							block
+							height="48"
+							class="text-uppercase font-weight-bold mb-4"
+							style="
+								background-color: #E8F5E9;
+								color: #000000;
+								font-weight: 700;
+								border: 1px solid #C8E6C9;
+							"
+						>
+							Payments
+						</v-btn>
+
+
+						<v-row dense class="ma-0 pa-0">
+							<v-col md="7">
+								<h4 class="text-primary">{{ __("Total Amount:") }}</h4>
+							</v-col>
+							<v-col md="5">
+								<v-text-field
+									class="p-0 m-0 pos-themed-input"
+									density="compact"
+									color="primary"
+									hide-details
+									:model-value="formatCurrency(invoiceDiscount+total_selected_invoice_amount)"
+									readonly
+									flat
+									:prefix="currencySymbol(pos_profile.currency)"
+								></v-text-field>
+							</v-col>
+						</v-row>
+
+						<v-row dense class="ma-0 pa-0">
+							<v-col md="7">
+								<h4 class="text-primary">{{ __("Total Discount:") }}</h4>
+							</v-col>
+							<v-col md="5">
+								<v-text-field
+									class="p-0 m-0 pos-themed-input"
+									density="compact"
+									color="primary"
+									hide-details
+									let discount = this.invoice.custom_total_items_discount ?? 0;
+									:model-value="formatCurrency(invoiceDiscount)"
+									readonly
+									flat
+									:prefix="currencySymbol(pos_profile.currency)"
+								></v-text-field>
+							</v-col>
+						</v-row>
+
+						<v-row dense class="ma-0 pa-0">
+							<v-col md="7" class="">
+								<h4 class="text-primary">{{ __("To Be Paid:") }}</h4>
 							</v-col>
 							<v-col md="5">
 								<v-text-field
@@ -384,9 +462,25 @@
 							</v-col>
 						</v-row>
 					</strong>
+				
+					<v-btn 
+						class="mt-2"
+						block
+						size="large"
+						color="info"
+						theme="dark"
+						@click="submit"
+						:disabled="vaildatPayment || isSubmitting"
+						:loading="isSubmitting"
+					>
+						{{ __("Submit") }}
+					</v-btn>
+				
+
+
 					<div class="pb-6 pr-6" style="position: absolute; bottom: 0; width: 100%">
 						<v-row>
-							<v-col cols="12" class="pr-1">
+							<!-- <v-col cols="12" class="pr-1">
 								<v-btn
 									block
 									size="large"
@@ -397,7 +491,7 @@
 								>
 									{{ __("Submit") }}
 								</v-btn>
-							</v-col>
+							</v-col> -->
 							<!-- <v-col cols="6" class="pl-1">
 								<v-btn
 									block
@@ -456,6 +550,7 @@ export default {
 	},
 	data: function () {
 		return {
+			selected_invoice_items: [],
 			invoicePoller: null, // Poller for invoices
 			dialog: false,
 			pos_profile: "",
@@ -531,6 +626,12 @@ export default {
 					sortable: true,
 					key: "outstanding_amount",
 				},
+			],
+			itemHeaders: [
+			{ title: __("Item"), value: "item_name" },
+			{ title: __("Qty"), value: "qty" },
+			{ title: __("Discount %"), value: "discount_percentage" },
+			{ title: __("Amount"), value: "net_amount" }
 			],
 			unallocated_payments_headers: [
 				{
@@ -1169,7 +1270,26 @@ export default {
 			console.log("Row clicked:", item);
 			if (item) {
 				this.toggleInvoiceSelection(item);
+				// fetch items for this invoice
+				this.selected_invoice_items = item.items || [];
+			} else {
+				console.warn("No item provided to selectSingleInvoice");	
 			}
+		},
+
+
+		// 👇 ADD IT HERE (same level)
+		fetchInvoiceItems(invoice_no) {
+			frappe.call({
+				method: "frappe.client.get",
+				args: {
+					doctype: "Sales Invoice",
+					name: invoice_no
+				}
+			}).then(r => {
+				this.selected_invoice_items = r.message?.items || [];
+			});
+			console.log("Items:", this.selected_invoice_items);
 		},
 		isInvoiceSelected(item) {
 			return this.selected_invoices.length &&
@@ -1272,6 +1392,21 @@ export default {
 			console.log("Calculated total selected invoices:", total, "from", this.selected_invoices);
 			return total;
 		},
+		total_selected_invoice_amount() {
+			if (!this.selected_invoices || !this.selected_invoices.length) {
+				console.log("No selected invoices");
+				return 0;
+			}
+			const total = this.selected_invoices.reduce(
+				(acc, cur) => acc + flt(cur?.invoice_amount || 0),
+				0
+			);
+			return total;
+		},
+
+		invoiceDiscount() {
+        	return this.selected_invoices?.[0]?.custom_total_items_discount || 0;
+    	},
 		total_selected_payments() {
 			if (!this.selected_payments || !this.selected_payments.length) return 0;
 			return this.selected_payments.reduce((acc, cur) => acc + flt(cur?.unallocated_amount || 0), 0);
@@ -1314,8 +1449,15 @@ export default {
 
 	watch: {
 		selected_invoices: {
-			handler() {
+			handler(val) {
 				this.set_payment_methods();
+				// NEW: handle invoice items
+			if (val && val.length === 1) {
+				this.fetchInvoiceItems(val[0].voucher_no);
+			} else {
+				// clear when none or multiple selected
+				this.selected_invoice_items = [];
+			}
 			},
 			deep: true,
 			immediate: true,
