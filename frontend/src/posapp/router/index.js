@@ -6,57 +6,63 @@ const routes = [
 	{
 		path: "/pos",
 		component: () => import("../components/pos/Pos.vue"),
-		meta: { title: "POS", layout: "default" }
+		meta: { title: "POS", layout: "default" },
 	},
 	{
 		path: "/orders",
 		component: () => import("../components/pos/PurchaseOrders.vue"),
-		meta: { title: "Orders", layout: "default" }
+		meta: { title: "Orders", layout: "default" },
 	},
 	{
 		path: "/payments",
 		component: () => import("../components/payments/Pay.vue"),
-		meta: { title: "Payments", layout: "default" }
+		meta: { title: "Payments", layout: "default" },
 	},
 	{
 		path: "/reports",
 		component: () => import("@/posapp/components/reports/Reports.vue"),
-		meta: { title: "Reports", layout: "default" }
+		meta: { title: "Reports", layout: "default" },
 	},
 	{
 		path: "/barcode",
 		component: () => import("../components/pos/BarcodePrinting.vue"),
-		meta: { title: "Barcode Printing", layout: "default" }
+		meta: { title: "Barcode Printing", layout: "default" },
 	},
 	{
 		path: "/closing",
 		component: () => import("../components/pos/ClosingDialog.vue"),
-		meta: { title: "Close Shift", layout: "default" }
+		meta: { title: "Close Shift", layout: "default" },
 	},
 	{
 		path: "/:pathMatch(.*)*",
-		redirect: "/pos"
-	}
+		redirect: "/pos",
+	},
 ];
 
-const router = createRouter({
-	history: createWebHistory("/app/posapp"),
-	routes,
-});
+const createPosAppRouter = () => {
+	const history = createWebHistory("/app/posapp");
+	const router = createRouter({
+		history,
+		routes,
+	});
 
-router.beforeEach((to, from, next) => {
-	start("route");
-	next();
-});
+	router.beforeEach((to, from, next) => {
+		start("route");
+		next();
+	});
 
-router.afterEach(() => {
-	stop("route");
-	// Reset scroll position
-	window.scrollTo(0, 0);
-});
+	router.afterEach(() => {
+		stop("route");
+		// Reset scroll position
+		window.scrollTo(0, 0);
+	});
 
-router.onError(() => {
-	stop("route");
-});
+	router.onError(() => {
+		stop("route");
+	});
 
-export default router;
+	return { router, history };
+};
+
+export { createPosAppRouter };
+export default createPosAppRouter;

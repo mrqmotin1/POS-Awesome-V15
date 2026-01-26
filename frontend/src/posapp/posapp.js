@@ -18,7 +18,7 @@ import themePlugin from "./plugins/theme.js";
 import { pinia } from "./stores/index.js";
 import { useToastStore } from "./stores/toastStore.js";
 import { useSocketStore } from "./stores/socketStore.js";
-import router from "./router/index.js";
+import { createPosAppRouter } from "./router/index.js";
 import "../sw-updater.js"; // Initialize service worker auto-updater
 import App from "./App.vue";
 import { attachProfilerHelpers, initLongTaskObserver, isPerfEnabled } from "./utils/perf.js";
@@ -48,9 +48,12 @@ frappe.PosApp.posapp = class {
 		this.$el = this.$parent.find(".main-section");
 		// Vuetify instance is now imported from plugins/vuetify.ts
 		this.app = createApp(App);
+		const { router, history } = createPosAppRouter();
+		this.router = router;
+		this.routerHistory = history;
 		this.app.component("VueDatePicker", VueDatePicker);
 		this.app.use(pinia);
-		this.app.use(router);
+		this.app.use(this.router);
 		this.app.use(eventBus);
 		this.app.use(vuetify);
 		this.app.use(themePlugin, { vuetify });
@@ -99,17 +102,29 @@ frappe.PosApp.posapp = class {
 	unmount() {
 		if (this.app) {
 			// Clean up router to prevent global navigation interference
-			const router = this.app.config.globalProperties.$router;
-			if (router) {
+			if (this.router) {
 				// Remove all route guards and listeners
-				router.beforeEachCbs = [];
-				router.afterEachCbs = [];
+				this.router.beforeEachCbs = [];
+				this.router.afterEachCbs = [];
+			}
+
+			if (this.routerHistory && typeof this.routerHistory.destroy === "function") {
+				this.routerHistory.destroy();
+			} else if (
+				this.router &&
+				this.router.options &&
+				this.router.options.history &&
+				typeof this.router.options.history.destroy === "function"
+			) {
+				this.router.options.history.destroy();
 			}
 
 			this.app.unmount();
 			this.app = null;
+			this.router = null;
+			this.routerHistory = null;
 			console.info("POS App unmounted");
 		}
 	}
-	setup_header() { }
+	setup_header() {}
 };
