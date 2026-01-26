@@ -316,11 +316,46 @@
 						</v-btn>
 
 
+						<v-row dense class="ma-0 pa-0">
+							<v-col md="7">
+								<h4 class="text-primary">{{ __("Total Amount:") }}</h4>
+							</v-col>
+							<v-col md="5">
+								<v-text-field
+									class="p-0 m-0 pos-themed-input"
+									density="compact"
+									color="primary"
+									hide-details
+									:model-value="formatCurrency(invoiceDiscount+total_selected_invoice_amount)"
+									readonly
+									flat
+									:prefix="currencySymbol(pos_profile.currency)"
+								></v-text-field>
+							</v-col>
+						</v-row>
 
-						<h4 class="text-primary mt-2px">Totals</h4>
-						<v-row>
-							<v-col md="7" class="mt-1">
-								<span>{{ __("Total Invoices:") }}</span>
+						<v-row dense class="ma-0 pa-0">
+							<v-col md="7">
+								<h4 class="text-primary">{{ __("Total Discount:") }}</h4>
+							</v-col>
+							<v-col md="5">
+								<v-text-field
+									class="p-0 m-0 pos-themed-input"
+									density="compact"
+									color="primary"
+									hide-details
+									let discount = this.invoice.custom_total_items_discount ?? 0;
+									:model-value="formatCurrency(invoiceDiscount)"
+									readonly
+									flat
+									:prefix="currencySymbol(pos_profile.currency)"
+								></v-text-field>
+							</v-col>
+						</v-row>
+
+						<v-row dense class="ma-0 pa-0">
+							<v-col md="7" class="">
+								<h4 class="text-primary">{{ __("To Be Paid:") }}</h4>
 							</v-col>
 							<v-col md="5">
 								<v-text-field
@@ -1357,6 +1392,21 @@ export default {
 			console.log("Calculated total selected invoices:", total, "from", this.selected_invoices);
 			return total;
 		},
+		total_selected_invoice_amount() {
+			if (!this.selected_invoices || !this.selected_invoices.length) {
+				console.log("No selected invoices");
+				return 0;
+			}
+			const total = this.selected_invoices.reduce(
+				(acc, cur) => acc + flt(cur?.invoice_amount || 0),
+				0
+			);
+			return total;
+		},
+
+		invoiceDiscount() {
+        	return this.selected_invoices?.[0]?.custom_total_items_discount || 0;
+    	},
 		total_selected_payments() {
 			if (!this.selected_payments || !this.selected_payments.length) return 0;
 			return this.selected_payments.reduce((acc, cur) => acc + flt(cur?.unallocated_amount || 0), 0);

@@ -191,6 +191,7 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                 "customer_name",
                 "custom_pay_type",
                 "is_return",
+                "custom_total_items_discount",
             ],
             order_by="posting_date desc",
         )
@@ -252,8 +253,6 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
         frappe.logger().debug(
             f"First invoice data: {outstanding_invoices[0] if outstanding_invoices else 'No invoices'}"
         )
-        print("First invoice items:", outstanding_invoices[0]["items"] if outstanding_invoices else [])
-
         return outstanding_invoices
     except Exception as e:
         frappe.logger().error(f"Error in get_outstanding_invoices: {str(e)}")
