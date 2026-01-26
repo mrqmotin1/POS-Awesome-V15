@@ -11,12 +11,36 @@ export const useUIStore = defineStore("ui", () => {
 	const freezeTitle = ref("");
 	const freezeMessage = ref("");
 
-	// Main POS View State (Items, Payment, Offers, Coupons)
+	// Main POS View State	// Active View (for handling back button)
 	const activeView = ref("items"); // 'items', 'payment', 'offers', 'coupons'
 
-	function setActiveView(view) {
+	const draftsDialog = ref(false);
+	const draftsData = ref([]);
+
+	const ordersDialog = ref(false);
+	const ordersData = ref([]);
+
+	const setActiveView = (view) => {
 		activeView.value = view;
-	}
+	};
+
+	const openDrafts = (data) => {
+		draftsData.value = data || [];
+		draftsDialog.value = true;
+	};
+
+	const closeDrafts = () => {
+		draftsDialog.value = false;
+	};
+
+	const openOrders = (data) => {
+		ordersData.value = data || [];
+		ordersDialog.value = true;
+	};
+
+	const closeOrders = () => {
+		ordersDialog.value = false;
+	};
 
 	function setLoading(active, text = "Loading...") {
 		isLoading.value = active;
@@ -81,6 +105,14 @@ export const useUIStore = defineStore("ui", () => {
 		freezeMessage,
 		activeView,
 		setActiveView,
+		draftsDialog,
+		draftsData,
+		openDrafts,
+		closeDrafts,
+		ordersDialog,
+		ordersData,
+		openOrders,
+		closeOrders,
 		posProfile,
 		stockSettings,
 		companyDoc,

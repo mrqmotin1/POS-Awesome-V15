@@ -1,7 +1,7 @@
 <template>
 	<v-row justify="center">
 		<v-dialog
-			v-model="customerDialog"
+			v-model="isUpdateCustomerDialogOpen"
 			max-width="600px"
 			persistent
 			@keydown.esc.capture.stop.prevent="handleDialogEscape"
@@ -226,15 +226,16 @@ import { storeToRefs } from "pinia";
 import { useToastStore } from "../../stores/toastStore.js";
 
 export default {
+
 	setup() {
 		const customersStore = useCustomersStore();
 		const uiStore = useUIStore();
 		const toastStore = useToastStore();
-		const { selectedCustomer } = storeToRefs(customersStore);
-		return { selectedCustomer, uiStore, toastStore };
+		const { selectedCustomer, isUpdateCustomerDialogOpen, customerToUpdate } = storeToRefs(customersStore);
+		return { selectedCustomer, uiStore, toastStore, isUpdateCustomerDialogOpen, customerToUpdate, customersStore };
 	},
 	data: () => ({
-		customerDialog: false,
+		// customerDialog: false, // Moved to store
 		confirmDialog: false,
 		pos_profile: "",
 		customer_id: "",
@@ -421,7 +422,7 @@ export default {
 			this.close_dialog();
 		},
 		close_dialog() {
-			this.customerDialog = false;
+			this.customersStore.closeUpdateCustomerDialog();
 			this.clear_customer();
 		},
 		clear_customer() {
@@ -691,29 +692,37 @@ export default {
 				this.hideNonEssential = JSON.parse(saved);
 			}
 		}
-		this.eventBus.on("open_update_customer", (data) => {
-			this.customerDialog = true;
-			this.focusCustomerNameField();
-
-			if (data) {
-				this.customer_name = data.customer_name;
-				this.customer_id = data.name;
-				this.address_line1 = data.address_line1 || "";
-				this.city = data.city || "";
-				this.country =
-					data.country || (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
-				this.tax_id = data.tax_id;
-				this.mobile_no = data.mobile_no;
-				this.email_id = data.email_id;
-				this.referral_code = data.referral_code;
-				this.birthday = data.birthday;
-				this.group = data.customer_group;
-				this.territory = data.territory;
-				this.loyalty_points = data.loyalty_points;
-				this.loyalty_program = data.loyalty_program;
-				this.gender = data.gender;
+		// Watch store state for dialog opening
+		this.$watch(
+			() => this.isUpdateCustomerDialogOpen,
+			(isOpen) => {
+				if (isOpen) {
+					this.focusCustomerNameField();
+					const data = this.customerToUpdate;
+					if (data) {
+						this.customer_name = data.customer_name || data.name || ""; // fallback
+						this.customer_id = data.name;
+						this.address_line1 = data.primary_address || data.address_line1 || "";
+						this.city = data.city || "";
+						this.country =
+							data.country || (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
+						this.tax_id = data.tax_id;
+						this.mobile_no = data.mobile_no;
+						this.email_id = data.email_id;
+						this.referral_code = data.referral_code;
+						this.birthday = data.birthday;
+						this.group = data.customer_group;
+						this.territory = data.territory;
+						this.loyalty_points = data.loyalty_points;
+						this.loyalty_program = data.loyalty_program;
+						this.gender = data.gender;
+					} else {
+						// Setup for new customer
+						this.clear_customer();
+					}
+				}
 			}
-		});
+		);
 
 		// Watch Store for POS Profile
 		this.$watch(

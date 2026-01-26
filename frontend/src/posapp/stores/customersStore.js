@@ -108,6 +108,8 @@ export const useCustomersStore = defineStore("customers", () => {
 	const loadedCustomerCount = ref(0);
 	const posProfile = ref(null);
 	const refreshToken = ref(0);
+	const isUpdateCustomerDialogOpen = ref(false);
+	const customerToUpdate = ref(null);
 
 	const filteredCustomers = computed(() => (isCustomerBackgroundLoading.value ? [] : customers.value));
 
@@ -439,6 +441,16 @@ export const useCustomersStore = defineStore("customers", () => {
 		}
 	}
 
+	function openUpdateCustomerDialog(customer = null) {
+		customerToUpdate.value = customer;
+		isUpdateCustomerDialogOpen.value = true;
+	}
+
+	function closeUpdateCustomerDialog() {
+		isUpdateCustomerDialogOpen.value = false;
+		customerToUpdate.value = null;
+	}
+
 	function clearLocalState() {
 		resetPagination();
 		selectedCustomer.value = null;
@@ -482,5 +494,9 @@ export const useCustomersStore = defineStore("customers", () => {
 		requestCustomerRefresh,
 		reloadCustomers,
 		clearLocalState,
+		isUpdateCustomerDialogOpen,
+		customerToUpdate,
+		openUpdateCustomerDialog,
+		closeUpdateCustomerDialog,
 	};
 });

@@ -393,25 +393,22 @@ import { storeToRefs } from "pinia";
 import stockCoordinator from "../../utils/stockCoordinator.js";
 import { parseBooleanSetting } from "../../utils/stock.js";
 import { isOffline } from "../../../offline/index.js";
+import { useOnlineStatus } from "../../composables/useOnlineStatus.js";
 
 export default {
 	name: "POSInvoice",
 	mixins: [format],
 	setup() {
-		const invoiceStore = useInvoiceStore();
-		const customersStore = useCustomersStore();
-		const toastStore = useToastStore();
 		const uiStore = useUIStore();
-		const { selectedCustomer, refreshToken } = storeToRefs(customersStore);
+		const invoiceStore = useInvoiceStore();
+		const toastStore = useToastStore();
+		// Extract specific state as refs if needed in template without `uiStore.` prefix
+		// But usually better to return the store or use storeToRefs
+		const { isOnline } = useOnlineStatus();
+
 		const { activeView } = storeToRefs(uiStore);
-		return {
-			invoiceStore,
-			toastStore,
-			selectedCustomer,
-			customerRefreshToken: refreshToken,
-			uiStore,
-			activeView,
-		};
+
+		return { uiStore, activeView, isOnline, toastStore, invoiceStore };
 	},
 	data() {
 		return {
@@ -1637,14 +1634,40 @@ export default {
 			{ deep: true, immediate: true }
 		);
 
+		this.$watch(
+			() => this.invoiceStore.invoiceToLoad,
+			(doc) => {
+				if (doc) {
+					this.handleLoadInvoice(doc);
+					// Reset the trigger so it can be triggered again even with same doc? 
+					// Or assume it's one-off. Best to reset it to null to avoid double loading if not handled.
+					// But `invoiceToLoad` might be part of state.
+					// Let's reset it in next tick or just rely on change.
+					// Actually, if we set it to null here, we might trigger watcher again.
+					// Better: handleLoadInvoice should check if doc is valid.
+				}
+			},
+			{ deep: true }
+		);
+
+		this.$watch(
+			() => this.invoiceStore.orderToLoad,
+			(doc) => {
+				if (doc) {
+					this.handleLoadOrder(doc);
+				}
+			},
+			{ deep: true }
+		);
+
 		this._busHandlers = {
 			"item-drag-start": this.handleItemDragStart,
 			"item-drag-end": this.handleItemDragEnd,
 			// register_pos_profile: this.handleRegisterPosProfile, // Handled by store watcher
 			add_item: this.add_item,
 			clear_invoice: this.handleClearInvoice,
-			load_invoice: this.handleLoadInvoice,
-			load_order: this.handleLoadOrder,
+			// load_invoice: this.handleLoadInvoice, // Handled by store watcher
+			// load_order: this.handleLoadOrder, // Handled by store watcher
 			// set_offers: this.handleSetOffers, // Handled by store watcher
 			update_invoice_offers: this.handleUpdateInvoiceOffers,
 			update_invoice_coupons: this.handleUpdateInvoiceCoupons,

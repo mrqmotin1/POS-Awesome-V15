@@ -277,4 +277,4 @@ _The ultimate reliability upgrade._
 | 2026-01-26 | Phase 5.1 Reliability               | Completed | Implemented global error handler in `posapp.js` using `toastStore`.                                                                  |
 | 2026-01-26 | Phase 1.2 Explicit Layouts          | Completed | Created `DefaultLayout.vue`, `App.vue`, and updated Router.                                                                          |
 | 2026-01-26 | Phase 1.3 Composition API           | Completed | Refactored `DefaultLayout.vue` to `<script setup>` and removed Options API usage.                                                    |
-| 2026-01-26 | Phase 2.1 Remove Event Bus          | In Progress| Refactored `show_message` to use `toastStore`. Refactoring `Pos.vue` and `Navbar.vue` to use `uiStore`.                                                             |
+| 2026-01-26 | Phase 2.1 Remove Event Bus          | Completed | RefactoredView switching, Customer Dialogs, Invoice/Order Loading to use Stores.                                                       |

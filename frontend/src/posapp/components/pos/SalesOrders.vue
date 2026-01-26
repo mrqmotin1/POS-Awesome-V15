@@ -1,6 +1,6 @@
 <template>
 	<v-row justify="center">
-		<v-dialog v-model="draftsDialog" max-width="900px">
+		<v-dialog v-model="ordersDialog" max-width="900px">
 			<!-- <template v-slot:activator="{ on, attrs }">
               <v-btn color="primary" theme="dark" v-bind="attrs" v-on="on">Open Dialog</v-btn>
             </template>-->
@@ -84,12 +84,16 @@
 /* global __, frappe */
 import format from "../../format";
 import { useUIStore } from "../../stores/uiStore.js";
+import { useInvoiceStore } from "../../stores/invoiceStore.js";
+import { storeToRefs } from "pinia";
 export default {
 	// props: ["draftsDialog"],
 	mixins: [format],
 	setup() {
 		const uiStore = useUIStore();
-		return { uiStore };
+		const invoiceStore = useInvoiceStore();
+		const { ordersDialog, ordersData } = storeToRefs(uiStore);
+		return { uiStore, invoiceStore, ordersDialog, ordersData };
 	},
 	mounted() {
 		this.$watch(
@@ -101,7 +105,7 @@ export default {
 		);
 	},
 	data: () => ({
-		draftsDialog: false,
+		// draftsDialog: false, // Moved to store
 		singleSelect: true,
 		pos_profile: {},
 		selected: [],
@@ -144,10 +148,9 @@ export default {
 		],
 	}),
 	computed: {},
-	watch: {},
 	methods: {
 		close_dialog() {
-			this.draftsDialog = false;
+			this.uiStore.closeOrders();
 		},
 
 		clearSelected() {
@@ -231,8 +234,8 @@ export default {
 					}
 				}
 
-				this.eventBus.emit("load_order", this.selected[0]);
-				this.draftsDialog = false;
+				this.invoiceStore.triggerLoadOrder(this.selected[0]);
+				this.uiStore.closeOrders();
 
 				if (invoice_doc_for_load.name) {
 					await frappe.call({
@@ -251,21 +254,23 @@ export default {
 		},
 	},
 	created: function () {
-		this.eventBus.on("open_orders", (data) => {
-			this.clearSelected();
-			this.draftsDialog = true;
-			this.dialog_data = data;
-			this.order_name = "";
-			this.errorMessage = "";
-			this.isLoading = false;
-			this.isSubmitting = false;
-		});
+		// Watcher handled via store storeToRefs
 	},
-	mounted() {
-		// Watcher handled in setup/mounted
+	watch: {
+		ordersData: {
+			handler(data) {
+				this.clearSelected();
+				this.dialog_data = data || [];
+				this.order_name = "";
+				this.errorMessage = "";
+				this.isLoading = false;
+				this.isSubmitting = false;
+			},
+			immediate: true,
+		},
 	},
-	beforeUnmount() {
-		this.eventBus.off("open_orders");
-	},
+	// beforeUnmount() {
+	// 	this.eventBus.off("open_orders");
+	// },
 };
 </script>

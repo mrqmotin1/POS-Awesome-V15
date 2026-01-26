@@ -180,7 +180,7 @@ export default {
 	},
 	setup(props, { expose }) {
 		const { proxy } = getCurrentInstance();
-		const eventBus = proxy?.eventBus;
+		// const eventBus = proxy?.eventBus; // Removed
 		const customersStore = useCustomersStore();
 		const toastStore = useToastStore();
 		const uiStore = useUIStore();
@@ -344,11 +344,11 @@ export default {
 		};
 
 		const new_customer = () => {
-			eventBus?.emit("open_update_customer", null);
+			customersStore.openUpdateCustomerDialog(null);
 		};
 
 		const edit_customer = () => {
-			eventBus?.emit("open_update_customer", customerInfo.value || {});
+			customersStore.openUpdateCustomerDialog(customerInfo.value || {});
 		};
 		
 		const reload_customers = async () => {
@@ -429,23 +429,24 @@ export default {
 				{ deep: true, immediate: true }
 			);
 
-			registerBus("set_customer", (customer) => {
-				customersStore.setSelectedCustomer(customer);
-				internalCustomer.value = customer || null;
-			});
 
-			registerBus("add_customer_to_list", async (customer) => {
-				await customersStore.addOrUpdateCustomer(customer);
-				internalCustomer.value = customer?.name || null;
-			});
+			// registerBus("set_customer", (customer) => {
+			// 	customersStore.setSelectedCustomer(customer);
+			// 	internalCustomer.value = customer || null;
+			// });
 
-			registerBus("set_customer_readonly", (value) => {
-				readonlyState.value = Boolean(value);
-			});
+			// registerBus("add_customer_to_list", async (customer) => {
+			// 	await customersStore.addOrUpdateCustomer(customer);
+			// 	internalCustomer.value = customer?.name || null;
+			// });
 
-			registerBus("set_customer_info_to_edit", (data) => {
-				customersStore.setCustomerInfo(data || {});
-			});
+			// registerBus("set_customer_readonly", (value) => {
+			// 	readonlyState.value = Boolean(value);
+			// });
+
+			// registerBus("set_customer_info_to_edit", (data) => {
+			// 	customersStore.setCustomerInfo(data || {});
+			// });
 		});
 
 		onBeforeUnmount(() => {

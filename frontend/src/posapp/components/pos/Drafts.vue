@@ -17,7 +17,7 @@
 							<v-col cols="12" class="pa-1">
 								<v-data-table
 									:headers="headers"
-									:items="dialog_data"
+									:items="draftsData"
 									item-value="name"
 									class="elevation-1"
 									:theme="$theme.isDark ? 'dark' : 'light'"
@@ -51,15 +51,22 @@
 <script>
 import format from "../../format";
 import { useToastStore } from "../../stores/toastStore";
+import { useUIStore } from "../../stores/uiStore";
+import { useInvoiceStore } from "../../stores/invoiceStore";
+import { storeToRefs } from "pinia";
+
 export default {
 	// props: ["draftsDialog"],
 	mixins: [format],
 	setup() {
 		const toastStore = useToastStore();
-		return { toastStore };
+		const uiStore = useUIStore();
+		const invoiceStore = useInvoiceStore();
+		const { draftsDialog, draftsData } = storeToRefs(uiStore);
+		return { toastStore, uiStore, invoiceStore, draftsDialog, draftsData };
 	},
 	data: () => ({
-		draftsDialog: false,
+		// draftsDialog: false, // Moved to uiStore
 		singleSelect: true,
 		selected: [],
 		dialog_data: {},
@@ -97,16 +104,15 @@ export default {
 		],
 	}),
 	computed: {},
-	watch: {},
 	methods: {
 		close_dialog() {
-			this.draftsDialog = false;
+			this.uiStore.closeDrafts();
 		},
 
 		submit_dialog() {
 			if (this.selected.length > 0) {
-				this.eventBus.emit("load_invoice", this.selected[0]);
-				this.draftsDialog = false;
+				this.invoiceStore.triggerLoadInvoice(this.selected[0]);
+				this.uiStore.closeDrafts();
 			} else {
 				this.toastStore.show({
 					title: `Select an invoice to load`,
@@ -116,13 +122,15 @@ export default {
 		},
 	},
 	created: function () {
-		this.eventBus.on("open_drafts", (data) => {
-			this.draftsDialog = true;
-			this.dialog_data = data;
-		});
+		// Watcher is not needed if we bind v-model="draftsDialog" to store ref
 	},
-	beforeUnmount() {
-		this.eventBus.off("open_drafts");
+	watch: {
+		draftsData: {
+			handler(data) {
+				this.dialog_data = data || [];
+			},
+			immediate: true,
+		},
 	},
 };
 </script>

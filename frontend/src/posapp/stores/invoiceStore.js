@@ -107,6 +107,10 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		touch();
 	};
 
+	const posProfile = ref(null);
+	const invoiceToLoad = ref(null);
+	const orderToLoad = ref(null);
+
 	const setItems = (list) => {
 		itemsData.clear();
 		const order = [];
@@ -304,6 +308,14 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		setPackedItems,
 		clear,
 		recalculateTotals, // Exposed for manual trigger if needed
+		invoiceToLoad,
+		triggerLoadInvoice: (doc) => {
+			invoiceToLoad.value = doc;
+		},
+		orderToLoad,
+		triggerLoadOrder: (doc) => {
+			orderToLoad.value = doc;
+		},
 	};
 });
 
