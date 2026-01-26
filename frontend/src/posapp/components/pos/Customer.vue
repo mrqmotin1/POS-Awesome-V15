@@ -185,18 +185,6 @@ export default {
 		const {
 			customers,
 			filteredCustomers,
-// ... (omitted lines)
-		const onCustomerChange = (val) => {
-			if (val && val === selectedCustomer.value) {
-				internalCustomer.value = selectedCustomer.value;
-				toastStore.show({
-					title: __("Customer already selected"),
-					color: "error",
-				});
-				return;
-			}
-
-			tempSelectedCustomer.value = val;
 			loadingCustomers,
 			isCustomerBackgroundLoading,
 			selectedCustomer,
