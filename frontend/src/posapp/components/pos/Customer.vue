@@ -167,6 +167,7 @@ import UpdateCustomer from "./UpdateCustomer.vue";
 import Skeleton from "../ui/Skeleton.vue";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { useOnlineStatus } from "../../composables/useOnlineStatus.js";
+import { useToastStore } from "../../stores/toastStore.js";
 
 export default {
 	props: {
@@ -180,9 +181,22 @@ export default {
 		const { proxy } = getCurrentInstance();
 		const eventBus = proxy?.eventBus;
 		const customersStore = useCustomersStore();
+		const toastStore = useToastStore();
 		const {
 			customers,
 			filteredCustomers,
+// ... (omitted lines)
+		const onCustomerChange = (val) => {
+			if (val && val === selectedCustomer.value) {
+				internalCustomer.value = selectedCustomer.value;
+				toastStore.show({
+					title: __("Customer already selected"),
+					color: "error",
+				});
+				return;
+			}
+
+			tempSelectedCustomer.value = val;
 			loadingCustomers,
 			isCustomerBackgroundLoading,
 			selectedCustomer,
@@ -292,7 +306,7 @@ export default {
 		const onCustomerChange = (val) => {
 			if (val && val === selectedCustomer.value) {
 				internalCustomer.value = selectedCustomer.value;
-				eventBus?.emit("show_message", {
+				toastStore.show({
 					title: __("Customer already selected"),
 					color: "error",
 				});

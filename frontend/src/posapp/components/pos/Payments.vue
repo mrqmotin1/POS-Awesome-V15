@@ -1216,7 +1216,7 @@ export default {
 				this.invoice_doc.redeem_loyalty_points = 0;
 				this.invoice_doc.loyalty_points = 0;
 				this.loyalty_amount = 0;
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: `Loyalty Amount can not be more than ${this.available_points_amount}`,
 					color: "error",
 				});
@@ -1262,7 +1262,7 @@ export default {
 		redeemed_customer_credit(newVal) {
 			if (newVal > this.available_customer_credit) {
 				this.redeemed_customer_credit = this.available_customer_credit;
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: `You can redeem customer credit up to ${this.available_customer_credit}`,
 					color: "error",
 				});
@@ -1512,7 +1512,7 @@ export default {
 					this.total_payments <= 0 &&
 					(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
 				) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `Please enter payment amount`,
 						color: "error",
 					});
@@ -1535,7 +1535,7 @@ export default {
 							cash_amount < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
 							(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
 						) {
-							this.eventBus.emit("show_message", {
+							this.toastStore.show( {
 								title: `Cash payment cannot be less than invoice total when partial payment is not allowed`,
 								color: "error",
 							});
@@ -1551,7 +1551,7 @@ export default {
 					this.total_payments < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
 					(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
 				) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `The amount paid is not complete`,
 						color: "error",
 					});
@@ -1570,7 +1570,7 @@ export default {
 						}
 					});
 					if (!phone_payment_is_valid) {
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: __("Please request phone payment or use another payment method"),
 							color: "error",
 						});
@@ -1581,7 +1581,7 @@ export default {
 				// Validate paid_change
 				const changeLimit = Math.max(-this.diff_payment, 0);
 				if (this.paid_change > changeLimit) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `Paid change cannot be greater than total change!`,
 						color: "error",
 					});
@@ -1591,7 +1591,7 @@ export default {
 				// Validate cashback
 				let total_change = this.flt(this.flt(this.paid_change) + this.flt(-this.credit_change));
 				if (this.is_cashback && total_change !== changeLimit) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `Error in change calculations!`,
 						color: "error",
 					});
@@ -1603,7 +1603,7 @@ export default {
 					return this.flt(row.credit_to_redeem) > this.flt(row.total_credit);
 				});
 				if (credit_calc_check.length > 0) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `Redeemed credit cannot be greater than its total.`,
 						color: "error",
 					});
@@ -1615,7 +1615,7 @@ export default {
 					this.redeemed_customer_credit >
 						(this.invoice_doc.rounded_total || this.invoice_doc.grand_total)
 				) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `Cannot redeem customer credit more than invoice total`,
 						color: "error",
 					});
@@ -1628,7 +1628,7 @@ export default {
 			} catch (error) {
 				console.error("An error occurred during submission:", error);
 				// Optionally, emit a generic error message to the user
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("An unexpected error occurred. Please check the console for details."),
 					color: "error",
 				});
@@ -1687,7 +1687,7 @@ export default {
 				try {
 					saveOfflineInvoice({ data: data, invoice: this.invoice_doc });
 					this.syncStore.updatePendingCount();
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Invoice saved offline"),
 						color: "warning",
 					});
@@ -1700,7 +1700,7 @@ export default {
 					this.back_to_invoice();
 					return;
 				} catch (error) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Cannot Save Offline Invoice: ") + (error.message || __("Unknown error")),
 						color: "error",
 					});
@@ -1730,7 +1730,7 @@ export default {
 							reason: __("No response from server"),
 						});
 					}
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Error submitting invoice: No response from server"),
 						color: "error",
 					});
@@ -1756,7 +1756,7 @@ export default {
 						}
 					}
 
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Error submitting invoice: {0}", [responseInvoiceName || ""]),
 						color: "error",
 						detail: backgroundReason,
@@ -1775,7 +1775,7 @@ export default {
 				this.is_credit_return = false;
 				this.sales_person = "";
 				this.eventBus.emit("set_last_invoice", this.invoice_doc.name);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title:
 						this.invoiceType === "Order" && this.pos_profile.posa_create_only_sales_order
 							? __("Sales Order {0} is Submitted", [r.message.name])
@@ -1804,7 +1804,7 @@ export default {
 				console.error("Error submitting invoice:", exc);
 				let errorMsg = this.extractSubmissionErrorMessage(exc);
 				if (errorMsg.includes("Amount must be negative")) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Fixing payment amounts for return invoice..."),
 						color: "warning",
 					});
@@ -1831,7 +1831,7 @@ export default {
 							reason: errorMsg,
 						});
 					}
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Error submitting invoice: ") + errorMsg,
 						color: "error",
 					});
@@ -1871,7 +1871,7 @@ export default {
 							reason,
 						});
 					}
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Error submitting invoice: {0}", [invoiceName]),
 						color: "error",
 						detail: reason,
@@ -2198,7 +2198,7 @@ export default {
 		// Open dialog to add new address
 		new_address() {
 			if (!this.invoice_doc || !this.invoice_doc.customer) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Please select a customer first"),
 					color: "error",
 				});
@@ -2239,7 +2239,7 @@ export default {
 		async request_payment() {
 			this.phone_dialog = false;
 			if (!this.invoice_doc.contact_mobile) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Please set the customer's mobile number"),
 					color: "error",
 				});
@@ -2294,7 +2294,7 @@ export default {
 							);
 
 							if (!message) {
-								this.eventBus.emit("show_message", {
+								this.toastStore.show( {
 									title: __(
 										"Payment request status could not be retrieved. Please try again",
 									),
@@ -2305,7 +2305,7 @@ export default {
 							}
 
 							if (message.status !== "Paid") {
-								this.eventBus.emit("show_message", {
+								this.toastStore.show( {
 									title: __(
 										"Payment Request took too long to respond. Please try requesting for payment again",
 									),
@@ -2315,7 +2315,7 @@ export default {
 								return;
 							}
 
-							this.eventBus.emit("show_message", {
+							this.toastStore.show( {
 								title: __("Payment of {0} received successfully.", [
 									this.formatCurrency(message.grand_total, this.invoice_doc.currency, 0),
 								]),
@@ -2336,7 +2336,7 @@ export default {
 				});
 			} catch (error) {
 				console.error("Payment request error:", error);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __(error.message || "Payment request failed"),
 					color: "error",
 				});
@@ -2544,7 +2544,7 @@ export default {
 		},
 		// Show paid amount info message
 		showPaidAmount() {
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: `Total Paid Amount: ${this.formatCurrency(this.total_payments)}`,
 				color: "info",
 			});
@@ -2563,7 +2563,7 @@ export default {
 		// Show diff payment info message
 		showDiffPayment() {
 			if (!this.invoice_doc) return;
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: `To Be Paid: ${this.formatCurrency(
 					this.diff_payment < 0 ? -this.diff_payment : this.diff_payment,
 				)}`,
@@ -2572,7 +2572,7 @@ export default {
 		},
 		// Show paid change info message
 		showPaidChange() {
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: `Paid Change: ${this.formatCurrency(this.paid_change)}`,
 				color: "info",
 			});
@@ -2716,7 +2716,7 @@ export default {
 		async syncPendingInvoices() {
 			const pending = getPendingOfflineInvoiceCount();
 			if (pending) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: `${pending} invoice${pending > 1 ? "s" : ""} pending for sync`,
 					color: "warning",
 				});
@@ -2729,13 +2729,13 @@ export default {
 			const result = await syncOfflineInvoices();
 			if (result && (result.synced || result.drafted)) {
 				if (result.synced) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `${result.synced} offline invoice${result.synced > 1 ? "s" : ""} synced`,
 						color: "success",
 					});
 				}
 				if (result.drafted) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `${result.drafted} offline invoice${result.drafted > 1 ? "s" : ""} saved as draft`,
 						color: "warning",
 					});
@@ -2978,3 +2978,4 @@ export default {
 	opacity: 0 !important;
 }
 </style>
+

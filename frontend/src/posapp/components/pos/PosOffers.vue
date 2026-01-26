@@ -92,13 +92,15 @@
 /* global __, frappe */
 import format from "../../format";
 import { useCustomersStore } from "../../stores/customersStore.js";
+import { useToastStore } from "../../stores/toastStore.js";
 import { storeToRefs } from "pinia";
 export default {
 	mixins: [format],
 	setup() {
 		const customersStore = useCustomersStore();
+		const toastStore = useToastStore();
 		const { selectedCustomer } = storeToRefs(customersStore);
-		return { selectedCustomer };
+		return { selectedCustomer, toastStore };
 	},
 	data: () => ({
 		loading: false,
@@ -241,7 +243,7 @@ export default {
 						}
 					}
 					this.pos_offers.push(newOffer);
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("New Offer Available"),
 						color: "warning",
 					});
@@ -344,3 +346,4 @@ export default {
 	},
 };
 </script>
+

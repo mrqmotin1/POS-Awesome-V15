@@ -1,8 +1,11 @@
 /* global __, flt */
 
 import { toBaseCurrency, toSelectedCurrency } from "../utils/currencyConversion.js";
+import { useToastStore } from "../stores/toastStore.js";
 
 export function useDiscounts() {
+	const toastStore = useToastStore();
+
 	// Update additional discount amount based on percentage
 	const updateDiscountAmount = (context) => {
 		let value = flt(context.additional_discount_percentage);
@@ -19,9 +22,9 @@ export function useDiscounts() {
 		if (maxDiscount > 0 && Math.abs(value) > maxDiscount) {
 			value = value < 0 ? -maxDiscount : maxDiscount;
 			context.additional_discount_percentage = value;
-			context.eventBus.emit("show_message", {
+			toastStore.show({
 				title: __("Discount limited by POS Profile"),
-				message: __("The maximum discount allowed is") + " " + maxDiscount + "%",
+				detail: __("The maximum discount allowed is") + " " + maxDiscount + "%",
 				color: "warning",
 			});
 		}
@@ -72,7 +75,7 @@ export function useDiscounts() {
 			// Handle negative values
 			if (newValue < 0) {
 				newValue = 0;
-				context.eventBus.emit("show_message", {
+				toastStore.show({
 					title: __("Negative values not allowed"),
 					color: "error",
 				});
@@ -159,7 +162,7 @@ export function useDiscounts() {
 			if (context.forceUpdate) context.forceUpdate();
 		} catch (error) {
 			console.error("Error calculating prices:", error);
-			context.eventBus.emit("show_message", {
+			toastStore.show({
 				title: __("Error calculating prices"),
 				color: "error",
 			});

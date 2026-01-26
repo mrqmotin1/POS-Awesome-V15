@@ -767,6 +767,7 @@ import { parseBooleanSetting, formatStockShortageError } from "../../utils/stock
 import placeholderImage from "./placeholder-image.png";
 import Skeleton from "../ui/Skeleton.vue";
 import { useCustomersStore } from "../../stores/customersStore.js";
+import { useToastStore } from "../../stores/toastStore.js";
 import { storeToRefs } from "pinia";
 
 export default {
@@ -786,6 +787,7 @@ export default {
 		});
 
 		const customersStore = useCustomersStore();
+		const toastStore = useToastStore();
 		const { selectedCustomer } = storeToRefs(customersStore);
 
 		return {
@@ -795,6 +797,7 @@ export default {
 			cartValidation,
 			...itemsIntegration,
 			selectedCustomer,
+			toastStore,
 		};
 	},
 	components: {
@@ -2402,7 +2405,7 @@ export default {
 			}
 
 			// Show variant selection dialog
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("This is an item template. Please choose a variant."),
 				color: "warning",
 			});
@@ -3276,7 +3279,7 @@ export default {
 
 			this.$nextTick(() => {
 				if (this.displayedItems.length == 0) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: `No Item has this barcode "${sCode}"`,
 						color: "error",
 					});
@@ -3592,7 +3595,7 @@ export default {
 
 					// Show scanning feedback
 					if (this.eventBus?.emit) {
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: this.__("Scanning for: {0}", [code]),
 							summary: this.__("Scanning items"),
 							detail: code,
@@ -4351,7 +4354,7 @@ export default {
 					: Number(requestedQty.toFixed(precision));
 
 				if (this.eventBus?.emit) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: this.__("Item {0} added to invoice", [itemName]),
 						summary: this.__("Items added to invoice"),
 						detail: this.__("{0} (Qty: {1})", [itemName, displayQty]),

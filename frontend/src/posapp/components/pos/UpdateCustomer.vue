@@ -221,8 +221,13 @@
 <script>
 import { isOffline, saveOfflineCustomer } from "../../../offline/index.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
+import { useToastStore } from "../../stores/toastStore.js";
 
 export default {
+	setup() {
+		const toastStore = useToastStore();
+		return { toastStore };
+	},
 	data: () => ({
 		customerDialog: false,
 		confirmDialog: false,
@@ -593,7 +598,7 @@ export default {
 
 			if (isOffline()) {
 				saveOfflineCustomer({ args: apiArgs });
-				vm.eventBus.emit("show_message", { title: __("Customer saved offline"), color: "warning" });
+				vm.toastStore.show( { title: __("Customer saved offline"), color: "warning" });
 				args.name = this.customer_name;
 				await customersStore.addOrUpdateCustomer({
 					name: args.name,
@@ -616,7 +621,7 @@ export default {
 						if (vm.customer_id) {
 							text = __("Customer updated successfully.");
 						}
-						vm.eventBus.emit("show_message", {
+						vm.toastStore.show( {
 							title: text,
 							color: "success",
 						});
@@ -633,7 +638,7 @@ export default {
 						vm.close_dialog();
 					} else {
 						frappe.utils.play_sound("error");
-						vm.eventBus.emit("show_message", {
+						vm.toastStore.show( {
 							title: __("Customer creation failed."),
 							color: "error",
 						});
@@ -725,3 +730,4 @@ export default {
 </script>
 
 <style scoped></style>
+

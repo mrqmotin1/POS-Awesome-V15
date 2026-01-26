@@ -415,6 +415,7 @@ import format, { formatUtils } from "../../format";
 import { useStockUtils } from "../../composables/useStockUtils";
 import { getOpeningStorage } from "../../../offline/index.js";
 import { useItemsStore } from "../../stores/itemsStore";
+import { useToastStore } from "../../stores/toastStore";
 import { mapStores } from "pinia";
 import ItemsSelector from "./ItemsSelector.vue";
 import PurchasePaymentDialog from "./PurchasePaymentDialog.vue";
@@ -424,6 +425,10 @@ export default {
 	components: {
 		ItemsSelector,
 		PurchasePaymentDialog,
+	},
+	setup() {
+		const toastStore = useToastStore();
+		return { toastStore };
 	},
 	data: () => ({
 		stockUtils: useStockUtils(),
@@ -782,7 +787,7 @@ export default {
 		},
 		async submitSupplier() {
 			if (!this.supplierForm.supplier_name) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Supplier name is required"),
 					color: "error",
 				});
@@ -800,7 +805,7 @@ export default {
 					},
 				});
 				if (message && message.name) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Supplier created successfully"),
 						color: "success",
 					});
@@ -810,7 +815,7 @@ export default {
 				}
 			} catch (error) {
 				console.error("Failed to create supplier:", error);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Supplier creation failed"),
 					color: "error",
 				});
@@ -875,7 +880,7 @@ export default {
 					} else if (message.purchase_invoice) {
 						title = __("Purchase order and invoice created");
 					}
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title,
 						color: "success",
 					});
@@ -1284,3 +1289,4 @@ export default {
 	font-size: 0.85em;
 }
 </style>
+

@@ -1047,7 +1047,7 @@ export default {
 			this.ApplyOnTotal(offer);
 		}
 		if (offer.offer === "Loyalty Point") {
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Loyalty Point Offer Applied"),
 				color: "success",
 			});
@@ -1076,7 +1076,7 @@ export default {
 			: __("Unable to add offer item. Please refresh and try again.");
 
 		if (this && this.eventBus && typeof this.eventBus.emit === "function") {
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Offer item unavailable"),
 				color: "error",
 				message,
@@ -1478,7 +1478,7 @@ export default {
 				}
 			} catch (error) {
 				console.error("Error removing price offer:", error);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Error removing price offer"),
 					color: "error",
 					message: error.message,
@@ -1564,7 +1564,7 @@ export default {
 			});
 		} catch (error) {
 			console.error("Error adding offer to items:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Error adding offer to items"),
 				color: "error",
 				message: error.message,
@@ -1598,7 +1598,7 @@ export default {
 			});
 		} catch (error) {
 			console.error("Error deleting offer from items:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Error deleting offer from items"),
 				color: "error",
 				message: error.message,
@@ -1745,3 +1745,4 @@ export default {
 		});
 	},
 };
+

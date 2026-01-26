@@ -52,6 +52,7 @@ import { usePosShift } from "../composables/usePosShift.js";
 import { loadingState, initLoadingSources, setSourceProgress, markSourceLoaded } from "../utils/loading.js";
 import { useCustomersStore } from "../stores/customersStore.js";
 import { useSyncStore } from "../stores/syncStore.js";
+import { useToastStore } from "../stores/toastStore.js";
 import { storeToRefs } from "pinia";
 import {
 	getOpeningStorage,
@@ -114,6 +115,7 @@ const { get_closing_data } = usePosShift();
 const router = useRouter();
 const syncStore = useSyncStore();
 const customersStore = useCustomersStore();
+const toastStore = useToastStore(); // Add this
 const { pendingInvoicesCount } = storeToRefs(syncStore);
 const { loadProgress, customersLoaded } = storeToRefs(customersStore);
 
@@ -471,7 +473,7 @@ const handlePrintLastInvoice = () => {
 const handleSyncInvoices = async () => {
     const pending = getPendingOfflineInvoiceCount();
     if (pending) {
-        eventBus?.emit("show_message", {
+        toastStore.show({
             title: `${pending} invoice${pending > 1 ? "s" : ""} pending for sync`,
             color: "warning",
         });
@@ -482,13 +484,13 @@ const handleSyncInvoices = async () => {
     const result = await syncOfflineInvoices();
     if (result && (result.synced || result.drafted)) {
         if (result.synced) {
-            eventBus?.emit("show_message", {
+            toastStore.show({
                 title: `${result.synced} offline invoice${result.synced > 1 ? "s" : ""} synced`,
                 color: "success",
             });
         }
         if (result.drafted) {
-            eventBus?.emit("show_message", {
+            toastStore.show({
                 title: `${result.drafted} offline invoice${result.drafted > 1 ? "s" : ""} saved as draft`,
                 color: "warning",
             });

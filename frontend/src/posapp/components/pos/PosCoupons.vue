@@ -76,13 +76,15 @@
 <script>
 /* global __, frappe */
 import { useCustomersStore } from "../../stores/customersStore.js";
+import { useToastStore } from "../../stores/toastStore.js";
 import { storeToRefs } from "pinia";
 
 export default {
 	setup() {
 		const customersStore = useCustomersStore();
+		const toastStore = useToastStore();
 		const { selectedCustomer } = storeToRefs(customersStore);
-		return { selectedCustomer };
+		return { selectedCustomer, toastStore };
 	},
 	data: () => ({
 		loading: false,
@@ -115,7 +117,7 @@ export default {
 		},
 		add_coupon(new_coupon) {
 			if (!this.customer || !new_coupon) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Select a customer to use coupon"),
 					color: "error",
 				});
@@ -123,7 +125,7 @@ export default {
 			}
 			const exist = this.posa_coupons.find((el) => el.coupon_code == new_coupon);
 			if (exist) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("This coupon already used !"),
 					color: "error",
 				});
@@ -141,7 +143,7 @@ export default {
 					if (r.message) {
 						const res = r.message;
 						if (res.msg != "Apply" || !res.coupon) {
-							vm.eventBus.emit("show_message", {
+							vm.toastStore.show( {
 								title: res.msg,
 								color: "error",
 							});
@@ -270,3 +272,4 @@ export default {
 	box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }
 </style>
+

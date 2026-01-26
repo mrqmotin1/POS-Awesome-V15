@@ -1,4 +1,5 @@
 import { ref, getCurrentInstance } from "vue";
+import { useToastStore } from "../stores/toastStore.js";
 import {
 	initPromise,
 	checkDbHealth,
@@ -11,6 +12,7 @@ import {
 export function usePosShift(openDialog) {
 	const { proxy } = getCurrentInstance();
 	const eventBus = proxy?.eventBus;
+	const toastStore = useToastStore();
 
 	const pos_profile = ref(null);
 	const pos_opening_shift = ref(null);
@@ -117,10 +119,9 @@ export function usePosShift(openDialog) {
 			})
 			.then((r) => {
 				if (r.message) {
-					pos_opening_shift.value = null;
 					pos_profile.value = null;
 					clearOpeningStorage();
-					eventBus?.emit("show_message", {
+					toastStore.show({
 						title: `POS Shift Closed`,
 						color: "success",
 					});

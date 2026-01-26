@@ -1438,7 +1438,7 @@ export default {
 				const itemName = item?.item_name || item?.item_code || __("Item");
 				const detail = __("{0} (Qty: {1})", [itemName, displayQty]);
 
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Item {0} added to invoice", [itemName]),
 					summary: __("Items added to invoice"),
 					detail,
@@ -1478,7 +1478,7 @@ export default {
 				} else {
 					// No cached balance available in offline mode
 					this.customer_balance = 0;
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Customer balance unavailable offline"),
 						text: __("Balance will be updated when connection is restored"),
 						color: "warning",
@@ -1505,13 +1505,13 @@ export default {
 			const cachedBalance = getCachedCustomerBalance(this.customer);
 			if (cachedBalance !== null) {
 				this.customer_balance = cachedBalance;
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Using cached customer balance"),
 					text: __("Could not fetch latest balance from server"),
 					color: "warning",
 				});
 			} else {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Error fetching customer balance"),
 					color: "error",
 				});
@@ -1534,7 +1534,7 @@ export default {
 				async: true,
 				callback: function (r) {
 					if (r.message) {
-						vm.eventBus.emit("show_message", {
+						vm.toastStore.show( {
 							text: r.message,
 							color: "warning",
 						});
@@ -1781,7 +1781,7 @@ export default {
 			} else if (doc.items.length) {
 				old_invoice = await this.update_invoice(doc);
 			} else {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: `Nothing to save`,
 					color: "error",
 				});
@@ -1791,7 +1791,7 @@ export default {
 		}
 
 		if (!old_invoice) {
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: `Error saving the current invoice`,
 				color: "error",
 			});
@@ -2498,7 +2498,7 @@ export default {
 					this.exchange_rate_date = message.exchange_rate_date;
 					const posting_backend = this.formatDateForBackend(this.posting_date_display);
 					if (posting_backend !== this.exchange_rate_date) {
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: __(
 								"Exchange rate date " +
 									this.exchange_rate_date +
@@ -2544,7 +2544,7 @@ export default {
 					this.exchange_rate_date = message.exchange_rate_date;
 					const posting_backend = this.formatDateForBackend(this.posting_date_display);
 					if (posting_backend !== this.exchange_rate_date) {
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: __(
 								"Exchange rate date " +
 									this.exchange_rate_date +
@@ -2584,7 +2584,7 @@ export default {
 			return updated_doc;
 		} catch (error) {
 			console.error("Error in process_invoice:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __(error.message || "Error processing invoice"),
 				color: "error",
 			});
@@ -2602,7 +2602,7 @@ export default {
 	async apply_offers_and_reload() {
 		try {
 			if (!Array.isArray(this.items) || this.items.length === 0) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Select items to apply offers"),
 					color: "warning",
 				});
@@ -2627,13 +2627,13 @@ export default {
 				await this.reload_current_invoice_from_backend();
 			}
 
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Offers applied and invoice refreshed"),
 				color: "success",
 			});
 		} catch (error) {
 			console.error("Error in apply_offers_and_reload:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Failed to apply offers"),
 				color: "error",
 			});
@@ -2700,7 +2700,7 @@ export default {
 			return null;
 		} catch (error) {
 			console.error("Error reloading current invoice from backend:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Failed to reload invoice from server"),
 				color: "warning",
 			});
@@ -3183,7 +3183,7 @@ export default {
 
 			if (!this.customer) {
 				console.log("Customer validation failed");
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __(`Select a customer`),
 					color: "error",
 				});
@@ -3192,7 +3192,7 @@ export default {
 
 			if (!this.items.length) {
 				console.log("Items validation failed - no items");
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __(`Select items to sell`),
 					color: "error",
 				});
@@ -3354,7 +3354,7 @@ export default {
 			this.eventBus.emit("send_invoice_doc_payment", invoice_doc);
 		} catch (error) {
 			console.error("Error in show_payment:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Error processing payment"),
 				color: "error",
 				message: error.message,
@@ -3382,7 +3382,7 @@ export default {
 					"Found positive quantities in return items:",
 					positiveItems.map((i) => i.item_code),
 				);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __(`Return items must have negative quantities`),
 					color: "error",
 				});
@@ -3400,7 +3400,7 @@ export default {
 			// Ensure total amount is negative
 			if (this.subtotal > 0) {
 				console.log("Return has positive subtotal:", this.subtotal);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __(`Return total must be negative`),
 					color: "warning",
 				});
@@ -3467,7 +3467,7 @@ export default {
 							original_items: original_items.map((i) => i.item_code.trim().toUpperCase()),
 						});
 
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: __(`Item ${item.item_code} not found in original invoice`),
 							color: "error",
 						});
@@ -3483,7 +3483,7 @@ export default {
 					});
 
 					if (rate_diff > 0.01) {
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: __(`Rate mismatch for item ${item.item_code}`),
 							color: "error",
 						});
@@ -3499,7 +3499,7 @@ export default {
 					});
 
 					if (return_qty > orig_qty) {
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: __(
 								`Return quantity cannot be greater than original quantity for item ${item.item_code}`,
 							),
@@ -3510,7 +3510,7 @@ export default {
 				}
 			} catch (error) {
 				console.error("Error in validation:", error);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __(`Error validating return: ${error.message}`),
 					color: "error",
 				});
@@ -3537,7 +3537,7 @@ export default {
 			}
 		} catch (error) {
 			console.error("Error fetching draft invoices:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Unable to fetch draft invoices"),
 				color: "error",
 			});
@@ -3559,7 +3559,7 @@ export default {
 			}
 		} catch (error) {
 			console.error("Error fetching draft orders:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Unable to fetch draft orders"),
 				color: "error",
 			});
@@ -3733,7 +3733,7 @@ export default {
 			}
 		} catch (error) {
 			console.error("Error updating items:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Error updating item details"),
 				color: "error",
 			});
@@ -3838,7 +3838,7 @@ export default {
 			}
 		} catch (error) {
 			console.error("Error updating item detail:", error);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Error updating item details"),
 				color: "error",
 			});
@@ -4540,7 +4540,7 @@ export default {
 				parseBooleanSetting(item?.allow_negative_stock));
 		let clamped = false;
 		if (blockSale && !allowNegativeStock && item.max_qty !== undefined && flt(item.qty) > item.max_qty) {
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Quantity exceeds available stock"),
 				text: __("The quantity for {0} has been adjusted to the maximum available stock.", [
 					item.item_name,
@@ -4731,7 +4731,7 @@ export default {
 								item.base_rate = rate;
 							}
 							vm.calc_item_price(item);
-							vm.eventBus.emit("show_message", {
+							vm.toastStore.show( {
 								title: r.message || __("Item price updated"),
 								color: "success",
 							});

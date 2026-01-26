@@ -50,9 +50,14 @@
 
 <script>
 import format from "../../format";
+import { useToastStore } from "../../stores/toastStore";
 export default {
 	// props: ["draftsDialog"],
 	mixins: [format],
+	setup() {
+		const toastStore = useToastStore();
+		return { toastStore };
+	},
 	data: () => ({
 		draftsDialog: false,
 		singleSelect: true,
@@ -103,7 +108,7 @@ export default {
 				this.eventBus.emit("load_invoice", this.selected[0]);
 				this.draftsDialog = false;
 			} else {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show({
 					title: `Select an invoice to load`,
 					color: "error",
 				});

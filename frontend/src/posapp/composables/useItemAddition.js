@@ -3,10 +3,12 @@ import _ from "lodash";
 import { useBundles } from "./useBundles.js";
 import { withPerf } from "../utils/perf.js";
 import { parseBooleanSetting } from "../utils/stock.js";
+import { useToastStore } from "../stores/toastStore.js";
 
 /* global frappe, __ */
 
 export function useItemAddition() {
+	const toastStore = useToastStore();
 	const runAsyncTask = (task, contextLabel) => {
 		Promise.resolve().then(() => {
 			try {
@@ -402,9 +404,9 @@ export function useItemAddition() {
 				allow_negative_stock: allowNegativeStock,
 				item_allow_negative_stock: parseBooleanSetting(item.allow_negative_stock),
 			});
-			context.eventBus.emit("show_message", {
+			toastStore.show({
 				title: __("Item is out of stock"),
-				text: __("Cannot add an item with zero or negative quantity."),
+				detail: __("Cannot add an item with zero or negative quantity."),
 				color: "error",
 			});
 			return;
@@ -419,7 +421,7 @@ export function useItemAddition() {
 			const maxQty = item._base_actual_qty / (item.conversion_factor || 1);
 
 			if (currentQty + requestedQty > maxQty) {
-				context.eventBus.emit("show_message", {
+				toastStore.show({
 					title: __("Quantity exceeds available stock"),
 					color: "warning",
 				});
@@ -713,7 +715,7 @@ export function useItemAddition() {
 			// Serial number logic for existing item
 			if (item.has_serial_no && item.to_set_serial_no) {
 				if (cur_item.serial_no_selected.includes(item.to_set_serial_no)) {
-					context.eventBus.emit("show_message", {
+					toastStore.show({
 						title: __(`This Serial Number {0} has already been added!`, [item.to_set_serial_no]),
 						color: "warning",
 					});

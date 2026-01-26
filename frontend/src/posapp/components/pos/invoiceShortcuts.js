@@ -23,7 +23,7 @@ export default {
 
 		if (key === "F4") {
 			consumeEvent(event);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show({
 				title: __("Profile switching is not available yet"),
 				color: "warning",
 			});
@@ -44,7 +44,7 @@ export default {
 
 		if (key === "F8") {
 			consumeEvent(event);
-			this.eventBus.emit("show_message", {
+			this.toastStore.show({
 				title: __("POS lock is not available yet"),
 				color: "warning",
 			});

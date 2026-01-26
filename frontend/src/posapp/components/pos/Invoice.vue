@@ -387,6 +387,7 @@ import offerMethods from "./invoiceOfferMethods";
 import shortcutMethods from "./invoiceShortcuts";
 import { useInvoiceStore } from "../../stores/invoiceStore.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
+import { useToastStore } from "../../stores/toastStore.js";
 import { storeToRefs } from "pinia";
 import stockCoordinator from "../../utils/stockCoordinator.js";
 import { parseBooleanSetting } from "../../utils/stock.js";
@@ -398,8 +399,9 @@ export default {
 	setup() {
 		const invoiceStore = useInvoiceStore();
 		const customersStore = useCustomersStore();
+		const toastStore = useToastStore();
 		const { selectedCustomer, refreshToken } = storeToRefs(customersStore);
-		return { invoiceStore, selectedCustomer, customerRefreshToken: refreshToken };
+		return { invoiceStore, toastStore, selectedCustomer, customerRefreshToken: refreshToken };
 	},
 	data() {
 		return {
@@ -838,7 +840,7 @@ export default {
 
 		async print_draft_invoice() {
 			if (!this.pos_profile.posa_allow_print_draft_invoices) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __(`You are not allowed to print draft invoices`),
 					color: "error",
 				});
@@ -859,7 +861,7 @@ export default {
 				this.load_print_page(invoice_name);
 			} catch (error) {
 				console.error("Failed to print draft invoice:", error);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Unable to print draft invoice"),
 					color: "error",
 				});
@@ -974,14 +976,14 @@ export default {
 				if (blockSale) {
 					item[field_name] = item.max_qty;
 					parsedValue = item.max_qty;
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __(`Maximum available quantity is {0}. Quantity adjusted to match stock.`, [
 							this.formatFloat(item.max_qty),
 						]),
 						color: "error",
 					});
 				} else {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Stock is lower than requested. Proceeding may create negative stock."),
 						color: "warning",
 					});
@@ -1268,7 +1270,7 @@ export default {
 						this.exchange_rate_date = r2.message.date;
 						const posting_backend = this.formatDateForBackend(this.posting_date_display);
 						if (this.exchange_rate_date && posting_backend !== this.exchange_rate_date) {
-							this.eventBus.emit("show_message", {
+							this.toastStore.show( {
 								title: __(
 									"Exchange rate date " +
 										this.exchange_rate_date +
@@ -1282,7 +1284,7 @@ export default {
 				}
 			} catch (error) {
 				console.error("Error updating currency:", error);
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: "Error updating currency",
 					color: "error",
 				});
@@ -1302,7 +1304,7 @@ export default {
 					await this.update_invoice(doc);
 				} catch (error) {
 					console.error("Error updating invoice currency:", error);
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: "Error updating currency",
 						color: "error",
 					});
@@ -1326,7 +1328,7 @@ export default {
 						this.exchange_rate_date = resp.exchange_rate_date;
 						const posting_backend = this.formatDateForBackend(this.posting_date_display);
 						if (posting_backend !== this.exchange_rate_date) {
-							this.eventBus.emit("show_message", {
+							this.toastStore.show( {
 								title: __(
 									"Exchange rate date " +
 										this.exchange_rate_date +
@@ -1340,7 +1342,7 @@ export default {
 					this.sync_exchange_rate();
 				} catch (error) {
 					console.error("Error updating exchange rate:", error);
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: "Error updating exchange rate",
 						color: "error",
 					});
@@ -1403,7 +1405,7 @@ export default {
 				if (blockSale && exceedsAvailable) {
 					item.qty = item.max_qty;
 					this.calc_stock_qty(item, item.qty);
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __("Maximum available quantity is {0}. Quantity adjusted to match stock.", [
 							this.formatFloat(item.max_qty),
 						]),
@@ -1412,7 +1414,7 @@ export default {
 					return;
 				}
 				if (!blockSale && exceedsAvailable) {
-					this.eventBus.emit("show_message", {
+					this.toastStore.show( {
 						title: __(
 							`{0}: requested quantity exceeds available stock. Negative stock is allowed—proceed carefully.`,
 							[item.item_name || item.item_code],
@@ -1465,7 +1467,7 @@ export default {
 			this.items = newItems;
 
 			// Show success feedback
-			this.eventBus.emit("show_message", {
+			this.toastStore.show( {
 				title: __("Item order updated"),
 				color: "success",
 			});
@@ -1497,7 +1499,7 @@ export default {
 					})
 					.catch((error) => {
 						console.error("Error initializing currencies:", error);
-						this.eventBus.emit("show_message", {
+						this.toastStore.show( {
 							title: __("Error loading currencies"),
 							color: "error",
 						});
@@ -1876,3 +1878,4 @@ export default {
 	font-size: 0.95rem;
 }
 </style>
+

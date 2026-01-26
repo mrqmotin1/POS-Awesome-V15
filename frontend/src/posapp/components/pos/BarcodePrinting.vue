@@ -223,11 +223,16 @@
 /* global __ */
 import ItemsSelector from "./ItemsSelector.vue";
 import { useItemsStore } from "../../stores/itemsStore";
+import { useToastStore } from "../../stores/toastStore";
 import { mapStores } from "pinia";
 
 export default {
 	name: "BarcodePrinting",
 	components: { ItemsSelector },
+	setup() {
+		const toastStore = useToastStore();
+		return { toastStore };
+	},
 	data() {
 		return {
 			items: [],
@@ -334,7 +339,7 @@ export default {
 			}
 
 			if (!barcode) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Item '{0}' has no barcode", [item.item_name]),
 					color: "warning",
 				});
@@ -398,7 +403,7 @@ export default {
 			// Filter out items without barcodes
 			const itemsToPrint = this.items.filter((item) => item.barcode);
 			if (itemsToPrint.length === 0) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("No items with barcodes to print"),
 					color: "error",
 				});
@@ -406,7 +411,7 @@ export default {
 			}
 
 			if (itemsToPrint.length < this.items.length) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Skipping items without barcodes"),
 					color: "warning",
 				});
@@ -414,7 +419,7 @@ export default {
 
 			const printWindow = window.open("", "_blank");
 			if (!printWindow) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Popup blocked. Please allow popups."),
 					color: "error",
 				});
@@ -454,7 +459,7 @@ export default {
 
 			const itemsToPrint = this.items.filter((item) => item.barcode);
 			if (itemsToPrint.length === 0) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("No items with barcodes to print"),
 					color: "error",
 				});
@@ -463,7 +468,7 @@ export default {
 
 			const printWindow = window.open("", "_blank");
 			if (!printWindow) {
-				this.eventBus.emit("show_message", {
+				this.toastStore.show( {
 					title: __("Popup blocked. Please allow popups."),
 					color: "error",
 				});
@@ -899,3 +904,4 @@ export default {
 	font-size: 0.75rem;
 }
 </style>
+

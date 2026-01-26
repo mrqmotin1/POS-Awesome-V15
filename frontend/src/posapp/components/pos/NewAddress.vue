@@ -71,7 +71,13 @@
 </template>
 
 <script>
+import { useToastStore } from "../../stores/toastStore";
+
 export default {
+	setup() {
+		const toastStore = useToastStore();
+		return { toastStore };
+	},
 	data: () => ({
 		addressDialog: false,
 		address: {},
@@ -96,7 +102,7 @@ export default {
 				callback: (r) => {
 					if (!r.exc) {
 						vm.eventBus.emit("add_the_new_address", r.message);
-						vm.eventBus.emit("show_message", {
+						vm.toastStore.show({
 							text: "Customer Address created successfully.",
 							color: "success",
 						});
