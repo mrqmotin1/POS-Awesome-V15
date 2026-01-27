@@ -2342,6 +2342,14 @@ export default {
 			if (this.search_onchange.cancel) {
 				this.search_onchange.cancel();
 			}
+			const trimmedQuery = (this.search_input || "").trim();
+			// If the input is a numeric string longer than 6 characters, treat it as a barcode
+			if (/^\d{9,}$/.test(trimmedQuery)) {
+				this.onBarcodeScanned(trimmedQuery);
+				// Immediately clear the search field
+				this.search_input = "";
+				return;
+			}
 			this._performSearch();
 		},
 		search_onchange: _.debounce(function () {
