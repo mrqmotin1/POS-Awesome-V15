@@ -478,8 +478,10 @@
 						</template>
 					</v-data-table>
 
-
-
+					<hr
+					class="my-2"
+					style="border: 1; border-top: 2px solid rgba(0,0,255,0.3);"
+					/>				
 
 					<div class="pb-6 pr-6" style="position: absolute; bottom: 0; width: 100%">
 						<v-row>
