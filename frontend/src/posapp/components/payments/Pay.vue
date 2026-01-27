@@ -276,32 +276,12 @@
 				</v-card>
 			</v-col>
 			<v-col md="4" cols="12" class="pb-3">
-
-				<v-data-table
-				:headers="itemHeaders"
-				:items="selected_invoice_items"
-				dense
-				:items-per-page="-1"
-    			hide-default-footer
-				class="mt-2"
-				>
-					<template v-slot:item.discount_percentage="{ item }">
-						{{ item.discount_percentage || 0 }}
-					</template>
-
-					<template v-slot:item.amount="{ item }">
-						{{ currencySymbol(selected_invoice.currency) }}
-						{{ formatCurrency(item.net_amount) }}
-					</template>
-				</v-data-table>
-
-
 				<v-card
 					class="invoices mx-auto mt-3 p-3 pos-themed-card"
 					style="max-height: 94vh; height: 94vh"
 				>
 					<strong>
-						<v-btn
+						<!-- <v-btn
 							block
 							height="48"
 							class="text-uppercase font-weight-bold mb-4"
@@ -313,7 +293,7 @@
 							"
 						>
 							Payments
-						</v-btn>
+						</v-btn> -->
 
 
 						<v-row dense class="ma-0 pa-0">
@@ -444,7 +424,7 @@
 						</div>
 
 						<v-divider></v-divider>
-						<v-row>
+						<!-- <v-row>
 							<v-col md="7">
 								<h4 class="text-primary mt-1">{{ __("Difference:") }}</h4>
 							</v-col>
@@ -460,7 +440,7 @@
 									:prefix="currencySymbol(pos_profile.currency)"
 								></v-text-field>
 							</v-col>
-						</v-row>
+						</v-row> -->
 					</strong>
 				
 					<v-btn 
@@ -469,6 +449,7 @@
 						size="large"
 						color="info"
 						theme="dark"
+						style="white-space: nowrap;"
 						@click="submit"
 						:disabled="vaildatPayment || isSubmitting"
 						:loading="isSubmitting"
@@ -476,6 +457,28 @@
 						{{ __("Submit") }}
 					</v-btn>
 				
+					<v-data-table
+						:headers="itemHeaders"
+						:items="selected_invoice_items"
+						dense
+						fixed-header
+						:height="300"
+						:items-per-page="-1"
+						hide-default-footer
+						style="white-space: nowrap;"
+						class="mt-2"
+					>
+						<template v-slot:item.discount_percentage="{ item }">
+							{{ item.discount_percentage || 0 }}
+						</template>
+
+						<template v-slot:item.amount="{ item }">
+							{{ currencySymbol(selected_invoice.currency) }}
+							{{ formatCurrency(item.net_amount) }}
+						</template>
+					</v-data-table>
+
+
 
 
 					<div class="pb-6 pr-6" style="position: absolute; bottom: 0; width: 100%">
@@ -628,11 +631,12 @@ export default {
 				},
 			],
 			itemHeaders: [
-			{ title: __("Item"), value: "item_name" },
-			{ title: __("Qty"), value: "qty" },
-			{ title: __("Discount %"), value: "discount_percentage" },
-			{ title: __("Amount"), value: "net_amount" }
+				{ title: __("Item"), value: "item_name", width: "45%" },
+				{ title: __("Qty"), value: "qty", width: "10%", align: "center" },
+				{ title: __("Discount %"), value: "discount_percentage", width: "20%",align: "center" },
+				{ title: __("Amount"), value: "net_amount", width: "25%", align: "center" },
 			],
+
 			unallocated_payments_headers: [
 				{
 					title: "",
