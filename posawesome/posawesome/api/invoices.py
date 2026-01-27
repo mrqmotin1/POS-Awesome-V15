@@ -120,8 +120,8 @@ def _get_available_stock(item):
     item_code = item.get("item_code")
     if not item_code or not warehouse:
         return 0
-    # if batch_no:
-    #     return get_batch_qty(batch_no, warehouse) or 0
+    if batch_no:
+        return get_batch_qty(batch_no, warehouse) or 0
     return get_stock_availability(item_code, warehouse)
 
 
