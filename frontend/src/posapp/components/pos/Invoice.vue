@@ -1588,11 +1588,7 @@ export default {
 		},
 		// handleShowPayment removed - state managed by uiStore/computed
 		handleShowPaymentRequest() {
-			this.uiStore.setActiveView("payment");
-		},
-		// Helper for shortcuts
-		show_payment() {
-			this.uiStore.setActiveView("payment");
+			this.show_payment();
 		},
 	},
 

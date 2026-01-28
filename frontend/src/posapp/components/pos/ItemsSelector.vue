@@ -2430,6 +2430,9 @@ export default {
 		 */
 		async prepareItemForCart(item, requestedQty) {
 			// Ensure UOMs are initialized
+			if (!item.uom) {
+				item.uom = item.stock_uom;
+			}
 			if (!item.item_uoms || item.item_uoms.length === 0) {
 				const cachedUoms = getItemUOMs(item.item_code);
 				if (cachedUoms.length > 0) {

@@ -3352,6 +3352,9 @@ export default {
 			if (typeof this.paymentVisible !== "undefined") {
 				this.paymentVisible = true;
 			}
+			if (this.uiStore?.setActiveView) {
+				this.uiStore.setActiveView("payment");
+			}
 			this.eventBus.emit("show_payment", "true");
 			this.eventBus.emit("send_invoice_doc_payment", invoice_doc);
 		} catch (error) {
