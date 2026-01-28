@@ -237,90 +237,47 @@ const pollForFrappeNav = (maxAttempts = 50, interval = 100) => {
 	checkAndRemove();
 };
 
-// Network Logic - We need to bridge the mixin/composable functions that expect 'this' context in the original code.
-// The original `useNetwork.js` exports functions that use `this`. We need to bind them or rewrite them to use refs.
-// Since `useNetwork.js` was written as a mixin-style composable (it operates on `vm`), we need to adapt it.
-// Ideally, `useNetwork.js` should return reactive state, but it currently exports functions that mutate `this`.
-// For Phase 1.3, we will adapt locally.
-const checkNetworkConnectivity = async () => {
-	// We can call the utility version if we pass a context or just rewrite logic slightly if needed.
-	// However, `utilsCheckNetworkConnectivity` relies on `this` for `networkOnline`, `serverOnline`, etc.
-	// We need to implement a local context proxy that updates our refs.
-
-	// Create a proxy object that mimics the Options API `this` for network functions
-	const proxy = {
-		networkOnline: networkOnline.value,
-		serverOnline: serverOnline.value,
-		serverConnecting: serverConnecting.value,
-		internetReachable: internetReachable.value,
-		isIpHost: isIpHost.value,
-		$forceUpdate: () => {}, // No-op in composition API usually, or triggerRef
-		checkNetworkConnectivity: async () => {
-			/* Prevent infinite recursion loop if it calls itself? */
-		},
-		checkFrappePing,
-		checkCurrentOrigin,
-		checkExternalConnectivity,
-		checkWebSocketConnectivity: async () => {
-			if (frappe.realtime && frappe.realtime.socket) {
-				return frappe.realtime.socket.readyState === 1;
-			}
-			return false;
-		},
-	};
-
-	// Actually, simpler compliance: Copy the logic from useNetwork checkNetworkConnectivity locally or refactor useNetwork.
-	// Refactoring useNetwork is better but out of scope? No, scope is "Migrate to Composition API". Refactoring useNetwork to be a true composable is part of that spirit.
-	// But to be safe and stick to the file at hand, let's just implement the logic here cleanly or wrap it.
-	// The `useNetwork.js` file is messy. Let's just import the specific check functions and implement the orchestrator here.
-
-	try {
-		// Simple local check implementation for now to replace the mixin hell
-		// Checking network logic...
-		// ... (Reimplementing core logic for clean composition)
-		// Actually, let's use the provided functions but we need to manage state ourselves.
-		// We will skip full `useNetwork` refactor for now and just wire up the basics.
-		// Or better: The `setupNetworkListeners` in useNetwork attaches global listeners. We can still use it if we bind it.
-		// Let's rely on the fact that existing logic is working and just needs to reach our refs.
-	} catch (e) {
-		console.error(e);
-	}
-
-	// Hack: Reuse existing file functions by passing a reactive context object?
-	// Let's recreate the essential listeners here directly for clarity and modern standard.
+// Network Logic - Bridge mixin-style composable to Composition API refs.
+const networkProxy = {
+	get networkOnline() {
+		return networkOnline.value;
+	},
+	set networkOnline(value) {
+		networkOnline.value = Boolean(value);
+	},
+	get serverOnline() {
+		return serverOnline.value;
+	},
+	set serverOnline(value) {
+		serverOnline.value = Boolean(value);
+	},
+	get serverConnecting() {
+		return serverConnecting.value;
+	},
+	set serverConnecting(value) {
+		serverConnecting.value = Boolean(value);
+	},
+	get internetReachable() {
+		return internetReachable.value;
+	},
+	set internetReachable(value) {
+		internetReachable.value = Boolean(value);
+	},
+	get isIpHost() {
+		return isIpHost.value;
+	},
+	set isIpHost(value) {
+		isIpHost.value = Boolean(value);
+	},
+	$forceUpdate: () => {},
+	checkNetworkConnectivity: async () => {
+		await utilsCheckNetworkConnectivity.call(networkProxy);
+	},
 };
 
-// Re-implementing network listeners cleanly
 const setupNetworkListeners = () => {
-	window.addEventListener("online", () => {
-		if (getIsManualOffline()) return;
-		networkOnline.value = true;
-		internetReachable.value = true;
-		console.log("Network: Online");
-		// We really need to verify connectivity here
-	});
-
-	window.addEventListener("offline", () => {
-		if (getIsManualOffline()) return;
-		networkOnline.value = false;
-		internetReachable.value = false;
-		serverOnline.value = false;
-		window.serverOnline = false;
-		console.log("Network: Offline");
-	});
-
-	// Load initial state
-	if (!getIsManualOffline()) {
-		networkOnline.value = navigator.onLine;
-		// Assume connected initially/optimistically or trigger check
-		// checkNetworkConnectivity();
-	} else {
-		networkOnline.value = false;
-		serverOnline.value = false;
-	}
+	initNetworkListeners.call(networkProxy);
 };
-// Note: We are simplifying network logic slightly for the refactor to avoid the mixin complexity.
-// A full refactor of useNetwork.js to a proper composable would be ideal in Phase 2/6.
 
 const initializeData = async () => {
 	await initPromise;

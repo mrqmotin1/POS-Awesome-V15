@@ -841,8 +841,7 @@ export function useItemAddition() {
 				item.base_price_list_rate !== undefined
 					? item.base_price_list_rate
 					: item.rate * conversionRate;
-			new_item.base_rate =
-				item.base_rate !== undefined ? item.base_rate : item.rate * conversionRate;
+			new_item.base_rate = item.base_rate !== undefined ? item.base_rate : item.rate * conversionRate;
 			new_item.base_discount_amount = 0;
 		} else {
 			// In base currency, base rates = displayed rates

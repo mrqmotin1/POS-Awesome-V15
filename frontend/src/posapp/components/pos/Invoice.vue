@@ -396,14 +396,25 @@ export default {
 	setup() {
 		const uiStore = useUIStore();
 		const invoiceStore = useInvoiceStore();
+		const customersStore = useCustomersStore();
 		const toastStore = useToastStore();
 		// Extract specific state as refs if needed in template without `uiStore.` prefix
 		// But usually better to return the store or use storeToRefs
 		const { isOnline } = useOnlineStatus();
 
 		const { activeView } = storeToRefs(uiStore);
+		const { selectedCustomer, refreshToken: customerRefreshToken } = storeToRefs(customersStore);
 
-		return { uiStore, activeView, isOnline, toastStore, invoiceStore };
+		return {
+			uiStore,
+			activeView,
+			isOnline,
+			toastStore,
+			invoiceStore,
+			customersStore,
+			selectedCustomer,
+			customerRefreshToken,
+		};
 	},
 	data() {
 		return {
