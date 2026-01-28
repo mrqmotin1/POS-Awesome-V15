@@ -2431,14 +2431,22 @@ export default {
 		async prepareItemForCart(item, requestedQty) {
 			// Ensure UOMs are initialized
 			if (!item.item_uoms || item.item_uoms.length === 0) {
-				await this.update_items_details([item]);
-				if (!item.item_uoms || item.item_uoms.length === 0) {
+				const cachedUoms = getItemUOMs(item.item_code);
+				if (cachedUoms.length > 0) {
+					item.item_uoms = cachedUoms;
+				} else {
 					item.item_uoms = [{ uom: item.stock_uom, conversion_factor: 1.0 }];
+				}
+				// Benchmark: avoid awaiting item detail fetch to keep click-to-add responsive.
+				if (this.pos_profile?.name) {
+					this.update_items_details([item]).catch((error) => {
+						console.error("Failed to refresh item details for cart", error);
+					});
 				}
 			}
 
 			// Handle multi-currency conversion
-			if (this.pos_profile.posa_allow_multi_currency) {
+			if (this.pos_profile?.posa_allow_multi_currency) {
 				this.applyCurrencyConversionToItem(item);
 
 				const companyCurrency = this.pos_profile.currency;
