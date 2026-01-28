@@ -5166,13 +5166,7 @@ export default {
 		);
 
 		// Watch Invoice for Quantities
-		this.$watch(
-			() => this.invoiceStore.items,
-			() => {
-				this.handleCartQuantitiesUpdated();
-			},
-			{ deep: true },
-		);
+		this.eventBus.on("cart_quantities_updated", this.handleCartQuantitiesUpdated);
 
 		// Watch for Settings Toggle
 		this.$watch(
