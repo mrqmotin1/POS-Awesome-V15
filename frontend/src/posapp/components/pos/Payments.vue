@@ -1350,6 +1350,25 @@ export default {
 				this.print_format = "";
 			}
 		},
+		activeView(newVal) {
+			if (newVal === "payment") {
+				this.paymentVisible = true;
+				this.$nextTick(() => {
+					setTimeout(() => {
+						const btn = this.$refs.submitButton;
+						const el = btn && btn.$el ? btn.$el : btn;
+						if (el) {
+							el.scrollIntoView({ behavior: "smooth", block: "center" });
+							el.focus();
+							this.highlightSubmit = true;
+						}
+					}, 100);
+				});
+			} else {
+				this.paymentVisible = false;
+				this.highlightSubmit = false;
+			}
+		},
 		"invoice_doc.posa_delivery_date"(date) {
 			if (!date) {
 				if (this.invoice_doc) {
@@ -1428,40 +1447,22 @@ export default {
 		},
 		// Go back to invoice view and reset customer readonly
 		back_to_invoice() {
-			this.eventBus.emit("show_payment", "false");
-			this.eventBus.emit("set_customer_readonly", false);
+			this.uiStore.setActiveView("items");
+			// this.eventBus.emit("set_customer_readonly", false);
 			this.$nextTick(() => {
-				this.eventBus.emit("focus_item_search");
+				this.uiStore.triggerItemSearchFocus();
 			});
 		},
 		finishSubmissionNavigation(clearInvoice = false) {
 			this.back_to_invoice();
 			if (clearInvoice) {
 				this.addresses = [];
-				this.eventBus.emit("clear_invoice");
-				this.eventBus.emit("reset_posting_date");
+				this.invoiceStore.clear();
+				this.invoiceStore.resetPostingDate();
 			}
 		},
 		// Highlight and focus the submit button when payment screen opens
-		handleShowPayment(data) {
-			if (data === "true") {
-				this.paymentVisible = true;
-				this.$nextTick(() => {
-					setTimeout(() => {
-						const btn = this.$refs.submitButton;
-						const el = btn && btn.$el ? btn.$el : btn;
-						if (el) {
-							el.scrollIntoView({ behavior: "smooth", block: "center" });
-							el.focus();
-							this.highlightSubmit = true;
-						}
-					}, 100);
-				});
-			} else {
-				this.paymentVisible = false;
-				this.highlightSubmit = false;
-			}
-		},
+		// Logic moved to watcher on activeView
 		// Reset all cash payments to zero
 		reset_cash_payments() {
 			this.invoice_doc.payments.forEach((payment) => {
@@ -2785,8 +2786,46 @@ export default {
 		document.addEventListener("keydown", this._shortcutHandlers.handlePaymentShortcut);
 		this.syncPendingInvoices();
 		this.eventBus.on("network-online", this.syncPendingInvoices);
-		// Also sync when the server connection is re-established
 		this.eventBus.on("server-online", this.syncPendingInvoices);
+		if (this.eventBus) {
+			this.eventBus.on("send_invoice_doc_payment", (invoice_doc) => {
+				this.invoiceStore.setInvoiceDoc(invoice_doc);
+			});
+			this.eventBus.on("register_pos_profile", (data) => {
+				this.pos_profile = data.pos_profile;
+				this.stock_settings = data.stock_settings;
+			});
+			this.eventBus.on("add_the_new_address", (data) => {
+				this.get_addresses();
+				this.invoice_doc.shipping_address_name = data.name;
+			});
+			this.eventBus.on("update_invoice_type", (data) => {
+				this.invoiceType = data;
+			});
+			this.eventBus.on("set_pos_settings", (data) => {
+				this.pos_settings = data;
+			});
+			this.eventBus.on("set_mpesa_payment", (data) => {
+				this.set_mpesa_payment(data);
+			});
+			this.eventBus.on("submit_payment_shortcut", this.handleSubmitPaymentShortcut);
+			// this.eventBus.on("clear_invoice", () => {
+			// 	this.invoice_doc = "";
+			// });
+		}
+	},
+	beforeUnmount() {
+		this.eventBus.off("send_invoice_doc_payment");
+		this.eventBus.off("register_pos_profile");
+		this.eventBus.off("add_the_new_address");
+		this.eventBus.off("update_invoice_type");
+		this.eventBus.off("set_pos_settings");
+		this.eventBus.off("set_mpesa_payment");
+		this.eventBus.off("submit_payment_shortcut", this.handleSubmitPaymentShortcut);
+		// this.eventBus.off("clear_invoice");
+		this.eventBus.off("network-online", this.syncPendingInvoices);
+		this.eventBus.off("server-online", this.syncPendingInvoices);
+		// this.eventBus.off("show_payment", this.handleShowPayment); // Removed
 	},
 	// Lifecycle hook: mounted
 	mounted() {

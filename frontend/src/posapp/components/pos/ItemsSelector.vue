@@ -2408,7 +2408,7 @@ export default {
 			}
 
 			// Show variant selection dialog
-			this.toastStore.show( {
+			this.toastStore.show({
 				title: __("This is an item template. Please choose a variant."),
 				color: "warning",
 			});
@@ -3287,7 +3287,7 @@ export default {
 
 			this.$nextTick(() => {
 				if (this.displayedItems.length == 0) {
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: `No Item has this barcode "${sCode}"`,
 						color: "error",
 					});
@@ -3603,7 +3603,7 @@ export default {
 
 					// Show scanning feedback
 					if (this.eventBus?.emit) {
-						this.toastStore.show( {
+						this.toastStore.show({
 							title: this.__("Scanning for: {0}", [code]),
 							summary: this.__("Scanning items"),
 							detail: code,
@@ -4362,7 +4362,7 @@ export default {
 					: Number(requestedQty.toFixed(precision));
 
 				if (this.eventBus?.emit) {
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: this.__("Item {0} added to invoice", [itemName]),
 						summary: this.__("Items added to invoice"),
 						detail: this.__("{0} (Qty: {1})", [itemName, displayQty]),
@@ -5107,7 +5107,7 @@ export default {
 		});
 
 		// Event listeners - consolidated with store watchers
-		
+
 		// Watch Store for Profile
 		this.$watch(
 			() => this.uiStore.posProfile,
@@ -5118,21 +5118,41 @@ export default {
 					this.startItemWorker();
 					this.update_cur_items_details();
 					this.startBackgroundSyncScheduler();
-					
+
 					await this.ensureScaleBarcodeSettings(true);
 					this.get_items_groups();
 					await this.initializeItems();
 					this.items_view = this.pos_profile.posa_default_card_view ? "card" : "list";
 				}
 			},
-			{ deep: true, immediate: true }
+			{ deep: true, immediate: true },
 		);
 
 		// Store Watchers for UI Updates
-		this.$watch(() => this.uiStore.offersCount, (val) => { this.offersCount = val; });
-		this.$watch(() => this.uiStore.appliedOffersCount, (val) => { this.appliedOffersCount = val; });
-		this.$watch(() => this.uiStore.couponsCount, (val) => { this.couponsCount = val; });
-		this.$watch(() => this.uiStore.appliedCouponsCount, (val) => { this.appliedCouponsCount = val; });
+		this.$watch(
+			() => this.uiStore.offersCount,
+			(val) => {
+				this.offersCount = val;
+			},
+		);
+		this.$watch(
+			() => this.uiStore.appliedOffersCount,
+			(val) => {
+				this.appliedOffersCount = val;
+			},
+		);
+		this.$watch(
+			() => this.uiStore.couponsCount,
+			(val) => {
+				this.couponsCount = val;
+			},
+		);
+		this.$watch(
+			() => this.uiStore.appliedCouponsCount,
+			(val) => {
+				this.appliedCouponsCount = val;
+			},
+		);
 
 		// Watch Invoice for Quantities
 		this.$watch(
@@ -5140,7 +5160,7 @@ export default {
 			() => {
 				this.handleCartQuantitiesUpdated();
 			},
-			{ deep: true }
+			{ deep: true },
 		);
 
 		// Watch for Settings Toggle
@@ -5148,7 +5168,7 @@ export default {
 			() => this.uiStore.showItemSettings,
 			(val) => {
 				this.show_item_settings = val;
-			}
+			},
 		);
 		this.$watch(
 			() => this.show_item_settings,
@@ -5156,7 +5176,7 @@ export default {
 				if (val !== this.uiStore.showItemSettings) {
 					this.uiStore.setItemSettings(val);
 				}
-			}
+			},
 		);
 
 		// Watch for Top Item Selection
@@ -5164,7 +5184,7 @@ export default {
 			() => this.uiStore.triggerTopItemSelection,
 			() => {
 				this.selectTopItem();
-			}
+			},
 		);
 
 		// Watch for Force Reload
@@ -5173,19 +5193,25 @@ export default {
 			async () => {
 				await this.ensureStorageHealth();
 				if (!isOffline()) {
-					if (this.pos_profile && (!this.pos_profile.posa_local_storage || !this.storageAvailable)) {
+					if (
+						this.pos_profile &&
+						(!this.pos_profile.posa_local_storage || !this.storageAvailable)
+					) {
 						await forceClearAllCache();
 					}
 					await this.get_items(true);
 				} else {
-					if (this.pos_profile && (!this.pos_profile.posa_local_storage || !this.storageAvailable)) {
+					if (
+						this.pos_profile &&
+						(!this.pos_profile.posa_local_storage || !this.storageAvailable)
+					) {
 						await forceClearAllCache();
 						await this.get_items(true);
 					} else {
 						await this.get_items();
 					}
 				}
-			}
+			},
 		);
 
 		// Watch for Stock Adjustments (replacing invoice_stock_adjusted event)
@@ -5195,7 +5221,7 @@ export default {
 				if (val) {
 					this.handleInvoiceStockAdjusted(val);
 				}
-			}
+			},
 		);
 
 		// Legacy support: update_cur_items_details is handled internally or via invoice updates
@@ -5206,7 +5232,7 @@ export default {
 			() => this.uiStore.searchFocusTrigger,
 			() => {
 				this.focusItemSearch();
-			}
+			},
 		);
 
 		this.eventBus.on("server-online", async () => {
@@ -5339,7 +5365,7 @@ export default {
 		this.eventBus.off("invoice_stock_adjusted", this.handleInvoiceStockAdjusted);
 		this.eventBus.off("update_customer_price_list");
 		this.eventBus.off("force_reload_items");
-		this.eventBus.off("focus_item_search");
+		// this.eventBus.off("focus_item_search"); // Handled by uiStore watcher
 		this.eventBus.off("select_top_item");
 		this.eventBus.off("toggle_item_selector_settings");
 		window.removeEventListener("resize", this.checkItemContainerOverflow);

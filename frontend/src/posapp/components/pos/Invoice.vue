@@ -306,15 +306,10 @@
 					</v-dialog>
 				</div>
 			</div>
-
 		</v-card>
 
 		<!-- Payment Confirmation Dialog -->
-		<v-dialog
-			v-model="confirm_payment_dialog"
-			max-width="400"
-			transition="dialog-bottom-transition"
-		>
+		<v-dialog v-model="confirm_payment_dialog" max-width="400" transition="dialog-bottom-transition">
 			<v-card>
 				<v-card-title class="text-h6">
 					{{ __("Open Payments?") }}
@@ -564,7 +559,7 @@ export default {
 		},
 
 		focusItemSearchField() {
-			this.eventBus.emit("focus_item_search");
+			this.uiStore.triggerItemSearchFocus();
 		},
 
 		focusAdditionalDiscountField() {
@@ -850,7 +845,7 @@ export default {
 
 		async print_draft_invoice() {
 			if (!this.pos_profile.posa_allow_print_draft_invoices) {
-				this.toastStore.show( {
+				this.toastStore.show({
 					title: __(`You are not allowed to print draft invoices`),
 					color: "error",
 				});
@@ -871,7 +866,7 @@ export default {
 				this.load_print_page(invoice_name);
 			} catch (error) {
 				console.error("Failed to print draft invoice:", error);
-				this.toastStore.show( {
+				this.toastStore.show({
 					title: __("Unable to print draft invoice"),
 					color: "error",
 				});
@@ -934,6 +929,7 @@ export default {
 		updatePostingDate(date) {
 			if (!date) return;
 			this.posting_date = date;
+			this.invoiceStore.setPostingDate(date);
 			this.$forceUpdate();
 		},
 		shouldEnforceStockLimits(item) {
@@ -986,14 +982,14 @@ export default {
 				if (blockSale) {
 					item[field_name] = item.max_qty;
 					parsedValue = item.max_qty;
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: __(`Maximum available quantity is {0}. Quantity adjusted to match stock.`, [
 							this.formatFloat(item.max_qty),
 						]),
 						color: "error",
 					});
 				} else {
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: __("Stock is lower than requested. Proceeding may create negative stock."),
 						color: "warning",
 					});
@@ -1280,7 +1276,7 @@ export default {
 						this.exchange_rate_date = r2.message.date;
 						const posting_backend = this.formatDateForBackend(this.posting_date_display);
 						if (this.exchange_rate_date && posting_backend !== this.exchange_rate_date) {
-							this.toastStore.show( {
+							this.toastStore.show({
 								title: __(
 									"Exchange rate date " +
 										this.exchange_rate_date +
@@ -1294,7 +1290,7 @@ export default {
 				}
 			} catch (error) {
 				console.error("Error updating currency:", error);
-				this.toastStore.show( {
+				this.toastStore.show({
 					title: "Error updating currency",
 					color: "error",
 				});
@@ -1314,7 +1310,7 @@ export default {
 					await this.update_invoice(doc);
 				} catch (error) {
 					console.error("Error updating invoice currency:", error);
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: "Error updating currency",
 						color: "error",
 					});
@@ -1338,7 +1334,7 @@ export default {
 						this.exchange_rate_date = resp.exchange_rate_date;
 						const posting_backend = this.formatDateForBackend(this.posting_date_display);
 						if (posting_backend !== this.exchange_rate_date) {
-							this.toastStore.show( {
+							this.toastStore.show({
 								title: __(
 									"Exchange rate date " +
 										this.exchange_rate_date +
@@ -1352,7 +1348,7 @@ export default {
 					this.sync_exchange_rate();
 				} catch (error) {
 					console.error("Error updating exchange rate:", error);
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: "Error updating exchange rate",
 						color: "error",
 					});
@@ -1415,7 +1411,7 @@ export default {
 				if (blockSale && exceedsAvailable) {
 					item.qty = item.max_qty;
 					this.calc_stock_qty(item, item.qty);
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: __("Maximum available quantity is {0}. Quantity adjusted to match stock.", [
 							this.formatFloat(item.max_qty),
 						]),
@@ -1424,7 +1420,7 @@ export default {
 					return;
 				}
 				if (!blockSale && exceedsAvailable) {
-					this.toastStore.show( {
+					this.toastStore.show({
 						title: __(
 							`{0}: requested quantity exceeds available stock. Negative stock is allowed—proceed carefully.`,
 							[item.item_name || item.item_code],
@@ -1477,7 +1473,7 @@ export default {
 			this.items = newItems;
 
 			// Show success feedback
-			this.toastStore.show( {
+			this.toastStore.show({
 				title: __("Item order updated"),
 				color: "success",
 			});
@@ -1509,7 +1505,7 @@ export default {
 					})
 					.catch((error) => {
 						console.error("Error initializing currencies:", error);
-						this.toastStore.show( {
+						this.toastStore.show({
 							title: __("Error loading currencies"),
 							color: "error",
 						});
@@ -1521,7 +1517,7 @@ export default {
 		},
 		handleClearInvoice() {
 			this.clear_invoice();
-			this.eventBus.emit("focus_item_search");
+			this.uiStore.triggerItemSearchFocus();
 		},
 		handleLoadInvoice(data) {
 			this.load_invoice(data);
@@ -1583,9 +1579,7 @@ export default {
 		handleSetNewLine(data) {
 			this.new_line = data;
 		},
-		handleResetPostingDate() {
-			this.posting_date = frappe.datetime.nowdate();
-		},
+		// handleResetPostingDate removed - handled by store
 		handleItemDragStart() {
 			this.showDropFeedback(true);
 		},
@@ -1621,7 +1615,7 @@ export default {
 					});
 				}
 			},
-			{ deep: true, immediate: true }
+			{ deep: true, immediate: true },
 		);
 
 		this.$watch(
@@ -1631,7 +1625,7 @@ export default {
 					this.handleSetOffers(offers);
 				}
 			},
-			{ deep: true, immediate: true }
+			{ deep: true, immediate: true },
 		);
 
 		this.$watch(
@@ -1639,7 +1633,7 @@ export default {
 			(doc) => {
 				if (doc) {
 					this.handleLoadInvoice(doc);
-					// Reset the trigger so it can be triggered again even with same doc? 
+					// Reset the trigger so it can be triggered again even with same doc?
 					// Or assume it's one-off. Best to reset it to null to avoid double loading if not handled.
 					// But `invoiceToLoad` might be part of state.
 					// Let's reset it in next tick or just rely on change.
@@ -1647,7 +1641,7 @@ export default {
 					// Better: handleLoadInvoice should check if doc is valid.
 				}
 			},
-			{ deep: true }
+			{ deep: true },
 		);
 
 		this.$watch(
@@ -1657,14 +1651,22 @@ export default {
 					this.handleLoadOrder(doc);
 				}
 			},
-			{ deep: true }
+			{ deep: true },
 		);
 
 		this.$watch(
 			() => this.uiStore.draggedItem,
 			(item) => {
 				this.showDropFeedback(!!item);
-			}
+			},
+		);
+
+		this.$watch(
+			() => this.invoiceStore.postingDate,
+			(val) => {
+				if (val) this.posting_date = val;
+			},
+			{ immediate: true },
 		);
 
 		this._busHandlers = {
@@ -1672,7 +1674,7 @@ export default {
 			// "item-drag-end": this.handleItemDragEnd, // Handled by watcher
 			// register_pos_profile: this.handleRegisterPosProfile, // Handled by store watcher
 			add_item: this.add_item,
-			clear_invoice: this.handleClearInvoice,
+			// clear_invoice: this.handleClearInvoice, // Handled by invoiceStore.clear()
 			// load_invoice: this.handleLoadInvoice, // Handled by store watcher
 			// load_order: this.handleLoadOrder, // Handled by store watcher
 			// set_offers: this.handleSetOffers, // Handled by store watcher
@@ -1681,7 +1683,7 @@ export default {
 			set_all_items: this.handleSetAllItems,
 			load_return_invoice: this.handleLoadReturnInvoice,
 			set_new_line: this.handleSetNewLine,
-			reset_posting_date: this.handleResetPostingDate,
+			// reset_posting_date: this.handleResetPostingDate, // Handled by invoiceStore.postingDate
 			calc_uom: this.calc_uom,
 			// show_payment: this.handleShowPayment, // Removed
 		};
@@ -1952,4 +1954,3 @@ export default {
 	font-size: 0.95rem;
 }
 </style>
-

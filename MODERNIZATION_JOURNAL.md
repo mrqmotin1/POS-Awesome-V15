@@ -82,23 +82,23 @@ _Building the backbone for a scalable Single Page Application (SPA)._
 _Removing "Event Soup" and centralizing business logic._
 
 - [x] **Phase 2.1: Remove Event Bus (View Switching)**
-  - **Goal**: Replace `mitt` event bus with Pinia stores for UI state (Views).
-  - **Status**: Completed
-  - **Details**: Refactored `Pos.vue`, `Navbar.vue`, `Invoice.vue`, `Payments.vue`, `ItemsSelector.vue` to use `uiStore.activeView` active state management.
-    - **Action Plan:**
-        1.  **Create `useToastStore` (Pinia)**:
-            - Replace `eventBus.emit('show_message', ...)` with `toastStore.show(...)`.
-            - Centralize Snackbar logic in `App.vue` or `DefaultLayout.vue` listening to the store.
-        2.  **Create `useUIStore` (Pinia)**:
-            - Move `freeze`/`unfreeze` logic here. `uiStore.setLoading(true/false)`.
-        3.  **Refactor `BarcodePrinting.vue`**:
-            - [x] Refactored `ItemsSelector` to emit `@add-item` event.
-            - [x] Updated `BarcodePrinting.vue`, `Pos.vue`, and `PurchaseOrders.vue` to listen to the event.
-            - Decoupled `add_item` global event from `ItemsSelector`.
-        4.  **Refactor `pending_invoices_changed`**:
-            - [x] Create `syncStore` (Pinia) to manage pending invoices count.
-            - [x] Update `Payments.vue` to update store instead of emitting event.
-            - [x] Update `Home.vue` to use store state instead of event listener.
+    - **Goal**: Replace `mitt` event bus with Pinia stores for UI state (Views).
+    - **Status**: Completed
+    - **Details**: Refactored `Pos.vue`, `Navbar.vue`, `Invoice.vue`, `Payments.vue`, `ItemsSelector.vue` to use `uiStore.activeView` active state management.
+        - **Action Plan:**
+            1.  **Create `useToastStore` (Pinia)**:
+                - Replace `eventBus.emit('show_message', ...)` with `toastStore.show(...)`.
+                - Centralize Snackbar logic in `App.vue` or `DefaultLayout.vue` listening to the store.
+            2.  **Create `useUIStore` (Pinia)**:
+                - Move `freeze`/`unfreeze` logic here. `uiStore.setLoading(true/false)`.
+            3.  **Refactor `BarcodePrinting.vue`**:
+                - [x] Refactored `ItemsSelector` to emit `@add-item` event.
+                - [x] Updated `BarcodePrinting.vue`, `Pos.vue`, and `PurchaseOrders.vue` to listen to the event.
+                - Decoupled `add_item` global event from `ItemsSelector`.
+            4.  **Refactor `pending_invoices_changed`**:
+                - [x] Create `syncStore` (Pinia) to manage pending invoices count.
+                - [x] Update `Payments.vue` to update store instead of emitting event.
+                - [x] Update `Home.vue` to use store state instead of event listener.
 
 - [x] **2.2 Centralize API Services**
     - **Current Status:** `frappe.call` is scattered. `Invoice.vue` & `invoiceItemMethods.js` contain ~20 raw calls. `customersStore.js` contains mixed API/Store logic.
@@ -277,4 +277,5 @@ _The ultimate reliability upgrade._
 | 2026-01-26 | Phase 5.1 Reliability               | Completed | Implemented global error handler in `posapp.js` using `toastStore`.                                                                  |
 | 2026-01-26 | Phase 1.2 Explicit Layouts          | Completed | Created `DefaultLayout.vue`, `App.vue`, and updated Router.                                                                          |
 | 2026-01-26 | Phase 1.3 Composition API           | Completed | Refactored `DefaultLayout.vue` to `<script setup>` and removed Options API usage.                                                    |
-| 2026-01-26 | Phase 2.1 Remove Event Bus          | Completed | RefactoredView switching, Customer Dialogs, Invoice/Order Loading to use Stores.                                                       |
+| 2026-01-26 | Phase 2.1 Remove Event Bus          | Completed | RefactoredView switching, Customer Dialogs, Invoice/Order Loading to use Stores.                                                     |
+| 2026-01-28 | Phase 2.1 Final Cleanup             | Completed | Removed remaining EventBus usage in `Payments.vue` and `Invoice.vue` (view switching, clearing invoice, posting date).               |

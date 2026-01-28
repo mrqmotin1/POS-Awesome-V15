@@ -110,6 +110,15 @@ export const useInvoiceStore = defineStore("invoice", () => {
 	const posProfile = ref(null);
 	const invoiceToLoad = ref(null);
 	const orderToLoad = ref(null);
+	const postingDate = ref(frappe.datetime.nowdate());
+
+	const setPostingDate = (date) => {
+		postingDate.value = date;
+	};
+
+	const resetPostingDate = () => {
+		postingDate.value = frappe.datetime.nowdate();
+	};
 
 	const setItems = (list) => {
 		itemsData.clear();
@@ -309,6 +318,9 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		clear,
 		recalculateTotals, // Exposed for manual trigger if needed
 		invoiceToLoad,
+		postingDate,
+		setPostingDate,
+		resetPostingDate,
 		triggerLoadInvoice: (doc) => {
 			invoiceToLoad.value = doc;
 		},
