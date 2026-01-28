@@ -464,8 +464,7 @@
 						fixed-header
 						:height="300"
 						:items-per-page="-1"
-						hide-default-footer
-						style="white-space: nowrap;"
+						hide-default-footer					
 						class="mt-2"
 					>
 						<template v-slot:item.discount_percentage="{ item }">
@@ -633,10 +632,10 @@ export default {
 				},
 			],
 			itemHeaders: [
-				{ title: __("Item"), value: "item_name", width: "45%" },
+				{ title: __("Item"), value: "item_name", width: "41%" },
 				{ title: __("Qty"), value: "qty", width: "10%", align: "center" },
-				{ title: __("Discount %"), value: "discount_percentage", width: "20%",align: "center" },
-				{ title: __("Amount"), value: "net_amount", width: "25%", align: "center" },
+				{ title: __("Discount %"), value: "discount_percentage", width: "28%",align: "center" },
+				{ title: __("Amount"), value: "net_amount", width: "21%", align: "center" },
 			],
 
 			unallocated_payments_headers: [
