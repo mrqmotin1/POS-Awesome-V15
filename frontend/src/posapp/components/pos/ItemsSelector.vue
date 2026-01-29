@@ -215,6 +215,13 @@ import { getItemsTableHeaders } from "../../utils/itemsTableHeaders.js";
 import { extractItemCodeFromSearch } from "../../utils/searchUtils.js";
 import { openItemSelectionDialog } from "../../utils/itemSelectionDialog.js";
 import { loadItemSelectorSettings, saveItemSelectorSettings } from "../../utils/itemSelectorSettings.js";
+import {
+	normalizeScaleBarcodeSettings,
+	parseScaleBarcodeSettingsResponse,
+	getScaleBarcodePrefix,
+	scaleBarcodeMatches,
+} from "../../utils/scaleBarcode.js";
+import { getCardColumns, getCardGap, getCardPadding } from "../../utils/itemSelectorLayout.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { useToastStore } from "../../stores/toastStore.js";
 import { useUIStore } from "../../stores/uiStore.js";
@@ -626,23 +633,8 @@ export default {
 			}
 		},
 		// get_uoms, closeNewItemDialog, submitNewItem moved to NewItemDialog.vue
-		normalizeScaleBarcodeSettings(rawSettings = {}) {
-			const settings = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
-			const prefix = String(settings.prefix || "").trim();
-			const prefixIncludedRaw = Number(settings.prefix_included_or_not);
-			const prefixLengthRaw = Number(settings.no_of_prefix_characters);
-
-			const prefixIncluded = Number.isFinite(prefixIncludedRaw) ? prefixIncludedRaw : 0;
-			const prefixLength = Number.isFinite(prefixLengthRaw) ? prefixLengthRaw : 0;
-
-			return {
-				prefix,
-				prefix_included_or_not: prefixIncluded,
-				no_of_prefix_characters: prefixLength,
-			};
-		},
 		updateScaleBarcodeSettings(settings) {
-			const normalized = this.normalizeScaleBarcodeSettings(settings);
+			const normalized = normalizeScaleBarcodeSettings(settings);
 			this.scaleBarcodeSettings = {
 				...this.scaleBarcodeSettings,
 				...normalized,
@@ -684,47 +676,27 @@ export default {
 					args: { barcode: "" },
 				});
 
-				let settings = null;
-				const message = res && res.message ? res.message : null;
-				const hasKey = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-				if (message) {
-					if (message.settings) {
-						settings = message.settings;
-					} else if (
-						typeof message === "object" &&
-						(hasKey(message, "prefix") ||
-							hasKey(message, "prefix_included_or_not") ||
-							hasKey(message, "no_of_prefix_characters"))
-					) {
-						settings = message;
-					}
-				}
+				const settings = parseScaleBarcodeSettingsResponse(res);
 
 				if (settings) {
 					this.updateScaleBarcodeSettings(settings);
 				} else {
-					this.scaleBarcodeSettings = this.normalizeScaleBarcodeSettings();
+					this.scaleBarcodeSettings = normalizeScaleBarcodeSettings();
 					this.scaleBarcodeSettingsLoaded = true;
 				}
 			} catch (error) {
 				console.error("Failed to load scale barcode settings", error);
-				this.scaleBarcodeSettings = this.normalizeScaleBarcodeSettings();
+				this.scaleBarcodeSettings = normalizeScaleBarcodeSettings();
 				this.scaleBarcodeSettingsLoaded = true;
 			}
 
 			return this.scaleBarcodeSettings;
 		},
 		getScaleBarcodePrefix() {
-			const prefix = this.scaleBarcodeSettings?.prefix;
-			return typeof prefix === "string" ? prefix.trim() : "";
+			return getScaleBarcodePrefix(this.scaleBarcodeSettings);
 		},
 		scaleBarcodeMatches(value) {
-			const prefix = this.getScaleBarcodePrefix();
-			if (!prefix) {
-				return false;
-			}
-			return String(value || "").startsWith(prefix);
+			return scaleBarcodeMatches(this.scaleBarcodeSettings, value);
 		},
 
 		scheduleCardMetricsUpdate() {
@@ -4027,31 +3999,13 @@ export default {
 			return getItemsTableHeaders(this.context, this.pos_profile || {});
 		},
 		cardColumns() {
-			if (this.windowWidth <= 768) {
-				return 1;
-			}
-			if (this.windowWidth <= 1200) {
-				return 2;
-			}
-			return 3;
+			return getCardColumns(this.windowWidth);
 		},
 		cardGap() {
-			if (this.windowWidth <= 768) {
-				return 10;
-			}
-			if (this.windowWidth <= 1200) {
-				return 12;
-			}
-			return 16;
+			return getCardGap(this.windowWidth);
 		},
 		cardPadding() {
-			if (this.windowWidth <= 768) {
-				return 10;
-			}
-			if (this.windowWidth <= 1200) {
-				return 12;
-			}
-			return 16;
+			return getCardPadding(this.windowWidth);
 		},
 		cardRowHeight() {
 			if (this.windowWidth <= 768) {
