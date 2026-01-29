@@ -3934,41 +3934,41 @@ export default {
 			const requestedQtyRaw =
 				qtyFromBarcode !== null && !isNaN(qtyFromBarcode) ? qtyFromBarcode : (newItem.qty ?? 1);
 			const requestedQty = Math.abs(requestedQtyRaw || 1);
-			const availableQty =
-				typeof newItem.available_qty === "number"
-					? newItem.available_qty
-					: typeof newItem.actual_qty === "number"
-						? newItem.actual_qty
-						: null;
+			// const availableQty =
+			// 	typeof newItem.available_qty === "number"
+			// 		? newItem.available_qty
+			// 		: typeof newItem.actual_qty === "number"
+			// 			? newItem.actual_qty
+			// 			: null;
 
-			if (availableQty !== null && availableQty < requestedQty) {
-				const formattedAvailable = this.format_number
-					? this.format_number(availableQty, this.hide_qty_decimals ? 0 : this.float_precision)
-					: availableQty;
-				const formattedRequested = this.format_number
-					? this.format_number(requestedQty, this.hide_qty_decimals ? 0 : this.float_precision)
-					: requestedQty;
-				const negativeStockEnabled = this.isNegativeStockEnabled(newItem);
-				const exceedsAvailable = availableQty < requestedQty;
-				const shouldBlock =
-					(this.blockSaleBeyondAvailableQty && exceedsAvailable) ||
-					(!negativeStockEnabled && exceedsAvailable);
+			// if (availableQty !== null && availableQty < requestedQty) {
+			// 	const formattedAvailable = this.format_number
+			// 		? this.format_number(availableQty, this.hide_qty_decimals ? 0 : this.float_precision)
+			// 		: availableQty;
+			// 	const formattedRequested = this.format_number
+			// 		? this.format_number(requestedQty, this.hide_qty_decimals ? 0 : this.float_precision)
+			// 		: requestedQty;
+			// 	const negativeStockEnabled = this.isNegativeStockEnabled(newItem);
+			// 	const exceedsAvailable = availableQty < requestedQty;
+			// 	const shouldBlock =
+			// 		(this.blockSaleBeyondAvailableQty && exceedsAvailable) ||
+			// 		(!negativeStockEnabled && exceedsAvailable);
 
-				if (shouldBlock) {
-					this.showScanError({
-						message: formatStockShortageError(
-							newItem.item_name || newItem.item_code || scannedCode,
-							availableQty,
-							requestedQty,
-						),
-						code: scannedCode,
-						details: this.__("Adjust the quantity or enable negative stock to continue."),
-					});
-					return;
-				}
+			// 	if (shouldBlock) {
+			// 		this.showScanError({
+			// 			message: formatStockShortageError(
+			// 				newItem.item_name || newItem.item_code || scannedCode,
+			// 				availableQty,
+			// 				requestedQty,
+			// 			),
+			// 			code: scannedCode,
+			// 			details: this.__("Adjust the quantity or enable negative stock to continue."),
+			// 		});
+			// 		return;
+			// 	}
 
-				// Suppress low stock notifications when negative stock is allowed
-			}
+			// 	// Suppress low stock notifications when negative stock is allowed
+			// }
 
 			this.awaitingScanResult = true;
 
