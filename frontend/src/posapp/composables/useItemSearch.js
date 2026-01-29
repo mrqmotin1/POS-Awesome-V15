@@ -1,5 +1,5 @@
 import { ref, computed } from "vue";
-import { perfMarkStart, perfMarkEnd } from "../../utils/performance.js";
+import { perfMarkStart, perfMarkEnd } from "../../utils/perf.js";
 
 export function useItemSearch() {
     const searchCache = new Map();

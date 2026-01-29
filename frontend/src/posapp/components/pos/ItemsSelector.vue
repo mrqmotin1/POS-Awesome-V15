@@ -440,7 +440,7 @@ export default {
 		const { selectedCustomer } = storeToRefs(customersStore);
 
 		const { 
-			showOnlyBarcodeItems, 
+			showOnlyBarcodeItems: showOnlyBarcodeItemsRef, 
 			memoizedSearch, 
 			clearSearchCache, 
 			fetchServerItemsTimestamp,
@@ -458,7 +458,7 @@ export default {
 			uiStore,
 			invoiceStore,
 			// Expose search composable
-			showOnlyBarcodeItems,
+			showOnlyBarcodeItemsRef,
 			memoizedSearch,
 			clearSearchCache,
 			fetchServerItemsTimestamp,
@@ -4454,7 +4454,7 @@ export default {
 				searchTerm,
 				hideZeroRate: this.hide_zero_rate_items,
 				hideVariants: this.pos_profile?.posa_hide_variants_items,
-				onlyBarcode: this.showOnlyBarcodeItems,
+				onlyBarcode: this.showOnlyBarcodeItemsRef,
 				limit: this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage,
 			});
 		},
