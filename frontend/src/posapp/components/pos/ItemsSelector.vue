@@ -47,225 +47,45 @@
 
 			<!-- Add dynamic-padding wrapper like Invoice component -->
 			<div class="dynamic-padding">
-				<div class="sticky-header">
-					<v-row class="items">
-						<v-col class="pb-0">
-							<v-text-field
-								density="compact"
-								clearable
-								autofocus
-								variant="solo"
-								color="primary"
-								:label="frappe._('Search Items')"
-								hint="Search by item code, serial number, batch no or barcode"
-								hide-details
-								v-model="search_input"
-								@keydown.esc="esc_event"
-								@keydown.enter="onEnter"
-								@keydown="handleSearchKeydown"
-								@click:clear="clearSearch"
-								@input="handleSearchInput"
-								@paste="handleSearchPaste"
-								prepend-inner-icon="mdi-magnify"
-								@focus="handleItemSearchFocus"
-								ref="debounce_search"
-							>
-								<template v-slot:append-inner>
-									<v-btn
-										v-if="pos_profile.posa_enable_camera_scanning"
-										icon="mdi-camera"
-										size="small"
-										color="primary"
-										variant="text"
-										:disabled="scannerLocked"
-										@click="startCameraScanning"
-										:title="
-											scannerLocked
-												? __('Acknowledge the error to resume scanning')
-												: __('Scan with Camera')
-										"
-										:aria-label="
-											scannerLocked
-												? __('Acknowledge the error to resume scanning')
-												: __('Scan with Camera')
-										"
-									>
-									</v-btn>
-								</template>
-							</v-text-field>
-						</v-col>
-						<v-col cols="3" class="pb-0" v-if="pos_profile.posa_input_qty">
-							<v-text-field
-								density="compact"
-								variant="solo"
-								color="primary"
-								:label="frappe._('QTY')"
-								hide-details
-								v-model="debounce_qty"
-								type="text"
-								@keydown.enter="enter_event"
-								@keydown.esc="esc_event"
-								@focus="clearQty"
-							></v-text-field>
-						</v-col>
-						<v-col cols="2" class="pb-0" v-if="pos_profile.posa_new_line">
-							<v-checkbox
-								v-model="new_line"
-								color="accent"
-								value="true"
-								label="NLine"
-								density="default"
-								hide-details
-							></v-checkbox>
-						</v-col>
-						<v-col cols="12" class="dynamic-margin-xs">
-							<div class="settings-container">
-								<v-btn
-									v-if="context === 'purchase'"
-									density="compact"
-									variant="text"
-									color="primary"
-									prepend-icon="mdi-plus"
-									@click="openNewItemDialog"
-									class="settings-btn"
-								>
-									{{ __("New Item") }}
-								</v-btn>
-								<v-btn
-									density="compact"
-									variant="text"
-									color="primary"
-									prepend-icon="mdi-cog-outline"
-									@click="toggleItemSettings"
-									class="settings-btn"
-								>
-									{{ __("Settings") }}
-								</v-btn>
-								<v-spacer></v-spacer>
-								<span
-									v-if="enable_background_sync"
-									class="text-caption text-medium-emphasis last-sync-label"
-								>
-									{{ __("Last sync:") }} {{ formatBackgroundSyncTime() }}
-								</span>
-								<v-spacer></v-spacer>
-								<v-btn
-									density="compact"
-									variant="text"
-									color="primary"
-									prepend-icon="mdi-refresh"
-									@click="forceReloadItems"
-									class="settings-btn"
-								>
-									{{ __("Reload Items") }}
-								</v-btn>
+			<ItemHeader
+				v-model:search-input="search_input"
+				v-model:qty-input="debounce_qty"
+				v-model:new-line="new_line"
+				:pos-profile="pos_profile"
+				:scanner-locked="scannerLocked"
+				:enable-background-sync="enable_background_sync"
+				:last-sync-time="formatBackgroundSyncTime()"
+				:context="context"
+				@esc="esc_event"
+				@enter="onEnter"
+				@search-keydown="handleSearchKeydown"
+				@clear-search="clearSearch"
+				@search-input="handleSearchInput"
+				@search-paste="handleSearchPaste"
+				@focus="handleItemSearchFocus"
+				@clear-qty="clearQty"
+				@start-camera="startCameraScanning"
+				@open-new-item="openNewItemDialog"
+				@toggle-settings="toggleItemSettings"
+				@reload-items="forceReloadItems"
+				ref="itemHeader"
+			/>
 
-								<v-dialog v-model="show_item_settings" max-width="400px">
-									<v-card>
-										<v-card-title class="text-h6 pa-4 d-flex align-center">
-											<span>{{ __("Item Selector Settings") }}</span>
-											<v-spacer></v-spacer>
-											<v-btn
-												icon="mdi-close"
-												variant="text"
-												density="compact"
-												@click="show_item_settings = false"
-												:aria-label="__('Close Settings')"
-											>
-											</v-btn>
-										</v-card-title>
-										<v-divider></v-divider>
-										<v-card-text class="pa-4">
-											<v-switch
-												v-model="temp_hide_qty_decimals"
-												:label="__('Hide quantity decimals')"
-												hide-details
-												density="compact"
-												color="primary"
-												class="mb-2"
-											></v-switch>
-											<v-switch
-												v-model="temp_hide_zero_rate_items"
-												:label="__('Hide zero rated items')"
-												hide-details
-												density="compact"
-												color="primary"
-											></v-switch>
-											<v-switch
-												v-model="temp_show_last_invoice_rate"
-												:label="__('Show last invoice rate')"
-												hide-details
-												density="compact"
-												color="primary"
-												class="mb-2"
-											></v-switch>
-											<v-switch
-												v-model="temp_enable_background_sync"
-												:label="__('Enable background sync')"
-												hide-details
-												density="compact"
-												color="primary"
-												class="mb-2"
-											></v-switch>
-											<v-text-field
-												v-model="temp_background_sync_interval"
-												:label="__('Background sync interval (seconds)')"
-												type="number"
-												density="compact"
-												variant="outlined"
-												color="primary"
-												hide-details
-												class="mb-2 pos-themed-input"
-												:min="10"
-												:disabled="!temp_enable_background_sync"
-											></v-text-field>
-											<v-switch
-												v-model="temp_enable_custom_items_per_page"
-												:label="__('Custom items per page')"
-												hide-details
-												density="compact"
-												color="primary"
-												class="mb-2"
-											>
-											</v-switch>
-											<v-checkbox
-												v-model="temp_force_server_items"
-												:label="
-													__('Always fetch items from server (ignore local cache)')
-												"
-												hide-details
-												density="compact"
-												color="primary"
-												class="mb-2"
-											></v-checkbox>
-											<v-text-field
-												v-if="temp_enable_custom_items_per_page"
-												v-model="temp_items_per_page"
-												type="number"
-												density="compact"
-												variant="outlined"
-												color="primary"
-												hide-details
-												:label="__('Items per page')"
-												class="mb-2 pos-themed-input"
-											>
-											</v-text-field>
-										</v-card-text>
-										<v-card-actions class="pa-4 pt-0">
-											<v-btn color="error" variant="text" @click="cancelItemSettings"
-												>{{ __("Cancel") }}
-											</v-btn>
-											<v-spacer></v-spacer>
-											<v-btn color="primary" variant="tonal" @click="applyItemSettings"
-												>{{ __("Apply") }}
-											</v-btn>
-										</v-card-actions>
-									</v-card>
-								</v-dialog>
-							</div>
-						</v-col>
-					</v-row>
-				</div>
+								<ItemSettingsDialog
+			v-model="show_item_settings"
+			:initial-settings="{
+				hide_qty_decimals,
+				hide_zero_rate_items,
+				show_last_invoice_rate,
+				enable_background_sync,
+				background_sync_interval,
+				enable_custom_items_per_page,
+				items_per_page,
+				force_server_items: temp_force_server_items,
+			}"
+			@save="applyItemSettings"
+		/>
+
 				<v-row class="items">
 					<v-col cols="12" class="pt-0 mt-0">
 						<div v-if="items_view == 'card'" class="items-card-container">
@@ -311,158 +131,29 @@
 								@update="onVirtualRangeUpdate"
 							>
 								<template #default="{ item }">
-									<div
+									<ItemCard
 										v-if="item"
 										:key="item.item_code"
-										:class="[
-											'card-item-card',
-											{ 'item-highlighted': isItemHighlighted(item) },
-										]"
+										:item="item"
+										:pos-profile="pos_profile"
+										:context="context"
+										:selected-currency="selected_currency"
+										:hide-qty-decimals="hide_qty_decimals"
+										:last-invoice-rate="getLastInvoiceRate(item)"
+										:is-item-highlighted="isItemHighlighted(item)"
+										:currency-symbol="currencySymbol"
+										:format-currency="memoizedFormatCurrency"
+										:format-number="memoizedFormatNumber"
+										:rate-precision="ratePrecision"
+										:is-negative="isNegative"
 										:style="{
 											width: cardColumnWidth + 'px',
 											height: cardRowHeight + 'px',
 										}"
-										@click="select_item($event, item)"
-										:draggable="true"
-										@dragstart="onDragStart($event, item)"
+										@click="select_item"
+										@dragstart="onDragStart"
 										@dragend="onDragEnd"
-									>
-										<div class="card-item-image-container">
-											<v-img
-												:src="item.image || placeholderImage"
-												class="card-item-image"
-												aspect-ratio="1"
-												:alt="item.item_name"
-											>
-												<template #placeholder>
-													<div class="image-placeholder">
-														<v-icon size="40" color="grey-lighten-2">
-															mdi-image
-														</v-icon>
-													</div>
-												</template>
-											</v-img>
-										</div>
-										<div class="card-item-content">
-											<div class="card-item-header">
-												<h4 class="card-item-name">{{ item.item_name }}</h4>
-												<span class="card-item-code">{{ item.item_code }}</span>
-											</div>
-											<div class="card-item-details">
-												<div class="card-item-price">
-													<div class="primary-price">
-														<span class="currency-symbol">
-															{{
-																currencySymbol(
-																	item.original_currency ||
-																		pos_profile.currency,
-																)
-															}}
-														</span>
-														<span
-															v-if="context === 'purchase'"
-															class="price-amount"
-														>
-															{{
-																memoizedFormatCurrency(
-																	item.rate || item.standard_rate || 0,
-																	pos_profile.currency,
-																	ratePrecision(
-																		item.rate || item.standard_rate || 0,
-																	),
-																)
-															}}
-														</span>
-														<span v-else class="price-amount">
-															{{
-																memoizedFormatCurrency(
-																	item.original_rate ?? item.rate ?? 0,
-																	item.original_currency ||
-																		pos_profile.currency,
-																	ratePrecision(
-																		item.original_rate ?? item.rate ?? 0,
-																	),
-																)
-															}}
-														</span>
-													</div>
-													<div
-														v-if="
-															context !== 'purchase' &&
-															pos_profile.posa_allow_multi_currency &&
-															selected_currency !== pos_profile.currency
-														"
-														class="secondary-price"
-													>
-														<span class="currency-symbol">
-															{{ currencySymbol(selected_currency) }}
-														</span>
-														<span class="price-amount">
-															{{
-																memoizedFormatCurrency(
-																	item.rate,
-																	selected_currency,
-																	ratePrecision(item.rate),
-																)
-															}}
-														</span>
-													</div>
-													<div
-														v-if="getLastInvoiceRate(item)"
-														class="last-rate-chip"
-													>
-														<v-icon size="14" class="mr-1" color="secondary"
-															>mdi-history</v-icon
-														>
-														<span class="last-rate-label">{{ __("Last") }}:</span>
-														<span class="last-rate-value">
-															{{
-																currencySymbol(
-																	getLastInvoiceRate(item).currency ||
-																		pos_profile.currency,
-																)
-															}}
-															{{
-																memoizedFormatCurrency(
-																	getLastInvoiceRate(item).rate,
-																	getLastInvoiceRate(item).currency ||
-																		pos_profile.currency,
-																	ratePrecision(
-																		getLastInvoiceRate(item).rate || 0,
-																	),
-																)
-															}}
-															<span
-																v-if="getLastInvoiceRate(item).uom"
-																class="last-rate-uom"
-															>
-																/{{ getLastInvoiceRate(item).uom }}
-															</span>
-														</span>
-													</div>
-												</div>
-												<div class="card-item-stock">
-													<v-icon size="small" class="stock-icon">
-														mdi-package-variant
-													</v-icon>
-													<span
-														class="stock-amount"
-														:class="{
-															'negative-number': isNegative(item.actual_qty),
-														}"
-													>
-														{{
-															memoizedFormatNumber(
-																item.actual_qty,
-																hide_qty_decimals ? 0 : 4,
-															) || 0
-														}}
-													</span>
-													<span class="stock-uom">{{ item.stock_uom || "" }}</span>
-												</div>
-											</div>
-										</div>
-									</div>
+									/>
 								</template>
 							</RecycleScroller>
 						</div>
@@ -571,67 +262,17 @@
 				</v-row>
 			</div>
 		</v-card>
-		<v-card class="cards mb-0 mt-3 dynamic-padding resizable" style="resize: vertical; overflow: auto">
-			<v-row no-gutters align="center" justify="center" class="dynamic-spacing-sm">
-				<v-col cols="12" class="mb-2">
-					<v-select
-						:items="items_group"
-						:label="frappe._('Items Group')"
-						density="compact"
-						variant="solo"
-						hide-details
-						v-model="item_group"
-					></v-select>
-				</v-col>
-				<v-col cols="12" class="mb-2" v-if="pos_profile.posa_enable_price_list_dropdown !== false">
-					<v-text-field
-						density="compact"
-						variant="solo"
-						color="primary"
-						:label="frappe._('Price List')"
-						hide-details
-						:model-value="active_price_list"
-						readonly
-					></v-text-field>
-				</v-col>
-				<v-col cols="3" class="dynamic-margin-xs">
-					<v-btn-toggle
-						v-model="items_view"
-						color="primary"
-						group
-						density="compact"
-						rounded
-						class="view-toggle-btn"
-					>
-						<v-btn size="small" value="list">{{ __("List") }}</v-btn>
-						<v-btn size="small" value="card">{{ __("Card") }}</v-btn>
-					</v-btn-toggle>
-				</v-col>
-				<v-col cols="5" class="dynamic-margin-xs">
-					<v-btn
-						size="small"
-						block
-						color="warning"
-						variant="text"
-						@click="uiStore.setActiveView('offers')"
-						class="action-btn-consistent"
-					>
-						{{ offersCount }} {{ __("Offers") }}
-					</v-btn>
-				</v-col>
-				<v-col cols="4" class="dynamic-margin-xs">
-					<v-btn
-						size="small"
-						block
-						color="primary"
-						variant="text"
-						@click="uiStore.setActiveView('coupons')"
-						class="action-btn-consistent"
-						>{{ couponsCount }} {{ __("Coupons") }}</v-btn
-					>
-				</v-col>
-			</v-row>
-		</v-card>
+		<ItemActionToolbar
+			v-model="item_group"
+			:items-group="items_group"
+			v-model:items-view="items_view"
+			:pos-profile="pos_profile"
+			:active-price-list="active_price_list"
+			:offers-count="offersCount"
+			:coupons-count="couponsCount"
+			@open-offers="uiStore.setActiveView('offers')"
+			@open-coupons="uiStore.setActiveView('coupons')"
+		/>
 
 		<!-- New Item Dialog -->
 		<v-dialog v-model="newItemDialog" max-width="500px">
@@ -726,6 +367,10 @@ import format from "../../format";
 import _ from "lodash";
 import CameraScanner from "./CameraScanner.vue";
 import { ensurePosProfile } from "../../../utils/pos_profile.js";
+import ItemCard from "./ItemCard.vue";
+import ItemActionToolbar from "./ItemActionToolbar.vue";
+import ItemSettingsDialog from "./ItemSettingsDialog.vue";
+import ItemHeader from "./ItemHeader.vue";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 import { RecycleScroller } from "vue-virtual-scroller";
 import {
@@ -763,8 +408,8 @@ import { useFlyAnimation } from "../../composables/useFlyAnimation.js";
 import { withPerf, perfMarkStart, perfMarkEnd, scheduleFrame } from "../../utils/perf.js";
 import { useCartValidation } from "../../composables/useCartValidation.js";
 import { useItemsIntegration } from "../../composables/useItemsIntegration.js";
+import { useItemSearch } from "../../composables/useItemSearch.js";
 import { parseBooleanSetting, formatStockShortageError } from "../../utils/stock.js";
-import placeholderImage from "./placeholder-image.png";
 import Skeleton from "../ui/Skeleton.vue";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { useToastStore } from "../../stores/toastStore.js";
@@ -794,6 +439,14 @@ export default {
 		const invoiceStore = useInvoiceStore();
 		const { selectedCustomer } = storeToRefs(customersStore);
 
+		const { 
+			showOnlyBarcodeItems, 
+			memoizedSearch, 
+			clearSearchCache, 
+			fetchServerItemsTimestamp,
+			filterAndPaginate
+		} = useItemSearch();
+
 		return {
 			...responsive,
 			...rtl,
@@ -803,13 +456,23 @@ export default {
 			selectedCustomer,
 			toastStore,
 			uiStore,
-			invoiceStore, // Expose invoiceStore to template
+			invoiceStore,
+			// Expose search composable
+			showOnlyBarcodeItems,
+			memoizedSearch,
+			clearSearchCache,
+			fetchServerItemsTimestamp,
+			filterAndPaginate
 		};
 	},
 	components: {
 		CameraScanner,
-		Skeleton,
 		RecycleScroller,
+		Skeleton,
+		ItemCard,
+		ItemActionToolbar,
+		ItemSettingsDialog,
+		ItemHeader,
 	},
 	props: {
 		context: {
@@ -1152,10 +815,7 @@ export default {
 				}
 			});
 		},
-		showOnlyBarcodeItems() {
-			if (this.searchCache) this.searchCache.clear();
-			this.search_onchange();
-		},
+
 	},
 
 	methods: {
@@ -1347,118 +1007,6 @@ export default {
 				return false;
 			}
 			return String(value || "").startsWith(prefix);
-		},
-		// Performance optimization: Memoized search function
-		memoizedSearch(searchTerm, itemGroup) {
-			const cacheKey = `${searchTerm || ""}_${itemGroup || "ALL"}_${this.showOnlyBarcodeItems}`;
-
-			// Check if we have a cached result
-			if (this.searchCache && this.searchCache.has(cacheKey)) {
-				const cachedResult = this.searchCache.get(cacheKey);
-				return cachedResult;
-			}
-
-			// Perform the search
-			const result = this.performSearch(searchTerm, itemGroup);
-
-			// Cache the result
-			if (this.searchCache) {
-				this.searchCache.set(cacheKey, result);
-			}
-
-			return result;
-		},
-
-		performSearch(searchTerm, itemGroup) {
-			const mark = perfMarkStart("pos:search-filter");
-			if (!this.items || !this.items.length) {
-				perfMarkEnd("pos:search-filter", mark);
-				return [];
-			}
-
-			let filtered = this.items;
-
-			// Filter only barcode items if enabled
-			if (this.showOnlyBarcodeItems) {
-				filtered = filtered.filter((item) => {
-					return (
-						item.barcode ||
-						(Array.isArray(item.barcodes) && item.barcodes.length > 0) ||
-						(Array.isArray(item.item_barcode) && item.item_barcode.length > 0)
-					);
-				});
-			}
-
-			// Filter by item group
-			if (itemGroup !== "ALL") {
-				const group = itemGroup.toLowerCase();
-				filtered = filtered.filter(
-					(item) => item.item_group && item.item_group.toLowerCase() === group,
-				);
-			}
-
-			// Filter by search term
-			const rawSearch = (searchTerm || "").trim();
-			if (rawSearch && rawSearch.length >= 3) {
-				const term = rawSearch.toLowerCase();
-				const searchWords = term.split(/\s+/).filter(Boolean);
-
-				filtered = filtered.filter((item) => {
-					if (!searchWords.length) return true;
-
-					// Collect all searchable values into a single string or array for checking
-					const searchable = [];
-					const pushValue = (v) => {
-						if (v) searchable.push(String(v).toLowerCase());
-					};
-
-					pushValue(item.item_code);
-					pushValue(item.item_name);
-					pushValue(item.barcode);
-					pushValue(item.description);
-					pushValue(item.brand);
-
-					// Handle arrays (barcodes, serials, batches)
-					if (Array.isArray(item.item_barcode)) {
-						item.item_barcode.forEach((b) => pushValue(b?.barcode));
-					}
-					if (Array.isArray(item.barcodes)) {
-						item.barcodes.forEach((b) => pushValue(b));
-					}
-					if (Array.isArray(item.serial_no_data)) {
-						item.serial_no_data.forEach((s) => pushValue(s?.serial_no));
-					}
-					if (Array.isArray(item.batch_no_data)) {
-						item.batch_no_data.forEach((b) => pushValue(b?.batch_no));
-					}
-
-					// Verify EVERY search word is present in AT LEAST ONE of the fields
-					return searchWords.every((word) => {
-						return searchable.some((field) => field.includes(word));
-					});
-				});
-			}
-
-			perfMarkEnd("pos:search-filter", mark);
-			return filtered;
-		},
-
-		async fetchServerItemsTimestamp() {
-			try {
-				const { message } = await frappe.call({
-					method: "frappe.client.get_list",
-					args: {
-						doctype: "Item",
-						fields: ["modified"],
-						order_by: "modified desc",
-						limit_page_length: 1,
-					},
-				});
-				return message && message[0] && message[0].modified;
-			} catch (e) {
-				console.error("Failed to fetch server items timestamp", e);
-				return null;
-			}
 		},
 
 		scheduleCardMetricsUpdate() {
@@ -4900,95 +4448,15 @@ export default {
 		displayedItems() {
 			// PERF: Avoid unnecessary array cloning ([...this.filteredItems]) as it creates garbage and O(N) cost on every render
 			const baseItems = Array.isArray(this.filteredItems) ? this.filteredItems : [];
-
-			if (!baseItems.length) {
-				return [];
-			}
-
-			// Note: We use the store's filteredItems which is already filtered by search term and item group.
-			// Re-applying search filtering here is redundant unless we want immediate optimistic UI updates
-			// while waiting for the store debounce. However, doing so with a full array scan is expensive.
-			// We trust the store to be the source of truth.
-
 			const searchTerm = this.get_search(this.first_search).trim().toLowerCase();
-			const activeStoreSearch = (this.search || "").trim().toLowerCase();
 
-			// Check if we need to apply local search filtering
-			// This happens when the user types but the store hasn't updated yet (debounce)
-			const needsLocalSearch = searchTerm && searchTerm.length >= 3 && searchTerm !== activeStoreSearch;
-
-			// Check other filters
-			const hideZeroRate = this.hide_zero_rate_items;
-			const hideVariants = this.pos_profile?.posa_hide_variants_items;
-			const onlyBarcode = this.showOnlyBarcodeItems;
-			const limit = this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage;
-
-			// PERF: If no filters needed, just slice and return to avoid O(N) filtering
-			if (!needsLocalSearch && !hideZeroRate && !hideVariants && !onlyBarcode) {
-				return baseItems.slice(0, limit);
-			}
-
-			// Prepare search terms if needed
-			let searchTerms = null;
-			if (needsLocalSearch) {
-				searchTerms = searchTerm.split(/\s+/).filter(Boolean);
-			}
-
-			// PERF: Use a single loop to filter and paginate simultaneously.
-			// This avoids iterating the entire array when we only need the first 'limit' items.
-			const result = [];
-			for (let i = 0; i < baseItems.length; i++) {
-				const item = baseItems[i];
-
-				// 1. Search Filter
-				if (needsLocalSearch) {
-					let matches = false;
-					// Use optimized search index if available
-					if (item._search_index) {
-						matches = searchTerms.every((term) => item._search_index.includes(term));
-					} else {
-						// Fallback for items without index
-						const rawIndex = (
-							(item.item_code || "") +
-							" " +
-							(item.item_name || "") +
-							" " +
-							(item.barcode || "")
-						).toLowerCase();
-						matches = searchTerms.every((term) => rawIndex.includes(term));
-					}
-					if (!matches) continue;
-				}
-
-				// 2. Zero Rate Filter
-				if (hideZeroRate) {
-					// Use loose inequality to catch '0', 0, 0.0 etc.
-					if (parseFloat(item.rate || 0) <= 0) continue;
-				}
-
-				// 3. Variant Filter
-				if (hideVariants) {
-					if (item.variant_of) continue;
-				}
-
-				// 4. Barcode Filter
-				if (onlyBarcode) {
-					const hasBarcode =
-						item.barcode ||
-						(Array.isArray(item.barcodes) && item.barcodes.length > 0) ||
-						(Array.isArray(item.item_barcode) && item.item_barcode.length > 0);
-
-					if (!hasBarcode) continue;
-				}
-
-				result.push(item);
-
-				if (result.length >= limit) {
-					break;
-				}
-			}
-
-			return result;
+			return this.filterAndPaginate(baseItems, {
+				searchTerm,
+				hideZeroRate: this.hide_zero_rate_items,
+				hideVariants: this.pos_profile?.posa_hide_variants_items,
+				onlyBarcode: this.showOnlyBarcodeItems,
+				limit: this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage,
+			});
 		},
 		debounce_search: {
 			get() {
@@ -5662,40 +5130,6 @@ export default {
 	}
 }
 
-.card-item-card {
-	background-color: var(--surface-secondary, #ffffff);
-	border-radius: 12px;
-	border: 1px solid rgba(0, 0, 0, 0.08);
-	overflow: hidden;
-	transition:
-		transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-		box-shadow 0.2s ease,
-		border-color 0.2s ease;
-	cursor: pointer;
-	display: flex;
-	flex-direction: column;
-	height: auto;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-	will-change: transform;
-	backface-visibility: hidden;
-	transform: translate3d(0, 0, 0);
-}
-
-.card-item-card:hover {
-	transform: translate3d(0, -2px, 0);
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-	border-color: var(--primary-color, #1976d2);
-}
-
-.card-item-card.item-highlighted {
-	border-color: var(--primary-color, #1976d2);
-	box-shadow:
-		0 0 0 3px rgba(25, 118, 210, 0.35),
-		0 8px 20px rgba(25, 118, 210, 0.2);
-	transform: translate3d(0, -2px, 0);
-	background: rgba(25, 118, 210, 0.08);
-}
-
 :deep(.item-row-highlighted) {
 	background-color: rgba(25, 118, 210, 0.32);
 }
@@ -5706,134 +5140,10 @@ export default {
 	background-color: rgba(25, 118, 210, 0.32);
 }
 
-.card-item-image-container {
-	position: relative;
-	height: 120px;
-	overflow: hidden;
-	background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
-
-.card-item-image {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-	transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-	will-change: transform;
-	backface-visibility: hidden;
-}
-
-.card-item-card:hover .card-item-image {
 	transform: scale3d(1.05, 1.05, 1);
 }
 
-.image-placeholder {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 100%;
-	background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
-}
 
-.card-item-content {
-	padding: 12px 16px 16px;
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.card-item-header {
-	border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-	padding-bottom: 8px;
-	margin-bottom: 4px;
-}
-
-.card-item-name {
-	font-size: 0.9rem;
-	font-weight: 600;
-	color: var(--text-primary, #2c3e50);
-	margin: 0 0 4px 0;
-	line-height: 1.3;
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	line-clamp: 2;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	/* Enhanced Arabic font support */
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-}
-
-.card-item-code {
-	font-size: 0.75rem;
-	color: var(--pos-text-secondary, #6c757d);
-	font-weight: 500;
-	background: rgba(0, 0, 0, 0.04);
-	padding: 2px 6px;
-	border-radius: 4px;
-	/* Enhanced Arabic font support */
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-}
-
-.card-item-details {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	flex: 1;
-}
-
-.card-item-price {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.primary-price {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	font-weight: 600;
-	color: var(--primary-color, #1976d2);
-}
-
-.secondary-price {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	font-weight: 500;
-	color: #4caf50;
-	font-size: 0.875rem;
-}
-
-.last-rate-chip {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	font-size: 0.85rem;
-	color: rgba(0, 0, 0, 0.65);
-	white-space: nowrap;
-}
-
-.last-rate-label {
-	font-weight: 600;
-	opacity: 0.8;
-}
-
-.last-rate-value {
-	font-weight: 700;
-	color: var(--primary-color, #1976d2);
-}
-
-.last-rate-uom {
-	margin-left: 2px;
-	font-weight: 600;
-	font-size: 0.78rem;
-	opacity: 0.8;
-}
 
 .last-rate-inline {
 	color: rgba(0, 0, 0, 0.6);
@@ -5845,98 +5155,7 @@ export default {
 	color: rgba(255, 255, 255, 0.75);
 }
 
-.currency-symbol {
-	opacity: 0.8;
-	font-size: 0.85em;
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-}
 
-.price-amount {
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-	font-variant-numeric: lining-nums tabular-nums;
-	font-feature-settings:
-		"tnum" 1,
-		"lnum" 1,
-		"kern" 1;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-}
-
-.card-item-stock {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 6px 8px;
-	background: rgba(0, 0, 0, 0.02);
-	border-radius: 6px;
-	margin-top: auto;
-}
-
-.stock-icon {
-	color: var(--pos-text-secondary, #6c757d);
-}
-
-.stock-amount {
-	font-weight: 600;
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-	font-variant-numeric: lining-nums tabular-nums;
-	font-feature-settings:
-		"tnum" 1,
-		"lnum" 1,
-		"kern" 1;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-}
-
-.stock-uom {
-	font-size: 0.75rem;
-	color: var(--pos-text-secondary, #6c757d);
-	font-weight: 500;
-}
-
-/* Dark theme support for card view */
-:deep([data-theme="dark"]) .card-item-card,
-:deep(.v-theme--dark) .card-item-card {
-	background-color: var(--surface-secondary, #2c2c2c);
-	border-color: rgba(255, 255, 255, 0.12);
-}
-
-:deep([data-theme="dark"]) .card-item-card:hover,
-:deep(.v-theme--dark) .card-item-card:hover {
-	border-color: var(--primary-color, #90caf9);
-}
-
-:deep([data-theme="dark"]) .card-item-image-container,
-:deep(.v-theme--dark) .card-item-image-container {
-	background: linear-gradient(135deg, #3a3a3a 0%, #2c2c2c 100%);
-}
-
-:deep([data-theme="dark"]) .image-placeholder,
-:deep(.v-theme--dark) .image-placeholder {
-	background: linear-gradient(135deg, #404040 0%, #353535 100%);
-}
-
-:deep([data-theme="dark"]) .card-item-name,
-:deep(.v-theme--dark) .card-item-name {
-	color: var(--text-primary, #ffffff);
-}
-
-:deep([data-theme="dark"]) .card-item-code,
-:deep(.v-theme--dark) .card-item-code {
-	background: rgba(255, 255, 255, 0.08);
-	color: var(--pos-text-secondary, #e0e0e0);
-}
-
-:deep([data-theme="dark"]) .card-item-stock,
-:deep(.v-theme--dark) .card-item-stock {
-	background: rgba(255, 255, 255, 0.05);
-}
 
 .sleek-data-table {
 	/* composes: pos-table; */
@@ -6177,8 +5396,6 @@ export default {
 }
 
 /* Enable hardware acceleration for better performance */
-.dynamic-item-card,
-.card-item-card,
 .items-card-grid,
 .sticky-header {
 	/* Force hardware acceleration */
@@ -6190,8 +5407,6 @@ export default {
 }
 
 /* Optimize theme-sensitive elements */
-[data-theme] .dynamic-item-card,
-[data-theme] .card-item-card,
 [data-theme] .sticky-header {
 	/* Minimize reflow during theme changes */
 	will-change: background-color, border-color, color;
@@ -6199,13 +5414,6 @@ export default {
 		background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
 		border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
 		color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Prevent layout shifts during image loading */
-.card-item-image,
-.dynamic-item-card .v-img {
-	content-visibility: auto;
-	contain-intrinsic-size: 120px 120px;
 }
 
 /* Optimize scrolling performance */
@@ -6218,29 +5426,8 @@ export default {
 	overflow-anchor: auto;
 }
 
-/* Defer non-critical paint operations */
-.card-item-content,
-.dynamic-item-card .v-card-text {
-	contain: style;
-	will-change: auto;
-}
-
-/* Reduce complexity of hover effects */
-@media (hover: hover) {
-	.dynamic-item-card:hover,
-	.card-item-card:hover {
-		/* Use GPU-accelerated transforms only */
-		transition:
-			transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-			box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-	}
-}
-
 /* Disable animations on reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-	.dynamic-item-card,
-	.card-item-card,
-	.card-item-image,
 	.sticky-header {
 		transition: none !important;
 		animation: none !important;

@@ -1,0 +1,302 @@
+<template>
+	<div
+		:class="['card-item-card', { 'item-highlighted': isItemHighlighted }]"
+		@click="onClick"
+		:draggable="true"
+		@dragstart="onDragStart"
+		@dragend="onDragEnd"
+	>
+		<div class="card-item-image-container">
+			<v-img
+				:src="item.image || placeholderImage"
+				class="card-item-image"
+				aspect-ratio="1"
+				:alt="item.item_name"
+			>
+				<template #placeholder>
+					<div class="image-placeholder">
+						<v-icon size="40" color="grey-lighten-2"> mdi-image </v-icon>
+					</div>
+				</template>
+			</v-img>
+		</div>
+		<div class="card-item-content">
+			<div class="card-item-header">
+				<h4 class="card-item-name">{{ item.item_name }}</h4>
+				<span class="card-item-code">{{ item.item_code }}</span>
+			</div>
+			<div class="card-item-details">
+				<div class="card-item-price">
+					<div class="primary-price">
+						<span class="currency-symbol">
+							{{ currencySymbol(primaryCurrency) }}
+						</span>
+						<span class="price-amount">
+							{{ formatCurrency(primaryRate, primaryCurrency, primaryPrecision) }}
+						</span>
+					</div>
+					<div
+						v-if="showSecondaryPrice"
+						class="secondary-price"
+					>
+						<span class="currency-symbol">
+							{{ currencySymbol(secondaryCurrency) }}
+						</span>
+						<span class="price-amount">
+							{{ formatCurrency(item.rate, secondaryCurrency, primaryPrecision) }}
+						</span>
+					</div>
+					<div v-if="lastInvoiceRate" class="last-rate-chip">
+						<v-icon size="14" class="mr-1" color="secondary">mdi-history</v-icon>
+						<span class="last-rate-label">{{ __("Last") }}:</span>
+						<span class="last-rate-value">
+							{{ currencySymbol(lastInvoiceRate.currency || posProfile.currency) }}
+							{{
+								formatCurrency(
+									lastInvoiceRate.rate,
+									lastInvoiceRate.currency || posProfile.currency,
+									primaryPrecision
+								)
+							}}
+							<span v-if="lastInvoiceRate.uom" class="last-rate-uom">
+								/{{ lastInvoiceRate.uom }}
+							</span>
+						</span>
+					</div>
+				</div>
+				<div class="card-item-stock">
+					<v-icon size="small" class="stock-icon"> mdi-package-variant </v-icon>
+					<span
+						class="stock-amount"
+						:class="{
+							'negative-number': isNegative(item.actual_qty),
+						}"
+					>
+						{{ formatNumber(item.actual_qty, hideQtyDecimals ? 0 : 4) || 0 }}
+					</span>
+					<span class="stock-uom">{{ item.stock_uom || "" }}</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script setup>
+import { computed } from "vue";
+import placeholderImage from "./placeholder-image.png";
+
+const props = defineProps({
+	item: { type: Object, required: true },
+	posProfile: { type: Object, required: true },
+	context: { type: String, default: "pos" },
+	selectedCurrency: { type: String, default: "" },
+	hideQtyDecimals: { type: Boolean, default: false },
+	lastInvoiceRate: { type: Object, default: null },
+	isItemHighlighted: { type: Boolean, default: false },
+	currencySymbol: { type: Function, required: true },
+	formatCurrency: { type: Function, required: true },
+	formatNumber: { type: Function, required: true },
+	ratePrecision: { type: Function, required: true },
+	isNegative: { type: Function, default: (val) => val < 0 },
+});
+
+const emit = defineEmits(["click", "dragstart", "dragend"]);
+
+const primaryCurrency = computed(() => {
+	if (props.context === "purchase") return props.posProfile.currency;
+	return props.item.original_currency || props.posProfile.currency;
+});
+
+const primaryRate = computed(() => {
+	if (props.context === "purchase") {
+		return props.item.rate || props.item.standard_rate || 0;
+	}
+	return props.item.original_rate ?? props.item.rate ?? 0;
+});
+
+const primaryPrecision = computed(() => {
+	return props.ratePrecision(primaryRate.value);
+});
+
+const secondaryCurrency = computed(() => props.selectedCurrency);
+
+const showSecondaryPrice = computed(() => {
+	return (
+		props.context !== "purchase" &&
+		props.posProfile.posa_allow_multi_currency &&
+		props.selectedCurrency !== props.posProfile.currency
+	);
+});
+
+const onClick = (event) => {
+	emit("click", event, props.item);
+};
+
+const onDragStart = (event) => {
+	emit("dragstart", event, props.item);
+};
+
+const onDragEnd = (event) => {
+	emit("dragend", event);
+};
+</script>
+
+<style scoped>
+.card-item-card {
+	background-color: var(--surface-secondary, #ffffff);
+	border-radius: 12px;
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	overflow: hidden;
+	transition:
+		transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+		box-shadow 0.2s ease,
+		border-color 0.2s ease;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	will-change: transform;
+	backface-visibility: hidden;
+	transform: translate3d(0, 0, 0);
+    position: relative;
+}
+
+.card-item-card:hover {
+	transform: translate3d(0, -2px, 0);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+	border-color: var(--primary-color, #1976d2);
+}
+
+.card-item-card.item-highlighted {
+	border-color: var(--primary-color, #1976d2);
+	box-shadow:
+		0 0 0 3px rgba(25, 118, 210, 0.35),
+		0 8px 20px rgba(25, 118, 210, 0.2);
+	transform: translate3d(0, -2px, 0);
+	background: rgba(25, 118, 210, 0.08);
+}
+
+.card-item-image-container {
+	position: relative;
+	height: 120px;
+	flex-shrink: 0;
+	overflow: hidden;
+	background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.card-item-image {
+	width: 100%;
+	height: 100%;
+	object-fit: contain; /* Changed to contain to ensure full image visibility */
+    background-color: #fff; /* White background for transparent images */
+}
+
+/* Image Placeholder Style */
+.image-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	background-color: #f5f5f5;
+}
+
+.card-item-content {
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	justify-content: space-between;
+}
+
+.card-item-header {
+	margin-bottom: 8px;
+}
+
+.card-item-name {
+	font-size: 0.95rem;
+	font-weight: 600;
+	margin: 0 0 4px 0;
+	line-height: 1.3;
+	color: var(--text-primary);
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+
+.card-item-code {
+	font-size: 0.75rem;
+	color: var(--text-secondary);
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.card-item-details {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-end;
+	margin-top: auto; /* Push to bottom */
+}
+
+.card-item-price {
+	display: flex;
+	flex-direction: column;
+}
+
+.primary-price {
+	font-weight: 700;
+	color: var(--primary-color, #1976d2);
+	font-size: 1rem;
+}
+
+.secondary-price {
+	font-size: 0.8rem;
+	color: var(--text-secondary);
+}
+
+.last-rate-chip {
+	margin-top: 4px;
+	font-size: 0.75rem;
+	color: var(--secondary-color, #757575);
+	background: rgba(0, 0, 0, 0.05);
+	padding: 2px 6px;
+	border-radius: 4px;
+	display: inline-flex;
+	align-items: center;
+	width: fit-content;
+}
+
+.last-rate-value {
+	margin-left: 4px;
+	font-weight: 500;
+}
+
+.card-item-stock {
+	text-align: right;
+	font-size: 0.85rem;
+	color: var(--text-secondary);
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+
+.stock-amount {
+	font-weight: 600;
+}
+
+.stock-amount.negative-number {
+	color: var(--error-color, #d32f2f);
+}
+
+.stock-uom {
+	font-size: 0.7rem;
+	text-transform: uppercase;
+}
+
+</style>

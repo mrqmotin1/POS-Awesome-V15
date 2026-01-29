@@ -92,6 +92,9 @@ _Removing "Event Soup" and centralizing business logic._
             2.  **Create `useUIStore` (Pinia)**:
                 - Move `freeze`/`unfreeze` logic here. `uiStore.setLoading(true/false)`.
             3.  **Refactor `BarcodePrinting.vue`**:
+                - [x] `ItemsSelector.vue`: Extract `ItemCard`, `ItemActionToolbar`, `ItemHeader`
+                - [x] `ItemsSelector.vue`: Extract `useItemSearch` logic
+                - [ ] `Invoice.vue`: Extract `InvoiceItem` component
                 - [x] Refactored `ItemsSelector` to emit `@add-item` event.
                 - [x] Updated `BarcodePrinting.vue`, `Pos.vue`, and `PurchaseOrders.vue` to listen to the event.
                 - Decoupled `add_item` global event from `ItemsSelector`.
