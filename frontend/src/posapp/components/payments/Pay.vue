@@ -296,44 +296,9 @@
 						</v-btn> -->
 
 
-						<v-row dense class="ma-0 pa-0">
-							<v-col md="7">
-								<h4 class="text-primary">{{ __("Total Amount:") }}</h4>
-							</v-col>
-							<v-col md="5">
-								<v-text-field
-									class="p-0 m-0 pos-themed-input"
-									density="compact"
-									color="primary"
-									hide-details
-									:model-value="formatCurrency(invoiceDiscount+total_selected_invoice_amount)"
-									readonly
-									flat
-									:prefix="currencySymbol(pos_profile.currency)"
-								></v-text-field>
-							</v-col>
-						</v-row>
+						
 
-						<v-row dense class="ma-0 pa-0">
-							<v-col md="7">
-								<h4 class="text-primary">{{ __("Total Discount:") }}</h4>
-							</v-col>
-							<v-col md="5">
-								<v-text-field
-									class="p-0 m-0 pos-themed-input"
-									density="compact"
-									color="primary"
-									hide-details
-									let discount = this.invoice.custom_total_items_discount ?? 0;
-									:model-value="formatCurrency(invoiceDiscount)"
-									readonly
-									flat
-									:prefix="currencySymbol(pos_profile.currency)"
-								></v-text-field>
-							</v-col>
-						</v-row>
-
-						<v-row dense class="ma-0 pa-0">
+						<!-- <v-row dense class="ma-0 pa-0">
 							<v-col md="7" class="">
 								<h4 class="text-primary">{{ __("To Be Paid:") }}</h4>
 							</v-col>
@@ -352,7 +317,7 @@
 									>{{ selected_invoices.length }} invoice(s) selected</small
 								>
 							</v-col>
-						</v-row>
+						</v-row> -->
 
 						<v-row v-if="total_selected_payments">
 							<v-col md="7" class="mt-1"
@@ -390,35 +355,75 @@
 							</v-col>
 						</v-row>
 
-						<v-divider v-if="payment_methods.length"></v-divider>
+						<!-- <v-divider v-if="payment_methods.length"></v-divider> -->
 						<div v-if="pos_profile.posa_allow_make_new_payments">
-							<h4 class="text-primary">Make New Payment</h4>
+
+							<v-row dense no-gutters class="ma-0 pa-0 align-center">
+							<v-col md="7">
+								<h4 class="text-primary">{{ __("Total Amount:") }}</h4>
+							</v-col>
+							<v-col md="5">
+								<v-text-field
+									class="p-0 m-0 pos-themed-input"
+									density="compact"
+									color="primary"
+									hide-details
+									:model-value="formatCurrency(invoiceDiscount+total_selected_invoice_amount)"
+									readonly
+									flat
+									:prefix="currencySymbol(pos_profile.currency)"
+								></v-text-field>
+							</v-col>
+						</v-row>
+
+						<v-row dense no-gutters class="ma-0 pa-0 align-center">
+							<v-col md="7">
+								<h4 class="text-primary">{{ __("Total Discount:") }}</h4>
+								
+							</v-col>
+							<v-col md="5">
+								<v-text-field
+									class="p-0 m-0 pos-themed-input"
+									density="compact"
+									color="primary"
+									hide-details
+									let discount = this.invoice.custom_total_items_discount ?? 0;
+									:model-value="formatCurrency(invoiceDiscount)"
+									readonly
+									flat
+									:prefix="currencySymbol(pos_profile.currency)"
+								></v-text-field>
+							</v-col>
+						</v-row>
+
+							<h4 class="text-indigo-darken-1 mb-1">{{ __("Payment") }}</h4>
 							<v-row
 								v-if="payment_methods.length"
 								v-for="method in payment_methods"
 								:key="method.row_id"
+								dense
+								no-gutters
+								class="ma-0 pa-0 align-center"
 							>
-								<v-col md="7"
-									><span class="mt-1">{{ __(method.mode_of_payment) }}:</span>
-								</v-col>
-								<v-col md="5">
-									<div class="d-flex align-center">
-										<!-- <div class="mr-1 text-primary">
-											{{ currencySymbol(pos_profile.currency) }}
-										</div> -->
-										<v-text-field
-											class="sleek-field pos-themed-input"
-											density="compact"
-											color="primary"
-											flat
-											hide-details
-											:model-value="formatCurrency(method.amount)"
-											@change="handlePaymentAmountChange(method, $event)"
-											:rules="[isNumber]"
-											:prefix="currencySymbol(pos_profile.currency)"
-											@focus="set_rest_amount(method.mode_of_payment)"
-										></v-text-field>
+								<v-col md="7" class="pa-0">
+									<div class="text-body-2">
+										{{ __(method.mode_of_payment) }}:
 									</div>
+								</v-col>
+
+								<v-col md="5" class="pa-0">
+									<v-text-field
+										class="p-0 m-0 pos-themed-input"
+										density="compact"
+										color="primary"
+										hide-details
+										flat
+										:model-value="formatCurrency(method.amount)"
+										@change="handlePaymentAmountChange(method, $event)"
+										:rules="[isNumber]"
+										:prefix="currencySymbol(pos_profile.currency)"
+										@focus="set_rest_amount(method.mode_of_payment)"
+									/>
 								</v-col>
 							</v-row>
 						</div>
@@ -462,10 +467,9 @@
 						:items="selected_invoice_items"
 						dense
 						fixed-header
-						:height="300"
+						:height="400"
 						:items-per-page="-1"
-						hide-default-footer
-						style="white-space: nowrap;"
+						hide-default-footer					
 						class="mt-2"
 					>
 						<template v-slot:item.discount_percentage="{ item }">
@@ -633,10 +637,10 @@ export default {
 				},
 			],
 			itemHeaders: [
-				{ title: __("Item"), value: "item_name", width: "45%" },
+				{ title: __("Item"), value: "item_name", width: "41%" },
 				{ title: __("Qty"), value: "qty", width: "10%", align: "center" },
-				{ title: __("Discount %"), value: "discount_percentage", width: "20%",align: "center" },
-				{ title: __("Amount"), value: "net_amount", width: "25%", align: "center" },
+				{ title: __("Discount %"), value: "discount_percentage", width: "28%",align: "center" },
+				{ title: __("Amount"), value: "net_amount", width: "21%", align: "center" },
 			],
 
 			unallocated_payments_headers: [
