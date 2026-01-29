@@ -71,176 +71,62 @@
 
 				<v-row class="items">
 					<v-col cols="12" class="pt-0 mt-0">
-						<div v-if="items_view == 'card'" class="items-card-container">
-							<div v-if="isLoadingOrSyncing" class="items-card-grid">
-								<Skeleton v-for="n in 8" :key="n" class="mb-4" height="120" />
-							</div>
-							<div
-								v-else-if="displayedItems.length === 0"
-								class="d-flex flex-column align-center justify-center text-center fill-height pa-4"
-								style="height: 100%; min-height: 200px"
-							>
-								<v-icon size="64" color="grey-lighten-1" class="mb-4"
-									>mdi-package-variant-closed</v-icon
-								>
-								<div class="text-h6 text-medium-emphasis mb-1">
-									{{ __("No items found") }}
-								</div>
-								<div class="text-body-2 text-medium-emphasis">
-									{{ __("Try adjusting your search or filters") }}
-								</div>
-								<v-btn
-									v-if="search_input || (item_group && item_group !== 'ALL')"
-									variant="text"
-									color="primary"
-									class="mt-4"
-									@click="clearSearch"
-								>
-									{{ __("Clear Search") }}
-								</v-btn>
-							</div>
-							<RecycleScroller
-								v-else
-								ref="itemsContainer"
-								class="virtual-scroller"
-								:list-class="['items-virtual-list', { 'item-container': isOverflowing }]"
-								:items="displayedItems"
-								key-field="item_code"
-								:item-size="cardSlotHeight"
-								:grid-items="cardColumns"
-								:item-secondary-size="cardSlotWidth"
-								:buffer="virtualScrollBuffer"
-								:emit-update="true"
-								@update="onVirtualRangeUpdate"
-							>
-								<template #default="{ item }">
-									<ItemCard
-										v-if="item"
-										:key="item.item_code"
-										:item="item"
-										:pos-profile="pos_profile"
-										:context="context"
-										:selected-currency="selected_currency"
-										:hide-qty-decimals="hide_qty_decimals"
-										:last-invoice-rate="getLastInvoiceRate(item)"
-										:is-item-highlighted="isItemHighlighted(item)"
-										:currency-symbol="currencySymbol"
-										:format-currency="memoizedFormatCurrency"
-										:format-number="memoizedFormatNumber"
-										:rate-precision="ratePrecision"
-										:is-negative="isNegative"
-										:style="{
-											width: cardColumnWidth + 'px',
-											height: cardRowHeight + 'px',
-										}"
-										@click="select_item"
-										@dragstart="onDragStart"
-										@dragend="onDragEnd"
-									/>
-								</template>
-							</RecycleScroller>
-						</div>
-						<div v-else class="items-table-container">
-							<v-data-table-virtual
-								ref="itemsTable"
-								:headers="headers"
-								:items="displayedItems"
-								class="sleek-data-table overflow-y-auto"
-								:style="{ height: 'calc(100% - 80px)' }"
-								item-key="item_code"
-								fixed-header
-								height="100%"
-								:header-props="headerProps"
-								:no-data-text="__('No items found')"
-								@click:row="click_item_row"
-								:item-class="getItemRowClass"
-								:row-props="getItemRowProps"
-								@scroll.passive="onListScroll"
-							>
-								<template v-slot:item.rate="{ item }">
-									<div v-if="context !== 'purchase'">
-										<div class="text-primary">
-											{{
-												currencySymbol(item.original_currency || pos_profile.currency)
-											}}
-											{{
-												memoizedFormatCurrency(
-													item.original_rate ?? item.rate ?? 0,
-													item.original_currency || pos_profile.currency,
-													ratePrecision(item.original_rate ?? item.rate ?? 0),
-												)
-											}}
-										</div>
-										<div
-											v-if="getLastInvoiceRate(item)"
-											class="text-caption d-flex align-center last-rate-inline"
-										>
-											<v-icon size="14" class="mr-1" color="secondary"
-												>mdi-history</v-icon
-											>
-											<span class="mr-1">{{ __("Last") }}:</span>
-											<span class="font-weight-medium">
-												{{
-													currencySymbol(
-														getLastInvoiceRate(item).currency ||
-															pos_profile.currency,
-													)
-												}}
-												{{
-													memoizedFormatCurrency(
-														getLastInvoiceRate(item).rate,
-														getLastInvoiceRate(item).currency ||
-															pos_profile.currency,
-														ratePrecision(getLastInvoiceRate(item).rate || 0),
-													)
-												}}
-												<span
-													v-if="getLastInvoiceRate(item).uom"
-													class="last-rate-uom"
-												>
-													/{{ getLastInvoiceRate(item).uom }}
-												</span>
-											</span>
-										</div>
-										<div
-											v-if="
-												pos_profile.posa_allow_multi_currency &&
-												selected_currency !== pos_profile.currency
-											"
-											class="text-success"
-										>
-											{{ currencySymbol(selected_currency) }}
-											{{
-												memoizedFormatCurrency(
-													item.rate,
-													selected_currency,
-													ratePrecision(item.rate),
-												)
-											}}
-										</div>
-									</div>
-									<div v-else class="text-primary">
-										{{ currencySymbol(pos_profile.currency) }}
-										{{
-											memoizedFormatCurrency(
-												item.rate || item.standard_rate || 0,
-												pos_profile.currency,
-												ratePrecision(item.rate || item.standard_rate || 0),
-											)
-										}}
-									</div>
-								</template>
-								<template v-slot:item.actual_qty="{ item }">
-									<span
-										class="golden--text"
-										:class="{ 'negative-number': isNegative(item.actual_qty) }"
-										>{{
-											memoizedFormatNumber(item.actual_qty, hide_qty_decimals ? 0 : 4)
-										}}</span
-									>
-								</template>
-							</v-data-table-virtual>
-						</div>
+						<ItemsSelectorCards
+							v-if="items_view === 'card'"
+							ref="itemsContainer"
+							:displayed-items="displayedItems"
+							:is-loading="isLoadingOrSyncing"
+							:search-input="search_input"
+							:item-group="item_group"
+							:is-overflowing="isOverflowing"
+							:card-slot-height="cardSlotHeight"
+							:card-columns="cardColumns"
+							:card-slot-width="cardSlotWidth"
+							:card-column-width="cardColumnWidth"
+							:card-row-height="cardRowHeight"
+							:virtual-scroll-buffer="virtualScrollBuffer"
+							:pos-profile="pos_profile"
+							:context="context"
+							:selected-currency="selected_currency"
+							:hide-qty-decimals="hide_qty_decimals"
+							:get-last-invoice-rate="getLastInvoiceRate"
+							:is-item-highlighted="isItemHighlighted"
+							:currency-symbol="currencySymbol"
+							:format-currency="memoizedFormatCurrency"
+							:format-number="memoizedFormatNumber"
+							:rate-precision="ratePrecision"
+							:is-negative="isNegative"
+							:no-items-title="__('No items found')"
+							:no-items-subtitle="__('Try adjusting your search or filters')"
+							:clear-search-label="__('Clear Search')"
+							@select-item="select_item"
+							@dragstart="onDragStart"
+							@dragend="onDragEnd"
+							@virtual-range-update="onVirtualRangeUpdate"
+							@clear-search="clearSearch"
+						/>
+						<ItemsSelectorTable
+							v-else
+							ref="itemsTable"
+							:headers="headers"
+							:displayed-items="displayedItems"
+							:header-props="headerProps"
+							:context="context"
+							:pos-profile="pos_profile"
+							:selected-currency="selected_currency"
+							:hide-qty-decimals="hide_qty_decimals"
+							:currency-symbol="currencySymbol"
+							:format-currency="memoizedFormatCurrency"
+							:format-number="memoizedFormatNumber"
+							:rate-precision="ratePrecision"
+							:get-last-invoice-rate="getLastInvoiceRate"
+							:is-negative="isNegative"
+							:item-class="getItemRowClass"
+							:row-props="getItemRowProps"
+							:no-data-text="__('No items found')"
+							@row-click="click_item_row"
+							@list-scroll="onListScroll"
+						/>
 					</v-col>
 				</v-row>
 			</div>
@@ -279,16 +165,14 @@ import format from "../../format";
 import _ from "lodash";
 import CameraScanner from "./CameraScanner.vue";
 import { ensurePosProfile } from "../../../utils/pos_profile.js";
-import ItemCard from "./ItemCard.vue";
 import ItemActionToolbar from "./ItemActionToolbar.vue";
 import ItemSettingsDialog from "./ItemSettingsDialog.vue";
-
 import ItemHeader from "./ItemHeader.vue";
+import ItemsSelectorCards from "./ItemsSelectorCards.vue";
+import ItemsSelectorTable from "./ItemsSelectorTable.vue";
 import NewItemDialog from "./NewItemDialog.vue";
 import ScanErrorDialog from "./ScanErrorDialog.vue";
 import placeholderImage from "./placeholder-image.png";
-import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
-import { RecycleScroller } from "vue-virtual-scroller";
 import {
 	saveItemUOMs,
 	getItemUOMs,
@@ -329,7 +213,6 @@ import { parseBooleanSetting, formatStockShortageError } from "../../utils/stock
 import { playScanTone, closeScanAudioContext } from "../../utils/scannerAudio.js";
 import { getItemsTableHeaders } from "../../utils/itemsTableHeaders.js";
 import { extractItemCodeFromSearch } from "../../utils/searchUtils.js";
-import Skeleton from "../ui/Skeleton.vue";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { useToastStore } from "../../stores/toastStore.js";
 import { useUIStore } from "../../stores/uiStore.js";
@@ -386,12 +269,11 @@ export default {
 	},
 	components: {
 		CameraScanner,
-		RecycleScroller,
-		Skeleton,
-		ItemCard,
 		ItemActionToolbar,
 		ItemSettingsDialog,
 		ItemHeader,
+		ItemsSelectorCards,
+		ItemsSelectorTable,
 		NewItemDialog,
 		ScanErrorDialog,
 	},
@@ -852,10 +734,19 @@ export default {
 				this.updateCardContainerMetrics();
 			});
 		},
+		getItemsContainerElement() {
+			const ref = this.$refs.itemsContainer;
+			if (!ref) {
+				return null;
+			}
+			if (typeof ref.getScrollerElement === "function") {
+				return ref.getScrollerElement();
+			}
+			return ref.$el || ref;
+		},
 		updateCardContainerMetrics() {
 			this.$nextTick(() => {
-				const ref = this.$refs.itemsContainer;
-				const el = ref && ref.$el ? ref.$el : ref;
+				const el = this.getItemsContainerElement();
 				if (!el || typeof el.getBoundingClientRect !== "function") {
 					return;
 				}
@@ -896,7 +787,7 @@ export default {
 
 			this.scrollThrottle = requestAnimationFrame(() => {
 				try {
-					const el = this.$refs.itemsContainer;
+					const el = this.getItemsContainerElement();
 					if (!el) return;
 
 					const scrollTop = el.scrollTop;
@@ -1011,8 +902,7 @@ export default {
 		},
 
 		checkItemContainerOverflow() {
-			const ref = this.$refs.itemsContainer;
-			const el = ref && ref.$el ? ref.$el : ref;
+			const el = this.getItemsContainerElement();
 			if (!el) {
 				this.isOverflowing = false;
 				return;
@@ -3293,7 +3183,7 @@ export default {
 					return;
 				}
 
-				const tableEl = tableRef?.$el || tableRef;
+				const tableEl = tableRef?.getTableElement?.() || tableRef?.$el || tableRef;
 				const wrapper = tableEl?.querySelector?.(".v-table__wrapper");
 				const rows = tableEl?.querySelectorAll?.("tbody tr");
 				if (wrapper && rows && rows.length > 0) {
@@ -4713,42 +4603,29 @@ export default {
 	background-color: rgba(var(--v-theme-on-surface), 0.2);
 }
 
-.item-container {
-	overflow-y: auto;
-	scrollbar-gutter: stable;
-}
-
-.text-success {
+:deep(.text-success) {
 	color: rgb(var(--v-theme-success)) !important;
 }
 
-/* Enhanced Arabic number support for ItemsSelector */
-.text-primary,
-.text-success,
-.golden--text {
-	/* Enhanced Arabic number font stack for maximum clarity */
+:deep(.text-primary),
+:deep(.text-success),
+:deep(.golden--text) {
 	font-family:
 		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
 		sans-serif;
-	/* Force lining numbers for consistent height and alignment */
 	font-variant-numeric: lining-nums tabular-nums;
-	/* Additional OpenType features for better Arabic number rendering */
 	font-feature-settings:
 		"tnum" 1,
 		"lnum" 1,
 		"kern" 1;
-	/* Ensure crisp rendering */
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	/* Better number spacing */
 	letter-spacing: 0.02em;
 }
 
-/* Enhanced negative number styling for Arabic context */
-.negative-number {
+:deep(.negative-number) {
 	color: rgb(var(--v-theme-error)) !important;
 	font-weight: 600;
-	/* Same enhanced font stack for negative numbers */
 	font-family:
 		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
 		sans-serif;
@@ -4766,212 +4643,6 @@ export default {
 .v-select :deep(input),
 .v-autocomplete :deep(input) {
 	/* Enhanced Arabic number font stack for input fields */
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-	font-variant-numeric: lining-nums tabular-nums;
-	font-feature-settings:
-		"tnum" 1,
-		"lnum" 1,
-		"kern" 1;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-	letter-spacing: 0.01em;
-}
-
-/* Enhanced Card View Grid Layout - 3 items per row */
-.items-card-grid {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 16px;
-	padding: 16px;
-	height: calc(100% - 80px);
-	overflow-y: auto;
-	scrollbar-width: thin;
-	scrollbar-color: rgba(var(--v-theme-on-surface), 0.2) transparent;
-	/* Performance optimizations */
-	contain: layout style;
-	will-change: scroll-position;
-	transform: translate3d(0, 0, 0);
-}
-
-.virtual-scroller {
-	height: calc(100% - 80px);
-	overflow-y: auto;
-	position: relative;
-}
-
-.virtual-scroller .items-card-grid {
-	height: auto;
-	overflow: visible;
-}
-
-.virtual-scroller .vue-recycle-scroller__item-wrapper {
-	display: contents;
-}
-
-.items-card-grid::-webkit-scrollbar {
-	width: 8px;
-}
-
-.items-card-grid::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-.items-card-grid::-webkit-scrollbar-thumb {
-	background-color: rgba(var(--v-theme-on-surface), 0.2);
-	border-radius: 4px;
-}
-
-.virtual-scroller :deep(.items-virtual-list) {
-	padding: 16px;
-	contain: layout style;
-	box-sizing: border-box;
-}
-
-@media (max-width: 1200px) {
-	.virtual-scroller :deep(.items-virtual-list) {
-		padding: 12px;
-	}
-}
-
-@media (max-width: 768px) {
-	.virtual-scroller :deep(.items-virtual-list) {
-		padding: 10px;
-	}
-}
-
-:deep(.item-row-highlighted) {
-	background-color: rgba(var(--v-theme-primary), 0.32);
-}
-
-:deep(.item-row-highlighted td) {
-	font-weight: 600;
-	color: rgb(var(--v-theme-primary));
-	background-color: rgba(var(--v-theme-primary), 0.32);
-}
-
-.last-rate-inline {
-	color: rgba(var(--v-theme-on-surface), 0.6);
-	white-space: nowrap;
-}
-
-:deep(.v-theme--dark) .last-rate-chip,
-:deep(.v-theme--dark) .last-rate-inline {
-	color: rgba(var(--v-theme-on-surface), 0.75);
-}
-
-.sleek-data-table {
-	/* composes: pos-table; */
-	margin: 0;
-	background-color: transparent;
-	border-radius: 0;
-	overflow: hidden;
-	border: none;
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-	transition: all 0.3s ease;
-}
-
-.sleek-data-table:hover {
-	box-shadow: 0 4px 12px rgba(var(--v-theme-on-surface), 0.15) !important;
-}
-
-/* Enhanced table header styling with modern gradients and Arabic support */
-.sleek-data-table :deep(th) {
-	font-weight: 700;
-	font-size: 0.875rem;
-	text-transform: uppercase;
-	letter-spacing: 1px;
-	padding: 16px 20px;
-	transition: all 0.3s ease;
-	border-bottom: 3px solid rgb(var(--v-theme-primary));
-	background: linear-gradient(
-		135deg,
-		rgb(var(--v-theme-surface)) 0%,
-		rgb(var(--v-theme-surface-variant)) 50%,
-		rgb(var(--v-theme-surface)) 100%
-	);
-	color: rgb(var(--v-theme-on-surface));
-	position: sticky !important;
-	top: 0 !important;
-	z-index: 10 !important;
-	backdrop-filter: blur(10px);
-	-webkit-backdrop-filter: blur(10px);
-	box-shadow: 0 2px 8px rgba(var(--v-theme-on-surface), 0.1);
-	text-shadow: 0 1px 2px rgba(var(--v-theme-on-surface), 0.2);
-	/* Enhanced Arabic number font stack */
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-	font-variant-numeric: lining-nums tabular-nums;
-	font-feature-settings:
-		"tnum" 1,
-		"lnum" 1,
-		"kern" 1;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-}
-
-/* Enhanced dark theme header styling */
-:deep([data-theme="dark"]) .sleek-data-table th,
-:deep(.v-theme--dark) .sleek-data-table th {
-	background: linear-gradient(
-		135deg,
-		rgb(var(--v-theme-surface)) 0%,
-		rgb(var(--v-theme-surface-variant)) 50%,
-		rgb(var(--v-theme-surface)) 100%
-	) !important;
-	border-bottom: 3px solid rgb(var(--v-theme-primary));
-	color: rgb(var(--v-theme-on-surface));
-	text-shadow: 0 1px 2px rgba(var(--v-theme-on-surface), 0.35);
-	box-shadow: 0 2px 8px rgba(var(--v-theme-on-surface), 0.3);
-}
-
-/* Table wrapper styling */
-.sleek-data-table :deep(.v-data-table__wrapper),
-.sleek-data-table :deep(.v-table__wrapper) {
-	border-radius: var(--border-radius-sm);
-	height: 100%;
-	overflow-y: auto;
-	scrollbar-width: thin;
-	position: relative;
-}
-
-/* Ensure the table container has proper height */
-.sleek-data-table :deep(.v-data-table) {
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-}
-
-/* Table body should scroll while header stays fixed */
-.sleek-data-table :deep(.v-data-table__wrapper tbody) {
-	overflow-y: auto;
-	max-height: calc(100% - 60px);
-	/* Adjust based on header height */
-}
-
-/* Table row styling with gray theme */
-.sleek-data-table :deep(tr) {
-	transition: all 0.2s ease;
-	border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-	background-color: rgb(var(--v-theme-surface));
-}
-
-.sleek-data-table :deep(tr:hover) {
-	background-color: rgba(var(--v-theme-on-surface), 0.06);
-	transform: translateY(-1px);
-	box-shadow: 0 2px 5px rgba(var(--v-theme-on-surface), 0.1);
-}
-
-/* Table cell styling with Arabic number support */
-.sleek-data-table :deep(td) {
-	padding: 12px 16px;
-	vertical-align: middle;
-	color: rgb(var(--v-theme-on-surface));
-	/* Enhanced Arabic number font stack */
 	font-family:
 		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
 		sans-serif;

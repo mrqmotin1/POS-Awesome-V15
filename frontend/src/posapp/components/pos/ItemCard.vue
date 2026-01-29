@@ -269,6 +269,10 @@ const onDragEnd = (event) => {
 	width: fit-content;
 }
 
+.v-theme--dark .last-rate-chip {
+	color: rgba(var(--v-theme-on-surface), 0.75);
+}
+
 .last-rate-value {
 	margin-left: 4px;
 	font-weight: 500;
