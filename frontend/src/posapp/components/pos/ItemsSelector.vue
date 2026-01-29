@@ -30,44 +30,44 @@
 
 			<!-- Add dynamic-padding wrapper like Invoice component -->
 			<div class="dynamic-padding">
-			<ItemHeader
-				v-model:search-input="search_input"
-				v-model:qty-input="debounce_qty"
-				v-model:new-line="new_line"
-				:pos-profile="pos_profile"
-				:scanner-locked="scannerLocked"
-				:enable-background-sync="enable_background_sync"
-				:last-sync-time="formatBackgroundSyncTime()"
-				:context="context"
-				@esc="esc_event"
-				@enter="onEnter"
-				@search-keydown="handleSearchKeydown"
-				@clear-search="clearSearch"
-				@search-input="handleSearchInput"
-				@search-paste="handleSearchPaste"
-				@focus="handleItemSearchFocus"
-				@clear-qty="clearQty"
-				@start-camera="startCameraScanning"
-				@open-new-item="openNewItemDialog"
-				@toggle-settings="toggleItemSettings"
-				@reload-items="forceReloadItems"
-				ref="itemHeader"
-			/>
+				<ItemHeader
+					v-model:search-input="search_input"
+					v-model:qty-input="debounce_qty"
+					v-model:new-line="new_line"
+					:pos-profile="pos_profile"
+					:scanner-locked="scannerLocked"
+					:enable-background-sync="enable_background_sync"
+					:last-sync-time="formatBackgroundSyncTime()"
+					:context="context"
+					@esc="esc_event"
+					@enter="onEnter"
+					@search-keydown="handleSearchKeydown"
+					@clear-search="clearSearch"
+					@search-input="handleSearchInput"
+					@search-paste="handleSearchPaste"
+					@focus="handleItemSearchFocus"
+					@clear-qty="clearQty"
+					@start-camera="startCameraScanning"
+					@open-new-item="openNewItemDialog"
+					@toggle-settings="toggleItemSettings"
+					@reload-items="forceReloadItems"
+					ref="itemHeader"
+				/>
 
-								<ItemSettingsDialog
-			v-model="show_item_settings"
-			:initial-settings="{
-				hide_qty_decimals,
-				hide_zero_rate_items,
-				show_last_invoice_rate,
-				enable_background_sync,
-				background_sync_interval,
-				enable_custom_items_per_page,
-				items_per_page,
-				force_server_items: temp_force_server_items,
-			}"
-			@save="applyItemSettings"
-		/>
+				<ItemSettingsDialog
+					v-model="show_item_settings"
+					:initial-settings="{
+						hide_qty_decimals,
+						hide_zero_rate_items,
+						show_last_invoice_rate,
+						enable_background_sync,
+						background_sync_interval,
+						enable_custom_items_per_page,
+						items_per_page,
+						force_server_items: temp_force_server_items,
+					}"
+					@save="applyItemSettings"
+				/>
 
 				<v-row class="items">
 					<v-col cols="12" class="pt-0 mt-0">
@@ -258,14 +258,7 @@
 		/>
 
 		<!-- New Item Dialog -->
-
-		<!-- New Item Dialog -->
-		<NewItemDialog
-			v-model="newItemDialog"
-			:items-group="items_group"
-			@item-created="handleItemCreated"
-		/>
-
+		<NewItemDialog v-model="newItemDialog" :items-group="items_group" @item-created="handleItemCreated" />
 
 		<!-- Camera Scanner Component -->
 		<CameraScanner
@@ -293,6 +286,7 @@ import ItemSettingsDialog from "./ItemSettingsDialog.vue";
 import ItemHeader from "./ItemHeader.vue";
 import NewItemDialog from "./NewItemDialog.vue";
 import ScanErrorDialog from "./ScanErrorDialog.vue";
+import placeholderImage from "./placeholder-image.png";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 import { RecycleScroller } from "vue-virtual-scroller";
 import {
@@ -364,12 +358,12 @@ export default {
 		const invoiceStore = useInvoiceStore();
 		const { selectedCustomer } = storeToRefs(customersStore);
 
-		const { 
-			showOnlyBarcodeItems: showOnlyBarcodeItemsRef, 
-			memoizedSearch, 
-			clearSearchCache, 
+		const {
+			showOnlyBarcodeItems: showOnlyBarcodeItemsRef,
+			memoizedSearch,
+			clearSearchCache,
 			fetchServerItemsTimestamp,
-			filterAndPaginate
+			filterAndPaginate,
 		} = useItemSearch();
 
 		return {
@@ -387,7 +381,7 @@ export default {
 			memoizedSearch,
 			clearSearchCache,
 			fetchServerItemsTimestamp,
-			filterAndPaginate
+			filterAndPaginate,
 		};
 	},
 	components: {
@@ -734,7 +728,6 @@ export default {
 				}
 			});
 		},
-
 	},
 
 	methods: {
@@ -1711,9 +1704,9 @@ export default {
 			const target = targets[targets.length - 1];
 			if (target && this.fly) {
 				const placeholder = document.createElement("div");
+				placeholder.className = "item-fly-placeholder";
 				placeholder.style.width = "40px";
 				placeholder.style.height = "40px";
-				placeholder.style.background = "#ccc";
 				placeholder.style.borderRadius = "50%";
 				placeholder.style.position = "fixed";
 				placeholder.style.top = `${event.clientY - 20}px`;
@@ -2835,7 +2828,7 @@ export default {
 					this.queueManualScanFocus();
 					return;
 				}
-				const input = this.$refs.debounce_search;
+				const input = this.getSearchInputField();
 				if (input && typeof input.focus === "function") {
 					input.focus();
 				}
@@ -2843,10 +2836,16 @@ export default {
 		},
 
 		blurItemSearch() {
-			const input = this.$refs.debounce_search;
+			const input = this.getSearchInputField();
 			if (input && typeof input.blur === "function") {
 				input.blur();
 			}
+		},
+		getSearchInputField() {
+			// Benchmark: use exposed ref to avoid DOM querying for focus/blur actions.
+			const header = this.$refs.itemHeader;
+			const inputRef = header?.debounce_search;
+			return inputRef?.value ?? inputRef ?? null;
 		},
 
 		clearQty() {
@@ -3827,23 +3826,34 @@ export default {
 			html += '<div class="item-selection-list">';
 
 			items.forEach((item, index) => {
-				html += `
-		<div class="item-option p-3 mb-2 border rounded cursor-pointer" data-item-index="${index}" style="border: 1px solid #ddd; cursor: pointer;">
-			<div class="d-flex align-items-center">
-			<img src="${item.image || placeholderImage}"
-				style="width: 50px; height: 50px; object-fit: cover; margin-right: 15px;" />
-			<div>
-				<div class="font-weight-bold">${item.item_name}</div>
-				<div class="text-muted small">${item.item_code}</div>
-				<div class="text-primary">${this.format_currency(item.rate, this.pos_profile.currency, this.ratePrecision(item.rate))}</div>
-			</div>
-			</div>
-		</div>
-		`;
+				html += this.buildItemSelectionOption(item, index);
 			});
 
 			html += "</div>";
 			return html;
+		},
+		buildItemSelectionOption(item, index) {
+			const price = this.format_currency(
+				item.rate,
+				this.pos_profile.currency,
+				this.ratePrecision(item.rate),
+			);
+			return `
+		<div class="item-option item-selection-option p-3 mb-2 rounded cursor-pointer" data-item-index="${index}">
+			<div class="d-flex align-items-center">
+				<img
+					class="item-selection-image"
+					src="${item.image || placeholderImage}"
+					alt="${item.item_name}"
+				/>
+				<div>
+					<div class="font-weight-bold">${item.item_name}</div>
+					<div class="text-muted small">${item.item_code}</div>
+					<div class="text-primary">${price}</div>
+				</div>
+			</div>
+		</div>
+		`;
 		},
 		handleItemNotFound(scannedCode) {
 			console.warn("Item not found for scanned code:", scannedCode);
@@ -4299,14 +4309,6 @@ export default {
 				limit: this.enable_custom_items_per_page ? this.items_per_page : this.itemsPerPage,
 			});
 		},
-		debounce_search: {
-			get() {
-				return this.first_search;
-			},
-			set: _.debounce(function (newValue) {
-				this.first_search = newValue || "";
-			}, 200),
-		},
 		debounce_qty: {
 			get() {
 				// Display the raw quantity while typing to avoid forced decimal format
@@ -4701,94 +4703,14 @@ export default {
 	padding: var(--dynamic-sm);
 }
 
-.manual-scan-container {
-	padding: 16px;
-	border-radius: 12px;
-	border: 1px solid var(--pos-border, rgba(0, 0, 0, 0.08));
-	background-color: var(--pos-card-bg, rgba(255, 255, 255, 0.96));
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
-	transition:
-		background-color 0.2s ease,
-		border-color 0.2s ease;
-}
-
-.manual-scan-text .text-body-2 {
-	color: rgba(0, 0, 0, 0.6);
-}
-
-:deep(.v-theme--dark) .manual-scan-container {
-	background-color: rgba(30, 30, 30, 0.92);
-	border-color: rgba(255, 255, 255, 0.12);
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-:deep(.v-theme--dark) .manual-scan-text .text-body-2 {
-	color: rgba(255, 255, 255, 0.7);
-}
-
-.scan-error-dialog {
-	border-radius: 16px;
-}
-
-.scan-error-dialog .scan-error-message {
-	font-weight: 600;
-	font-size: 1.05rem;
-	margin: 0;
-}
-
-.scan-error-dialog .scan-error-code {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	font-family:
-		"Roboto Mono", "Fira Code", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
-		"Courier New", monospace;
-	font-size: 0.95rem;
-	padding: 6px 10px;
-	border-radius: 6px;
-	background-color: rgba(244, 67, 54, 0.12);
-}
-
-.scan-error-dialog .scan-error-details {
-	margin-top: 12px;
-	color: rgba(0, 0, 0, 0.72);
-	line-height: 1.4;
-}
-
-:deep(.v-theme--dark) .scan-error-dialog .scan-error-code {
-	background-color: rgba(244, 67, 54, 0.25);
-	color: #ffebee;
-}
-
-:deep(.v-theme--dark) .scan-error-dialog .scan-error-details {
-	color: rgba(255, 255, 255, 0.7);
-}
-
-.sticky-header {
-	position: sticky;
-	top: 0;
-	z-index: 100;
-	background-color: var(--surface-primary, #fff);
-	padding: var(--dynamic-sm);
-	margin: 0;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-	/* Performance optimizations for theme switching */
-	contain: layout style;
-	will-change: background-color;
-	transition:
-		background-color 0.15s ease,
-		border-color 0.15s ease;
-}
-
-.sticky-header {
-	background-color: var(--pos-card-bg);
-	border-bottom: 1px solid var(--pos-border);
-}
-
 .dynamic-scroll {
 	transition: max-height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 	padding-bottom: var(--dynamic-sm);
 	contain: layout style;
+}
+
+.item-fly-placeholder {
+	background-color: rgba(var(--v-theme-on-surface), 0.2);
 }
 
 .item-container {
@@ -4796,46 +4718,8 @@ export default {
 	scrollbar-gutter: stable;
 }
 
-.items-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: var(--dynamic-sm);
-	align-items: start;
-	align-content: start;
-	justify-content: flex-start;
-}
-
-.dynamic-item-card {
-	transition:
-		transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-		box-shadow 0.2s ease;
-	background-color: var(--surface-secondary);
-	display: flex;
-	flex-direction: column;
-	height: auto;
-	max-width: 180px;
-	box-sizing: border-box;
-	will-change: transform;
-	backface-visibility: hidden;
-	transform: translate3d(0, 0, 0);
-}
-
-.dynamic-item-card .v-img {
-	object-fit: contain;
-	will-change: auto;
-}
-
-.dynamic-item-card:hover {
-	transform: translate3d(0, -2px, 0) scale(1.02);
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
 .text-success {
-	color: #4caf50 !important;
-}
-
-.last-sync-label {
-	white-space: nowrap;
+	color: rgb(var(--v-theme-success)) !important;
 }
 
 /* Enhanced Arabic number support for ItemsSelector */
@@ -4862,7 +4746,7 @@ export default {
 
 /* Enhanced negative number styling for Arabic context */
 .negative-number {
-	color: #d32f2f !important;
+	color: rgb(var(--v-theme-error)) !important;
 	font-weight: 600;
 	/* Same enhanced font stack for negative numbers */
 	font-family:
@@ -4895,20 +4779,6 @@ export default {
 	letter-spacing: 0.01em;
 }
 
-/* Enhanced card text for better Arabic number display */
-.dynamic-item-card .v-card-text {
-	font-family:
-		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
-		sans-serif;
-	font-variant-numeric: lining-nums tabular-nums;
-	font-feature-settings:
-		"tnum" 1,
-		"lnum" 1,
-		"kern" 1;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-}
-
 /* Enhanced Card View Grid Layout - 3 items per row */
 .items-card-grid {
 	display: grid;
@@ -4918,7 +4788,7 @@ export default {
 	height: calc(100% - 80px);
 	overflow-y: auto;
 	scrollbar-width: thin;
-	scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+	scrollbar-color: rgba(var(--v-theme-on-surface), 0.2) transparent;
 	/* Performance optimizations */
 	contain: layout style;
 	will-change: scroll-position;
@@ -4949,7 +4819,7 @@ export default {
 }
 
 .items-card-grid::-webkit-scrollbar-thumb {
-	background-color: rgba(0, 0, 0, 0.2);
+	background-color: rgba(var(--v-theme-on-surface), 0.2);
 	border-radius: 4px;
 }
 
@@ -4972,30 +4842,24 @@ export default {
 }
 
 :deep(.item-row-highlighted) {
-	background-color: rgba(25, 118, 210, 0.32);
+	background-color: rgba(var(--v-theme-primary), 0.32);
 }
 
 :deep(.item-row-highlighted td) {
 	font-weight: 600;
-	color: var(--primary-color, #1976d2);
-	background-color: rgba(25, 118, 210, 0.32);
+	color: rgb(var(--v-theme-primary));
+	background-color: rgba(var(--v-theme-primary), 0.32);
 }
 
-
-
-
-
 .last-rate-inline {
-	color: rgba(0, 0, 0, 0.6);
+	color: rgba(var(--v-theme-on-surface), 0.6);
 	white-space: nowrap;
 }
 
 :deep(.v-theme--dark) .last-rate-chip,
 :deep(.v-theme--dark) .last-rate-inline {
-	color: rgba(255, 255, 255, 0.75);
+	color: rgba(var(--v-theme-on-surface), 0.75);
 }
-
-
 
 .sleek-data-table {
 	/* composes: pos-table; */
@@ -5011,7 +4875,7 @@ export default {
 }
 
 .sleek-data-table:hover {
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+	box-shadow: 0 4px 12px rgba(var(--v-theme-on-surface), 0.15) !important;
 }
 
 /* Enhanced table header styling with modern gradients and Arabic support */
@@ -5022,16 +4886,21 @@ export default {
 	letter-spacing: 1px;
 	padding: 16px 20px;
 	transition: all 0.3s ease;
-	border-bottom: 3px solid #1976d2;
-	background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%);
-	color: #2c3e50;
+	border-bottom: 3px solid rgb(var(--v-theme-primary));
+	background: linear-gradient(
+		135deg,
+		rgb(var(--v-theme-surface)) 0%,
+		rgb(var(--v-theme-surface-variant)) 50%,
+		rgb(var(--v-theme-surface)) 100%
+	);
+	color: rgb(var(--v-theme-on-surface));
 	position: sticky !important;
 	top: 0 !important;
 	z-index: 10 !important;
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+	box-shadow: 0 2px 8px rgba(var(--v-theme-on-surface), 0.1);
+	text-shadow: 0 1px 2px rgba(var(--v-theme-on-surface), 0.2);
 	/* Enhanced Arabic number font stack */
 	font-family:
 		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
@@ -5048,11 +4917,16 @@ export default {
 /* Enhanced dark theme header styling */
 :deep([data-theme="dark"]) .sleek-data-table th,
 :deep(.v-theme--dark) .sleek-data-table th {
-	background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%) !important;
-	border-bottom: 3px solid #3498db;
-	color: #ecf0f1;
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	background: linear-gradient(
+		135deg,
+		rgb(var(--v-theme-surface)) 0%,
+		rgb(var(--v-theme-surface-variant)) 50%,
+		rgb(var(--v-theme-surface)) 100%
+	) !important;
+	border-bottom: 3px solid rgb(var(--v-theme-primary));
+	color: rgb(var(--v-theme-on-surface));
+	text-shadow: 0 1px 2px rgba(var(--v-theme-on-surface), 0.35);
+	box-shadow: 0 2px 8px rgba(var(--v-theme-on-surface), 0.3);
 }
 
 /* Table wrapper styling */
@@ -5082,21 +4956,21 @@ export default {
 /* Table row styling with gray theme */
 .sleek-data-table :deep(tr) {
 	transition: all 0.2s ease;
-	border-bottom: 1px solid #e0e0e0;
-	background-color: #fafafa;
+	border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+	background-color: rgb(var(--v-theme-surface));
 }
 
 .sleek-data-table :deep(tr:hover) {
-	background-color: #f0f0f0;
+	background-color: rgba(var(--v-theme-on-surface), 0.06);
 	transform: translateY(-1px);
-	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 2px 5px rgba(var(--v-theme-on-surface), 0.1);
 }
 
 /* Table cell styling with Arabic number support */
 .sleek-data-table :deep(td) {
 	padding: 12px 16px;
 	vertical-align: middle;
-	color: #424242;
+	color: rgb(var(--v-theme-on-surface));
 	/* Enhanced Arabic number font stack */
 	font-family:
 		"SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans Arabic", "Tahoma",
@@ -5112,59 +4986,34 @@ export default {
 }
 
 /* Dark theme row styling */
-:deep([data-theme="dark"]) .sleek-data-table tr,
-:deep(.v-theme--dark) .sleek-data-table tr {
-	background-color: #2d2d2d;
-	border-bottom: 1px solid #424242;
-}
-
-:deep([data-theme="dark"]) .sleek-data-table tr:hover,
-:deep(.v-theme--dark) .sleek-data-table tr:hover {
-	background-color: #3d3d3d;
-}
-
-:deep([data-theme="dark"]) .sleek-data-table td,
-:deep(.v-theme--dark) .sleek-data-table td {
-	color: #ffffff;
-}
-
-.settings-container {
-	display: flex;
-	align-items: center;
-}
-
 .truncate {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-/* Light mode card backgrounds */
-.selection,
-.cards {
+.selection {
 	background-color: var(--surface-secondary) !important;
 }
 
-/* Consistent spacing with navbar and system */
-.dynamic-spacing-sm {
-	padding: var(--dynamic-sm) !important;
+.item-selection-option {
+	border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+	transition:
+		border-color 0.2s ease,
+		background-color 0.2s ease;
 }
 
-.action-btn-consistent {
-	margin-top: var(--dynamic-xs) !important;
-	padding: var(--dynamic-xs) var(--dynamic-sm) !important;
-	transition: var(--transition-normal) !important;
+.item-selection-option:hover {
+	background-color: rgba(var(--v-theme-primary), 0.06);
+	border-color: rgba(var(--v-theme-primary), 0.4);
 }
 
-.action-btn-consistent:hover {
-	background-color: rgba(25, 118, 210, 0.1) !important;
-	transform: translateY(-1px) !important;
-}
-
-/* Ensure consistent spacing with navbar pattern */
-.cards {
-	margin-top: var(--dynamic-sm) !important;
-	padding: var(--dynamic-sm) !important;
+.item-selection-image {
+	width: 50px;
+	height: 50px;
+	object-fit: cover;
+	margin-right: 15px;
+	background-color: rgb(var(--v-theme-surface-variant));
 }
 
 /* Responsive breakpoints */
@@ -5182,45 +5031,16 @@ export default {
 		padding: var(--dynamic-xs);
 	}
 
-	.dynamic-spacing-sm {
-		padding: var(--dynamic-xs) !important;
-	}
-
-	.action-btn-consistent {
-		padding: var(--dynamic-xs) !important;
-		font-size: 0.875rem !important;
-	}
-
 	.items-card-grid {
 		grid-template-columns: 1fr;
 		gap: 10px;
 		padding: 10px;
-	}
-
-	.card-item-image-container {
-		height: 100px;
-	}
-
-	.card-item-content {
-		padding: 10px 12px 12px;
-	}
-
-	.card-item-name {
-		font-size: 0.85rem;
-	}
-
-	.card-item-code {
-		font-size: 0.7rem;
 	}
 }
 
 @media (max-width: 480px) {
 	.dynamic-padding {
 		padding: var(--dynamic-xs);
-	}
-
-	.cards {
-		padding: var(--dynamic-xs) !important;
 	}
 }
 
@@ -5236,24 +5056,13 @@ export default {
 }
 
 /* Enable hardware acceleration for better performance */
-.items-card-grid,
-.sticky-header {
+.items-card-grid {
 	/* Force hardware acceleration */
 	transform: translate3d(0, 0, 0);
 	-webkit-transform: translate3d(0, 0, 0);
 	/* Improve compositing performance */
 	backface-visibility: hidden;
 	-webkit-backface-visibility: hidden;
-}
-
-/* Optimize theme-sensitive elements */
-[data-theme] .sticky-header {
-	/* Minimize reflow during theme changes */
-	will-change: background-color, border-color, color;
-	transition:
-		background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-		border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-		color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Optimize scrolling performance */
@@ -5268,7 +5077,7 @@ export default {
 
 /* Disable animations on reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-	.sticky-header {
+	.items-card-grid {
 		transition: none !important;
 		animation: none !important;
 		transform: none !important;
