@@ -240,7 +240,7 @@ import {
 import { normalizeBackgroundSyncInterval, shouldRunBackgroundSync } from "../../utils/backgroundSync.js";
 import { findItemIndexByCode, getNextHighlightedIndex } from "../../utils/itemHighlight.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
-import { useCustomersStore } from "../../stores/customersStore.js";
+
 import { useToastStore } from "../../stores/toastStore.js";
 import { useUIStore } from "../../stores/uiStore.js";
 import { useInvoiceStore } from "../../stores/invoiceStore.js";
