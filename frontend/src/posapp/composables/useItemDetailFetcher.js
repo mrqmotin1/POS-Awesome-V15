@@ -72,6 +72,11 @@ export function useItemDetailFetcher() {
             return [];
         }
 
+        // Guard against calling server without a valid POS profile
+        if (!ctx.pos_profile || !ctx.pos_profile.name) {
+            return [];
+        }
+
         const key = [
             ctx.pos_profile?.name,
             ctx.active_price_list,
