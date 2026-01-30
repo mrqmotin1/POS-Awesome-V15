@@ -1449,6 +1449,8 @@ export default {
 				this.addresses = [];
 				this.invoiceStore.clear();
 				this.invoiceStore.resetPostingDate();
+				this.eventBus.emit("clear_invoice");
+				this.eventBus.emit("reset_posting_date");
 			}
 		},
 		handleShowPayment() {
@@ -1706,10 +1708,9 @@ export default {
 					if (this.customersStore?.setSelectedCustomer) {
 						this.customersStore.setSelectedCustomer(this.pos_profile?.customer || null);
 					}
-					this.eventBus.emit("clear_invoice");
+
+					this.finishSubmissionNavigation(true);
 					this.eventBus.emit("focus_item_search");
-					this.eventBus.emit("reset_posting_date");
-					this.back_to_invoice();
 					return;
 				} catch (error) {
 					this.toastStore.show({
