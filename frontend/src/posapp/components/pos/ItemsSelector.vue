@@ -368,9 +368,13 @@ export default {
 					if (options && options[prop] !== undefined) {
 						return options[prop];
 					}
-					// 2. Map specific missing methods if needed
+					// 2. Map specific missing methods/properties
 					if (prop === "update_items_details") {
 						return vm.itemDetailFetcher?.update_items_details;
+					}
+					if (prop === "items") {
+						// Map 'items' to invoiceStore items for merge logic (ItemsSelector uses 'items' for search results)
+						return vm.invoiceStore?.items || Reflect.get(target, "items", receiver);
 					}
 					// 3. Delegate to component instance
 					const value = Reflect.get(target, prop, receiver);
@@ -442,7 +446,9 @@ export default {
 			ensureScaleBarcodeSettings: scannerInput.ensureScaleBarcodeSettings,
 			updateScaleBarcodeSettings: scannerInput.updateScaleBarcodeSettings,
 			getScaleBarcodePrefix: scannerInput.getScaleBarcodePrefix,
+			getScaleBarcodePrefix: scannerInput.getScaleBarcodePrefix,
 			scaleBarcodeMatches: scannerInput.scaleBarcodeMatches,
+			playScanTone: scannerInput.playScanTone,
 			// Expose item availability
 			itemAvailability,
 			itemDetailFetcher,
