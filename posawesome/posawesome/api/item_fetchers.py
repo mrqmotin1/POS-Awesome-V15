@@ -12,6 +12,8 @@ from frappe.query_builder.functions import Sum
 from frappe.utils import flt, nowdate
 from frappe.utils.caching import redis_cache
 
+from posawesome.posawesome.api.items import get_bulk_committed_qty_from_pos_invoices
+
 
 def _resolve_cache_ttl(ttl: Optional[int]) -> int:
     """Return a numeric TTL value while falling back to the default window."""
@@ -110,30 +112,47 @@ def get_item_prices(
 
 
 def _fetch_bin_qty(warehouse: str, item_codes: Tuple[str, ...]):
-    """Return stock quantities for each item, expanding warehouse groups."""
+    """Return available stock quantities for each item, expanding warehouse groups.
+
+    This function accounts for submitted-but-unconsolidated POS Invoices
+    to prevent overselling when stock updates happen only on shift close.
+    """
 
     if not item_codes or not warehouse:
         return []
 
+    # Determine target warehouses
     if frappe.db.get_value("Warehouse", warehouse, "is_group"):
         warehouses = frappe.db.get_descendants("Warehouse", warehouse) or []
         if not warehouses:
             return []
-        bin_doctype = DocType("Bin")
-        return (
-            frappe.qb.from_(bin_doctype)
-            .select(bin_doctype.item_code, Sum(bin_doctype.actual_qty).as_("actual_qty"))
-            .where(bin_doctype.warehouse.isin(warehouses))
-            .where(bin_doctype.item_code.isin(item_codes))
-            .groupby(bin_doctype.item_code)
-            .run(as_dict=True)
-        )
+    else:
+        warehouses = [warehouse]
 
-    return frappe.get_all(
-        "Bin",
-        fields=["item_code", "actual_qty"],
-        filters={"warehouse": warehouse, "item_code": ["in", item_codes]},
+    # Get actual quantities from Bin
+    bin_doctype = DocType("Bin")
+    bin_rows = (
+        frappe.qb.from_(bin_doctype)
+        .select(bin_doctype.item_code, Sum(bin_doctype.actual_qty).as_("actual_qty"))
+        .where(bin_doctype.warehouse.isin(warehouses))
+        .where(bin_doctype.item_code.isin(item_codes))
+        .groupby(bin_doctype.item_code)
+        .run(as_dict=True)
     )
+
+    bin_map = {row.item_code: flt(row.actual_qty) for row in bin_rows}
+
+    # Get committed quantities from submitted but unconsolidated POS Invoices
+    committed_map = get_bulk_committed_qty_from_pos_invoices(list(item_codes), warehouses)
+
+    # Calculate available qty = bin qty - committed qty
+    return [
+        frappe._dict({
+            "item_code": item_code,
+            "actual_qty": flt(bin_map.get(item_code, 0) - committed_map.get(item_code, 0))
+        })
+        for item_code in item_codes
+    ]
 
 
 def get_bin_qty(warehouse: Optional[str], item_codes: Sequence[str], ttl: Optional[int] = None):
