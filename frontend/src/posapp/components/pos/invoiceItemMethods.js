@@ -2085,7 +2085,7 @@ export default {
 		}
 
 		// Add POS specific fields
-		doc.posa_pos_opening_shift = this.pos_opening_shift.name;
+		doc.posa_pos_opening_shift = this.pos_opening_shift?.name || null;
 		doc.payments = this.get_payments();
 
 		// Handle return specific fields
