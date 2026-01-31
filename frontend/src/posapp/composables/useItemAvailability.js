@@ -6,7 +6,7 @@ import {
     lookupItemInBarcodeIndex,
     replaceBarcodeIndex,
     resetBarcodeIndex,
-} from "../utils/barcodeIndex.js";
+} from "./useBarcodeIndexing.js";
 import { useUIStore } from "../stores/uiStore.js";
 
 export function useItemAvailability() {

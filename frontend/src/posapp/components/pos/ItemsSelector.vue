@@ -245,13 +245,7 @@ import {
 	isSearchFieldPrimedForScan,
 } from "../../utils/keyboardScan.js";
 import { normalizeBackgroundSyncInterval, shouldRunBackgroundSync } from "../../utils/backgroundSync.js";
-import {
-	ensureBarcodeIndex,
-	resetBarcodeIndex,
-	indexItemInBarcodeIndex,
-	replaceBarcodeIndex,
-	lookupItemInBarcodeIndex,
-} from "../../utils/barcodeIndex.js";
+import { useBarcodeIndexing } from "../../composables/useBarcodeIndexing.js";
 
 import { useCustomersStore } from "../../stores/customersStore.js";
 
@@ -354,6 +348,15 @@ export default {
 			startItemWorker
 		} = useItemStorageSafety();
 
+		const {
+			ensureBarcodeIndex,
+			resetBarcodeIndex,
+			indexItem,
+			replaceBarcodeIndex,
+			lookupItemByBarcode,
+			searchItemsByCode: searchItemsByCodeFn
+		} = useBarcodeIndexing();
+
 		return {
 			...responsive,
 			...rtl,
@@ -421,6 +424,13 @@ export default {
 			ensureStorageHealth,
 			markStorageUnavailable,
 			startItemWorker,
+			// Barcode Indexing
+			ensureBarcodeIndex,
+			resetBarcodeIndex,
+			indexItem,
+			replaceBarcodeIndex,
+			lookupItemByBarcode,
+			searchItemsByCodeFn,
 		};
 	},
 	components: {
@@ -1882,39 +1892,7 @@ export default {
 			}
 		},
 		searchItemsByCode(code) {
-			return this.items.filter((item) => {
-				const searchTerm = code.toLowerCase();
-				const barcodeMatch =
-					(item.barcode && item.barcode.toLowerCase().includes(searchTerm)) ||
-					(Array.isArray(item.barcodes) &&
-						item.barcodes.some((bc) => String(bc).toLowerCase().includes(searchTerm))) ||
-					(Array.isArray(item.item_barcode) &&
-						item.item_barcode.some(
-							(b) => b.barcode && b.barcode.toLowerCase().includes(searchTerm),
-						));
-				return (
-					item.item_code.toLowerCase().includes(searchTerm) ||
-					item.item_name.toLowerCase().includes(searchTerm) ||
-					barcodeMatch
-				);
-			});
-		},
-		// PERF: maintain a barcode index so unfound scans do not walk the full list
-		ensureBarcodeIndex() {
-			this.barcodeIndex = ensureBarcodeIndex(this.barcodeIndex);
-			return this.barcodeIndex;
-		},
-		resetBarcodeIndex() {
-			this.barcodeIndex = resetBarcodeIndex(this.barcodeIndex);
-		},
-		indexItem(item) {
-			this.barcodeIndex = indexItemInBarcodeIndex(this.ensureBarcodeIndex(), item);
-		},
-		replaceBarcodeIndex(items = this.items) {
-			this.barcodeIndex = replaceBarcodeIndex(this.ensureBarcodeIndex(), items);
-		},
-		lookupItemByBarcode(code) {
-			return lookupItemInBarcodeIndex(this.ensureBarcodeIndex(), code);
+			return this.searchItemsByCodeFn(this.items, code);
 		},
 		async addScannedItemToInvoice(item, scannedCode, qtyFromBarcode = null, priceFromBarcode = null) {
 			console.log("Adding scanned item to invoice:", item, scannedCode);

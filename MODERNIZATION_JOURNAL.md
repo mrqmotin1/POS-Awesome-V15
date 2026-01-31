@@ -97,7 +97,13 @@ _Removing "Event Soup" and centralizing business logic._
                 - [ ] `Invoice.vue`: Extract `InvoiceItem` component
                 - [x] Refactored `ItemsSelector` to emit `@add-item` event.
                 - [x] Updated `BarcodePrinting.vue`, `Pos.vue`, and `PurchaseOrders.vue` to listen to the event.
+                - [x] Refactored `ItemsSelector` to emit `@add-item` event.
+                - [x] Updated `BarcodePrinting.vue`, `Pos.vue`, and `PurchaseOrders.vue` to listen to the event.
                 - Decoupled `add_item` global event from `ItemsSelector`.
+    - **Phase 2.2: Component Decomposition**
+        - [x] Extract layout logic to `useItemSelectorLayout.js`
+        - [x] Extract last invoice rate logic to `useLastInvoiceRate.js`
+        - [x] Extract storage safety logic to `useItemStorageSafety.js`
             4.  **Refactor `pending_invoices_changed`**:
                 - [x] Create `syncStore` (Pinia) to manage pending invoices count.
                 - [x] Update `Payments.vue` to update store instead of emitting event.
