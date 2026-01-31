@@ -14,71 +14,22 @@
 			></v-progress-linear>
 			<div ref="paymentContainer" class="overflow-y-auto pa-2" style="max-height: 67vh">
 				<!-- Payment Summary (Paid, To Be Paid, Change) -->
-				<v-row v-if="invoice_doc" class="pa-1" dense>
-					<v-col cols="7">
-						<v-text-field
-							variant="solo"
-							color="primary"
-							:label="frappe._('Paid Amount')"
-							class="sleek-field pos-themed-input"
-							hide-details
-							v-model="total_payments_display"
-							readonly
-							:prefix="currencySymbol(invoice_doc.currency)"
-							density="compact"
-							@click="showPaidAmount"
-						></v-text-field>
-					</v-col>
-					<v-col cols="5">
-						<v-text-field
-							variant="solo"
-							color="primary"
-							label="To Be Paid"
-							class="sleek-field pos-themed-input"
-							hide-details
-							v-model="diff_payment_display"
-							:prefix="currencySymbol(invoice_doc.currency)"
-							density="compact"
-							@focus="showDiffPayment"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
-
-					<!-- Paid Change (if applicable) -->
-					<v-col cols="7" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
-						<v-text-field
-							variant="solo"
-							color="primary"
-							:label="frappe._('Paid Change')"
-							class="sleek-field pos-themed-input"
-							:model-value="formatCurrency(paid_change)"
-							:prefix="currencySymbol(invoice_doc.currency)"
-							:rules="paid_change_rules"
-							density="compact"
-							readonly
-							type="text"
-							@click="showPaidChange"
-						></v-text-field>
-					</v-col>
-
-					<!-- Credit Change (if applicable) -->
-					<v-col cols="5" v-if="invoice_doc && change_due > 0 && !invoice_doc.is_return">
-						<v-text-field
-							variant="solo"
-							color="primary"
-							:label="frappe._('Credit Change')"
-							class="sleek-field pos-themed-input"
-							:model-value="formatCurrency(Math.abs(credit_change))"
-							:prefix="currencySymbol(invoice_doc.currency)"
-							density="compact"
-							type="text"
-							@change="
-								setFormatedCurrency(this, 'credit_change', null, false, $event);
-								updateCreditChange(this.credit_change);
-							"
-						></v-text-field>
-					</v-col>
-				</v-row>
+				<PaymentSummary
+					:invoice_doc="invoice_doc"
+					:total_payments_display="total_payments_display"
+					:diff_payment_display="diff_payment_display"
+					:diff_label="diff_label"
+					:change_due="change_due"
+					:paid_change="paid_change"
+					:credit_change="credit_change"
+					:paid_change_rules="paid_change_rules"
+					:currencySymbol="currencySymbol"
+					:formatCurrency="formatCurrency"
+					@show-paid-amount="showPaidAmount"
+					@show-diff-payment="showDiffPayment"
+					@show-paid-change="showPaidChange"
+					@update-credit-change="handleCreditChangeUpdate"
+				/>
 
 				<v-divider></v-divider>
 
@@ -246,112 +197,17 @@
 				<v-divider></v-divider>
 
 				<!-- Invoice Totals (Net, Tax, Total, Discount, Grand, Rounded) -->
-				<v-row v-if="invoice_doc" class="pa-1">
-					<v-col cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Net Total')"
-							class="sleek-field pos-themed-input"
-							:model-value="formatCurrency(invoice_doc.net_total, displayCurrency)"
-							readonly
-							:prefix="currencySymbol()"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
-					<v-col cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Tax and Charges')"
-							class="sleek-field pos-themed-input"
-							hide-details
-							:model-value="
-								formatCurrency(invoice_doc.total_taxes_and_charges, displayCurrency)
-							"
-							readonly
-							:prefix="currencySymbol()"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
-					<v-col cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Total Amount')"
-							class="sleek-field pos-themed-input"
-							hide-details
-							:model-value="formatCurrency(invoice_doc.total, displayCurrency)"
-							readonly
-							:prefix="currencySymbol()"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
-					<v-col cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="diff_label"
-							class="sleek-field pos-themed-input"
-							hide-details
-							:model-value="
-								formatCurrency(
-									diff_payment < 0 ? -diff_payment : diff_payment,
-									displayCurrency,
-								)
-							"
-							readonly
-							:prefix="currencySymbol()"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
-					<v-col cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Discount Amount')"
-							class="sleek-field pos-themed-input"
-							hide-details
-							:model-value="formatCurrency(invoice_doc.discount_amount)"
-							readonly
-							:prefix="currencySymbol(invoice_doc.currency)"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
-					<v-col cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Grand Total')"
-							class="sleek-field pos-themed-input"
-							hide-details
-							:model-value="formatCurrency(invoice_doc.grand_total)"
-							readonly
-							:prefix="currencySymbol(invoice_doc.currency)"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
-					<v-col v-if="invoice_doc && invoice_doc.rounded_total" cols="6">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Rounded Total')"
-							class="sleek-field pos-themed-input"
-							hide-details
-							:model-value="formatCurrency(invoice_doc.rounded_total)"
-							readonly
-							:prefix="currencySymbol(invoice_doc.currency)"
-							persistent-placeholder
-						></v-text-field>
-					</v-col>
+				<InvoiceTotals
+					:invoice_doc="invoice_doc"
+					:displayCurrency="displayCurrency"
+					:diff_payment="diff_payment"
+					:diff_label="diff_label"
+					:currencySymbol="currencySymbol"
+					:formatCurrency="formatCurrency"
+				/>
 
+				<!-- Additional Invoice Information (Delivery, Address, Notes) -->
+				<v-row v-if="invoice_doc" class="pa-1">
 					<!-- Delivery Date and Address (if applicable) -->
 					<v-col cols="6" v-if="pos_profile.posa_allow_sales_order && invoiceType === 'Order'">
 						<VueDatePicker
@@ -703,51 +559,14 @@
 		</v-card>
 
 		<!-- Action Buttons -->
-		<v-card flat class="cards mb-0 mt-3 pa-0">
-			<v-row align="start" no-gutters>
-				<v-col cols="6">
-					<v-btn
-						ref="submitButton"
-						block
-						size="large"
-						color="primary"
-						theme="dark"
-						class="submit-btn"
-						@click="submit"
-						:loading="loading"
-						:disabled="loading || vaildatPayment"
-						:class="{ 'submit-highlight': highlightSubmit }"
-					>
-						{{ __("Submit") }}
-					</v-btn>
-				</v-col>
-				<v-col cols="6" class="pl-1">
-					<v-btn
-						block
-						size="large"
-						color="success"
-						theme="dark"
-						@click="submit(undefined, false, true)"
-						:loading="loading"
-						:disabled="loading || vaildatPayment"
-					>
-						{{ __("Submit & Print") }}
-					</v-btn>
-				</v-col>
-				<v-col cols="12">
-					<v-btn
-						block
-						class="mt-2 pa-1"
-						size="large"
-						color="error"
-						theme="dark"
-						@click="back_to_invoice"
-					>
-						{{ __("Cancel Payment") }}
-					</v-btn>
-				</v-col>
-			</v-row>
-		</v-card>
+		<PaymentActionButtons
+			:loading="loading"
+			:validatePayment="vaildatPayment"
+			:highlightSubmit="highlightSubmit"
+			@submit="submit"
+			@submit-and-print="submit(undefined, false, true)"
+			@cancel="back_to_invoice"
+		/>
 		<!-- Custom Days Dialog -->
 		<v-dialog v-model="custom_days_dialog" max-width="300px">
 			<v-card>
@@ -847,10 +666,18 @@ import stockCoordinator from "../../utils/stockCoordinator.js";
 import { parseBooleanSetting } from "../../utils/stock.js";
 import { useToastStore } from "../../stores/toastStore.js";
 import invoiceService from "../../services/invoiceService.js";
+import PaymentSummary from "./PaymentSummary.vue";
+import InvoiceTotals from "./InvoiceTotals.vue";
+import PaymentActionButtons from "./PaymentActionButtons.vue";
 
 export default {
 	// Using format mixin for shared formatting methods
 	mixins: [format],
+	components: {
+		PaymentSummary,
+		InvoiceTotals,
+		PaymentActionButtons,
+	},
 	setup() {
 		const invoiceStore = useInvoiceStore();
 		const customersStore = useCustomersStore();
@@ -1464,6 +1291,10 @@ export default {
 					}
 				}, 100);
 			});
+		},
+		handleCreditChangeUpdate(value) {
+			this.setFormatedCurrency(this, "credit_change", null, false, value);
+			this.updateCreditChange(this.credit_change);
 		},
 		// Reset all cash payments to zero
 		reset_cash_payments() {

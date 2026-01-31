@@ -253,6 +253,7 @@ _Taming the monoliths. Breaking down massive components for readability and main
     - [x] `ItemSearchFilters.vue`: Extracted as `ItemHeader.vue` and `ItemActionToolbar.vue`.
     - [ ] `EditItemDialog.vue`: Pending.
     - [x] `ItemImage.vue`: Integrated into `ItemCard.vue`.
+    - **Payments.vue**: Identified as a large component (3000+ lines). Planned decomposition into `PaymentSummary`, `PaymentMethods`, `InvoiceTotals`, etc.
 
 - [ ] **6.1.4 Legacy Component Migration (Options API to Script Setup)**
     - [x] `CameraScanner.vue` (680 lines): Refactored to `<script setup>`. Logic preserved.
@@ -266,6 +267,9 @@ _Taming the monoliths. Breaking down massive components for readability and main
     - [x] `PackedItemsDialog.vue`: Extracted packing list dialog.
     - [x] `InvoiceCustomerSection.vue`: Extracted to handle customer and invoice type selection.
     - [x] `InvoiceActionButtons.vue`: Extracted from `InvoiceSummary.vue` to separate action button logic and presentation.
+    - [x] `PaymentSummary.vue`: Extracted from `Payments.vue` (Phase 1).
+    - [x] `InvoiceTotals.vue`: Extracted from `Payments.vue` (Phase 1).
+    - [x] `PaymentActionButtons.vue`: Extracted from `Payments.vue` (Phase 1).
     - [ ] `CustomerSection` (Pending)
     - [ ] `ActionButtons` (Pending)
 - [ ] **Store Integration:** Ensure `invoiceStore` handles business logic.
