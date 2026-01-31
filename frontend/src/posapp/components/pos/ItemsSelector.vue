@@ -321,9 +321,9 @@ export default {
 			},
 		});
 
+		const instance = getCurrentInstance();
 		const getValidVM = () => {
-			const inst = getCurrentInstance();
-			return inst ? inst.proxy : null;
+			return instance ? instance.proxy : null;
 		};
 
 		const {
@@ -338,8 +338,12 @@ export default {
 			customer: () => getValidVM()?.customer || selectedCustomer.value,
 			displayedItems: () => getValidVM()?.displayedItems,
 			show_last_invoice_rate: () => getValidVM()?.show_last_invoice_rate,
-			autoRefresh: false,
+			autoRefresh: true,
 		});
+
+		const {
+			last_background_sync_time
+		} = itemSync;
 
 		return {
 			...responsive,
@@ -376,8 +380,11 @@ export default {
 			itemCurrencyUtils: useItemCurrency(),
 			// Expose scanner input
 			scannerInput,
+			// Expose scanner input
+			scannerInput,
 			// Expose scanner state and methods for Template/Options API
 			scannerLocked: scannerInput.scannerLocked,
+			last_background_sync_time,
 			scanErrorDialog: scannerInput.scanErrorDialog,
 			scanErrorMessage: scannerInput.scanErrorMessage,
 			scanErrorCode: scannerInput.scanErrorCode,
@@ -441,7 +448,7 @@ export default {
 		qty: 1,
 		background_sync_timer: null,
 		background_sync_in_flight: false,
-		last_background_sync_time: null,
+		// last_background_sync_time: null, // Managed by composable
 		background_sync_details_in_flight: false,
 		abortController: null,
 		itemDetailsRequestCache: { key: null, promise: null, result: null },
