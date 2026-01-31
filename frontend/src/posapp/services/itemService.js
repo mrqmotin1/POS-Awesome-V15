@@ -15,5 +15,23 @@ export default {
 
 	getItemBrand(itemCode) {
 		return api.call("posawesome.posawesome.api.items.get_item_brand", { item_code: itemCode });
+	},
+
+	getUOMs() {
+		return api.call("frappe.client.get_list", {
+			doctype: "UOM",
+			fields: ["name"],
+			limit_page_length: 0,
+		});
+	},
+
+	createItem(itemData) {
+		return api.call("frappe.client.insert", {
+			doc: {
+				doctype: "Item",
+				is_stock_item: 1,
+				...itemData,
+			},
+		});
 	}
 };

@@ -248,11 +248,15 @@ _Taming the monoliths. Breaking down massive components for readability and main
     - [ ] `useItemSearchTriggers.js`: Consolidate Search Keydown, Focus, Blur, and Clear logic (UI bridge).
     - [x] `Bug Fixes`: Resolved `417 Expectation Failed`, `vm is not defined`, `replaceBarcodeIndex is not defined`, `get_invoice_doc TypeError`, and `playScanTone TypeError`.
 
-- [/] **6.1.2 Extract Sub-Components (UI)**
+- [/] **6.1.3 Extract Sub-Components (UI)**
     - [x] `ItemCard.vue`: Extracted.
     - [x] `ItemSearchFilters.vue`: Extracted as `ItemHeader.vue` and `ItemActionToolbar.vue`.
     - [ ] `EditItemDialog.vue`: Pending.
     - [x] `ItemImage.vue`: Integrated into `ItemCard.vue`.
+
+- [ ] **6.1.4 Legacy Component Migration (Options API to Script Setup)**
+    - [ ] `CameraScanner.vue` (680 lines): Heavy component using Options API. Needs migration to `<script setup>`.
+    - [x] `NewItemDialog.vue` (200 lines): Refactored to `<script setup>`. API calls moved to `itemService.js`.
 
 ## ✂️ 6.2 `Invoice.vue` (1964 lines)
 
@@ -270,6 +274,30 @@ _Taming the monoliths. Breaking down massive components for readability and main
 - [ ] **6.3.1 Standardization**
     - Apply same patterns as `Invoice.vue` after refactoring.
     - Reuse `ItemSearchFilters.vue` if possible.
+
+## ✂️ 6.4 `Pay.vue` (1754 lines)
+
+- [ ] **6.4.1 Extract Sub-Components**
+    - `PaymentInvoices.vue`: The left panel showing outstanding invoices.
+    - `PaymentMethods.vue`: The "Make New Payment" and "Payments" table section.
+    - `MpesaPanel.vue`: The specific Mpesa reconciliation logic.
+    - `PaymentTotals.vue`: The totals summary sidebar.
+
+## ✂️ 6.5 `ClosingDialog.vue` (1950 lines)
+
+- [ ] **6.5.1 Extract Sub-Components**
+    - `ShiftOverview.vue`: The top cards (Insights).
+    - `ShiftTotalsTable.vue`: The distribution tables (Currency, Returns, Change).
+    - `CashDrawerSnapshot.vue`: The expected cash table.
+    - `ClosingReconciliation.vue`: The input form for closing amounts.
+
+## ✂️ 6.6 Store Refactoring
+
+- [ ] **6.6.1 decompose `itemsStore.js` (1522 lines)**
+    - Separate concerns:
+        - `useItemSearch` (already partially composable, move store logic there).
+        - `useItemSync` (Background sync logic).
+        - `useItemCache` (IndexedDB / Memory cache management).
 
 ---
 
