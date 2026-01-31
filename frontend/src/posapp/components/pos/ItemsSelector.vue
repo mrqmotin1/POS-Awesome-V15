@@ -215,6 +215,7 @@ import { useItemDetailFetcher } from "../../composables/useItemDetailFetcher.js"
 import { useItemAddition } from "../../composables/useItemAddition.js";
 import { useItemSelection } from "../../composables/useItemSelection.js";
 import { useItemSelectorLayout } from "../../composables/useItemSelectorLayout.js";
+import { useLastInvoiceRate } from "../../composables/useLastInvoiceRate.js";
 import { useItemSync } from "../../composables/useItemSync.js";
 import { parseBooleanSetting, formatStockShortageError } from "../../utils/stock.js";
 import { playScanTone, closeScanAudioContext } from "../../utils/scannerAudio.js";
@@ -319,6 +320,26 @@ export default {
 			},
 		});
 
+		const getValidVM = () => {
+			const inst = getCurrentInstance();
+			return inst ? inst.proxy : null;
+		};
+
+		const {
+			lastInvoiceRates,
+			lastInvoiceRateLoading,
+			getLastInvoiceRate,
+			scheduleLastInvoiceRateRefresh,
+			fetchLastInvoiceRates,
+			clearLastInvoiceRateCache,
+		} = useLastInvoiceRate({
+			pos_profile: () => getValidVM()?.pos_profile,
+			customer: () => getValidVM()?.customer || selectedCustomer.value,
+			displayedItems: () => getValidVM()?.displayedItems,
+			show_last_invoice_rate: () => getValidVM()?.show_last_invoice_rate,
+			autoRefresh: false,
+		});
+
 		return {
 			...responsive,
 			...rtl,
@@ -369,6 +390,13 @@ export default {
 			itemSelection,
 			itemSync,
 			itemAddition,
+			// Last Invoice Rate
+			lastInvoiceRates,
+			lastInvoiceRateLoading,
+			getLastInvoiceRate,
+			scheduleLastInvoiceRateRefresh,
+			fetchLastInvoiceRates,
+			clearLastInvoiceRateCache,
 		};
 	},
 	components: {
@@ -471,8 +499,8 @@ export default {
 		clearingSearch: false,
 
 		lastInvoiceRates: {},
-		lastInvoiceRateScheduler: null,
-		lastInvoiceRateLoading: false,
+		// Use composable state
+		// lastInvoiceRateScheduler: null,
 	}),
 
 	watch: {
@@ -889,110 +917,11 @@ export default {
 
 
 
-		scheduleLastInvoiceRateRefresh() {
-			if (!this.show_last_invoice_rate) {
-				this.lastInvoiceRates = {};
-				return;
-			}
-
-			if (!this.lastInvoiceRateScheduler) {
-				this.lastInvoiceRateScheduler = _.debounce(() => {
-					this.refreshLastInvoiceRatesForVisibleItems();
-				}, 200);
-			}
-
-			this.lastInvoiceRateScheduler();
-		},
-
-		async refreshLastInvoiceRatesForVisibleItems() {
-			if (!this.show_last_invoice_rate) {
-				this.lastInvoiceRates = {};
-				return this.lastInvoiceRates;
-			}
-
-			if (!this.displayedItems || !this.displayedItems.length) {
-				this.lastInvoiceRates = {};
-				return this.lastInvoiceRates;
-			}
-
-			const itemCodes = this.displayedItems.map((it) => it.item_code).filter(Boolean);
-			return this.fetchLastInvoiceRates(itemCodes);
-		},
-
-		async fetchLastInvoiceRates(itemCodes = []) {
-			if (!this.show_last_invoice_rate) {
-				this.lastInvoiceRates = {};
-				return this.lastInvoiceRates;
-			}
-
-			const customer = this.customer || this.selectedCustomer;
-
-			if (!customer) {
-				this.lastInvoiceRates = {};
-				return {};
-			}
-
-			const normalizedCodes = Array.from(new Set(itemCodes.filter(Boolean)));
-			const cachedForCustomer = this.lastInvoiceRateCache.get(customer) || new Map();
-			this.lastInvoiceRates = Object.fromEntries(cachedForCustomer);
-
-			const missingCodes = normalizedCodes.filter((code) => !cachedForCustomer.has(code));
-			if (!missingCodes.length) {
-				return this.lastInvoiceRates;
-			}
-
-			if (isOffline()) {
-				return this.lastInvoiceRates;
-			}
-
-			this.lastInvoiceRateLoading = true;
-			try {
-				const res = await frappe.call({
-					method: "posawesome.posawesome.api.invoices.get_last_invoice_rates",
-					args: {
-						customer,
-						item_codes: missingCodes,
-						company: this.pos_profile?.company,
-					},
-				});
-
-				const rows = (res && res.message) || [];
-				const updatedCache = new Map(cachedForCustomer);
-				rows.forEach((row) => {
-					if (row && row.item_code) {
-						updatedCache.set(row.item_code, {
-							rate: row.rate,
-							currency: row.currency,
-							invoice: row.invoice,
-							uom: row.uom,
-							posting_date: row.posting_date,
-						});
-					}
-				});
-
-				this.lastInvoiceRateCache.set(customer, updatedCache);
-				this.lastInvoiceRates = Object.fromEntries(updatedCache);
-				return this.lastInvoiceRates;
-			} catch (error) {
-				console.error("Failed to fetch last invoice rates", error);
-				this.lastInvoiceRates = Object.fromEntries(cachedForCustomer);
-				return this.lastInvoiceRates;
-			} finally {
-				this.lastInvoiceRateLoading = false;
-			}
-		},
-
-		getLastInvoiceRate(item) {
-			if (!this.show_last_invoice_rate) {
-				return null;
-			}
-
-			if (!item || !item.item_code) {
-				return null;
-			}
-
-			return this.lastInvoiceRates[item.item_code] || null;
-		},
+		// scheduleLastInvoiceRateRefresh removed (handled by composable)
+		// refreshLastInvoiceRatesForVisibleItems removed
+		// fetchLastInvoiceRates removed
+		// getLastInvoiceRate removed (but used in template, so mapped in setup return, we should ensure it's available on 'this' context via composition API support or manual mapping if not using <script setup>)
+		// Since we are using Options API with setup(), setup returns are exposed to template AND 'this'.
 
 		show_offers() {
 			this.eventBus.emit("show_offers", "true");
@@ -1043,10 +972,8 @@ export default {
 
 			// 1. Clear local component caches
 			this.itemDetailsRequestCache = { key: null, promise: null, result: null };
-			if (this.lastInvoiceRateCache) {
-				this.lastInvoiceRateCache.clear();
-			}
-			this.lastInvoiceRates = {};
+			this.clearLastInvoiceRateCache();
+			// this.lastInvoiceRates = {}; // Managed by composable now
 
 			// 2. Reset search if empty to ensure full load
 			if (!this.first_search || !this.first_search.trim()) {
@@ -2279,7 +2206,7 @@ export default {
 			this.pos_profile.posa_force_server_items = this.temp_force_server_items ? 1 : 0;
 			this.savePosProfileSetting("posa_force_server_items", this.pos_profile.posa_force_server_items);
 			if (!this.show_last_invoice_rate) {
-				this.lastInvoiceRates = {};
+				this.clearLastInvoiceRateCache(); // Use method from composable
 			} else {
 				this.scheduleLastInvoiceRateRefresh();
 			}
@@ -2508,8 +2435,10 @@ export default {
 		// Performance optimizations - non-reactive caches
 		this.searchCache = new Map();
 		this.itemCache = new Map();
-		this.lastInvoiceRateCache = new Map();
 		this.formatCache = new Map();
+
+		// Initialize Composables
+		this.lastInvoiceRate = useLastInvoiceRate();
 
 		console.log("ItemsSelector created - starting initialization with Pinia store");
 
