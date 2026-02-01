@@ -248,16 +248,18 @@ _Taming the monoliths. Breaking down massive components for readability and main
     - [ ] `useItemSearchTriggers.js`: Consolidate Search Keydown, Focus, Blur, and Clear logic (UI bridge).
     - [x] `Bug Fixes`: Resolved `417 Expectation Failed`, `vm is not defined`, `replaceBarcodeIndex is not defined`, `get_invoice_doc TypeError`, and `playScanTone TypeError`.
 
-- [/] **6.1.3 Extract Sub-Components (UI)**
-    - [x] `ItemCard.vue`: Extracted.
-    - [x] `ItemSearchFilters.vue`: Extracted as `ItemHeader.vue` and `ItemActionToolbar.vue`.
-    - [ ] `EditItemDialog.vue`: Pending.
-    - [x] `ItemImage.vue`: Integrated into `ItemCard.vue`.
-    - **Payments.vue**: Identified as a large component (3000+ lines). Planned decomposition into `PaymentSummary`, `PaymentMethods`, `InvoiceTotals`, etc.
+    - [/] **6.1.3 Extract Sub-Components (UI)**
+        - [x] `ItemCard.vue`: Extracted.
+        - [x] `ItemSearchFilters.vue`: Extracted as `ItemHeader.vue` and `ItemActionToolbar.vue`.
+        - [x] `ItemsSelectorCards.vue` & `ItemsSelectorTable.vue`: Extracted.
+        - [ ] `EditItemDialog.vue`: Pending.
+        - [x] `ItemImage.vue`: Integrated into `ItemCard.vue`.
+        - [x] **Payments.vue**: Decomposed into `PaymentSummary`, `PaymentMethods`, `InvoiceTotals`.
 
-- [ ] **6.1.4 Legacy Component Migration (Options API to Script Setup)**
-    - [x] `CameraScanner.vue` (680 lines): Refactored to `<script setup>`. Logic preserved.
-    - [x] `NewItemDialog.vue` (200 lines): Refactored to `<script setup>`. API calls moved to `itemService.js`.
+    - [/] **6.1.4 Legacy Component Migration (Options API to Script Setup)**
+        - [x] `CameraScanner.vue` (680 lines): Refactored to `<script setup>`. Logic preserved.
+        - [x] `NewItemDialog.vue` (200 lines): Refactored to `<script setup>`. API calls moved to `itemService.js`.
+        - [ ] `ItemsSelector.vue`: Partially migrated (hybrid). Logic in composables, but still uses Mixins.
 
 ## ✂️ 6.2 `Invoice.vue` (1964 lines)
 
@@ -271,15 +273,15 @@ _Taming the monoliths. Breaking down massive components for readability and main
     - [x] `InvoiceTotals.vue`: Extracted from `Payments.vue` (Phase 1).
     - [x] `PaymentActionButtons.vue`: Extracted from `Payments.vue` (Phase 1).
     - [x] `PaymentMethods.vue`: Extracted loop logic, amounts, and denominations (Phase 2).
-    - [ ] `CustomerSection` (Pending)
-    - [ ] `ActionButtons` (Pending)
+    - [x] `DeliveryCharges.vue`: Extracted.
+    - [x] `PostingDateRow.vue`: Extracted.
 - [ ] **Store Integration:** Ensure `invoiceStore` handles business logic.
-- [ ] **Composition API Migration:** Convert main component to `<script setup>`.js`: Keyboard shortcuts. (Implemented as `invoiceShortcuts.js`)
+- [ ] **Composition API Migration:** Component uses `setup()` but still relies on Mixins (`format`).
 
 - [ ] **6.2.2 Decompose Sections**
-    - `InvoiceHeader.vue`: Customer selection, mode toggles.
-    - `InvoiceTotals.vue`: The summary section (Subtotal, Tax, Final Amount).
-    - `ActiveOffers.vue`: The chip list or display of applied offers.
+    - [x] `InvoiceHeader.vue`: Partially covered by `InvoiceCustomerSection`.
+    - [x] `InvoiceTotals.vue`: The summary section (Subtotal, Tax, Final Amount).
+    - [ ] `ActiveOffers.vue`: The chip list or display of applied offers.
 
 ## ✂️ 6.3 `PurchaseOrders.vue` (1230 lines)
 
@@ -473,6 +475,7 @@ _The ultimate reliability upgrade. A strict, step-by-step path to type safety._
 | 2026-01-28 | Phase 2.1 Final Cleanup             | Completed   | Removed remaining EventBus usage in `Payments.vue` and `Invoice.vue` (view switching, clearing invoice, posting date).                              |
 | 2026-01-30 | Phase 6.1 ItemsSelector Refactor    | In Progress | Extracted `useScannerInput.js`, `useItemAvailability.js`, `useItemCurrency.js`, `useItemDetailFetcher.js`, `useItemSelection.js`, `useItemSync.js`. |
 | 2026-01-30 | Bug Fixes                           | Completed   | Resolved multiple runtime errors including `vm is not defined` and `playScanTone`.                                                                  |
-| 2026-01-31 | Phase 6.1 Logic Consolidation       | Completed   | Extracted `useBarcodeIndexing`, `useItemStorageSafety`, `useItemSelectorLayout`. Consolidated `useItemAddition`.                                    |
-| 2026-01-31 | Scan & Addition Debugging           | Completed   | Fixed item merge issues, scan handler registration, and adding items via Proxy wrapper.                                                             |
+| 2026-02-01 | Phase 6.1 Logic Consolidation       | Completed   | Extracted `useBarcodeIndexing`, `useItemStorageSafety`, `useItemSelectorLayout`. Consolidated `useItemAddition`.                                    |
+| 2026-02-01 | Scan & Addition Debugging           | Completed   | Fixed item merge issues, scan handler registration, and adding items via Proxy wrapper.                                                             |
 | 2026-02-01 | Phase 6.2 Payments Refactoring      | Completed   | Decomposed `Payments.vue` into `PaymentMethods`, `PaymentSummary`, `InvoiceTotals`. Migrated logic to `usePayments.js` & `<script setup>`.          |
+| 2026-02-01 | Journal Update                      | Completed   | Verified codebase state. Phase 6.1 & 6.2 largely decomposed. `Pay.vue` and `ClosingDialog.vue` pending decomposition. Phase 7 not started.          |

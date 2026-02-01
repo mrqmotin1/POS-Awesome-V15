@@ -26,7 +26,7 @@
 				cols="12"
 				class="pos dynamic-col"
 			>
-				<ItemsSelector @add-item="handleAddItem"></ItemsSelector>
+						<ItemsSelector context="pos" />
 			</v-col>
 			<v-col
 				v-show="activeView === 'offers'"
@@ -177,13 +177,7 @@ export default {
 				console.info("Loading completed");
 			}
 		},
-		handleAddItem(item) {
-			if (this.eventBus?.emit) {
-				this.eventBus.emit("add_item", item);
-			} else {
-				this.invoiceStore.addItem(item);
-			}
-		},
+		// handleAddItem removed as ItemsSelector handles pos addition internally
 		handleRegisterPosData(data) {
 			this.pos_profile = data.pos_profile;
 			this.get_offers(this.pos_profile.name, this.pos_profile);

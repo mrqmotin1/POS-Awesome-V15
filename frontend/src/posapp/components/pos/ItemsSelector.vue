@@ -359,40 +359,46 @@ export default {
 		} = useBarcodeIndexing();
 
 		const add_item = (item, options) => {
-			const vm = getValidVM();
-			if (!vm) return;
-			// Use a Proxy to create a robust context that delegates to the component instance
-			// but allows local overrides and method binding
-			const context = new Proxy(vm, {
-				get(target, prop, receiver) {
-					// 1. Check options override
-					if (options && options[prop] !== undefined) {
-						return options[prop];
-					}
-					// 2. Map specific missing methods/properties
-					if (prop === "update_items_details") {
-						return vm.itemDetailFetcher?.update_items_details;
-					}
-					if (prop === "items") {
-						// Map 'items' to invoiceStore items for merge logic (ItemsSelector uses 'items' for search results)
-						return vm.invoiceStore?.items || Reflect.get(target, "items", receiver);
-					}
-					// 3. Delegate to component instance
-					const value = Reflect.get(target, prop, receiver);
-					// Bind functions to the original VM to ensure 'this' context is correct
-					if (typeof value === "function") {
-						return value.bind(target);
-					}
-					return value;
-				},
-				// Allow writing specific properties back to the VM (e.g. cache)
-				set(target, prop, value, receiver) {
-					// We can allow all writes to flow through to the VM, or restrict them.
-					// useItemAddition writes to _mergeIndexCache, items (via push/splice), etc.
-					return Reflect.set(target, prop, value, receiver);
-				},
-			});
-			return itemAddition.addItem(item, context);
+			// In 'pos' context, we use the internal store logic directly
+			if (props.context === "pos") {
+				const vm = getValidVM();
+				if (!vm) return;
+				// Use a Proxy to create a robust context that delegates to the component instance
+				// but allows local overrides and method binding
+				const context = new Proxy(vm, {
+					get(target, prop, receiver) {
+						// 1. Check options override
+						if (options && options[prop] !== undefined) {
+							return options[prop];
+						}
+						// 2. Map specific missing methods/properties
+						if (prop === "update_items_details") {
+							return vm.itemDetailFetcher?.update_items_details;
+						}
+						if (prop === "items") {
+							// Map 'items' to invoiceStore items for merge logic (ItemsSelector uses 'items' for search results)
+							return vm.invoiceStore?.items || Reflect.get(target, "items", receiver);
+						}
+						// 3. Delegate to component instance
+						const value = Reflect.get(target, prop, receiver);
+						// Bind functions to the original VM to ensure 'this' context is correct
+						if (typeof value === "function") {
+							return value.bind(target);
+						}
+						return value;
+					},
+					// Allow writing specific properties back to the VM (e.g. cache)
+					set(target, prop, value, receiver) {
+						// We can allow all writes to flow through to the VM, or restrict them.
+						// useItemAddition writes to _mergeIndexCache, items (via push/splice), etc.
+						return Reflect.set(target, prop, value, receiver);
+					},
+				});
+				return itemAddition.addItem(item, context);
+			} else {
+				// In other contexts (e.g. Purchase Orders), we emit the event for the parent to handle
+				emit("add-item", item);
+			}
 		};
 
 

@@ -576,7 +576,7 @@ export default {
 			console.log("Item dropped:", item);
 
 			// Use the existing add_item method to add the dropped item
-			this.add_item(item);
+			this.invoiceStore.addItem(item);
 		},
 
 		applyStockStateToInvoiceItems(codes = null) {
