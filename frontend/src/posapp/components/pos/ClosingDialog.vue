@@ -107,50 +107,7 @@ export default {
 			submitDialog,
 		} = useClosingShift(eventBus);
 
-		// Formatters for summary composable
-		// We can't access mixin methods directly in setup easily without binding or updated structure
-		// But we can recreate wrappers or use the imported 'format' mixin logic if extracted
-		// For now, we'll rely on the methods exposed via the component instance or re-implement helpers
-		// Since mixins are Options API, we need to bridge them.
-		
-		// To properly use the format methods in the composable (if they are pure functions), we should import them.
-		// However, format.js exports a mixin object.
-		// Let's create a proxy object or just pass the component instance context later.
-		// Actually, useClosingSummary only needs pure functions for formatting.
-		// Let's replicate strict helpers or refactor format.js to be composable-friendly later.
-		// For now, defining the closures that call `this` via a bound context in Options API is standard, 
-		// but inside setup() `this` is unavailable.
-		
-		// Solution: We will pass simple wrapper functions that will be hooked up in `created` 
-		// or we can use a temporary format object if we refactor `format.js`.
-		
-		// Ideally, `format.js` should export standalone functions too. 
-		// Assuming we can't change `format.js` drastically right now.
-		// We will implement `useClosingSummary` to take the formatting functions as arguments
-		// and we will construct them using the `format` mixin logic which is standard.
-		// BUT: `format.js` uses `frappe` global. We can implement standard formatters locally in setup using frappe.
-		
-		const formatters = {
-			formatCurrencyWithSymbol: (amount, currency) => {
-				const resolvedCurrency = currency || unref(pos_profile)?.currency || "";
-				const symbol = get_currency_symbol(resolvedCurrency); // Global frappe function usually
-				const formatted = format_currency(amount || 0);
-				if (symbol) return `${symbol} ${formatted}`;
-				return `${resolvedCurrency} ${formatted}`.trim();
-			},
-			formatCount: (value) => flt(value || 0, 0), // Global flt/format
-			formatCurrency: (amount) => format_currency(amount || 0),
-			currencySymbol: (currency) => get_currency_symbol(currency),
-			__: (text) => __(text),
-		};
-
-		// Helper to use mixin methods from within setup (Standard Vue 3 workaround for mixins)
-		// Since we cannot access `this` in setup, we'll implement the logic needed for `useClosingSummary`
-		// directly or via helpers that mirror the mixin.
-		
-		// Actually, let's keep it simple. `useClosingSummary` expects functions.
-		// The formatters can be defined here using `frappe` globals which `format.js` likely uses.
-		
+		// Formatters
 		const formatCurrency = (v) => window.format_currency(v);
 		const formatFloat = (v, d) => window.flt(v, d);
 		const currencySymbol = (c) => window.get_currency_symbol(c);
@@ -172,24 +129,8 @@ export default {
 
 		const summary = useClosingSummary(overview, pos_profile, dialog_data, summaryFormatters);
 
-		return {
-			uiStore,
-			eventBus,
-			closingDialog,
-			dialog_data,
-			overview,
-			overviewLoading,
-			pos_profile,
-			closeDialog,
-			fetchOverview,
-			submitDialog,
-			...summary,
-		};
-	},
-	data: () => ({
-		itemsPerPage: 20,
-		headers: [],
-		baseHeaders: [
+		const headers = ref([]);
+		const baseHeaders = [
 			{
 				title: __("Mode of Payment"),
 				value: "mode_of_payment",
@@ -208,8 +149,8 @@ export default {
 				align: "end",
 				sortable: true,
 			},
-		],
-		extendedHeaders: [
+		];
+		const extendedHeaders = [
 			{
 				title: __("Expected Amount (In Company Currency)"),
 				value: "expected_amount",
@@ -228,54 +169,66 @@ export default {
 				align: "end",
 				sortable: false,
 			},
-		],
-	}),
-	created() {
-		this.headers = [...this.baseHeaders];
-		
-		// Re-wiring event bus here as we moved the logic to composable
-		// logic moved to setup ? No, event bus listeners are best in lifecycle hooks or setup
-		// We can listen in created/mounted using the exposed methods from setup
-		
-		this.eventBus.on("open_ClosingDialog", (data) => {
-			this.closingDialog = true;
-			this.dialog_data = data;
-			// We need to pass the currency from profile if available globally or fetch it
-			// The fetchOverview logic now resides in useClosingShift
-			// But we need to call it. 
-			
-			// We exposed fetchOverview from setup, so we can call it here.
-			this.fetchOverview(data.pos_opening_shift, this.pos_profile?.currency);
+		];
+
+		const handleKeydown = (event) => {
+			if (event.key === "Escape" && closingDialog.value) {
+				closeDialog();
+			}
+		};
+
+		onMounted(() => {
+			headers.value = [...baseHeaders];
+			window.addEventListener("keydown", handleKeydown);
+
+			if (eventBus) {
+				eventBus.on("open_ClosingDialog", (data) => {
+					closingDialog.value = true;
+					dialog_data.value = data;
+					fetchOverview(data.pos_opening_shift, unref(pos_profile)?.currency);
+				});
+			} else {
+				console.error("ClosingDialog: eventBus not provided");
+			}
 		});
 
-		this.$watch(
-			() => this.uiStore.posProfile,
+		onBeforeUnmount(() => {
+			window.removeEventListener("keydown", handleKeydown);
+			if (eventBus) {
+				eventBus.off("open_ClosingDialog");
+			}
+		});
+
+		watch(
+			() => uiStore.posProfile,
 			(profile) => {
 				if (profile) {
-					this.pos_profile = profile;
-					if (!this.pos_profile.hide_expected_amount) {
-						this.headers = [...this.baseHeaders, ...this.extendedHeaders];
+					pos_profile.value = profile;
+					if (!unref(pos_profile).hide_expected_amount) {
+						headers.value = [...baseHeaders, ...extendedHeaders];
 					} else {
-						this.headers = [...this.baseHeaders];
+						headers.value = [...baseHeaders];
 					}
 				}
 			},
-			{ deep: true, immediate: true }
+			{ deep: true, immediate: true },
 		);
-	},
-	methods: {
-		handleKeydown(event) {
-			if (event.key === "Escape" && this.closingDialog) {
-				this.closeDialog();
-			}
-		},
-	},
-	mounted() {
-		window.addEventListener("keydown", this.handleKeydown);
-	},
-	beforeUnmount() {
-		this.eventBus.off("open_ClosingDialog");
-		window.removeEventListener("keydown", this.handleKeydown);
+
+		return {
+			uiStore,
+			eventBus,
+			closingDialog,
+			dialog_data,
+			overview,
+			overviewLoading,
+			pos_profile,
+			closeDialog,
+			fetchOverview,
+			submitDialog,
+			...summary,
+			headers,
+			itemsPerPage: 20,
+		};
 	},
 };
 </script>
