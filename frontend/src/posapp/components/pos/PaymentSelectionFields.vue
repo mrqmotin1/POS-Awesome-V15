@@ -21,7 +21,7 @@
 					:no-data-text="$__('Sales Person not found')"
 					hide-details
 					:disabled="readonly"
-					@update:model-value="$emit('update:salesPerson', $event)"
+					@update:model-value="$emit('update:sales-person', $event)"
 				></v-select>
 			</v-col>
 		</v-row>
@@ -39,7 +39,7 @@
 					class="sleek-field pos-themed-input"
 					:no-data-text="$__('No Print Formats Found')"
 					hide-details
-					@update:model-value="$emit('update:printFormat', $event)"
+					@update:model-value="$emit('update:print-format', $event)"
 				></v-select>
 			</v-col>
 		</v-row>
@@ -72,7 +72,7 @@ const props = defineProps({
 	},
 });
 
-defineEmits(["update:salesPerson", "update:printFormat"]);
+defineEmits(["update:sales-person", "update:print-format"]);
 
 const $frappe = inject("frappe", window.frappe);
 const $__ = inject("__", window.__);
