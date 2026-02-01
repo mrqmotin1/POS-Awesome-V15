@@ -1102,12 +1102,21 @@ async function prepareItemForCart(item, requestedQty, context) {
 
 	// Set final quantity
 	const hasBarcodeQty = item._barcode_qty;
+	
+	console.log("[useItemAddition] prepareItemForCart qty check", {
+		item_code: item.item_code,
+		initial_item_qty: item.qty,
+		requestedQty,
+		hasBarcodeQty,
+	});
+
 	if (!item.qty || (item.qty === 1 && !hasBarcodeQty)) {
 		let qtyVal = requestedQty;
 		if (hide_qty_decimals) {
 			qtyVal = Math.trunc(qtyVal);
 		}
 		item.qty = qtyVal;
+		console.log("[useItemAddition] qty updated", { item_qty: item.qty });
 	}
 
 	return item;

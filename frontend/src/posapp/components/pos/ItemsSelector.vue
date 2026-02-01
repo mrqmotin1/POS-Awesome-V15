@@ -365,12 +365,35 @@ export default {
 				if (!vm) return;
 
 				// 1. Determine requested quantity from options or component state
-				const requestedQty =
-					options.qty !== undefined ? options.qty : vm.qty != null ? Math.abs(vm.qty) : 1;
+				let requestedQty = options.qty !== undefined ? options.qty : vm.qty;
+				
+				// Robust quantity parsing (Math.abs("") is 0, which we want to avoid)
+				if (requestedQty === "" || requestedQty == null) {
+					requestedQty = 1;
+				} else {
+					requestedQty = Math.abs(parseFloat(requestedQty) || 1);
+				}
+
+				console.log("[ItemsSelector] add_item triggered", {
+					item_code: item.item_code,
+					requestedQty,
+					vm_qty: vm.qty,
+					options_qty: options.qty,
+				});
+
+				// Create a shallow copy to avoid mutating the reactive list
+				item = { ...item };
+
+				// Handle variant items
+				if (item.has_variants) {
+					await itemAddition.handleVariantItem(item, vm);
+					return;
+				}
 
 				// Use a Proxy to create a robust context that delegates to the component instance
 				// but allows local overrides and method binding
 				const context = new Proxy(vm, {
+					// ... (rest of proxy kept)
 					get(target, prop, receiver) {
 						// 1. Check options override
 						if (options && options[prop] !== undefined) {
@@ -423,6 +446,26 @@ export default {
 						return Reflect.set(target, prop, value, receiver);
 					},
 				});
+
+				// 2. Validate item before adding to cart
+				const { suppressNegativeWarning = false } = options;
+				if (props.context !== "purchase") {
+					const isValid = await cartValidation.validateCartItem(
+						item,
+						requestedQty,
+						vm.pos_profile,
+						vm.stock_settings,
+						null, // EventBus removed
+						blockSaleBeyondAvailableQty.value,
+						!suppressNegativeWarning,
+						true, // Skip server-side validation for instant add
+					);
+
+					if (!isValid) {
+						// Validation failed, error message already shown by validator
+						return;
+					}
+				}
 
 				// 3. Prepare item for cart (UOM, rate, qty)
 				await itemAddition.prepareItemForCart(item, requestedQty, context);
@@ -1387,51 +1430,6 @@ export default {
 		},
 		async click_item_row(event, { item }) {
 			await this.itemSelection.handleRowClick(event, { item });
-		},
-		async add_item(item, options = {}) {
-			const { suppressNegativeWarning = false } = options;
-			item = { ...item };
-
-			// Handle variant items
-			if (item.has_variants) {
-				await this.handleVariantItem(item);
-				return;
-			}
-
-			// PERF: Skip blocking update_items_details call.
-			// The background sync mechanism (flushBackgroundUpdates) in invoiceItemMethods.js
-			// will handle fetching fresh details asynchronously after the item is added.
-			// await this.itemDetailFetcher.update_items_details([item]);
-
-			// Validate item before adding to cart
-			const requestedQty = this.qty != null ? Math.abs(this.qty) : 1;
-
-			if (this.context !== "purchase") {
-				const isValid = await this.cartValidation.validateCartItem(
-					item,
-					requestedQty,
-					this.pos_profile,
-					this.stock_settings,
-					null, // EventBus removed
-					this.blockSaleBeyondAvailableQty,
-					!suppressNegativeWarning,
-					true, // Skip server-side validation for instant add
-				);
-
-				if (!isValid) {
-					// Validation failed, error message already shown by validator
-					return;
-				}
-			}
-
-			// Prepare item for cart
-			await this.prepareItemForCart(item, requestedQty);
-
-			// Add item to cart
-			const payload = { ...item };
-			delete payload._barcode_qty;
-			this.$emit("add-item", payload);
-			this.qty = 1;
 		},
 
 
