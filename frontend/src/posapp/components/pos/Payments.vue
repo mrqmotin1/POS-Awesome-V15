@@ -272,6 +272,8 @@ export default {
 		const is_credit_return = ref(false);
 		const customer_info = ref("");
 		const currency_precision = ref(2);
+		const print_format = ref(""); // Migrated from data
+		const print_formats = ref([]); // Migrated from data
 
 		// Initialize redemption logic
 		const {
@@ -520,6 +522,7 @@ export default {
 			formatStockErrors,
 			ensureReturnPaymentsAreNegative,
 			submitInvoice,
+			print_formats,
 		};
 	},
 	data() {
@@ -543,8 +546,6 @@ export default {
 			// mpesa_modes moved to usePaymentMethods
 			// sales_persons moved to useInvoiceDetails
 			// sales_person moved to setup
-			print_formats: [], // List of print formats
-			print_format: "", // Selected print format
 			// addresses moved to useInvoiceDetails
 			is_user_editing_paid_change: false, // User interaction flag
 			highlightSubmit: false, // Highlight state for submit button
@@ -582,7 +583,8 @@ export default {
 		},
 		// Validate if payment can be submitted
 		validatePayment() {
-			if (!this.pos_profile.posa_allow_sales_order) {
+			const profile = this.pos_profile;
+			if (!profile || !profile.posa_allow_sales_order) {
 				return false;
 			}
 
