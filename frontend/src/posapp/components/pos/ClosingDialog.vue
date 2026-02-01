@@ -75,8 +75,8 @@
 import format from "../../format";
 import { useUIStore } from "../../stores/uiStore.js";
 import { ref, inject, onMounted, onBeforeUnmount, watch, unref } from "vue";
-import { useClosingShift } from "../../composables/useClosingShift";
-import { useClosingSummary } from "../../composables/useClosingSummary";
+import { useClosingShift } from "../../composables/useClosingShift.js";
+import { useClosingSummary } from "../../composables/useClosingSummary.js";
 
 import ClosingHeader from "./closing/ClosingHeader.vue";
 import ShiftOverview from "./closing/ShiftOverview.vue";
@@ -204,7 +204,7 @@ export default {
 			(profile) => {
 				if (profile) {
 					pos_profile.value = profile;
-					if (!unref(pos_profile).hide_expected_amount) {
+					if (!pos_profile.value.hide_expected_amount) {
 						headers.value = [...baseHeaders, ...extendedHeaders];
 					} else {
 						headers.value = [...baseHeaders];
