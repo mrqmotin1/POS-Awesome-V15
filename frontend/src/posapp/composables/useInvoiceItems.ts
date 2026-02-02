@@ -69,8 +69,8 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
                     .filter((col) => {
                         if (col.required) return true;
                         if (col.key === "price_list_rate") return true;
-                        if (col.key === "discount_value" && pos_profile.value.posa_display_discount_percentage) return true;
-                        if (col.key === "discount_amount" && pos_profile.value.posa_display_discount_amount) return true;
+                        if (col.key === "discount_value" && pos_profile.value?.posa_display_discount_percentage) return true;
+                        if (col.key === "discount_amount" && pos_profile.value?.posa_display_discount_amount) return true;
                         return false;
                     })
                     .map((col) => col.key);
@@ -111,7 +111,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 
     const setFormatedQty = (item: any, field_name: string, precision: number | null, no_negative: boolean, value: any) => {
         // @ts-ignore
-        let parsedValue = format.methods.setFormatedFloat(item, field_name, precision, no_negative, value);
+        let parsedValue: any = format.methods.setFormatedFloat(item, field_name, precision, no_negative, value);
 
         const enforceStockLimits = shouldEnforceStockLimits(item);
         const allowNegativeStock = (parseBooleanSetting(stock_settings.value?.allow_negative_stock) ||
@@ -183,7 +183,9 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
         if (fromIndex === toIndex) return;
         const newItems = [...invoiceStore.items];
         const [movedItem] = newItems.splice(fromIndex, 1);
-        newItems.splice(toIndex, 0, movedItem);
+        if (movedItem) {
+            newItems.splice(toIndex, 0, movedItem);
+        }
         newItems.forEach((it, idx) => (it.idx = idx + 1));
         invoiceStore.setItems(newItems);
         toastStore.show({ title: __("Item order updated"), color: "success" });
