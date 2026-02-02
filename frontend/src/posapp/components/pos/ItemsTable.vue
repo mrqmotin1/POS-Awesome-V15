@@ -133,6 +133,7 @@ import { useItemsTableDragDrop } from "../../composables/useItemsTableDragDrop";
 import { useItemsTableResponsive } from "../../composables/useItemsTableResponsive";
 import { useItemsTableMerge } from "../../composables/useItemsTableMerge";
 import { useItemsTableNameEdit } from "../../composables/useItemsTableNameEdit";
+import "./items-table-styles.css";
 
 export default {
 	name: "ItemsTable",
