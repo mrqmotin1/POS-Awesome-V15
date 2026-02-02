@@ -8,7 +8,7 @@
    ================================================================= */
 
 /* Main table container */
-.pos-table {
+.posa-cart-table {
 	border-radius: 8px;
 	overflow: hidden;
 	box-shadow: 0 2px 8px var(--pos-shadow);
@@ -25,7 +25,7 @@
 }
 
 /* Responsive table container */
-.responsive-table-container {
+.posa-responsive-table-container {
 	position: relative;
 	transition: all 0.3s ease;
 	width: 100%;
@@ -38,7 +38,7 @@
 }
 
 /* Items table container */
-.items-table-container {
+.posa-items-table-container {
 	overflow-y: auto;
 	width: 100%;
 	max-width: 100%;
@@ -52,8 +52,8 @@
    ================================================================= */
 
 /* Table wrapper styling */
-.pos-table .v-data-table__wrapper,
-.pos-table .v-table__wrapper {
+.posa-cart-table .v-data-table__wrapper,
+.posa-cart-table .v-table__wrapper {
 	border-radius: 0;
 	height: 100%;
 	width: 100%;
@@ -66,9 +66,9 @@
 }
 
 /* Full width enforcement for nested elements */
-.pos-table .v-data-table,
-.pos-table .v-data-table-virtual,
-.pos-table .v-table {
+.posa-cart-table .v-data-table,
+.posa-cart-table .v-data-table-virtual,
+.posa-cart-table .v-table {
 	width: 100% !important;
 	max-width: 100% !important;
 	margin: 0 !important;
@@ -76,7 +76,7 @@
 	border-radius: 0 !important;
 }
 
-.pos-table table {
+.posa-cart-table table {
 	width: 100% !important;
 	max-width: 100% !important;
 	margin: 0 !important;
@@ -86,7 +86,7 @@
 }
 
 /* Table headers */
-.pos-table th {
+.posa-cart-table th {
 	font-weight: 600;
 	font-size: 0.8rem;
 	text-transform: uppercase;
@@ -119,12 +119,12 @@
 	contain: layout style;
 }
 
-.pos-table th:last-child {
+.posa-cart-table th:last-child {
 	border-right: none;
 }
 
 /* Header hover effects */
-.pos-table th:hover {
+.posa-cart-table th:hover {
 	background-color: var(--pos-hover-bg);
 	transform: translateY(-1px);
 	box-shadow: 0 4px 12px var(--pos-shadow);
@@ -132,7 +132,7 @@
 }
 
 /* Header content styling */
-.pos-table th .v-data-table-header__content {
+.posa-cart-table th .v-data-table-header__content {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -150,7 +150,7 @@
 	box-sizing: border-box;
 }
 
-.pos-table th:hover .v-data-table-header__content {
+.posa-cart-table th:hover .v-data-table-header__content {
 	color: var(--pos-primary);
 	font-weight: 600;
 	letter-spacing: 0.02em;
@@ -158,7 +158,7 @@
 }
 
 /* Table rows */
-.pos-table tr {
+.posa-cart-table tr {
 	transition: background-color 0.2s ease;
 	border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 	width: 100% !important;
@@ -168,12 +168,12 @@
 	min-height: var(--cell-height, 60px);
 }
 
-.pos-table tr:hover {
+.posa-cart-table tr:hover {
 	background-color: var(--pos-hover-bg);
 }
 
 /* Table cells */
-.pos-table td {
+.posa-cart-table td {
 	padding: 16px 12px;
 	vertical-align: middle;
 	height: 60px;
@@ -182,7 +182,7 @@
 	position: relative;
 }
 
-.pos-table td>div {
+.posa-cart-table td>div {
 	width: 100%;
 	height: 100%;
 	display: flex;
@@ -195,7 +195,7 @@
    QUANTITY COUNTER COMPONENT
    ================================================================= */
 
-.pos-table__qty-counter {
+.posa-cart-table__qty-counter {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -215,14 +215,14 @@
 	box-sizing: border-box;
 }
 
-.pos-table__qty-counter:hover {
+.posa-cart-table__qty-counter:hover {
 	background: var(--pos-hover-bg);
 	box-shadow: 0 4px 16px var(--pos-shadow);
 	transform: translateY(-1px);
 }
 
 .qty-control-btn,
-.pos-table__qty-btn {
+.posa-cart-table__qty-btn {
 	width: 24px !important;
 	height: 24px !important;
 	min-width: 24px !important;
@@ -239,7 +239,7 @@
 }
 
 .qty-control-btn::before,
-.pos-table__qty-btn::before {
+.posa-cart-table__qty-btn::before {
 	content: "";
 	position: absolute;
 	top: 0;
@@ -253,25 +253,25 @@
 }
 
 .qty-control-btn:hover::before,
-.pos-table__qty-btn:hover::before {
+.posa-cart-table__qty-btn:hover::before {
 	transform: translateX(0);
 }
 
 .qty-control-btn .v-icon,
-.pos-table__qty-btn .v-icon {
+.posa-cart-table__qty-btn .v-icon {
 	position: relative;
 	z-index: 1;
 }
 
 .qty-control-btn.minus-btn,
-.pos-table__qty-btn--minus {
+.posa-cart-table__qty-btn--minus {
 	background: var(--pos-button-warning-bg) !important;
 	color: var(--pos-button-warning-text) !important;
 	border: 2px solid var(--pos-button-warning-border) !important;
 }
 
 .qty-control-btn.minus-btn:hover,
-.pos-table__qty-btn--minus:hover {
+.posa-cart-table__qty-btn--minus:hover {
 	background: var(--pos-button-warning-hover-bg) !important;
 	color: var(--pos-button-warning-hover-text) !important;
 	box-shadow:
@@ -281,14 +281,14 @@
 }
 
 .qty-control-btn.plus-btn,
-.pos-table__qty-btn--plus {
+.posa-cart-table__qty-btn--plus {
 	background: var(--pos-button-success-bg) !important;
 	color: var(--pos-button-success-text) !important;
 	border: 2px solid var(--pos-button-success-border) !important;
 }
 
 .qty-control-btn.plus-btn:hover,
-.pos-table__qty-btn--plus:hover {
+.posa-cart-table__qty-btn--plus:hover {
 	background: var(--pos-button-success-hover-bg) !important;
 	color: var(--pos-button-success-hover-text) !important;
 	box-shadow:
@@ -297,7 +297,7 @@
 	transform: translateY(-2px) scale(1.05) !important;
 }
 
-.pos-table__qty-display {
+.posa-cart-table__qty-display {
 	min-width: 40px;
 	max-width: 80px;
 	width: auto;
@@ -332,15 +332,15 @@
 	direction: ltr;
 }
 
-.pos-table__qty-display.negative-number,
-.pos-table__qty-display--negative {
+.posa-cart-table__qty-display.negative-number,
+.posa-cart-table__qty-display--negative {
 	color: var(--pos-error);
 	background: var(--pos-error-container);
 	border-color: var(--pos-error);
 }
 
-.pos-table__qty-display.large-number,
-.pos-table__qty-display--large {
+.posa-cart-table__qty-display.large-number,
+.posa-cart-table__qty-display--large {
 	min-width: 70px;
 	max-width: 120px;
 	font-size: 0.75rem;
@@ -352,7 +352,7 @@
    EDITOR INPUTS (Rate, Discount, etc)
    ================================================================= */
 
-.pos-table__editor-box {
+.posa-cart-table__editor-box {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -361,7 +361,7 @@
 	position: relative;
 }
 
-.pos-table__editor-display {
+.posa-cart-table__editor-display {
 	min-width: 60px;
 	max-width: 100%;
 	display: flex;
@@ -370,9 +370,12 @@
 	gap: 4px;
 	padding: 4px 8px;
 	border-radius: 6px;
-	border: 1px solid var(--pos-border);
-	background: var(--pos-surface-variant);
-	color: var(--pos-text-primary);
+	border: 1px solid var(--pos-primary-variant);
+	/* Match Qty border strength */
+	background: var(--pos-primary-container);
+	/* Match Qty background strength */
+	color: var(--pos-primary-text);
+	/* Ensure text is visible */
 	font-weight: 500;
 	cursor: pointer;
 	transition: all 0.2s ease;
@@ -380,29 +383,29 @@
 	font-size: 0.9rem;
 }
 
-.pos-table__editor-display:hover {
-	border-color: var(--pos-primary-variant);
+.posa-cart-table__editor-display:hover {
+	border-color: var(--pos-primary);
 	background: var(--pos-hover-bg);
 	box-shadow: 0 1px 3px var(--pos-shadow-light);
 }
 
-.pos-table__editor-display .currency-symbol {
-	opacity: 0.6;
+.posa-cart-table__editor-display .currency-symbol {
+	opacity: 0.7;
 	font-size: 0.8em;
-	font-weight: 400;
+	font-weight: 500;
 }
 
 /* Input field overrides within the table */
-.pos-table__editor-input,
-.pos-table__qty-input {
+.posa-cart-table__editor-input,
+.posa-cart-table__qty-input {
 	width: 100%;
 	max-width: 100px;
 	margin: 0;
 	padding: 0;
 }
 
-.pos-table__editor-input .v-field__input,
-.pos-table__qty-input .v-field__input {
+.posa-cart-table__editor-input .v-field__input,
+.posa-cart-table__qty-input .v-field__input {
 	min-height: 32px !important;
 	height: 32px !important;
 	padding-top: 0 !important;
@@ -416,6 +419,7 @@
 .uom-editor {
 	gap: 4px;
 	background: transparent;
+	justify-content: center;
 }
 
 .uom-select {
@@ -435,7 +439,7 @@
 	transition: opacity 0.2s ease;
 }
 
-.pos-table__editor-box:hover .uom-arrow {
+.posa-cart-table__editor-box:hover .uom-arrow {
 	opacity: 1;
 }
 
@@ -444,8 +448,20 @@
 	color: var(--pos-primary);
 }
 
+/* Force UOM Display to look like a box when not editing */
+.uom-display-mode :deep(.v-field) {
+	border-radius: 6px !important;
+	border: 1px solid var(--pos-primary-variant) !important;
+	background: var(--pos-primary-container) !important;
+	height: 32px !important;
+	min-height: 32px !important;
+	padding: 0 8px !important;
+	align-items: center !important;
+	box-shadow: none !important;
+}
+
 .uom-display-mode :deep(.v-field__outline) {
-	display: none;
+	display: none !important;
 }
 
 .uom-display-mode :deep(.v-field__input) {
@@ -453,10 +469,12 @@
 	min-height: auto !important;
 	justify-content: center;
 	font-weight: 500;
+	color: var(--pos-primary-text) !important;
+	font-size: 0.9rem !important;
 }
 
 .uom-display-mode :deep(.v-field__append-inner) {
-	display: none;
+	display: none !important;
 }
 
 /* =================================================================
@@ -464,8 +482,8 @@
    ================================================================= */
 
 /* Hide empty placeholder/spacer rows generated by Vuetify */
-.pos-table tr[style*="height: 0px"],
-.pos-table tr[style*="height:0px"] {
+.posa-cart-table tr[style*="height: 0px"],
+.posa-cart-table tr[style*="height:0px"] {
 	display: none !important;
 	height: 0 !important;
 	line-height: 0 !important;
@@ -475,10 +493,10 @@
 }
 
 /* Hide empty cells within spacer rows */
-.pos-table tr[style*="height: 0px"] td,
-.pos-table tr[style*="height:0px"] td,
-.pos-table td[style*="height: 0px"],
-.pos-table td[style*="height:0px"] {
+.posa-cart-table tr[style*="height: 0px"] td,
+.posa-cart-table tr[style*="height:0px"] td,
+.posa-cart-table td[style*="height: 0px"],
+.posa-cart-table td[style*="height:0px"] {
 	display: none !important;
 	height: 0 !important;
 	line-height: 0 !important;
@@ -488,31 +506,31 @@
 }
 
 /* Additional targeting for Vuetify virtual table placeholders */
-.pos-table .v-data-table__tr--placeholder,
-.pos-table .v-table__tr--placeholder {
+.posa-cart-table .v-data-table__tr--placeholder,
+.posa-cart-table .v-table__tr--placeholder {
 	display: none !important;
 }
 
 /* Ensure table rows have consistent spacing */
-.pos-table tbody tr:not([style*="height: 0"]) {
+.posa-cart-table tbody tr:not([style*="height: 0"]) {
 	height: var(--cell-height, 60px);
 	min-height: var(--cell-height, 60px);
 }
 
 /* Clean up any unwanted spacing from virtual scrolling */
-.pos-table .v-virtual-scroll__item[style*="height: 0"],
-.pos-table .v-virtual-scroll__spacer[style*="height: 0"] {
+.posa-cart-table .v-virtual-scroll__item[style*="height: 0"],
+.posa-cart-table .v-virtual-scroll__spacer[style*="height: 0"] {
 	display: none !important;
 }
 
 /* Force table to have clean spacing */
-.pos-table table {
+.posa-cart-table table {
 	border-spacing: 0;
 	border-collapse: collapse;
 }
 
 /* Ensure tbody has no unwanted spacing */
-.pos-table tbody {
+.posa-cart-table tbody {
 	border-spacing: 0;
 	vertical-align: top;
 	border-top: none;
@@ -522,34 +540,34 @@
 }
 
 /* Hide any Vuetify generated dividers or spacers */
-.pos-table .v-divider,
-.pos-table .v-spacer {
+.posa-cart-table .v-divider,
+.posa-cart-table .v-spacer {
 	display: none !important;
 }
 
 /* Additional cleanup for v-data-table-virtual specific elements */
-.pos-table .v-data-table-virtual__spacer {
+.posa-cart-table .v-data-table-virtual__spacer {
 	display: none !important;
 	height: 0 !important;
 }
 
 /* Hide empty measurement/calculation rows */
-.pos-table tr[data-test-id],
-.pos-table tr[data-testid],
-.pos-table tr[class*="measurement"],
-.pos-table tr[class*="placeholder"] {
+.posa-cart-table tr[data-test-id],
+.posa-cart-table tr[data-testid],
+.posa-cart-table tr[class*="measurement"],
+.posa-cart-table tr[class*="placeholder"] {
 	display: none !important;
 }
 
 /* Clean up any row group spacing */
-.pos-table tbody tr {
+.posa-cart-table tbody tr {
 	vertical-align: middle;
 }
 
 /* Remove any default table spacing that might create gaps */
-.pos-table table,
-.pos-table tbody,
-.pos-table thead {
+.posa-cart-table table,
+.posa-cart-table tbody,
+.posa-cart-table thead {
 	border-collapse: collapse;
 	border-spacing: 0;
 	margin: 0;
@@ -557,19 +575,19 @@
 }
 
 /* Ensure expanded rows don't create unwanted spacing */
-.pos-table tr.v-data-table__expanded {
+.posa-cart-table tr.v-data-table__expanded {
 	border: none;
 }
 
 /* Clean slate for table structure */
-.pos-table * {
+.posa-cart-table * {
 	box-sizing: border-box;
 }
 
 /* Force removal of any invisible/zero-height elements that might cause spacing */
-.pos-table [style*="display: none"],
-.pos-table [style*="visibility: hidden"],
-.pos-table [style*="opacity: 0"] {
+.posa-cart-table [style*="display: none"],
+.posa-cart-table [style*="visibility: hidden"],
+.posa-cart-table [style*="opacity: 0"] {
 	display: none !important;
 	height: 0 !important;
 	margin: 0 !important;
@@ -580,7 +598,7 @@
    EXPANDED ROW CONTENT
    ================================================================= */
 
-.expanded-row-cell {
+.posa-expanded-row-cell {
 	padding: 0 !important;
 	width: 100% !important;
 	max-width: 100% !important;
@@ -589,7 +607,7 @@
 	position: relative;
 }
 
-.expanded-content {
+.posa-expanded-content {
 	padding: 24px;
 	width: 100% !important;
 	max-width: 100% !important;
@@ -618,7 +636,7 @@
 	}
 }
 
-.form-section {
+.posa-form-section {
 	width: 100%;
 	padding: 24px;
 	box-sizing: border-box;
@@ -629,19 +647,19 @@
 	transition: all 0.3s ease;
 }
 
-.form-section:hover {
+.posa-form-section:hover {
 	box-shadow: 0 4px 16px var(--pos-shadow-dark);
 	transform: translateY(-2px);
 }
 
-.item-details-form {
+.posa-item-details-form {
 	width: 100%;
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
 }
 
-.section-header {
+.posa-section-header {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -651,7 +669,7 @@
 	position: relative;
 }
 
-.section-header::after {
+.posa-section-header::after {
 	content: "";
 	position: absolute;
 	bottom: -2px;
@@ -662,7 +680,7 @@
 	border-radius: 1px;
 }
 
-.section-title {
+.posa-section-title {
 	font-weight: 600;
 	font-size: 0.9rem;
 	text-transform: uppercase;
@@ -670,7 +688,7 @@
 	color: var(--pos-text-primary);
 }
 
-.form-row {
+.posa-form-row {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 16px;
@@ -678,7 +696,7 @@
 	width: 100%;
 }
 
-.form-field {
+.posa-form-field {
 	flex: 1;
 	min-width: 250px;
 	max-width: 100%;
@@ -689,35 +707,35 @@
    RESPONSIVE DESIGN
    ================================================================= */
 
-.responsive-table-container.breakpoint-xs {
+.posa-responsive-table-container.breakpoint-xs {
 	--table-padding: 8px;
 	--header-font-size: 0.65rem;
 	--cell-padding: 8px 4px;
 	--cell-height: 48px;
 }
 
-.responsive-table-container.breakpoint-sm {
+.posa-responsive-table-container.breakpoint-sm {
 	--table-padding: 12px;
 	--header-font-size: 0.7rem;
 	--cell-padding: 12px 6px;
 	--cell-height: 52px;
 }
 
-.responsive-table-container.breakpoint-md {
+.posa-responsive-table-container.breakpoint-md {
 	--table-padding: 16px;
 	--header-font-size: 0.75rem;
 	--cell-padding: 14px 8px;
 	--cell-height: 56px;
 }
 
-.responsive-table-container.breakpoint-lg {
+.posa-responsive-table-container.breakpoint-lg {
 	--table-padding: 16px;
 	--header-font-size: 0.8rem;
 	--cell-padding: 16px 12px;
 	--cell-height: 60px;
 }
 
-.responsive-table-container.breakpoint-xl {
+.posa-responsive-table-container.breakpoint-xl {
 	--table-padding: 20px;
 	--header-font-size: 0.85rem;
 	--cell-padding: 18px 12px;
@@ -725,13 +743,13 @@
 }
 
 /* Container-aware responsive adjustments */
-.responsive-table-container.compact-view .pos-table__qty-counter {
+.posa-responsive-table-container.compact-view .posa-cart-table__qty-counter {
 	min-width: 110px;
 	max-width: 140px;
 	gap: 4px;
 }
 
-.responsive-table-container.compact-view .pos-table__qty-display {
+.posa-responsive-table-container.compact-view .posa-cart-table__qty-display {
 	min-width: 35px;
 	max-width: 65px;
 	height: 24px;
@@ -739,7 +757,7 @@
 	padding: 2px;
 }
 
-.responsive-table-container.compact-view .qty-control-btn {
+.posa-responsive-table-container.compact-view .qty-control-btn {
 	width: 20px !important;
 	height: 20px !important;
 	min-width: 20px !important;
@@ -749,20 +767,20 @@
    RTL SUPPORT
    ================================================================= */
 
-[dir="rtl"] .pos-table__qty-counter {
+[dir="rtl"] .posa-cart-table__qty-counter {
 	flex-direction: row !important;
 }
 
-[dir="rtl"] .pos-table__qty-counter .plus-btn {
+[dir="rtl"] .posa-cart-table__qty-counter .plus-btn {
 	order: 3 !important;
 }
 
-[dir="rtl"] .pos-table__qty-counter .pos-table__qty-display {
+[dir="rtl"] .posa-cart-table__qty-counter .posa-cart-table__qty-display {
 	order: 2 !important;
 	direction: ltr !important;
 }
 
-[dir="rtl"] .pos-table__qty-counter .minus-btn {
+[dir="rtl"] .posa-cart-table__qty-counter .minus-btn {
 	order: 1 !important;
 }
 
@@ -770,17 +788,17 @@
    UTILITY & PERFORMANCE
    ================================================================= */
 
-.pos-table th,
-.pos-table td {
+.posa-cart-table th,
+.posa-cart-table td {
 	transition:
 		padding 0.2s ease,
 		font-size 0.2s ease,
 		width 0.2s ease;
 }
 
-.pos-table th,
-.pos-table th .v-data-table-header__content,
-.pos-table th .v-icon {
+.posa-cart-table th,
+.posa-cart-table th .v-data-table-header__content,
+.posa-cart-table th .v-icon {
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	backface-visibility: hidden;
 	-webkit-backface-visibility: hidden;
@@ -788,8 +806,8 @@
 	-webkit-transform: translate3d(0, 0, 0);
 }
 
-.pos-table .v-data-table__expanded__content,
-.pos-table tr.v-data-table__expanded__content {
+.posa-cart-table .v-data-table__expanded__content,
+.posa-cart-table tr.v-data-table__expanded__content {
 	width: 100% !important;
 	border: none !important;
 	background: transparent !important;

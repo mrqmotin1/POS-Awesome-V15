@@ -1,7 +1,7 @@
 <template>
 	<div
 		ref="tableContainer"
-		class="my-0 py-0 overflow-y-auto items-table-container responsive-table-container pos-themed-card"
+		class="my-0 py-0 overflow-y-auto posa-items-table-container posa-responsive-table-container pos-themed-card"
 		:style="containerStyles"
 		:class="containerClasses"
 		@dragover="onDragOverFromSelector($event)"
@@ -15,7 +15,7 @@
 			:expanded="expanded"
 			show-expand
 			item-value="posa_row_id"
-			class="pos-table elevation-2 pos-themed-card"
+			class="posa-cart-table elevation-2 pos-themed-card"
 			:class="tableClasses"
 			:items-per-page="virtualScrollConfig.itemsPerPage"
 			:item-height="virtualScrollConfig.itemHeight"
@@ -361,7 +361,7 @@ export default {
 			return Array.isArray(item?.serial_no_data) ? item.serial_no_data : [];
 		},
 		focusItemField(index, field) {
-			const rows = this.$el?.querySelectorAll?.("tr.cart-item-row");
+			const rows = this.$el?.querySelectorAll?.("tr.posa-cart-item-row");
 			const row = rows?.[index];
 			if (!row) {
 				return false;

@@ -1,20 +1,20 @@
 <template>
-	<td :colspan="colspan" class="ma-0 pa-0 expanded-row-cell">
+	<td :colspan="colspan" class="ma-0 pa-0 posa-expanded-row-cell">
 		<div
 			v-if="isExpanded"
-			class="expanded-content responsive-expanded-content"
+			class="posa-expanded-content responsive-expanded-content"
 			:class="expandedContentClasses"
 		>
 			<!-- Item Details Form -->
-			<div class="item-details-form">
+			<div class="posa-item-details-form">
 				<!-- Basic Information Section -->
-				<div class="form-section">
-					<div class="section-header">
+				<div class="posa-form-section">
+					<div class="posa-section-header">
 						<v-icon size="small" class="section-icon">mdi-information-outline</v-icon>
-						<span class="section-title">{{ __("Basic Information") }}</span>
+						<span class="posa-section-title">{{ __("Basic Information") }}</span>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -27,7 +27,7 @@
 								prepend-inner-icon="mdi-barcode"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -57,7 +57,7 @@
 								}}
 							</div>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-select
 								density="compact"
 								class="pos-themed-input"
@@ -80,13 +80,13 @@
 				</div>
 
 				<!-- Pricing Section -->
-				<div class="form-section">
-					<div class="section-header">
+				<div class="posa-form-section">
+					<div class="posa-section-header">
 						<v-icon size="small" class="section-icon">mdi-currency-usd</v-icon>
-						<span class="section-title">{{ __("Pricing & Discounts") }}</span>
+						<span class="posa-section-title">{{ __("Pricing & Discounts") }}</span>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -108,7 +108,7 @@
 								prepend-inner-icon="mdi-currency-usd"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -138,7 +138,7 @@
 								prepend-inner-icon="mdi-percent"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -169,8 +169,8 @@
 							></v-text-field>
 						</div>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -185,7 +185,7 @@
 								@change="changePriceListRate(item)"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -199,7 +199,7 @@
 							></v-text-field>
 						</div>
 						<div
-							class="form-field"
+							class="posa-form-field"
 							v-if="pos_profile.posa_allow_price_list_rate_change"
 						>
 							<v-btn
@@ -217,13 +217,13 @@
 				</div>
 
 				<!-- Stock Information Section -->
-				<div class="form-section">
-					<div class="section-header">
+				<div class="posa-form-section">
+					<div class="posa-section-header">
 						<v-icon size="small" class="section-icon">mdi-warehouse</v-icon>
-						<span class="section-title">{{ __("Stock Information") }}</span>
+						<span class="posa-section-title">{{ __("Stock Information") }}</span>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -236,7 +236,7 @@
 								prepend-inner-icon="mdi-package-variant"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -249,7 +249,7 @@
 								prepend-inner-icon="mdi-scale-balance"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -263,8 +263,8 @@
 							></v-text-field>
 						</div>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -277,7 +277,7 @@
 								prepend-inner-icon="mdi-warehouse"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -290,7 +290,7 @@
 								prepend-inner-icon="mdi-folder-outline"
 							></v-text-field>
 						</div>
-						<div class="form-field" v-if="item.posa_offer_applied">
+						<div class="posa-form-field" v-if="item.posa_offer_applied">
 							<v-checkbox
 								density="compact"
 								:label="frappe._('Offer Applied')"
@@ -305,13 +305,13 @@
 				</div>
 
 				<!-- Serial Number Section -->
-				<div class="form-section" v-if="item.has_serial_no || item.serial_no">
-					<div class="section-header">
+				<div class="posa-form-section" v-if="item.has_serial_no || item.serial_no">
+					<div class="posa-section-header">
 						<v-icon size="small" class="section-icon">mdi-barcode-scan</v-icon>
-						<span class="section-title">{{ __("Serial Numbers") }}</span>
+						<span class="posa-section-title">{{ __("Serial Numbers") }}</span>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -326,8 +326,8 @@
 							></v-text-field>
 						</div>
 					</div>
-					<div class="form-row">
-						<div class="form-field full-width">
+					<div class="posa-form-row">
+						<div class="posa-form-field full-width">
 							<v-autocomplete
 								v-model="item.serial_no_selected"
 								:items="getSerialOptions(item)"
@@ -348,15 +348,15 @@
 				</div>
 
 				<!-- Batch Number Section -->
-				<div class="form-section" v-if="item.has_batch_no || item.batch_no">
-					<div class="section-header">
+				<div class="posa-form-section" v-if="item.has_batch_no || item.batch_no">
+					<div class="posa-section-header">
 						<v-icon size="small" class="section-icon"
 							>mdi-package-variant-closed</v-icon
 						>
-						<span class="section-title">{{ __("Batch Information") }}</span>
+						<span class="posa-section-title">{{ __("Batch Information") }}</span>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -369,7 +369,7 @@
 								prepend-inner-icon="mdi-package-variant"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-text-field
 								density="compact"
 								variant="outlined"
@@ -382,7 +382,7 @@
 								prepend-inner-icon="mdi-calendar-clock"
 							></v-text-field>
 						</div>
-						<div class="form-field">
+						<div class="posa-form-field">
 							<v-autocomplete
 								v-model="item.batch_no"
 								:items="item.batch_no_data"
@@ -429,18 +429,18 @@
 
 				<!-- Delivery Date Section -->
 				<div
-					class="form-section"
+					class="posa-form-section"
 					v-if="
 						pos_profile.posa_allow_sales_order &&
 						['Order', 'Quotation'].includes(invoiceType || '')
 					"
 				>
-					<div class="section-header">
+					<div class="posa-section-header">
 						<v-icon size="small" class="section-icon">mdi-calendar-check</v-icon>
-						<span class="section-title">{{ __("Delivery Information") }}</span>
+						<span class="posa-section-title">{{ __("Delivery Information") }}</span>
 					</div>
-					<div class="form-row">
-						<div class="form-field">
+					<div class="posa-form-row">
+						<div class="posa-form-field">
 							<VueDatePicker
 								v-model="item.posa_delivery_date"
 								model-type="format"

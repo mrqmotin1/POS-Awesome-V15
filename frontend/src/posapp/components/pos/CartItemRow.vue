@@ -1,5 +1,5 @@
 <template>
-	<tr class="cart-item-row" v-memo="memoDeps">
+	<tr class="posa-cart-item-row" v-memo="memoDeps">
 		<!-- Item Name Column -->
 		<td class="text-start" :data-column-key="'item_name'">
 			<div class="d-flex align-center">
@@ -54,12 +54,12 @@
 
 		<!-- Quantity Column -->
 		<td class="text-center" :data-column-key="'qty'">
-			<div class="pos-table__qty-counter" :class="{ 'rtl-layout': isRTL }">
+			<div class="posa-cart-table__qty-counter" :class="{ 'rtl-layout': isRTL }">
 				<v-btn
 					:disabled="disableDecrement"
 					size="small"
 					variant="flat"
-					class="pos-table__qty-btn pos-table__qty-btn--minus minus-btn qty-control-btn"
+					class="posa-cart-table__qty-btn posa-cart-table__qty-btn--minus minus-btn qty-control-btn"
 					@click.stop="handleMinusClick"
 					:aria-label="__('Decrease quantity')"
 				>
@@ -67,7 +67,7 @@
 				</v-btn>
 				<div
 					v-if="!isEditingQty"
-					class="pos-table__qty-display amount-value number-field-rtl"
+					class="posa-cart-table__qty-display amount-value number-field-rtl"
 					:class="{
 						'negative-number': isNegative(item.qty),
 						'large-number': qtyLength > 6,
@@ -88,7 +88,7 @@
 					v-model="editingQtyValue"
 					density="compact"
 					variant="outlined"
-					class="pos-table__qty-input"
+					class="posa-cart-table__qty-input"
 					@blur="closeQtyEdit"
 					@keydown.enter.prevent="closeQtyEdit"
 					@click.stop
@@ -101,7 +101,7 @@
 					:disabled="disableIncrement"
 					size="small"
 					variant="flat"
-					class="pos-table__qty-btn pos-table__qty-btn--plus plus-btn qty-control-btn"
+					class="posa-cart-table__qty-btn posa-cart-table__qty-btn--plus plus-btn qty-control-btn"
 					@click.stop="$emit('add-one', item)"
 					:aria-label="__('Increase quantity')"
 				>
@@ -112,11 +112,11 @@
 
 		<!-- UOM Column (Optional) -->
 		<td v-if="showUom" class="text-center" :data-column-key="'uom'">
-			<div class="pos-table__editor-box uom-editor" @click.stop>
+			<div class="posa-cart-table__editor-box uom-editor" @click.stop>
 				<v-btn
 					size="x-small"
 					variant="flat"
-					class="pos-table__editor-btn uom-arrow"
+					class="posa-cart-table__editor-btn uom-arrow"
 					@click.stop="changeUom(-1)"
 					:aria-label="__('Previous unit of measure')"
 					:disabled="!item.item_uoms || item.item_uoms.length <= 1"
@@ -133,7 +133,7 @@
 					item-value="uom"
 					density="compact"
 					variant="outlined"
-					class="pos-table__editor-input uom-select"
+					class="posa-cart-table__editor-input uom-select"
 					hide-details
 					@focus="isEditingUom = true"
 					@blur="isEditingUom = false"
@@ -141,7 +141,7 @@
 				<v-btn
 					size="x-small"
 					variant="flat"
-					class="pos-table__editor-btn uom-arrow"
+					class="posa-cart-table__editor-btn uom-arrow"
 					@click.stop="changeUom(1)"
 					:aria-label="__('Next unit of measure')"
 					:disabled="!item.item_uoms || item.item_uoms.length <= 1"
@@ -163,10 +163,10 @@
 
 		<!-- Discount % (Optional) -->
 		<td v-if="showDiscountPercent" class="text-center" :data-column-key="'discount_value'">
-			<div class="pos-table__editor-box">
+			<div class="posa-cart-table__editor-box">
 				<div
 					v-if="!isEditingDiscountPercent"
-					class="pos-table__editor-display"
+					class="posa-cart-table__editor-display"
 					@click.stop="openDiscountPercentEdit"
 					tabindex="0"
 					role="button"
@@ -192,7 +192,7 @@
 					v-model="editingDiscountPercentValue"
 					density="compact"
 					variant="outlined"
-					class="pos-table__editor-input"
+					class="posa-cart-table__editor-input"
 					@blur="closeDiscountPercentEdit"
 					@keydown.enter.prevent="closeDiscountPercentEdit"
 					@click.stop
@@ -206,10 +206,10 @@
 
 		<!-- Discount Amount (Optional) -->
 		<td v-if="showDiscountAmount" class="text-center" :data-column-key="'discount_amount'">
-			<div class="pos-table__editor-box">
+			<div class="posa-cart-table__editor-box">
 				<div
 					v-if="!isEditingDiscountAmount"
-					class="pos-table__editor-display"
+					class="posa-cart-table__editor-display"
 					@click.stop="openDiscountAmountEdit"
 					tabindex="0"
 					role="button"
@@ -227,7 +227,7 @@
 					v-model="editingDiscountAmountValue"
 					density="compact"
 					variant="outlined"
-					class="pos-table__editor-input"
+					class="posa-cart-table__editor-input"
 					@blur="closeDiscountAmountEdit"
 					@keydown.enter.prevent="closeDiscountAmountEdit"
 					@click.stop
@@ -241,10 +241,10 @@
 
 		<!-- Rate Column -->
 		<td class="text-center" :data-column-key="'rate'">
-			<div class="pos-table__editor-box">
+			<div class="posa-cart-table__editor-box">
 				<div
 					v-if="!isEditingRate"
-					class="pos-table__editor-display"
+					class="posa-cart-table__editor-display"
 					@click.stop="openRateEdit"
 					tabindex="0"
 					role="button"
@@ -262,7 +262,7 @@
 					v-model="editingRateValue"
 					density="compact"
 					variant="outlined"
-					class="pos-table__editor-input"
+					class="posa-cart-table__editor-input"
 					@blur="closeRateEdit"
 					@keydown.enter.prevent="closeRateEdit"
 					@click.stop
@@ -303,7 +303,7 @@
 				:disabled="!!item.posa_is_replace"
 				size="small"
 				variant="flat"
-				class="pos-table__delete-btn delete-action-btn"
+				class="posa-cart-table__delete-btn delete-action-btn"
 				@click.stop="$emit('remove-item', item)"
 				:aria-label="__('Remove item')"
 			>
@@ -588,8 +588,9 @@ td {
 }
 
 /* Keyboard focus styles */
-.pos-table__qty-display:focus-visible,
-.pos-table__editor-display:focus-visible {
+/* Keyboard focus styles */
+.posa-cart-table__qty-display:focus-visible,
+.posa-cart-table__editor-display:focus-visible {
 	outline: 2px solid var(--pos-primary);
 	outline-offset: 2px;
 	z-index: 10;
