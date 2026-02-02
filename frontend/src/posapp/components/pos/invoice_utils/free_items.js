@@ -1,6 +1,6 @@
 
 /* global __ */
-import { useItemsStore } from "../../stores/itemsStore.js";
+import { useItemsStore } from "../../../stores/itemsStore.js";
 
 /**
  * Free Items Utils

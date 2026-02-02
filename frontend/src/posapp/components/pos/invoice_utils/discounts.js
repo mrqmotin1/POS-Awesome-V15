@@ -1,6 +1,6 @@
 
 /* global __ */
-import { useDiscounts } from "../../composables/useDiscounts.js";
+import { useDiscounts } from "../../../composables/useDiscounts.js";
 
 const { updateDiscountAmount, calcPrices, calcItemPrice } = useDiscounts();
 

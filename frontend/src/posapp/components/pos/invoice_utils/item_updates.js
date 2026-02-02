@@ -1,7 +1,7 @@
 
 /* global __, frappe */
-import stockCoordinator from "../../utils/stockCoordinator.js";
-import { isOffline } from "../../../offline/index.js";
+import stockCoordinator from "../../../utils/stockCoordinator.js";
+import { isOffline } from "../../../../offline/index.js";
 
 export async function update_items_details(context, items) {
     if (!items?.length) return;

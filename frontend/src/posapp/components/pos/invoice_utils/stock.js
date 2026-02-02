@@ -1,8 +1,8 @@
 
 /* global __, flt */
-import { parseBooleanSetting } from "../../utils/stock.js";
-import { useStockUtils } from "../../composables/useStockUtils.js";
-import { useBatchSerial } from "../../composables/useBatchSerial.js";
+import { parseBooleanSetting } from "../../../utils/stock.js";
+import { useStockUtils } from "../../../composables/useStockUtils.js";
+import { useBatchSerial } from "../../../composables/useBatchSerial.js";
 
 const { calcStockQty, calcUom } = useStockUtils();
 const { setSerialNo, setBatchQty } = useBatchSerial();

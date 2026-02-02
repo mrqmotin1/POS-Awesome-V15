@@ -1,9 +1,9 @@
 
 /* global __, frappe */
-import { isOffline } from "../../../offline/index.js";
-import { usePricingRulesStore } from "../../stores/pricingRulesStore.js";
-import { useItemsStore } from "../../stores/itemsStore.js";
-import { evaluatePricingRules } from "../../../lib/pricingEngine.js";
+import { isOffline } from "../../../../offline/index.js";
+import { usePricingRulesStore } from "../../../stores/pricingRulesStore.js";
+import { useItemsStore } from "../../../stores/itemsStore.js";
+import { evaluatePricingRules } from "../../../../lib/pricingEngine.js";
 import { _syncAutoFreeLines } from "./free_items.js";
 
 /**

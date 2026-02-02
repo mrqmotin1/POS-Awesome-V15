@@ -4,7 +4,7 @@ import {
     getTaxTemplate,
     getTaxInclusiveSetting,
     isOffline
-} from "../../../offline/index.js";
+} from "../../../../offline/index.js";
 import { _getPlcConversionRate } from "./currency.js";
 
 /**

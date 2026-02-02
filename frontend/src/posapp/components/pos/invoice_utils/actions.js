@@ -1,6 +1,6 @@
 
 /* global __, frappe */
-import { useItemAddition } from "../../composables/useItemAddition.js";
+import { useItemAddition } from "../../../composables/useItemAddition.js";
 import { get_invoice_doc, get_invoice_items, get_payments } from "./document.js";
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency.js";
 

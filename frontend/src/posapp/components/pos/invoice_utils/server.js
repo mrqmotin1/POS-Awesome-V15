@@ -1,6 +1,6 @@
 
 /* global __, frappe */
-import { isOffline } from "../../../offline/index.js";
+import { isOffline } from "../../../../offline/index.js";
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency.js";
 import { _normalizeReturnDocTotals, _collectManualRateOverrides, _applyManualRateOverridesToDoc } from "./item_updates.js"; // _normalizeReturnDocTotals needs extraction or location check
 import { load_invoice } from "./loader.js";

@@ -4,8 +4,8 @@ import {
     isOffline,
     saveCustomerBalance,
     getCachedCustomerBalance,
-} from "../../../offline/index.js";
-import { useDiscounts } from "../../composables/useDiscounts.js";
+} from "../../../../offline/index.js";
+import { useDiscounts } from "../../../composables/useDiscounts.js";
 
 /**
  * Loader Utils

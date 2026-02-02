@@ -1,6 +1,6 @@
 
 /* global __, frappe */
-import { isOffline } from "../../../offline/index.js";
+import { isOffline } from "../../../../offline/index.js";
 
 export async function show_payment(context) {
     if (context._suppressClosePaymentsTimer) {

@@ -1,6 +1,6 @@
 
 /* global __, frappe */
-import { getCustomerStorage, getCachedPriceListItems } from "../../../offline/index.js";
+import { getCustomerStorage, getCachedPriceListItems } from "../../../../offline/index.js";
 
 export async function fetch_customer_details(context) {
     try {
