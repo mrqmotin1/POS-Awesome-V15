@@ -177,6 +177,7 @@ function defaultOfflineHTML(invoice) {
     }
 
     const postingTime = new Date().toLocaleTimeString();
+    const imgUrl = `${location.origin}/assets/posawesome/dist/js/offline/tamanna.png`;
 
     const itemsHTML = (invoice.items || []).map((item, index) => {
         const price =  item.price_list_rate ?? 0;
@@ -243,7 +244,7 @@ function defaultOfflineHTML(invoice) {
 
 <body>
 
-<img src="/assets/posawesome/icons/tamanna.png"
+<img src="${imgUrl}"
      style="
        width: 300px;
        height: 60px;

@@ -1863,22 +1863,20 @@ export default {
 			const printWindow = window.open('', 'PRINT', 'height=600,width=800');
 
 			if (printWindow) {
-				printWindow.document.body.innerHTML = html;
-				printWindow.document.close();
-				printWindow.focus();
+				// 1. Use document.write to ensure a clean document stream
+				printWindow.document.write(html);
+				printWindow.document.close(); // Important: tells the browser "we are done writing"
 
-				// Close the popup automatically after printing
+				// 2. Wait for resources (images) to load before printing
+				printWindow.onload = () => {
+					printWindow.focus();
+					printWindow.print();
+				};
+
+				// 3. Handle cleanup (works in most modern browsers)
 				printWindow.onafterprint = () => {
 					printWindow.close();
 				};
-
-				printWindow.print();
-
-				setTimeout(() => {
-					if (!printWindow.closed) {
-						printWindow.close();
-					}
-				}, 1000);
 			}
 		},
 		// Validate due date (should not be in the past)
