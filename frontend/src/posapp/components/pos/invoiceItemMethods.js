@@ -1934,7 +1934,8 @@ export default {
 					if (row.charge_type === "Actual") {
 						tax_amount = flt(row.tax_amount || 0);
 					} else if (inclusive) {
-						doc.net_total = flt((doc.total * 100 /(flt(row.rate)) + 100));
+						const tax_rate = flt(row.rate);
+						doc.net_total = flt(doc.total * 100 / (100 + tax_rate));
 						tax_amount = doc.total - doc.net_total;
 					} else {
 						tax_amount = flt((doc.net_total * flt(row.rate)) / 100);
