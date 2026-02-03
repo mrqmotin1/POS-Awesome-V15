@@ -347,7 +347,7 @@
 							persistent-placeholder
 						></v-text-field>
 					</v-col>
-					<v-col v-if="invoice_doc && invoice_doc.rounded_total" cols="6">
+					<v-col v-if="invoice_doc && !pos_profile.disable_rounded_total && invoice_doc.rounded_total" cols="6">
 						<v-text-field
 							density="compact"
 							variant="solo"
