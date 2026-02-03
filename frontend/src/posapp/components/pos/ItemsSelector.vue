@@ -222,6 +222,7 @@ import { useBatchSerial } from "../../composables/useBatchSerial.js";
 import { useItemStorageSafety } from "../../composables/useItemStorageSafety.js";
 import { useItemsSelectorSearch } from "../../composables/useItemsSelectorSearch.js";
 import { useItemsSelectorSettings } from "../../composables/useItemsSelectorSettings.js";
+import { useItemsSelectorFocus } from "../../composables/useItemsSelectorFocus.js";
 import { parseBooleanSetting, formatStockShortageError } from "../../utils/stock.js";
 import { playScanTone, closeScanAudioContext } from "../../utils/scannerAudio.js";
 import { getItemsTableHeaders } from "../../utils/itemsTableHeaders.js";
@@ -330,6 +331,12 @@ export default {
 		const itemsSelectorSettings = useItemsSelectorSettings({
 			getVM: getValidVM,
 			itemSync,
+		});
+
+		const itemsSelectorFocus = useItemsSelectorFocus({
+			getVM: getValidVM,
+			scannerInput,
+			itemSelection,
 		});
 
 		const {
@@ -627,6 +634,7 @@ export default {
 			itemSync,
 			...itemsSelectorSearch,
 			...itemsSelectorSettings,
+			...itemsSelectorFocus,
 
 			// Batch/Serial methods
 			setBatchQty,
@@ -1471,83 +1479,6 @@ export default {
 			this.itemCurrencyUtils.applyCurrencyConversionToItem(item, this);
 		},
 
-		focusItemSearch() {
-			if (this.cameraScannerActive) {
-				return;
-			}
-			this.$nextTick(() => {
-				if (this.cameraScannerActive) {
-					return;
-				}
-				if (this.showManualScanInput) {
-					this.queueManualScanFocus();
-					return;
-				}
-				const input = this.getSearchInputField();
-				if (input && typeof input.focus === "function") {
-					input.focus();
-				}
-			});
-		},
-
-		blurItemSearch() {
-			const input = this.getSearchInputField();
-			if (input && typeof input.blur === "function") {
-				input.blur();
-			}
-		},
-		getSearchInputField() {
-			// Benchmark: use exposed ref to avoid DOM querying for focus/blur actions.
-			const header = this.$refs.itemHeader;
-			const inputRef = header?.debounce_search;
-			return inputRef?.value ?? inputRef ?? null;
-		},
-
-		clearQty() {
-			this.qty = null;
-		},
-
-		onScannerOpened() {
-			this.cameraScannerActive = true;
-			this.blurItemSearch();
-		},
-
-		onScannerClosed() {
-			this.cameraScannerActive = false;
-			this.focusItemSearch();
-		},
-
-		startCameraScanning() {
-			if (this.scannerLocked) {
-				this.playScanTone("error");
-				return;
-			}
-			if (this.$refs.cameraScanner) {
-				this.$refs.cameraScanner.startScanning();
-			}
-		},
-		handleSearchPaste(event) {
-			if (this.scannerInput.handleSearchPaste) {
-				this.scannerInput.handleSearchPaste(event);
-			}
-		},
-		handleSearchInput(event) {
-			// Handled by composable
-		},
-		handleSearchKeydown(event) {
-			if (!event) return;
-			const key = event.key || "";
-
-			if (this.itemSelection.handleSearchKeydown(event)) {
-				return;
-			}
-
-			// Delegate other keys to scanner
-			const handled = this.scannerInput.handleSearchKeydown
-				? this.scannerInput.handleSearchKeydown(event)
-				: false;
-			if (handled) return;
-		},
 		evaluateKeyboardScan() {
 			// Deprecated: Handled by useScannerInput
 		},
