@@ -302,7 +302,7 @@
 							:label="frappe._('Total Amount')"
 							class="sleek-field pos-themed-input"
 							hide-details
-							:model-value="formatCurrency(invoice_doc.total, displayCurrency)"
+							:model-value="formatCurrency(invoice_doc.total + invoice_doc.custom_total_items_discount, displayCurrency)"
 							readonly
 							:prefix="currencySymbol()"
 							persistent-placeholder
@@ -349,7 +349,7 @@
 							:label="frappe._('Grand Total')"
 							class="sleek-field pos-themed-input"
 							hide-details
-							:model-value="formatCurrency(invoice_doc.grand_total)"
+							:model-value="formatCurrency(invoice_doc.total + invoice_doc.custom_total_items_discount)"
 							readonly
 							:prefix="currencySymbol(invoice_doc.currency)"
 							persistent-placeholder
@@ -1860,11 +1860,24 @@ export default {
 		async print_offline_invoice(invoice) {
 			if (!invoice) return;
 			const html = await renderOfflineInvoiceHTML(invoice);
-			const win = window.open("", "_blank");
-			win.document.write(html);
-			win.document.close();
-			win.focus();
-			win.print();
+			const printWindow = window.open('', 'PRINT', 'height=600,width=800');
+
+			if (printWindow) {
+				// 1. Use document.write to ensure a clean document stream
+				printWindow.document.write(html);
+				printWindow.document.close(); // Important: tells the browser "we are done writing"
+
+				// 2. Wait for resources (images) to load before printing
+				printWindow.onload = () => {
+					printWindow.focus();
+					printWindow.print();
+				};
+
+				// 3. Handle cleanup (works in most modern browsers)
+				printWindow.onafterprint = () => {
+					printWindow.close();
+				};
+			}
 		},
 		// Validate due date (should not be in the past)
 		validate_due_date() {
