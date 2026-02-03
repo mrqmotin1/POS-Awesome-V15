@@ -269,7 +269,7 @@ function defaultOfflineHTML(invoice) {
 
 <div class="info-block">
   <p>
-    <span>Date: ${invoice.posting_date || ""}</span>
+    <span>Date: ${invoice.posting_date.split("-").reverse().join("-") || ""}</span>
     <span>Staff ID: ${invoice.staff_id || ""}</span>
   </p>
   <p>
@@ -293,7 +293,7 @@ ${itemsHTML}
 <hr>
 
 <div class="summary-line">
-  <span>Total | BDT</span>
+  <strong><span>Total | BDT</span> </strong>
   <span>${(invoice.total + invoice.custom_total_items_discount || 0).toFixed(2)}</span>
 </div>
 
@@ -310,7 +310,7 @@ ${itemsHTML}
 <hr>
 
 <div class="summary-line" style="font-weight:bold;">
-  <span>Net Total | BDT</span>
+  <strong><span>Net Total | BDT</span> </strong>
   <span>${(invoice.rounded_total || invoice.grand_total || 0).toFixed(2)}</span>
 </div>
 
