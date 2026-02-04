@@ -1522,8 +1522,9 @@ export default {
 					this.itemSync.startBackgroundSyncScheduler();
 
 					await this.scannerInput.ensureScaleBarcodeSettings(true);
-					this.get_items_groups();
-					await this.initializeItems();
+					await this.scannerInput.ensureScaleBarcodeSettings(true);
+					// Removed get_items_groups() - handled by store
+					// Removed initializeItems() - handled by store initialization
 					this.items_view = this.pos_profile.posa_default_card_view ? "card" : "list";
 				}
 			},
@@ -1679,10 +1680,10 @@ export default {
 
 		// Load items if we have a profile and haven't loaded yet
 		if (this.pos_profile && this.pos_profile.name && !this.itemsLoaded) {
-			this.get_items_groups();
+			// Removed get_items_groups() - handled by store
 			// Only load all items if NOT using limit search (memory optimization)
 			if (!this.usesLimitSearch) {
-				await this.get_items();
+				// Removed get_items() - handled by store
 			}
 		}
 
