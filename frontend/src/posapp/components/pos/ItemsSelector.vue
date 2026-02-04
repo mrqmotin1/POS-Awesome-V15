@@ -684,6 +684,12 @@ const handleItemSearchFocus = () => itemsSelectorFocus.focusItemSearch();
 const clearQty = () => { qty.value = 1; };
 const startCameraScanning = () => { scannerInput.cameraScannerActive.value = true; };
 const forceReloadItems = () => itemsIntegration.refreshItems(true);
+const select_item = (e, item) => itemSelection.handleItemSelection(e, item);
+const click_item_row = (e, data) => itemSelection.handleRowClick(e, data);
+const onVirtualRangeUpdate = (s, e, vs, ve) => itemsLoader.onVirtualRangeUpdate(s, e, vs, ve);
+const onListScroll = (e) => handleListScroll(e);
+const onScannerOpened = () => { scannerInput.cameraScannerActive.value = true; };
+const onScannerClosed = () => { scannerInput.cameraScannerActive.value = false; };
 
 const getItemRowClass = (item) => ({
     'pos-item-row': true,
@@ -706,17 +712,17 @@ defineExpose({
 	ratePrecision, format_currency, format_number, currencySymbol,
 	openNewItemDialog: () => { newItemDialog.value = true; },
 	clearSearch, onDragStart, onDragEnd,
-	select_item: itemSelection.handleItemSelection,
-	click_item_row: itemSelection.handleRowClick,
-	onVirtualRangeUpdate: (s, e, vs, ve) => itemsLoader.onVirtualRangeUpdate(s, e, vs, ve),
-	onListScroll: handleListScroll,
+	select_item,
+	click_item_row,
+	onVirtualRangeUpdate,
+	onListScroll,
 	responsiveStyles, rtlClasses, scanErrorDialog, scanErrorMessage, scanErrorCode, scanErrorDetails,
 	acknowledgeScanError, formatBackgroundSyncTime, esc_event, onEnter, handleSearchKeydown,
 	handleSearchInput, handleSearchPaste, handleItemSearchFocus, clearQty, startCameraScanning,
 	toggleItemSettings, forceReloadItems, applyItemSettings, show_item_settings,
 	items_group, item_group, offersCount, couponsCount, virtualScrollBuffer, selected_currency,
 	getLastInvoiceRate, isItemHighlighted, isNegative, headerProps, getItemRowClass, getItemRowProps,
-	handleItemCreated, onBarcodeScanned, onScannerOpened: () => console.log("Scanner opened"), onScannerClosed: () => { scannerInput.cameraScannerActive.value = false; }, new_line,
+	handleItemCreated, onBarcodeScanned, onScannerOpened, onScannerClosed, new_line,
 	hide_qty_decimals, hide_zero_rate_items, show_last_invoice_rate, enable_background_sync,
 	background_sync_interval, enable_custom_items_per_page, items_per_page, scannerLocked,
 	temp_hide_qty_decimals, temp_hide_zero_rate_items, temp_enable_custom_items_per_page,
