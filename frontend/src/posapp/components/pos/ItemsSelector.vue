@@ -611,6 +611,7 @@ export default {
 			cardSlotWidth,
 			cardColumnWidth,
 			checkItemContainerOverflow,
+			scheduleCardMetricsUpdate,
 			handleListScroll,
 			...itemsIntegration,
 			selectedCustomer,
