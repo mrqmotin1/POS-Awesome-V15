@@ -20,6 +20,7 @@ export {
 	saveItems,
 	clearStoredItems,
 	getCustomerStorage,
+	getStoredCustomer,
 	setCustomerStorage,
 	getCustomerStorageCount,
 	clearCustomerStorage,

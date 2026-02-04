@@ -1,13 +1,13 @@
 
 /* global __, frappe */
-import { getCustomerStorage, getCachedPriceListItems } from "../../../../offline/index.js";
+import { getStoredCustomer, getCachedPriceListItems } from "../../../../offline/index.js";
 
 export async function fetch_customer_details(context) {
     try {
         if (!context.customer) return;
 
         context.customer_info = {};
-        const cachedCustomer = getCustomerStorage(context.customer);
+        const cachedCustomer = await getStoredCustomer(context.customer);
         if (cachedCustomer) {
             context.customer_info = cachedCustomer;
         }

@@ -274,10 +274,30 @@ export async function getCustomerStorage(limit = Infinity, offset = 0) {
 	try {
 		await checkDbHealth();
 		if (!db.isOpen()) await db.open();
-		return await db.table("customers").offset(offset).limit(limit).toArray();
+
+		// IndexedDB getAll count (limit) must be a 32-bit unsigned integer. 
+		// Infinity or values > 2^32-1 will throw a RangeError in some browsers.
+		const safeLimit = (typeof limit === 'number' && Number.isFinite(limit))
+			? Math.min(limit, 0xFFFFFFFF)
+			: 0xFFFFFFFF;
+		const safeOffset = (typeof offset === 'number' && Number.isFinite(offset)) ? Math.max(0, offset) : 0;
+
+		return await db.table("customers").offset(safeOffset).limit(safeLimit).toArray();
 	} catch (e) {
 		console.error("Failed to get customers from storage", e);
 		return [];
+	}
+}
+
+export async function getStoredCustomer(name) {
+	try {
+		if (!name) return null;
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		return await db.table("customers").get(name);
+	} catch (e) {
+		console.error(`Failed to get customer ${name} from storage`, e);
+		return null;
 	}
 }
 

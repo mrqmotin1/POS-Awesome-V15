@@ -507,7 +507,7 @@ import {
 	syncOfflinePayments,
 	getPendingOfflinePaymentCount,
 	isOffline,
-	getCustomerStorage,
+	getStoredCustomer,
 	getOfflineCustomers,
 } from "../../../offline/index.js";
 import {
@@ -849,10 +849,7 @@ export default {
 			// When offline, attempt to load details from cached customers
 			if (isOffline()) {
 				try {
-					const list = await getCustomerStorage();
-					const cached = (list || []).find(
-						(c) => c.name === vm.customer_name || c.customer_name === vm.customer_name,
-					);
+					const cached = await getStoredCustomer(vm.customer_name);
 					if (cached) {
 						vm.customer_info = { ...cached };
 						vm.set_mpesa_search_params();
