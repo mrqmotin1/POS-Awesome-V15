@@ -683,9 +683,7 @@ export default {
 			lookupItemByBarcode,
 			searchItemsByCodeFn,
 			itemDisplay,
-			...itemDisplay,
 			itemsLoader,
-			...itemsLoader,
 		};
 	},
 	components: {
@@ -1004,12 +1002,21 @@ export default {
 		openNewItemDialog() {
 			this.newItemDialog = true;
 		},
-		handleItemCreated(newItem) {
-			this.items.unshift(newItem);
-			this.eventBus.emit("set_all_items", this.items);
-			if (this.search_input) {
-				this.clearSearch();
-			}
+		// Formatting delegates to useItemDisplay composable
+		ratePrecision(value) {
+			return this.itemDisplay.ratePrecision(value);
+		},
+		format_currency(value, currency, precision) {
+			return this.itemDisplay.format_currency(value, currency, precision);
+		},
+		format_number(value, precision) {
+			return this.itemDisplay.format_number(value, precision);
+		},
+		currencySymbol(currency) {
+			return this.itemDisplay.currencySymbol(currency);
+		},
+		hasDecimalPrecision(value) {
+			return this.itemDisplay.hasDecimalPrecision(value);
 		},
 		// get_uoms, closeNewItemDialog, submitNewItem moved to NewItemDialog.vue
 
@@ -1152,6 +1159,9 @@ export default {
 				}
 				this.qty = parsed;
 			},
+		},
+		headers() {
+			return this.itemDisplay.headers;
 		},
 		active_price_list() {
 			return this.customer_price_list || (this.pos_profile && this.pos_profile.selling_price_list);
