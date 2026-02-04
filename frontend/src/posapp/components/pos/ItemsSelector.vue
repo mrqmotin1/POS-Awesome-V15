@@ -161,7 +161,7 @@
 <script setup>
 /* eslint-disable no-unused-vars */
 /* global frappe, __, flt, memoryInitPromise */
-import { getCurrentInstance, onMounted, onBeforeUnmount, ref, computed, watch, nextTick, reactive } from "vue";
+import { getCurrentInstance, onMounted, onBeforeUnmount, ref, computed, watch, nextTick, reactive, inject } from "vue";
 import { storeToRefs } from "pinia";
 import format from "../../format";
 import _ from "lodash";
@@ -226,6 +226,9 @@ const toastStore = useToastStore();
 const uiStore = useUIStore();
 const invoiceStore = useInvoiceStore();
 const { selectedCustomer } = storeToRefs(customersStore);
+
+const eventBus = inject("eventBus");
+const selected_currency = ref("");
 
 const responsive = useResponsive();
 const rtl = useRtl();
@@ -306,7 +309,7 @@ const stock_settings = computed(() => stock_settings_ref.value || {});
 const items_group = computed(() => itemsIntegration.items_group.value || []);
 const offersCount = computed(() => invoiceStore.offersCount || 0);
 const couponsCount = computed(() => invoiceStore.couponsCount || 0);
-const selected_currency = computed(() => itemsIntegration.selected_currency.value || "");
+// selected_currency is now a local ref synced via eventBus
 const active_price_list = computed(() => itemsIntegration.active_price_list.value || pos_profile.value?.selling_price_list);
 
 const blockSaleBeyondAvailableQty = computed(() =>
@@ -454,7 +457,7 @@ const scanProcessor = useScanProcessor({
 	items, pos_profile, active_price_list,
 	customer_price_list, itemDetailFetcher, itemAddition: { addItem: add_item },
 	barcodeIndex: { lookupItemByBarcode, searchItemsByCode: searchItemsByCodeFn, ensureBarcodeIndex, replaceBarcodeIndex, indexItem, resetBarcodeIndex },
-	scannerInput, searchCache: ref(new Map()), eventBus: uiStore.eventBus,
+	scannerInput, searchCache: ref(new Map()), eventBus,
 	format_number: itemDisplay.format_number, float_precision: computed(() => pos_profile.value?.float_precision || 2),
 	hide_qty_decimals: computed(() => !!pos_profile.value?.posa_hide_qty_decimals),
 	blockSaleBeyondAvailableQty, currency_precision: computed(() => pos_profile.value?.currency_precision || 2),
@@ -525,7 +528,7 @@ onMounted(() => {
 	});
 
 	itemsLoader.registerContext({
-		get eventBus() { return uiStore.eventBus; },
+		get eventBus() { return eventBus; },
 		get itemsStore() { return itemsIntegration.itemsStore; },
 		get itemDetailFetcher() { return itemDetailFetcher; },
 		get displayedItems() { return displayedItems.value; },
@@ -557,6 +560,9 @@ onMounted(() => {
 
 	memoryInitPromise.then(async () => {
 		if (pos_profile.value?.name) {
+			// Initialize local currency ref
+			selected_currency.value = pos_profile.value.currency || "";
+
 			await itemsIntegration.initializeStore(pos_profile.value, selectedCustomer.value, customer_price_list.value);
 			startItemWorker();
 			itemDetailFetcher.update_cur_items_details();
@@ -564,6 +570,14 @@ onMounted(() => {
 			itemsSelectorSettings.loadItemSettings();
 		}
 	});
+
+	if (eventBus) {
+		eventBus.on("update_currency", (data) => {
+			if (data && data.currency) {
+				selected_currency.value = data.currency;
+			}
+		});
+	}
 
 	window.addEventListener("resize", checkItemContainerOverflow);
 	nextTick(() => {
@@ -575,6 +589,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	itemSync.stopBackgroundSyncScheduler();
 	if (itemWorker.value) itemWorker.value.terminate();
+	if (eventBus) {
+		eventBus.off("update_currency");
+	}
 	window.removeEventListener("resize", checkItemContainerOverflow);
 });
 
