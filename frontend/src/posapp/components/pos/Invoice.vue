@@ -760,6 +760,7 @@ export default {
 			// Pricing list initialization
 			this.fetch_price_lists();
 			this.update_price_list();
+			this.fetch_available_currencies();
 		},
 		handleClearInvoice() {
 			this.clear_invoice();
