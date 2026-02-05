@@ -15,7 +15,7 @@ const routes = [
 	},
 	{
 		path: "/payments",
-		component: () => import("../components/payments/Pay.vue"),
+		component: () => import("../components/pos/PayView.vue"),
 		meta: { title: "Payments", layout: "default" },
 	},
 	{

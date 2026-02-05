@@ -73,13 +73,35 @@ _Building the backbone for a scalable Single Page Application (SPA)._
         5.  Configure Router to use meta fields (e.g., `meta: { layout: 'default' }`) to select the layout.
 
 - [x] **1.3 Migrate to Composition API (Script Setup)**
-    - **Current Status:** `DefaultLayout.vue` refactored to `<script setup>`.
-    - **Action Plan:**
-        1.  Refactor `DefaultLayout.vue` to `<script setup>`.
-        2.  Convert `data()` to `ref/reactive`.
-        3.  Convert `methods` to standard functions.
-        4.  Convert `mounted` to `onMounted`.
-        5.  Remove `this` context references.
+    - **Current Status:** 56 components fully migrated to `<script setup>`. 20 components are in a "Hybrid" state (using `setup()` with Options API).
+    - **Fully Migrated components (56):**
+        - [x] `App.vue`, `OfflineInvoices.vue`, `DefaultLayout.vue`
+        - [x] `NavbarDrawer.vue`, `NotificationBell.vue`, `StatusIndicator.vue`
+        - [x] `AboutDialog.vue`, `CacheUsageMeter.vue`, `CpuGadget.vue`, `DatabaseUsageGadget.vue`, `NavbarInfoGadgets.vue`, `ServerUsageGadget.vue`
+        - [x] `CameraScanner.vue`, `CancelSaleDialog.vue`, `CartItemRow.vue`, `DeliveryCharges.vue`, `InvoiceActionButtons.vue`, `InvoiceCustomerSection.vue`, `InvoiceItemsActionToolbar.vue`, `InvoiceSummary.vue`, `InvoiceTotals.vue`, `ItemActionToolbar.vue`, `ItemCard.vue`, `ItemHeader.vue`, `ItemSettingsDialog.vue`, `ItemsSelector.vue`, `ItemsSelectorCards.vue`, `ItemsSelectorTable.vue`, `ItemsTableExpandedRow.vue`, `LoadingOverlay.vue`, `Mpesa-Payments.vue`, `MultiCurrencyRow.vue`, `NewItemDialog.vue`, `OpeningDialog.vue`, `PackedItemsDialog.vue`, `PaymentActionButtons.vue`, `PaymentAdditionalInfo.vue`, `PaymentConfirmationDialog.vue`, `PaymentCustomerCreditDetails.vue`, `PaymentDialogs.vue`, `PaymentMethods.vue`, `PaymentOptions.vue`, `PaymentPurchaseOrder.vue`, `PaymentRedemption.vue`, `PaymentSelectionFields.vue`, `PaymentSummary.vue`, `PostingDateRow.vue`, `PurchasePaymentDialog.vue`, `ScanErrorDialog.vue`
+        - [x] `ClosingHeader.vue`, `PaymentReconciliation.vue`, `ShiftOverview.vue`
+        - [x] `Reports.vue`, `ui/LoadingOverlay.vue`, `ui/Skeleton.vue`, `ui/UpdatePrompt.vue`
+    - **Hybrid components (20) - Remaining for Full Migration:**
+        - [/] [Navbar.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/Navbar.vue)
+        - [/] [NavbarAppBar.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/navbar/NavbarAppBar.vue)
+        - [/] [NavbarMenu.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/navbar/NavbarMenu.vue)
+        - [/] [Pay.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/payments/Pay.vue)
+        - [/] [BarcodePrinting.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/BarcodePrinting.vue)
+        - [/] [ClosingDialog.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/ClosingDialog.vue)
+        - [/] [Customer.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/Customer.vue)
+        - [/] [Drafts.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/Drafts.vue)
+        - [/] [Invoice.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/Invoice.vue)
+        - [/] [ItemsTable.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/ItemsTable.vue)
+        - [/] [NewAddress.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/NewAddress.vue)
+        - [/] [Payments.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/Payments.vue)
+        - [/] [Pos.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/Pos.vue)
+        - [/] [PosCoupons.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/PosCoupons.vue)
+        - [/] [PosOffers.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/PosOffers.vue)
+        - [/] [PurchaseOrders.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/PurchaseOrders.vue)
+        - [/] [Returns.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/Returns.vue)
+        - [/] [SalesOrders.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/SalesOrders.vue)
+        - [/] [UpdateCustomer.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/UpdateCustomer.vue)
+        - [/] [Variants.vue](file:///c:/Users/am102/Downloads/POS-Awesome-V15/frontend/src/posapp/components/pos/Variants.vue)
 
 - [ ] **1.4 Adopt TypeScript**
     - **Current Status:** Pure JavaScript codebase.
@@ -236,11 +258,12 @@ _Stability and Confidence._
 
 ---
 
-# Phase 6: Component Decomposition & Refactoring
+# Phase 6: Component Decomposition & Modularization (Priority)
 
-_Taming the monoliths. Breaking down massive components for readability and maintainability._
+_Taming the monoliths. Breaking down massive components into smaller sub-components and composables before full migration._
 
-> **Why this first?** `ItemsSelector.vue` (5700+ lines) and `Invoice.vue` (1900+ lines) are too complex to migrate to TypeScript safely in their current state. We must simplify first.
+> [!IMPORTANT]
+> **Modularization-First Strategy**: For files over 1000 lines, we must complete decomposition (Phase 6) *before* attempting full Composition API migration (Phase 1.3). This ensures logic is cleanly separated and easier to test during the migration.
 
 ## ✂️ 6.1 `ItemsSelector.vue` (5716 lines)
 
@@ -299,20 +322,27 @@ _Taming the monoliths. Breaking down massive components for readability and main
     - [x] `InvoiceHeader.vue`: Partially covered by `InvoiceCustomerSection`.
     - [x] `InvoiceTotals.vue`: The summary section (Subtotal, Tax, Final Amount).
     - [ ] `ActiveOffers.vue`: The chip list or display of applied offers.
+    - [ ] **Extract `useInvoiceData.ts`**: Centralize fetching and validation logic.
 
-## ✂️ 6.3 `PurchaseOrders.vue` (1230 lines)
+## ✂️ 6.3 `Payments.vue` (1,690 lines)
+- [x] **6.3.1 Decomposition Logic**: Completed decomposition into `PaymentMethods`, `PaymentSummary`, `InvoiceTotals`.
+- [ ] **6.3.2 Logic Extraction**: Extract remaining complex logic from `Payments.vue` into `usePayments.js` or `usePaymentBusinessLogic.js`.
 
-- [ ] **6.3.1 Standardization**
-    - Apply same patterns as `Invoice.vue` after refactoring.
-    - Reuse `ItemSearchFilters.vue` if possible.
+## ✂️ 6.4 `PurchaseOrders.vue` (1,292 lines)
+- [ ] **6.4.1 Analysis**: Map out existing internal components and logic blocks.
+- [ ] **6.4.2 Decomposition**: Extract UI into `PurchaseOrderSummary.vue`, `PurchaseOrderItems.vue`, etc.
+- [ ] **6.4.3 Shared Logic**: Identify and reuse logic from `Invoice.vue` modularization.
 
-## ✂️ 6.4 `Pay.vue` (1754 lines)
-
-- [ ] **6.4.1 Extract Sub-Components**
+## ✂️ 6.5 `Pay.vue` (1,754 lines)
+- [ ] **6.5.1 Extract Sub-Components**
     - `PaymentInvoices.vue`: The left panel showing outstanding invoices.
-    - `PaymentMethods.vue`: The "Make New Payment" and "Payments" table section.
+    - `PayMethodsTable.vue`: The "Make New Payment" and "Payments" table section.
     - `MpesaPanel.vue`: The specific Mpesa reconciliation logic.
     - `PaymentTotals.vue`: The totals summary sidebar.
+
+## ✂️ 6.6 `NavbarAppBar.vue` & `NavbarMenu.vue` (~1,100 lines each)
+- [ ] **6.6.1 Decomposition**: Break down into smaller functional nav components.
+- [ ] **6.6.2 Logic Extraction**: Extract menu state and permission checks into a composable.
 
 ## ✂️ 6.5 `ClosingDialog.vue` (1950 lines)
 
