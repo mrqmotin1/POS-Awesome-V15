@@ -3,6 +3,9 @@ import { useUIStore } from "./stores/uiStore";
 
 declare const frappe: any;
 declare const __: any;
+declare const flt: any;
+declare const format_currency: any;
+declare const get_currency_symbol: any;
 
 // Type definitions for RTL and numeral systems
 export type NumeralsMode = "western" | "arabic-indic";

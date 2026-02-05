@@ -15,7 +15,7 @@ export interface ScanProcessorContext {
 	items: Ref<any[]>;
 	pos_profile: Ref<any>;
 	active_price_list: Ref<string>;
-	customer_price_list: Ref<string>;
+	customer_price_list: Ref<string | null>;
 	itemDetailFetcher: {
 		update_items_details: (items: any[]) => Promise<void>;
 	};
@@ -27,6 +27,8 @@ export interface ScanProcessorContext {
 		lookupItemByBarcode: (barcode: string) => any;
 		replaceBarcodeIndex: (items: any[]) => void;
 		indexItem: (item: any) => void;
+		searchItemsByCode: (code: string) => any[];
+		resetBarcodeIndex: () => void;
 	};
 	scannerInput: any;
 	searchCache?: Ref<Map<any, any>>;

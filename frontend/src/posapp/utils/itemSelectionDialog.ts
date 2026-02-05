@@ -2,6 +2,8 @@
  * Item selection dialog utilities for displaying multiple matching items.
  */
 
+declare const frappe: any;
+
 /**
  * Interface for item selection option parameters.
  */

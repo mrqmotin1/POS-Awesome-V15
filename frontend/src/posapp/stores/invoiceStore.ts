@@ -63,7 +63,7 @@ export const useInvoiceStore = defineStore("invoice", () => {
     let tGross = 0;
     let tDisc = 0;
 
-    for (const item of itemsData.values()) {
+    for (const item of Array.from(itemsData.values())) {
       const qty = toNumber(item.qty);
       const rate = toNumber(item.rate);
       const disc = toNumber(item.discount_amount || 0);
