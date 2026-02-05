@@ -1,12 +1,21 @@
-/* global __ */
+/**
+ * Interface representing a table header configuration.
+ */
+export interface TableHeader {
+    title: string;
+    key: string;
+    align?: "start" | "center" | "end";
+    sortable?: boolean;
+    width?: string;
+}
 
 /**
- * Get table headers configuration for items list view
- * @param {string} context - Context: 'pos' or 'purchase'
- * @param {Object} posProfile - POS profile configuration
- * @returns {Array} Array of header configurations
+ * Get table headers configuration for items list view.
+ * @param context Context: 'pos' or 'purchase'
+ * @param posProfile POS profile configuration
+ * @returns Array of header configurations
  */
-export function getItemsTableHeaders(context, posProfile) {
+export function getItemsTableHeaders(context: "pos" | "purchase" | string, posProfile?: any): TableHeader[] {
     if (context === "purchase") {
         return [
             {
@@ -33,7 +42,7 @@ export function getItemsTableHeaders(context, posProfile) {
         ];
     }
 
-    const headers = [
+    const headers: TableHeader[] = [
         {
             title: __("Name"),
             align: "start",
