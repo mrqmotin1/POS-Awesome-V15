@@ -264,15 +264,44 @@ export function rawSilentPrint(doc, print_format) {
                         return;
                     }
                     // Create Config & Print
-                    const config = qz.configs.create(printerName);
-                    const data = [{
-                        type: 'raw',
-                        format: 'command',
-                        flavor: 'plain',
-                        data: rawContent
-                    }];
+                    const config = qz.configs.create(printerName, { forceRaw: true });
+                    // const data = [{
+                    //     type: 'raw',
+                    //     format: 'image',
+                    //     flavor: 'file',
+                    //     data: rawContent,
+					// 	options: { language: "ESCPOS", dotDensity: 'double' }
+						
+                    // }];
 
-                    await qz.print(config, data);              
+					// Function to load and process an image into Hex
+                    const processImage = (src, w, h) => {
+                        return new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => resolve(getRasterBytes(img, w, h));
+                            img.src = src;
+                        });
+                    };
+
+                    // Load both images simultaneously
+                    const [topImageHex, bottomImageHex] = await Promise.all([
+                        processImage("/files/Frame 3.png", 512, 80),     // Header Logo
+                        processImage("/files/Frame 11.png", 512, 250)     // Footer Image
+                    ]);
+
+					var data = [
+						'\x1B\x40', // Initialize printer first!
+						'\x1B\x61\x01',
+						{ type: 'raw', format: 'command', flavor: 'hex', data: topImageHex },
+						'\x0A',              // Line break after top image
+						rawContent,		
+						'\x0A',              // 5. Line break
+                        '\x1B\x61\x01',      // 6. Center for bottom image
+                        { type: 'raw', format: 'command', flavor: 'hex', data: bottomImageHex },
+                        '\x0A\x0A\x0A',      // 7. Space before cut
+                        '\x1D\x56\x41\x00'			
+					];
+                   await qz.print(config, data);              
 
                 } catch (err) {
                     console.error("QZ Error:", err);
@@ -285,3 +314,68 @@ export function rawSilentPrint(doc, print_format) {
         }
     });
 }
+
+function getRasterBytes(imgElement, width, height) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Width 304 (Multiple of 8 for Epson alignment)
+    // Height 60 (To match your 60px CSS requirement)
+    canvas.width = width;
+    canvas.height = height;
+
+    // 1. Clear background to white
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, width, height);
+    
+    // 2. Draw the image forced into the 304x60 box
+    // This replicates "width: 300px; height: 60px;"
+    ctx.drawImage(imgElement, 0, 0, width, height);
+    
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+    const bytesPerRow = width / 8; // 38 bytes
+    let raster = [];
+
+    // GS v 0 Header: GS, v, 0, m, xL, xH, yL, yH
+    raster.push(0x1D, 0x76, 0x30, 0x00); 
+    raster.push(bytesPerRow & 0xFF, (bytesPerRow >> 8) & 0xFF); 
+    raster.push(height & 0xFF, (height >> 8) & 0xFF);           
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < bytesPerRow; x++) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit++) {
+                const idx = ((y * width) + (x * 8) + bit) * 4;
+                const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2], a = pixels[idx + 3];
+
+                // Thresholding with Alpha support
+                if (a >= 128) {
+                    const luminance = (r * 0.299 + g * 0.587 + b * 0.114);
+                    if (luminance < 128) {
+                        byte |= (0x80 >> bit);
+                    }
+                }
+            }
+            raster.push(byte);
+        }
+    }
+    return raster.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+
+// var data = [
+
+// { type: 'raw', format: 'image', flavor: 'file', data: "/files/Frame 11.png", options: { language: "ESCPOS", dotDensity: 'single' } },
+
+// '\x1B' + '\x40', // init
+
+// '\x1B' + '\x4D' + '\x31', // small text
+
+// 'EAT ME' + '\x0A',
+
+// '\x0A' + '\x0A' + '\x0A' + '\x0A' + '\x0A' + '\x0A' + '\x0A',
+
+// '\x1B' + '\x69',
+
+// ];
