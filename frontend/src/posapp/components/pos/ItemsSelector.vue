@@ -162,7 +162,18 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance, onMounted, onBeforeUnmount, ref, computed, watch, nextTick, reactive, inject, type Ref } from "vue";
+import {
+	getCurrentInstance,
+	onMounted,
+	onBeforeUnmount,
+	ref,
+	computed,
+	watch,
+	nextTick,
+	reactive,
+	inject,
+	type Ref,
+} from "vue";
 import { storeToRefs } from "pinia";
 import format from "../../format";
 import * as _ from "lodash";
@@ -207,7 +218,7 @@ import { useToastStore } from "../../stores/toastStore";
 import { useUIStore } from "../../stores/uiStore";
 import { useInvoiceStore } from "../../stores/invoiceStore";
 
-import { parseBooleanSetting } from "../../utils/stock.js";
+import { parseBooleanSetting } from "../../utils/stock";
 
 const props = defineProps({
 	context: {
@@ -249,10 +260,7 @@ const itemsIntegration = useItemsIntegration({
 	debounceDelay: 300,
 });
 
-const {
-	showOnlyBarcodeItems: showOnlyBarcodeItemsRef,
-	filterAndPaginate,
-} = useItemSearch();
+const { showOnlyBarcodeItems: showOnlyBarcodeItemsRef, filterAndPaginate } = useItemSearch();
 
 const scannerInput = useScannerInput();
 const itemAvailability = useItemAvailability();
@@ -307,8 +315,8 @@ const temp_background_sync_interval = ref(30);
 
 const flyConfig = reactive({ speed: 0.6, easing: "ease-in-out" });
 const headerProps = reactive({
-	'sort-icon': 'mdi-arrow-up',
-	'class': 'pos-table-header'
+	"sort-icon": "mdi-arrow-up",
+	class: "pos-table-header",
 });
 
 // 3. Computed Properties
@@ -319,7 +327,9 @@ const items_group = computed(() => itemsIntegration.items_group.value || []);
 const offersCount = computed(() => uiStore.offersCount || 0);
 const couponsCount = computed(() => uiStore.couponsCount || 0);
 // selected_currency is now a local ref synced via eventBus
-const active_price_list = computed(() => itemsIntegration.active_price_list.value || pos_profile.value?.selling_price_list);
+const active_price_list = computed(
+	() => itemsIntegration.active_price_list.value || pos_profile.value?.selling_price_list,
+);
 
 const blockSaleBeyondAvailableQty = computed(() =>
 	parseBooleanSetting(pos_profile.value?.posa_block_sale_beyond_available_qty),
@@ -393,15 +403,19 @@ const settingsContext = reactive({
 	itemSync,
 });
 
-const itemsSelectorSearch = useItemsSelectorSearch({ getVM: () => vmInstance?.proxy, scannerInput, itemSelection });
+const itemsSelectorSearch = useItemsSelectorSearch({
+	getVM: () => vmInstance?.proxy,
+	scannerInput,
+	itemSelection,
+});
 const itemsSelectorSettings = useItemsSelectorSettings({ getVM: () => settingsContext, itemSync });
-const itemsSelectorFocus = useItemsSelectorFocus({ getVM: () => vmInstance?.proxy, scannerInput, itemSelection });
+const itemsSelectorFocus = useItemsSelectorFocus({
+	getVM: () => vmInstance?.proxy,
+	scannerInput,
+	itemSelection,
+});
 
-const {
-	getLastInvoiceRate,
-	scheduleLastInvoiceRateRefresh,
-	clearLastInvoiceRateCache,
-} = useLastInvoiceRate({
+const { getLastInvoiceRate, scheduleLastInvoiceRateRefresh, clearLastInvoiceRateCache } = useLastInvoiceRate({
 	pos_profile: () => pos_profile.value,
 	customer: () => selectedCustomer.value,
 	displayedItems: () => displayedItems.value,
@@ -428,8 +442,9 @@ const {
 const add_item = async (item, optionsOrQty: any = {}) => {
 	if (props.context === "pos") {
 		let options: any = typeof optionsOrQty === "object" ? optionsOrQty : { qty: optionsOrQty };
-		let requestedQty = options.qty !== undefined ? options.qty : (qty.value || 0);
-		requestedQty = (requestedQty === "" || requestedQty == null) ? 1 : Math.abs(parseFloat(requestedQty) || 1);
+		let requestedQty = options.qty !== undefined ? options.qty : qty.value || 0;
+		requestedQty =
+			requestedQty === "" || requestedQty == null ? 1 : Math.abs(parseFloat(requestedQty) || 1);
 
 		item = { ...item };
 		if (item.has_variants) {
@@ -459,8 +474,14 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 		};
 
 		const isValid = await cartValidation.validateCartItem(
-			item, requestedQty, pos_profile.value, stock_settings.value,
-			null, blockSaleBeyondAvailableQty.value, !options.suppressNegativeWarning, true
+			item,
+			requestedQty,
+			pos_profile.value,
+			stock_settings.value,
+			null,
+			blockSaleBeyondAvailableQty.value,
+			!options.suppressNegativeWarning,
+			true,
 		);
 
 		if (isValid) {
@@ -474,16 +495,40 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 };
 
 const scanProcessor = useScanProcessor({
-	items, pos_profile, active_price_list,
-	customer_price_list, itemDetailFetcher, itemAddition: { addItem: add_item },
-	barcodeIndex: { lookupItemByBarcode, searchItemsByCode: searchItemsByCodeFn, ensureBarcodeIndex, replaceBarcodeIndex, indexItem, resetBarcodeIndex },
-	scannerInput, searchCache: ref(new Map()) as Ref<Map<any, any>>, eventBus,
-	format_number: itemDisplay.format_number, float_precision: computed(() => pos_profile.value?.float_precision || 2),
+	items,
+	pos_profile,
+	active_price_list,
+	customer_price_list,
+	itemDetailFetcher,
+	itemAddition: { addItem: add_item },
+	barcodeIndex: {
+		lookupItemByBarcode,
+		searchItemsByCode: searchItemsByCodeFn,
+		ensureBarcodeIndex,
+		replaceBarcodeIndex,
+		indexItem,
+		resetBarcodeIndex,
+	},
+	scannerInput,
+	searchCache: ref(new Map()) as Ref<Map<any, any>>,
+	eventBus,
+	format_number: itemDisplay.format_number,
+	float_precision: computed(() => pos_profile.value?.float_precision || 2),
 	hide_qty_decimals: computed(() => !!pos_profile.value?.posa_hide_qty_decimals),
-	blockSaleBeyondAvailableQty, currency_precision: computed(() => pos_profile.value?.currency_precision || 2),
-	exchange_rate: computed(() => 1), format_currency: itemDisplay.format_currency, ratePrecision: itemDisplay.ratePrecision,
-	customer: selectedCustomer, onItemAdded: () => { clearSearch(); itemsSelectorFocus.focusItemSearch(); },
-	onItemNotFound: (code) => { search_input.value = code; first_search.value = code; },
+	blockSaleBeyondAvailableQty,
+	currency_precision: computed(() => pos_profile.value?.currency_precision || 2),
+	exchange_rate: computed(() => 1),
+	format_currency: itemDisplay.format_currency,
+	ratePrecision: itemDisplay.ratePrecision,
+	customer: selectedCustomer,
+	onItemAdded: () => {
+		clearSearch();
+		itemsSelectorFocus.focusItemSearch();
+	},
+	onItemNotFound: (code) => {
+		search_input.value = code;
+		first_search.value = code;
+	},
 	stock_settings,
 	search_from_scanner_ref: scannerInput.searchFromScanner,
 });
@@ -497,8 +542,8 @@ const clearSearch = () => {
 };
 
 const clearSearchAndQty = () => {
-    clearSearch();
-    clearQty();
+	clearSearch();
+	clearQty();
 };
 
 const onDragStart = (event, item) => {
@@ -520,7 +565,7 @@ const formatBackgroundSyncTime = () => {
 	return Number.isNaN(parsed.getTime()) ? __("Never") : parsed.toLocaleTimeString();
 };
 
-const toggleItemSettings = () => { 
+const toggleItemSettings = () => {
 	temp_hide_qty_decimals.value = hide_qty_decimals.value;
 	temp_hide_zero_rate_items.value = hide_zero_rate_items.value;
 	temp_enable_custom_items_per_page.value = enable_custom_items_per_page.value;
@@ -550,34 +595,67 @@ onMounted(async () => {
 	});
 
 	itemDisplay.registerContext({
-		get context() { return props.context; },
-		get pos_profile() { return pos_profile.value; },
-		get float_precision() { return pos_profile.value?.float_precision || 2; },
-		get currency_precision() { return pos_profile.value?.currency_precision || 2; },
-		get exchange_rate() { return 1; },
+		get context() {
+			return props.context;
+		},
+		get pos_profile() {
+			return pos_profile.value;
+		},
+		get float_precision() {
+			return pos_profile.value?.float_precision || 2;
+		},
+		get currency_precision() {
+			return pos_profile.value?.currency_precision || 2;
+		},
+		get exchange_rate() {
+			return 1;
+		},
 	});
 
 	itemsLoader.registerContext({
-		get eventBus() { return eventBus; },
-		get itemsStore() { return itemsIntegration.itemsStore; },
-		get itemDetailFetcher() { return itemDetailFetcher; },
-		get displayedItems() { return displayedItems.value; },
-		get cardColumns() { return cardColumns.value; },
-		get loading() { return loading.value; },
+		get eventBus() {
+			return eventBus;
+		},
+		get itemsStore() {
+			return itemsIntegration.itemsStore;
+		},
+		get itemDetailFetcher() {
+			return itemDetailFetcher;
+		},
+		get displayedItems() {
+			return displayedItems.value;
+		},
+		get cardColumns() {
+			return cardColumns.value;
+		},
+		get loading() {
+			return loading.value;
+		},
 	});
 
 	itemSelection.registerContext({
 		addItem: add_item,
 		clearSearch: () => clearSearch(),
 		focusItemSearch: () => itemsSelectorFocus.focusItemSearch(),
-		fly, get flyConfig() { return flyConfig; },
-		get displayedItems() { return displayedItems.value; },
+		fly,
+		get flyConfig() {
+			return flyConfig;
+		},
+		get displayedItems() {
+			return displayedItems.value;
+		},
 	});
 
 	itemSync.registerContext({
-		get pos_profile() { return pos_profile.value; },
-		get enable_background_sync() { return enable_background_sync.value; },
-		get background_sync_interval() { return background_sync_interval.value; },
+		get pos_profile() {
+			return pos_profile.value;
+		},
+		get enable_background_sync() {
+			return enable_background_sync.value;
+		},
+		get background_sync_interval() {
+			return background_sync_interval.value;
+		},
 		refreshModifiedItems: () => itemsIntegration.refreshModifiedItems(),
 		backgroundSyncItems: (args) => itemsIntegration.backgroundSyncItems(args),
 		get_items: (force) => itemsIntegration.get_items(force),
@@ -597,44 +675,54 @@ onMounted(async () => {
 	}
 
 	// Watch UI Profile for initialization (Source of Truth)
-	watch(uiPosProfile, async (newProfile) => {
-		if (newProfile && newProfile.name && !isInitialized.value) {
-			// Safety timeout to prevent infinite loading if memoryInit or store init hangs
-			if (initTimeout.value) clearTimeout(initTimeout.value);
-			// @ts-ignore
-	initTimeout.value = setTimeout(() => {
-				if (!isInitialized.value) {
-					console.warn("ItemsSelector: Initialization taking too long, forcing isInitialized to true.");
+	watch(
+		uiPosProfile,
+		async (newProfile) => {
+			if (newProfile && newProfile.name && !isInitialized.value) {
+				// Safety timeout to prevent infinite loading if memoryInit or store init hangs
+				if (initTimeout.value) clearTimeout(initTimeout.value);
+				// @ts-ignore
+				initTimeout.value = setTimeout(() => {
+					if (!isInitialized.value) {
+						console.warn(
+							"ItemsSelector: Initialization taking too long, forcing isInitialized to true.",
+						);
+						isInitialized.value = true;
+					}
+				}, 10000);
+
+				try {
+					await memoryInitPromise;
+
+					// Set local currency ref
+					selected_currency.value = newProfile.currency || "";
+
+					await itemsIntegration.initializeStore(
+						newProfile as any,
+						selectedCustomer.value as any,
+						customer_price_list.value as any,
+					);
+
 					isInitialized.value = true;
-				}
-			}, 10000);
-
-			try {
-				await memoryInitPromise;
-				
-				// Set local currency ref
-				selected_currency.value = newProfile.currency || "";
-
-				await itemsIntegration.initializeStore(newProfile as any, selectedCustomer.value as any, customer_price_list.value as any);
-				
-				isInitialized.value = true;
-				startItemWorker();
-				itemDetailFetcher.update_cur_items_details();
-				itemSync.startBackgroundSyncScheduler();
-				itemsSelectorSettings.loadItemSettings();
-			} catch (err: any) {
-				console.error("ItemsSelector: Initialization failed", err);
-				initError.value = err.message || err;
-				// Unblock UI even on error
-				isInitialized.value = true;
-			} finally {
-				if (initTimeout.value) {
-					clearTimeout(initTimeout.value);
-					initTimeout.value = null;
+					startItemWorker();
+					itemDetailFetcher.update_cur_items_details();
+					itemSync.startBackgroundSyncScheduler();
+					itemsSelectorSettings.loadItemSettings();
+				} catch (err: any) {
+					console.error("ItemsSelector: Initialization failed", err);
+					initError.value = err.message || err;
+					// Unblock UI even on error
+					isInitialized.value = true;
+				} finally {
+					if (initTimeout.value) {
+						clearTimeout(initTimeout.value);
+						initTimeout.value = null;
+					}
 				}
 			}
-		}
-	}, { immediate: true });
+		},
+		{ immediate: true },
+	);
 
 	window.addEventListener("resize", checkItemContainerOverflow);
 	nextTick(() => {
@@ -686,7 +774,15 @@ const memoizedFormatNumber = computed(() => itemDisplay.memoizedFormatNumber.val
 const isItemHighlighted = (index) => itemSelection.highlightedIndex.value === index;
 const isNegative = (val) => val < 0;
 
-const { scannerLocked, scanErrorDialog, scanErrorMessage, scanErrorCode, scanErrorDetails, acknowledgeScanError, onBarcodeScanned: onBarcodeScannedFromScannerInput } = scannerInput;
+const {
+	scannerLocked,
+	scanErrorDialog,
+	scanErrorMessage,
+	scanErrorCode,
+	scanErrorDetails,
+	acknowledgeScanError,
+	onBarcodeScanned: onBarcodeScannedFromScannerInput,
+} = scannerInput;
 const { responsiveStyles } = responsive;
 const { rtlClasses } = rtl;
 
@@ -694,16 +790,22 @@ const { rtlClasses } = rtl;
 const esc_event = () => clearSearch();
 const onEnter = (e) => itemsSelectorSearch.onEnter(e);
 const handleSearchKeydown = (e) => itemsSelectorFocus.handleSearchKeydown(e);
-const handleSearchInput = (val) => { search_input.value = val; };
+const handleSearchInput = (val) => {
+	search_input.value = val;
+};
 const handleSearchPaste = (e) => itemsSelectorFocus.handleSearchPaste(e);
 const handleItemSearchFocus = () => itemsSelectorFocus.focusItemSearch();
-const clearQty = () => { qty.value = null as any; };
-const onQtyBlur = () => {
-    if (!qty.value || qty.value <= 0) {
-        qty.value = 1;
-    }
+const clearQty = () => {
+	qty.value = null as any;
 };
-const startCameraScanning = () => { scannerInput.cameraScannerActive.value = true; };
+const onQtyBlur = () => {
+	if (!qty.value || qty.value <= 0) {
+		qty.value = 1;
+	}
+};
+const startCameraScanning = () => {
+	scannerInput.cameraScannerActive.value = true;
+};
 const forceReloadItems = () => itemsIntegration.get_items(true);
 
 const onBarcodeScanned = async (code: string) => {
@@ -720,48 +822,113 @@ const select_item = (e, item) => itemSelection.handleItemSelection(e, item);
 const click_item_row = (e, data) => itemSelection.handleRowClick(e, data);
 const onVirtualRangeUpdate = (s, e, vs, ve) => itemsLoader.onVirtualRangeUpdate(s, e, vs, ve);
 const onListScroll = (e) => handleListScroll(e);
-const onScannerOpened = () => { scannerInput.cameraScannerActive.value = true; };
-const onScannerClosed = () => { scannerInput.cameraScannerActive.value = false; };
+const onScannerOpened = () => {
+	scannerInput.cameraScannerActive.value = true;
+};
+const onScannerClosed = () => {
+	scannerInput.cameraScannerActive.value = false;
+};
 
 const getItemRowClass = (item) => ({
-    'pos-item-row': true,
-    'highlighted': isItemHighlighted(items.value.indexOf(item))
+	"pos-item-row": true,
+	highlighted: isItemHighlighted(items.value.indexOf(item)),
 });
 
 const getItemRowProps = (item) => ({
-    'data-item-code': item.item_code,
-    'draggable': true
+	"data-item-code": item.item_code,
+	draggable: true,
 });
 
 const handleItemCreated = (item) => {
-    newItemDialog.value = false;
-    itemsIntegration.get_items(true);
+	newItemDialog.value = false;
+	itemsIntegration.get_items(true);
 };
 
 defineExpose({
-	search_input, debounce_qty, qty, items_view, pos_profile, isLoadingOrSyncing, displayedItems,
-	headers, active_price_list, memoizedFormatCurrency, memoizedFormatNumber,
-	ratePrecision, format_currency, format_number, currencySymbol,
-	openNewItemDialog: () => { newItemDialog.value = true; },
-	clearSearch, onDragStart, onDragEnd,
+	search_input,
+	debounce_qty,
+	qty,
+	items_view,
+	pos_profile,
+	isLoadingOrSyncing,
+	displayedItems,
+	headers,
+	active_price_list,
+	memoizedFormatCurrency,
+	memoizedFormatNumber,
+	ratePrecision,
+	format_currency,
+	format_number,
+	currencySymbol,
+	openNewItemDialog: () => {
+		newItemDialog.value = true;
+	},
+	clearSearch,
+	onDragStart,
+	onDragEnd,
 	select_item,
 	click_item_row,
 	onVirtualRangeUpdate,
 	onListScroll,
-	responsiveStyles, rtlClasses, scanErrorDialog, scanErrorMessage, scanErrorCode, scanErrorDetails,
-	acknowledgeScanError, formatBackgroundSyncTime, esc_event, onEnter, handleSearchKeydown,
-	handleSearchInput, handleSearchPaste, handleItemSearchFocus, clearQty, startCameraScanning,
-	toggleItemSettings, forceReloadItems, applyItemSettings, show_item_settings,
-	items_group, item_group, offersCount, couponsCount, virtualScrollBuffer, selected_currency,
-	getLastInvoiceRate, isItemHighlighted, isNegative, headerProps, getItemRowClass, getItemRowProps,
-	handleItemCreated, onBarcodeScanned, onScannerOpened, onScannerClosed, new_line,
-	clearSearchAndQty, onQtyBlur,
-	hide_qty_decimals, hide_zero_rate_items, show_last_invoice_rate, enable_background_sync,
-	background_sync_interval, enable_custom_items_per_page, items_per_page, scannerLocked,
-	temp_hide_qty_decimals, temp_hide_zero_rate_items, temp_enable_custom_items_per_page,
-	temp_items_per_page, temp_force_server_items, temp_show_last_invoice_rate,
-	temp_enable_background_sync, temp_background_sync_interval, localStorageAvailable,
-	clearLastInvoiceRateCache, scheduleLastInvoiceRateRefresh, itemSync
+	responsiveStyles,
+	rtlClasses,
+	scanErrorDialog,
+	scanErrorMessage,
+	scanErrorCode,
+	scanErrorDetails,
+	acknowledgeScanError,
+	formatBackgroundSyncTime,
+	esc_event,
+	onEnter,
+	handleSearchKeydown,
+	handleSearchInput,
+	handleSearchPaste,
+	handleItemSearchFocus,
+	clearQty,
+	startCameraScanning,
+	toggleItemSettings,
+	forceReloadItems,
+	applyItemSettings,
+	show_item_settings,
+	items_group,
+	item_group,
+	offersCount,
+	couponsCount,
+	virtualScrollBuffer,
+	selected_currency,
+	getLastInvoiceRate,
+	isItemHighlighted,
+	isNegative,
+	headerProps,
+	getItemRowClass,
+	getItemRowProps,
+	handleItemCreated,
+	onBarcodeScanned,
+	onScannerOpened,
+	onScannerClosed,
+	new_line,
+	clearSearchAndQty,
+	onQtyBlur,
+	hide_qty_decimals,
+	hide_zero_rate_items,
+	show_last_invoice_rate,
+	enable_background_sync,
+	background_sync_interval,
+	enable_custom_items_per_page,
+	items_per_page,
+	scannerLocked,
+	temp_hide_qty_decimals,
+	temp_hide_zero_rate_items,
+	temp_enable_custom_items_per_page,
+	temp_items_per_page,
+	temp_force_server_items,
+	temp_show_last_invoice_rate,
+	temp_enable_background_sync,
+	temp_background_sync_interval,
+	localStorageAvailable,
+	clearLastInvoiceRateCache,
+	scheduleLastInvoiceRateRefresh,
+	itemSync,
 });
 </script>
 

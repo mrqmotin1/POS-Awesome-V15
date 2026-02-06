@@ -156,7 +156,7 @@
 						@item-dropped="showDropFeedback(false)"
 						@view-packed="openPackedItems"
 					/>
-					
+
 					<!-- Refactored Packed Items Dialog -->
 					<PackedItemsDialog
 						v-model="show_packed_dialog"
@@ -231,8 +231,8 @@ import { useCustomersStore } from "../../stores/customersStore.js";
 import { useToastStore } from "../../stores/toastStore.js";
 import { useUIStore } from "../../stores/uiStore.js";
 import { storeToRefs } from "pinia";
-import stockCoordinator from "../../utils/stockCoordinator.js";
-import { parseBooleanSetting } from "../../utils/stock.js";
+import stockCoordinator from "../../utils/stockCoordinator";
+import { parseBooleanSetting } from "../../utils/stock";
 import { ref } from "vue";
 import { isOffline } from "../../../offline/index.js";
 import { useOnlineStatus } from "../../composables/useOnlineStatus";
@@ -684,11 +684,6 @@ export default {
 			this.$forceUpdate();
 		},
 
-
-
-
-
-
 		async update_exchange_rate_on_server() {
 			if (this.conversion_rate) {
 				if (!this.items.length) {
@@ -745,8 +740,6 @@ export default {
 			this.update_item_rates();
 			this.update_delivery_charges(this.conversion_rate, this.currency_precision);
 		},
-
-
 
 		handleRegisterPosProfile(data) {
 			this.pos_profile = data.pos_profile;

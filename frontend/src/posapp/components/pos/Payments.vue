@@ -68,7 +68,9 @@
 					:format-currency="formatCurrency"
 					:format-float="formatFloat"
 					:currency-symbol="currencySymbol"
-					@set-formatted-currency="(data) => setFormatedCurrency(null, data.field, null, false, data.value)"
+					@set-formatted-currency="
+						(data) => setFormatedCurrency(null, data.field, null, false, data.value)
+					"
 				/>
 
 				<v-divider></v-divider>
@@ -94,8 +96,18 @@
 					:new-delivery-date="new_delivery_date"
 					:return-valid-upto-date="return_valid_upto_date"
 					:address-filter="addressFilter"
-					@update:new-delivery-date="(val) => { new_delivery_date = val; update_delivery_date(); }"
-					@update:return-valid-upto-date="(val) => { return_valid_upto_date = val; updateReturnValidUpto(); }"
+					@update:new-delivery-date="
+						(val) => {
+							new_delivery_date = val;
+							update_delivery_date();
+						}
+					"
+					@update:return-valid-upto-date="
+						(val) => {
+							return_valid_upto_date = val;
+							updateReturnValidUpto();
+						}
+					"
 					@new-address="new_address"
 				/>
 
@@ -104,7 +116,12 @@
 					:invoice-doc="invoice_doc"
 					:pos-profile="pos_profile"
 					:new-po-date="new_po_date"
-					@update:new-po-date="(val) => { new_po_date = val; update_po_date(); }"
+					@update:new-po-date="
+						(val) => {
+							new_po_date = val;
+							update_po_date();
+						}
+					"
 				/>
 
 				<v-divider></v-divider>
@@ -126,7 +143,12 @@
 					@update:is-credit-sale="is_credit_sale = $event"
 					@update:is-cashback="is_cashback = $event"
 					@update:is-credit-return="is_credit_return = $event"
-					@update:new-credit-due-date="(val) => { new_credit_due_date = val; update_credit_due_date(); }"
+					@update:new-credit-due-date="
+						(val) => {
+							new_credit_due_date = val;
+							update_credit_due_date();
+						}
+					"
 					@update:credit-due-days="credit_due_days = $event"
 					@apply-due-preset="applyDuePreset"
 					@update:redeem-customer-credit="redeem_customer_credit = $event"
@@ -142,7 +164,9 @@
 					:credit-source-label="creditSourceLabel"
 					:format-currency="formatCurrency"
 					:currency-symbol="currencySymbol"
-					@set-formatted-currency="(data) => setFormatedCurrency(data.target, data.field, null, false, data.value)"
+					@set-formatted-currency="
+						(data) => setFormatedCurrency(data.target, data.field, null, false, data.value)
+					"
 				/>
 
 				<v-divider></v-divider>
@@ -200,16 +224,14 @@ import {
 	updateLocalStock,
 } from "../../../offline/index.js";
 
-import {
-	isDebugPrintEnabled,
-} from "../../plugins/print.js";
+import { isDebugPrintEnabled } from "../../plugins/print.js";
 import { useInvoiceStore } from "../../stores/invoiceStore.js";
 import { useCustomersStore } from "../../stores/customersStore.js";
 import { useUIStore } from "../../stores/uiStore.js";
 import { useRtl } from "../../composables/useRtl.js";
 import { storeToRefs } from "pinia";
-import stockCoordinator from "../../utils/stockCoordinator.js";
-import { parseBooleanSetting } from "../../utils/stock.js";
+import stockCoordinator from "../../utils/stockCoordinator";
+import { parseBooleanSetting } from "../../utils/stock";
 import { useToastStore } from "../../stores/toastStore.js";
 import invoiceService from "../../services/invoiceService.js";
 import PaymentSummary from "./PaymentSummary.vue";
@@ -298,17 +320,13 @@ export default {
 				toastStore,
 			},
 			onClearAmounts: () => {
-				// We can expose a clear function or logic here if needed, 
+				// We can expose a clear function or logic here if needed,
 				// but for now let's just use the composable's logic
-			}
+			},
 		});
 
 		// Initialize printing composable
-		const {
-			loadPrintPage,
-			printOfflineInvoice,
-			openOfflineInvoicePreview,
-		} = usePaymentPrinting({
+		const { loadPrintPage, printOfflineInvoice, openOfflineInvoicePreview } = usePaymentPrinting({
 			invoiceDoc: computed(() => invoiceStore.invoiceDoc),
 			posProfile: pos_profile,
 			invoiceType: invoiceType,
@@ -367,10 +385,12 @@ export default {
 					},
 					onSuccess: () => {
 						eventBus.emit("focus_item_search");
-					}
+					},
 				});
 			},
-			setRedeemCustomerCredit: (val) => { redeem_customer_credit.value = val; },
+			setRedeemCustomerCredit: (val) => {
+				redeem_customer_credit.value = val;
+			},
 			customerCreditDict: customer_credit_dict,
 			redeemedCustomerCredit: redeemed_customer_credit,
 			isCashback: is_cashback,
@@ -419,7 +439,6 @@ export default {
 			eventBus: proxy.eventBus,
 		});
 
-
 		const {
 			validateDueDate,
 			ensureReturnPaymentsAreNegative,
@@ -456,19 +475,25 @@ export default {
 				args: { doctype: "Sales Invoice" },
 				callback: (r) => {
 					const formats = r.message || [];
-					print_formats.value = formats.map((pf) => (typeof pf === "object" && pf.name ? pf.name : pf));
+					print_formats.value = formats.map((pf) =>
+						typeof pf === "object" && pf.name ? pf.name : pf,
+					);
 				},
 			});
 		};
 
-		watch(() => uiStore.posProfile, (p) => { 
-			if (p) {
-				pos_profile.value = p;
-				stock_settings.value = uiStore.stockSettings || {};
-				get_mpesa_modes();
-				get_print_formats();
-			}
-		}, { immediate: true });
+		watch(
+			() => uiStore.posProfile,
+			(p) => {
+				if (p) {
+					pos_profile.value = p;
+					stock_settings.value = uiStore.stockSettings || {};
+					get_mpesa_modes();
+					get_print_formats();
+				}
+			},
+			{ immediate: true },
+		);
 
 		return {
 			invoiceStore,
@@ -949,7 +974,7 @@ export default {
 					},
 					onScheduleBackgroundCheck: (name, doctype) => {
 						this.scheduleBackgroundStatusCheck(name, doctype);
-					}
+					},
 				});
 			} catch (error) {
 				// Error handled in composable (toasts shown)

@@ -241,7 +241,7 @@
 /* global frappe */
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { QrcodeStream } from "vue-qrcode-reader";
-import opencvProcessor from "../../utils/opencvProcessor.js";
+import opencvProcessor from "../../utils/opencvProcessor";
 
 const props = defineProps({
 	scanType: {
@@ -438,10 +438,7 @@ const handleScannedCode = (rawValue, formatLabel = "", options = {}) => {
 
 	if (typeof frappe !== "undefined" && frappe.show_alert) {
 		const formatSuffix = scanFormat.value ? ` (${scanFormat.value})` : "";
-		frappe.show_alert(
-			{ message: __("Code scanned successfully") + formatSuffix, indicator: "green" },
-			3,
-		);
+		frappe.show_alert({ message: __("Code scanned successfully") + formatSuffix, indicator: "green" }, 3);
 	}
 
 	const shouldPause = pauseCamera && isScanning.value;
@@ -504,10 +501,7 @@ const onError = (error) => {
 		);
 	} else if (error.name === "AbortError") {
 		errorMessage.value = __("Camera access was aborted. Please try again.");
-	} else if (
-		error.name === "OverconstrainedError" ||
-		error.name === "ConstraintNotSatisfiedError"
-	) {
+	} else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
 		errorMessage.value = __(
 			"Camera constraints not supported by your device. Trying fallback settings...",
 		);
@@ -561,8 +555,7 @@ const switchCamera = async () => {
 			frappe.show_alert(
 				{
 					message:
-						__("Switched to: ") +
-						(cameras.value[nextIndex].label || `Camera ${nextIndex + 1}`),
+						__("Switched to: ") + (cameras.value[nextIndex].label || `Camera ${nextIndex + 1}`),
 					indicator: "blue",
 				},
 				2,

@@ -1,7 +1,7 @@
 /* global flt, __, get_currency_symbol */
-import { perfMarkStart, perfMarkEnd } from "../../utils/perf.js";
+import { perfMarkStart, perfMarkEnd } from "../../utils/perf";
 
-import { parseBooleanSetting } from "../../utils/stock.js";
+import { parseBooleanSetting } from "../../utils/stock";
 
 export default {
 	// Calculate total quantity of all items
@@ -136,7 +136,6 @@ export default {
 	isReturnInvoice() {
 		return this.invoiceType === "Return" || (this.invoice_doc && this.invoice_doc.is_return);
 	},
-
 
 	// Table headers for item table (for another table if needed)
 	itemTableHeaders() {

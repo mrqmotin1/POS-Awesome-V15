@@ -126,7 +126,7 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
-import { loadItemSelectorSettings } from "../../utils/itemSelectorSettings.js";
+import { loadItemSelectorSettings } from "../../utils/itemSelectorSettings";
 import InvoiceActionButtons from "./InvoiceActionButtons.vue";
 
 defineOptions({
