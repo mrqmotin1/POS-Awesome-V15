@@ -551,6 +551,7 @@ export default {
 			...paymentCalculations,
 			// Expose submission logic
 			validate_due_date: validateDueDate,
+			validateSubmission,
 			extractSubmissionErrorMessage,
 			ensureReturnPaymentsAreNegative,
 			submitInvoice,

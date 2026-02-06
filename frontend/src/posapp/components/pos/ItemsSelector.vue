@@ -578,7 +578,7 @@ onMounted(async () => {
 		get pos_profile() { return pos_profile.value; },
 		get enable_background_sync() { return enable_background_sync.value; },
 		get background_sync_interval() { return background_sync_interval.value; },
-		refreshModifiedItems: () => itemsIntegration.fetchModifiedItems(),
+		refreshModifiedItems: () => itemsIntegration.refreshModifiedItems(),
 		backgroundSyncItems: (args) => itemsIntegration.backgroundSyncItems(args),
 		get_items: (force) => itemsIntegration.get_items(force),
 		itemDetailFetcher,

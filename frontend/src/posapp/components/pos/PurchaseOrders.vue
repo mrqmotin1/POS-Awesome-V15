@@ -369,7 +369,7 @@ export default {
 	},
 	methods: {
 		formatNumber(v) { return this.formatFloat(v, 2); },
-		currencySymbol(c) { return frappe.get_currency_symbol(c || this.pos_profile.currency); },
+		currencySymbol(c) { return get_currency_symbol(c || this.pos_profile.currency); },
 	},
 };
 </script>
