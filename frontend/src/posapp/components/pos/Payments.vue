@@ -229,7 +229,7 @@ import { useRedemptionLogic } from "../../composables/useRedemptionLogic";
 import { usePaymentPrinting } from "../../composables/usePaymentPrinting";
 import { usePaymentMethods } from "../../composables/usePaymentMethods";
 import { useInvoiceDetails } from "../../composables/useInvoiceDetails";
-import { ref, computed, getCurrentInstance } from "vue";
+import { ref, computed, watch, getCurrentInstance } from "vue";
 
 export default {
 	// Using format mixin for shared formatting methods
@@ -449,8 +449,24 @@ export default {
 			currencyPrecision: currency_precision,
 		});
 
+		const get_print_formats = () => {
+			frappe.call({
+				method: "posawesome.posawesome.api.print_formats.get_print_formats",
+				args: { doctype: "Sales Invoice" },
+				callback: (r) => {
+					const formats = r.message || [];
+					print_formats.value = formats.map((pf) => (typeof pf === "object" && pf.name ? pf.name : pf));
+				},
+			});
+		};
+
 		watch(() => uiStore.posProfile, (p) => { 
-			if (p) pos_profile.value = p; 
+			if (p) {
+				pos_profile.value = p;
+				stock_settings.value = uiStore.stockSettings || {};
+				get_mpesa_modes();
+				get_print_formats();
+			}
 		}, { immediate: true });
 
 		return {
@@ -537,6 +553,7 @@ export default {
 			extractSubmissionErrorMessage,
 			ensureReturnPaymentsAreNegative,
 			submitInvoice,
+			get_print_formats,
 			print_formats,
 			print_format,
 			syncStore,
@@ -575,10 +592,10 @@ export default {
 	computed: {
 		invoice_doc: {
 			get() {
-				return this.invoiceStore.invoiceDoc;
+				return this.invoiceStore?.invoiceDoc || {};
 			},
 			set(value) {
-				this.invoiceStore.setInvoiceDoc(value);
+				this.invoiceStore?.setInvoiceDoc(value);
 			},
 		},
 		// Get currency symbol for given or current currency
@@ -1288,19 +1305,6 @@ export default {
 			}
 			this.syncStore.updatePendingCount();
 		},
-		get_print_formats() {
-			frappe.call({
-				method: "posawesome.posawesome.api.print_formats.get_print_formats",
-				args: {
-					doctype: "Sales Invoice",
-				},
-				callback: (r) => {
-					// Ensure we map to strings if objects are returned
-					const formats = r.message || [];
-					this.print_formats = formats.map((pf) => (typeof pf === "object" && pf.name ? pf.name : pf));
-				},
-			});
-		},
 		set_print_format() {
 			this.print_format = "";
 			if (this.pos_profile.posa_print_format_rules && this.customer_info) {
@@ -1420,19 +1424,6 @@ export default {
 				this.get_print_formats();
 			});
 			*/
-			// Watch Store
-			this.$watch(
-				() => this.uiStore.posProfile,
-				(profile) => {
-					if (profile) {
-						this.pos_profile = profile;
-						this.stock_settings = this.uiStore.stockSettings || {};
-						this.get_mpesa_modes();
-						this.get_print_formats();
-					}
-				},
-				{ deep: true, immediate: true },
-			);
 			this.eventBus.on("add_the_new_address", (data) => {
 				const normalized = this.normalizeAddress(data);
 				if (normalized) {
