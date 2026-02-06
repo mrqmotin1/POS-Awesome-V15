@@ -31,9 +31,9 @@ from posawesome.posawesome.api.item_processing.search import (
     get_items,
     get_items_groups,
     get_items_count,
-    _ensure_pos_profile,
     normalize_brand
 )
+from posawesome.posawesome.api.utils import _ensure_pos_profile
 
 def build_item_cache(item_code):
     """Build item cache for faster access."""

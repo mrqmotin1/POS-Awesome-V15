@@ -14,6 +14,7 @@ from posawesome.posawesome.api.utils import (
     expand_item_groups,
     get_active_pos_profile,
     get_item_groups,
+    _ensure_pos_profile,
 )
 from posawesome.posawesome.api.item_processing.barcode import search_serial_or_batch_or_barcode_number
 from posawesome.posawesome.api.item_processing.details import get_items_details
@@ -65,47 +66,6 @@ def normalize_brand(brand: str) -> str:
     return cstr(brand).strip().lower()
 
 
-def _ensure_pos_profile(pos_profile):
-    """Return a ``(profile_dict, profile_json)`` tuple for the given input."""
-
-    profile_dict = None
-    profile_json = None
-
-    if isinstance(pos_profile, dict):
-        profile_dict = pos_profile
-        profile_json = as_json(pos_profile)
-    elif isinstance(pos_profile, str):
-        raw_value = pos_profile.strip()
-        if raw_value:
-            try:
-                decoded_value = json.loads(raw_value)
-            except Exception:
-                decoded_value = raw_value
-
-            if isinstance(decoded_value, dict):
-                profile_dict = decoded_value
-                profile_json = raw_value
-            elif isinstance(decoded_value, str):
-                if decoded_value:
-                    profile_doc = frappe.get_doc("POS Profile", decoded_value)
-                    profile_dict = profile_doc.as_dict()
-                else:
-                    profile_dict = get_active_pos_profile()
-            elif decoded_value is None:
-                profile_dict = get_active_pos_profile()
-        else:
-            profile_dict = get_active_pos_profile()
-    elif pos_profile is None:
-        profile_dict = get_active_pos_profile()
-
-    if profile_dict and not profile_json:
-        profile_json = as_json(profile_dict)
-
-    if not profile_dict or not profile_json:
-        frappe.throw(_("POS profile data is missing or invalid."))
-
-    return profile_dict, profile_json
-
 
 def _to_positive_int(value: Any) -> Optional[int]:
     """Convert the input to a non-negative integer if possible."""
@@ -115,6 +75,7 @@ def _to_positive_int(value: Any) -> Optional[int]:
     except (TypeError, ValueError):
         return None
     return integer if integer >= 0 else None
+
 
 
 def _build_search_plan(

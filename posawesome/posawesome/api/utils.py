@@ -55,6 +55,58 @@ def expand_item_groups(item_groups):
     return list(expanded_groups)
 
 
+def _ensure_pos_profile(pos_profile):
+    """Return a ``(profile_dict, profile_json)`` tuple for the given input.
+
+    The POS profile parameter can arrive as a JSON string, a python ``dict``,
+    a bare profile name or even ``None`` (when the frontend has not yet loaded
+    the active profile). This helper normalises those inputs so downstream code
+    can rely on a fully populated dictionary and a JSON serialised
+    representation of the same profile. If no valid profile can be resolved a
+    user-facing validation error is raised.
+    """
+    from frappe import _
+    from frappe import as_json
+
+    profile_dict = None
+    profile_json = None
+
+    if isinstance(pos_profile, dict):
+        profile_dict = pos_profile
+        profile_json = as_json(pos_profile)
+    elif isinstance(pos_profile, str):
+        raw_value = pos_profile.strip()
+        if raw_value:
+            try:
+                decoded_value = json.loads(raw_value)
+            except Exception:
+                decoded_value = raw_value
+
+            if isinstance(decoded_value, dict):
+                profile_dict = decoded_value
+                profile_json = raw_value
+            elif isinstance(decoded_value, str):
+                if decoded_value:
+                    profile_doc = frappe.get_doc("POS Profile", decoded_value)
+                    profile_dict = profile_doc.as_dict()
+                else:
+                    profile_dict = get_active_pos_profile()
+            elif decoded_value is None:
+                profile_dict = get_active_pos_profile()
+        else:
+            profile_dict = get_active_pos_profile()
+    elif pos_profile is None:
+        profile_dict = get_active_pos_profile()
+
+    if profile_dict and not profile_json:
+        profile_json = as_json(profile_dict)
+
+    if not profile_dict or not profile_json:
+        frappe.throw(_("POS profile data is missing or invalid."))
+
+    return profile_dict, profile_json
+
+
 @frappe.whitelist()
 def get_active_pos_profile(user=None):
     """Return the active POS profile for the given user."""

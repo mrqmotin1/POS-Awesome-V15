@@ -2,7 +2,7 @@ import frappe
 from frappe.utils import nowdate
 from posawesome.posawesome.api.item_fetchers import ItemDetailAggregator, get_batches
 from posawesome.posawesome.api.item_processing.stock import get_stock_availability
-from posawesome.posawesome.api.items import _ensure_pos_profile
+from posawesome.posawesome.api.utils import _ensure_pos_profile
 from frappe import _, as_json
 import json
 
