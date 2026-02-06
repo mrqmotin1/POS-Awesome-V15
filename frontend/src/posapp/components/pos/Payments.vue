@@ -425,6 +425,7 @@ export default {
 			ensureReturnPaymentsAreNegative,
 			validateSubmission,
 			submitInvoice,
+			extractSubmissionErrorMessage,
 		} = usePaymentSubmission({
 			invoiceDoc: computed(() => invoiceStore.invoiceDoc),
 			posProfile: pos_profile,

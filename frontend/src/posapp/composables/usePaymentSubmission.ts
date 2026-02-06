@@ -572,5 +572,6 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 		ensureReturnPaymentsAreNegative,
 		validateSubmission,
 		submitInvoice,
+		extractSubmissionErrorMessage,
 	};
 }
