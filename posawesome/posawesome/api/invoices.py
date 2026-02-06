@@ -32,6 +32,9 @@ from posawesome.posawesome.api.invoice_processing.returns import (
 from posawesome.posawesome.api.invoice_processing.payment import (
     _create_change_payment_entries
 )
+from posawesome.posawesome.api.invoice_processing.data import (
+    get_last_invoice_rates
+)
 
 @frappe.whitelist()
 def get_draft_invoices(pos_opening_shift, doctype="Sales Invoice"):
