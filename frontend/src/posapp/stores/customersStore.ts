@@ -355,13 +355,18 @@ export const useCustomersStore = defineStore("customers", () => {
 
 	async function get_customer_names() {
 		if (!posProfile.value) {
+			console.log("No POS Profile available to fetch customers");
 			return;
 		}
 		const serializedProfile = getSerializedProfile(posProfile.value);
 		if (!serializedProfile) {
 			return;
 		}
+		
+		await ensureDatabase();
 		const localCount = await getCustomerStorageCount();
+		console.log(`Checking local customer count: ${localCount}`);
+		
 		if (localCount > 0) {
 			customersLoaded.value = true;
 			await searchCustomers(searchTerm.value);
@@ -384,12 +389,17 @@ export const useCustomersStore = defineStore("customers", () => {
 					args: { pos_profile: serializedProfile },
 				});
 				totalCustomerCount.value = countResponse.message || 0;
+				console.log(`Server reports ${totalCustomerCount.value} customers`);
 			} catch (err) {
 				console.error("Failed to fetch customer count", err);
 				totalCustomerCount.value = 0;
 			}
 
+			// Force fetch page 1
+			console.log("Fetching first page of customers...");
 			const rows: Customer[] = await fetchCustomerPage(null, syncSince, PAGE_SIZE);
+			console.log(`Fetched ${rows.length} customers in first page`);
+			
 			if (rows.length) {
 				await setCustomerStorage(rows);
 			}
