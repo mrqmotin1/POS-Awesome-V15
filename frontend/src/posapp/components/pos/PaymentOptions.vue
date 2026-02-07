@@ -4,11 +4,7 @@
 		<v-row class="pa-1" align="start" no-gutters>
 			<v-col
 				cols="6"
-				v-if="
-					posProfile.posa_allow_write_off_change &&
-					creditChange > 0 &&
-					!invoiceDoc.is_return
-				"
+				v-if="posProfile.posa_allow_write_off_change && creditChange > 0 && !invoiceDoc.is_return"
 			>
 				<v-switch
 					:model-value="isWriteOffChange"
@@ -18,10 +14,7 @@
 					@update:model-value="$emit('update:isWriteOffChange', $event)"
 				></v-switch>
 			</v-col>
-			<v-col
-				cols="6"
-				v-if="posProfile.posa_allow_credit_sale && !invoiceDoc.is_return"
-			>
+			<v-col cols="6" v-if="posProfile.posa_allow_credit_sale && !invoiceDoc.is_return">
 				<v-switch
 					:model-value="isCreditSale"
 					:label="$frappe._('Credit Sale?')"
@@ -83,10 +76,7 @@
 					</v-chip>
 				</div>
 			</v-col>
-			<v-col
-				cols="6"
-				v-if="!invoiceDoc.is_return && posProfile.use_customer_credit"
-			>
+			<v-col cols="6" v-if="!invoiceDoc.is_return && posProfile.use_customer_credit">
 				<v-switch
 					:model-value="redeemCustomerCredit"
 					flat
@@ -102,7 +92,7 @@
 <script setup>
 import { inject } from "vue";
 
-const props = defineProps({
+defineProps({
 	invoiceDoc: {
 		type: Object,
 		required: true,

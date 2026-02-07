@@ -41,7 +41,7 @@
 <script setup>
 import { inject } from "vue";
 
-const props = defineProps({
+defineProps({
 	invoiceDoc: {
 		type: Object,
 		required: true,

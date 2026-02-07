@@ -1,10 +1,6 @@
 <template>
 	<div v-if="payments && payments.length">
-		<v-row
-			class="payments pa-1"
-			v-for="payment in payments"
-			:key="payment.name"
-		>
+		<v-row class="payments pa-1" v-for="payment in payments" :key="payment.name">
 			<v-col cols="6" v-if="!isMpesaC2bPayment(payment)">
 				<v-text-field
 					density="compact"
@@ -60,12 +56,7 @@
 
 			<!-- M-Pesa Payment Button (if payment is M-Pesa) -->
 			<v-col cols="12" v-if="isMpesaC2bPayment(payment)" class="pl-3">
-				<v-btn
-					block
-					color="success"
-					theme="dark"
-					@click="$emit('mpesa-dialog', payment)"
-				>
+				<v-btn block color="success" theme="dark" @click="$emit('mpesa-dialog', payment)">
 					{{ __("Get Payments") }} {{ payment.mode_of_payment }}
 				</v-btn>
 			</v-col>
@@ -73,11 +64,7 @@
 			<!-- Request Payment for Phone Type -->
 			<v-col
 				cols="3"
-				v-if="
-					payment.type === 'Phone' &&
-					payment.amount > 0 &&
-					requestPaymentField
-				"
+				v-if="payment.type === 'Phone' && payment.amount > 0 && requestPaymentField"
 				class="pl-1"
 			>
 				<v-btn
@@ -95,7 +82,7 @@
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
 	payments: Array,
 	currency: String,
 	isReturn: Boolean,
@@ -108,7 +95,7 @@ const props = defineProps({
 	isMpesaC2bPayment: Function,
 });
 
-const emit = defineEmits([
+defineEmits([
 	"update-amount",
 	"set-full-amount",
 	"set-denomination",

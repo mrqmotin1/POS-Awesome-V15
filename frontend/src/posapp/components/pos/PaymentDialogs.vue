@@ -28,11 +28,7 @@
 				</v-card-text>
 				<v-card-actions>
 					<v-spacer></v-spacer>
-					<v-btn
-						color="error"
-						theme="dark"
-						@click="$emit('update:customDaysDialog', false)"
-					>
+					<v-btn color="error" theme="dark" @click="$emit('update:customDaysDialog', false)">
 						{{ $__("Close") }}
 					</v-btn>
 					<v-btn color="primary" theme="dark" @click="$emit('apply-custom-days')">
@@ -68,11 +64,7 @@
 				</v-card-text>
 				<v-card-actions>
 					<v-spacer></v-spacer>
-					<v-btn
-						color="error"
-						theme="dark"
-						@click="$emit('update:phoneDialog', false)"
-					>
+					<v-btn color="error" theme="dark" @click="$emit('update:phoneDialog', false)">
 						{{ $__("Close") }}
 					</v-btn>
 					<v-btn color="primary" theme="dark" @click="$emit('request-payment')">
@@ -87,7 +79,7 @@
 <script setup>
 import { inject } from "vue";
 
-const props = defineProps({
+defineProps({
 	customDaysDialog: {
 		type: Boolean,
 		default: false,

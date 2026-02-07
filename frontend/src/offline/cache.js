@@ -25,9 +25,9 @@ export async function searchStoredItems({ search = "", itemGroup = "", limit = 1
 		if (normalizedSearch) {
 			const term = normalizedSearch.toLowerCase();
 			const terms = term.split(/\s+/).filter(Boolean);
-			
+
 			collection = collection.filter((it) => {
-				const nameMatch = it.item_name && terms.every(t => it.item_name.toLowerCase().includes(t));
+				const nameMatch = it.item_name && terms.every((t) => it.item_name.toLowerCase().includes(t));
 				const codeMatch = it.item_code && it.item_code.toLowerCase().includes(term);
 				const barcodeMatch = Array.isArray(it.item_barcode)
 					? it.item_barcode.some((b) => b.barcode && b.barcode.toLowerCase() === term)
@@ -45,21 +45,21 @@ export async function searchStoredItems({ search = "", itemGroup = "", limit = 1
 }
 
 export async function getStoredItemsCount() {
-    try {
-        await checkDbHealth();
-        if (!db.isOpen()) await db.open();
-        return await db.table("items").count();
-    } catch (e) {
-        return 0;
-    }
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		return await db.table("items").count();
+	} catch {
+		return 0;
+	}
 }
 
 export async function getAllStoredItems() {
-    return await getStoredItems();
+	return await getStoredItems();
 }
 
 export async function saveItemsBulk(items) {
-    return await saveItems(items);
+	return await saveItems(items);
 }
 
 export async function saveItems(items) {
@@ -98,7 +98,7 @@ export function getItemUOMs(itemCode) {
 	try {
 		const cache = memory.uom_cache || {};
 		return cache[itemCode] || [];
-	} catch (e) {
+	} catch {
 		return [];
 	}
 }
@@ -115,7 +115,7 @@ export function saveOffers(offers) {
 export function getCachedOffers() {
 	try {
 		return memory.offers_cache || [];
-	} catch (e) {
+	} catch {
 		return [];
 	}
 }
@@ -243,12 +243,12 @@ export async function getCachedItemDetails(profileName, priceList, itemCodes, tt
 }
 
 export function clearItemDetailsCache() {
-    try {
-        memory.item_details_cache = {};
-        persist("item_details_cache");
-    } catch (e) {
-        console.error("Failed to clear item details cache", e);
-    }
+	try {
+		memory.item_details_cache = {};
+		persist("item_details_cache");
+	} catch (e) {
+		console.error("Failed to clear item details cache", e);
+	}
 }
 
 export function saveTaxTemplate(name, doc) {
@@ -354,55 +354,55 @@ export function reduceCacheUsage() {
 }
 
 export function setItemsLastSync(timestamp) {
-    if (typeof localStorage !== "undefined") {
-        localStorage.setItem("posa_items_last_sync", timestamp);
-    }
+	if (typeof localStorage !== "undefined") {
+		localStorage.setItem("posa_items_last_sync", timestamp);
+	}
 }
 
 export function getItemsLastSync() {
-    if (typeof localStorage !== "undefined") {
-        return localStorage.getItem("posa_items_last_sync");
-    }
-    return null;
+	if (typeof localStorage !== "undefined") {
+		return localStorage.getItem("posa_items_last_sync");
+	}
+	return null;
 }
 
 export function setCustomersLastSync(timestamp) {
-    if (typeof localStorage !== "undefined") {
-        if (timestamp) {
-            localStorage.setItem("posa_customers_last_sync", timestamp);
-        } else {
-            localStorage.removeItem("posa_customers_last_sync");
-        }
-    }
+	if (typeof localStorage !== "undefined") {
+		if (timestamp) {
+			localStorage.setItem("posa_customers_last_sync", timestamp);
+		} else {
+			localStorage.removeItem("posa_customers_last_sync");
+		}
+	}
 }
 
 export function getCustomersLastSync() {
-    if (typeof localStorage !== "undefined") {
-        const val = localStorage.getItem("posa_customers_last_sync");
-        if (val === "null" || val === "undefined") return null;
-        return val;
-    }
-    return null;
+	if (typeof localStorage !== "undefined") {
+		const val = localStorage.getItem("posa_customers_last_sync");
+		if (val === "null" || val === "undefined") return null;
+		return val;
+	}
+	return null;
 }
 
 export async function getCustomerStorageCount() {
-    try {
-        await checkDbHealth();
-        if (!db.isOpen()) await db.open();
-        return await db.table("customers").count();
-    } catch (e) {
-        return 0;
-    }
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		return await db.table("customers").count();
+	} catch {
+		return 0;
+	}
 }
 
 export async function clearCustomerStorage() {
-    try {
-        await checkDbHealth();
-        if (!db.isOpen()) await db.open();
-        await db.table("customers").clear();
-    } catch (e) {
-        console.error("Failed to clear customer storage", e);
-    }
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		await db.table("customers").clear();
+	} catch (e) {
+		console.error("Failed to clear customer storage", e);
+	}
 }
 
 // Pricing Rules Logic
@@ -475,7 +475,7 @@ export function saveTranslationsCache(lang, data) {
 export function getPrintTemplate() {
 	try {
 		return memory.print_template || "";
-	} catch (e) {
+	} catch {
 		return "";
 	}
 }
@@ -492,7 +492,7 @@ export function setPrintTemplate(template) {
 export function getTermsAndConditions() {
 	try {
 		return memory.terms_and_conditions || "";
-	} catch (e) {
+	} catch {
 		return "";
 	}
 }
@@ -508,48 +508,48 @@ export function setTermsAndConditions(terms) {
 
 // Coupons
 export function saveCoupons(coupons) {
-    try {
-        memory.coupons_cache = coupons || {};
-        persist("coupons_cache");
-    } catch (e) {
-        console.error("Failed to save coupons", e);
-    }
+	try {
+		memory.coupons_cache = coupons || {};
+		persist("coupons_cache");
+	} catch (e) {
+		console.error("Failed to save coupons", e);
+	}
 }
 
 export function getCachedCoupons() {
-    return memory.coupons_cache || {};
+	return memory.coupons_cache || {};
 }
 
 export function clearCoupons() {
-    memory.coupons_cache = {};
-    persist("coupons_cache");
+	memory.coupons_cache = {};
+	persist("coupons_cache");
 }
 
 // Item Groups
 export function saveItemGroups(groups) {
-    try {
-        memory.item_groups_cache = groups || [];
-        persist("item_groups_cache");
-    } catch (e) {
-        console.error("Failed to save item groups", e);
-    }
+	try {
+		memory.item_groups_cache = groups || [];
+		persist("item_groups_cache");
+	} catch (e) {
+		console.error("Failed to save item groups", e);
+	}
 }
 
 export function getCachedItemGroups() {
-    return memory.item_groups_cache || [];
+	return memory.item_groups_cache || [];
 }
 
 export function clearItemGroups() {
-    memory.item_groups_cache = [];
-    persist("item_groups_cache");
+	memory.item_groups_cache = [];
+	persist("item_groups_cache");
 }
 
 export async function getCacheUsageEstimate() {
-    // Basic implementation since we removed core.js dependency
-    return {
-        total: 0,
-        localStorage: 0,
-        indexedDB: 0,
-        percentage: 0,
-    };
+	// Basic implementation since we removed core.js dependency
+	return {
+		total: 0,
+		localStorage: 0,
+		indexedDB: 0,
+		percentage: 0,
+	};
 }

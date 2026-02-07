@@ -1,12 +1,5 @@
 <template>
-	<div
-		v-if="
-			invoiceDoc &&
-			availableCustomerCredit > 0 &&
-			!invoiceDoc.is_return &&
-			redeemCustomerCredit
-		"
-	>
+	<div v-if="invoiceDoc && availableCustomerCredit > 0 && !invoiceDoc.is_return && redeemCustomerCredit">
 		<v-row v-for="(row, idx) in customerCreditDict" :key="idx">
 			<v-col cols="4">
 				<div class="pa-2 py-3">{{ creditSourceLabel(row) }}</div>
@@ -45,7 +38,7 @@
 <script setup>
 import { inject } from "vue";
 
-const props = defineProps({
+defineProps({
 	invoiceDoc: {
 		type: Object,
 		required: true,

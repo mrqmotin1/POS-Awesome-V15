@@ -118,7 +118,7 @@ export function getLocalStock(itemCode) {
 	try {
 		const stockCache = memory.local_stock_cache || {};
 		return stockCache[itemCode]?.actual_qty || null;
-	} catch (e) {
+	} catch {
 		return null;
 	}
 }

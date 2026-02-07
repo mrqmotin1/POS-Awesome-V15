@@ -47,13 +47,13 @@
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
 	loading: Boolean,
 	validatePayment: Boolean,
 	highlightSubmit: Boolean,
 });
 
-const emit = defineEmits(["submit", "submit-and-print", "cancel"]);
+defineEmits(["submit", "submit-and-print", "cancel"]);
 
 const __ = window.__;
 </script>

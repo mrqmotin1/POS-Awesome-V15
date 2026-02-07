@@ -72,24 +72,16 @@
 							<v-list-item-subtitle v-if="(item?.raw && item.raw.state) || item.state">
 								<div v-html="(item?.raw && item.raw.state) || item.state"></div>
 							</v-list-item-subtitle>
-							<v-list-item-subtitle
-								v-if="(item?.raw && item.raw.country) || item.country"
-							>
+							<v-list-item-subtitle v-if="(item?.raw && item.raw.country) || item.country">
 								<div v-html="(item?.raw && item.raw.country) || item.country"></div>
 							</v-list-item-subtitle>
-							<v-list-item-subtitle
-								v-if="(item?.raw && item.raw.mobile_no) || item.mobile_no"
-							>
-								<div
-									v-html="(item?.raw && item.raw.mobile_no) || item.mobile_no"
-								></div>
+							<v-list-item-subtitle v-if="(item?.raw && item.raw.mobile_no) || item.mobile_no">
+								<div v-html="(item?.raw && item.raw.mobile_no) || item.mobile_no"></div>
 							</v-list-item-subtitle>
 							<v-list-item-subtitle
 								v-if="(item?.raw && item.raw.address_type) || item.address_type"
 							>
-								<div
-									v-html="(item?.raw && item.raw.address_type) || item.address_type"
-								></div>
+								<div v-html="(item?.raw && item.raw.address_type) || item.address_type"></div>
 							</v-list-item-subtitle>
 						</v-list-item>
 					</template>
@@ -131,7 +123,7 @@
 <script setup>
 import { inject } from "vue";
 
-const props = defineProps({
+defineProps({
 	invoiceDoc: {
 		type: Object,
 		required: true,
@@ -170,15 +162,10 @@ const props = defineProps({
 	},
 });
 
-defineEmits([
-	"update:newDeliveryDate",
-	"update:returnValidUptoDate",
-	"new-address",
-]);
+defineEmits(["update:newDeliveryDate", "update:returnValidUptoDate", "new-address"]);
 
 const $frappe = inject("frappe", window.frappe);
 const $__ = inject("__", window.__);
-
 </script>
 
 <style scoped>

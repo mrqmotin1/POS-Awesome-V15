@@ -1,10 +1,7 @@
 <template>
 	<div v-if="invoiceDoc">
 		<!-- Loyalty Points Redemption -->
-		<v-row
-			class="payments pa-1"
-			v-if="availablePointsAmount > 0 && !invoiceDoc.is_return"
-		>
+		<v-row class="payments pa-1" v-if="availablePointsAmount > 0 && !invoiceDoc.is_return">
 			<v-col cols="7">
 				<v-text-field
 					density="compact"
@@ -40,11 +37,7 @@
 		<!-- Customer Credit Redemption -->
 		<v-row
 			class="payments pa-1"
-			v-if="
-				availableCustomerCredit > 0 &&
-				!invoiceDoc.is_return &&
-				redeemCustomerCredit
-			"
+			v-if="availableCustomerCredit > 0 && !invoiceDoc.is_return && redeemCustomerCredit"
 		>
 			<v-col cols="7">
 				<v-text-field
@@ -79,14 +72,14 @@
 </template>
 
 <script setup>
-import { computed, inject } from "vue";
+import { inject } from "vue";
 
 /**
  * Component for handling Loyalty Points and Customer Credit redemptions.
  * Extracted from Payments.vue for better maintainability.
  */
 
-const props = defineProps({
+defineProps({
 	invoiceDoc: {
 		type: Object,
 		required: true,

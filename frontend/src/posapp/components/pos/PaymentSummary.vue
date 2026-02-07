@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
 	invoice_doc: Object,
 	total_payments_display: String,
 	diff_payment_display: String,
@@ -77,12 +77,7 @@ const props = defineProps({
 	formatCurrency: Function,
 });
 
-const emit = defineEmits([
-	"show-paid-amount",
-	"show-diff-payment",
-	"show-paid-change",
-	"update-credit-change",
-]);
+defineEmits(["show-paid-amount", "show-diff-payment", "show-paid-change", "update-credit-change"]);
 
 const frappe = window.frappe;
 </script>

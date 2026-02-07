@@ -278,7 +278,7 @@ export default {
 			if (dropdown) {
 				try {
 					dropdown.menu = false;
-				} catch (err) {
+				} catch {
 					dropdown.$emit?.("update:menu", false);
 				}
 				const inputEl = dropdown.$el?.querySelector("input");
@@ -382,7 +382,7 @@ export default {
 
 			try {
 				dropdown.menu = true;
-			} catch (err) {
+			} catch {
 				dropdown.$emit?.("update:menu", true);
 			}
 

@@ -8,7 +8,7 @@ const TRIGGER_PRINT_PARAM = "trigger_print";
 function getWindowHref(targetWindow) {
 	try {
 		return targetWindow?.location?.href || "";
-	} catch (err) {
+	} catch {
 		return "";
 	}
 }
@@ -18,7 +18,7 @@ function getSearchParamFromHref(href, param) {
 	try {
 		const resolved = new URL(href, window.location.origin);
 		return resolved.searchParams.get(param);
-	} catch (err) {
+	} catch {
 		return null;
 	}
 }
@@ -44,7 +44,7 @@ function resolveDebugPrint(targetWindow, options = {}) {
 function resolveOnlineStatus(targetWindow) {
 	try {
 		return Boolean(targetWindow?.navigator?.onLine);
-	} catch (err) {
+	} catch {
 		return Boolean(navigator?.onLine);
 	}
 }
@@ -73,7 +73,7 @@ function isLoginRedirect(targetWindow) {
 		if (/login|session/i.test(title)) return true;
 		const loginForm = targetWindow?.document?.querySelector("form[action*='login']");
 		return Boolean(loginForm);
-	} catch (err) {
+	} catch {
 		return false;
 	}
 }
@@ -398,7 +398,7 @@ export function isDebugPrintEnabled(sourceWindow = window) {
 	try {
 		const href = sourceWindow?.location?.href || "";
 		return getSearchParamFromHref(href, DEBUG_PRINT_PARAM) === "1";
-	} catch (err) {
+	} catch {
 		return false;
 	}
 }
@@ -411,7 +411,7 @@ export function appendDebugPrintParam(url, debugEnabled = isDebugPrintEnabled())
 		const resolved = new URL(url, window.location.origin);
 		resolved.searchParams.set(DEBUG_PRINT_PARAM, "1");
 		return resolved.toString();
-	} catch (err) {
+	} catch {
 		return url;
 	}
 }

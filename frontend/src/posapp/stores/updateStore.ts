@@ -20,7 +20,7 @@ function getDateFormatter(): Intl.DateTimeFormat | null | undefined {
 			minute: "2-digit",
 			second: "2-digit",
 		});
-	} catch (err) {
+	} catch {
 		cachedDateFormatter = undefined;
 	}
 	return cachedDateFormatter;
@@ -32,7 +32,10 @@ function safeNumber(value: string | null): number | null {
 	return Number.isFinite(numeric) ? numeric : null;
 }
 
-function safeStorageGet(storage: Storage | undefined, key: string): string | null {
+function safeStorageGet(
+	storage: Storage | undefined,
+	key: string,
+): string | null {
 	if (!hasBrowserContext || !storage) return null;
 	try {
 		return storage.getItem(key);
@@ -42,7 +45,11 @@ function safeStorageGet(storage: Storage | undefined, key: string): string | nul
 	}
 }
 
-function safeStorageSet(storage: Storage | undefined, key: string, value: string): boolean {
+function safeStorageSet(
+	storage: Storage | undefined,
+	key: string,
+	value: string,
+): boolean {
 	if (!hasBrowserContext || !storage) return false;
 	try {
 		storage.setItem(key, value);
@@ -73,7 +80,10 @@ function parseTimestamp(version: string | null | number): number | null {
 	return Number.isNaN(candidate) ? null : candidate;
 }
 
-function normalizeVersionInput(version: string | null | number, explicitTimestamp?: number | null) {
+function normalizeVersionInput(
+	version: string | null | number,
+	explicitTimestamp?: number | null,
+) {
 	if (!version) {
 		return { normalized: null, timestamp: null };
 	}
@@ -93,19 +103,19 @@ function formatTimestamp(timestamp: number | null): string | null {
 		if (formatter) {
 			return formatter.format(date);
 		}
-	} catch (err) {
+	} catch {
 		// Swallow and fall back
 	}
 	return date.toISOString();
 }
 
 export interface UpdateState {
-  currentVersion: string | null;
-  availableVersion: string | null;
-  availableTimestamp: number | null;
-  dismissedUntil: number | null;
-  reloadAction: (() => void) | null;
-  reloading: boolean;
+	currentVersion: string | null;
+	availableVersion: string | null;
+	availableTimestamp: number | null;
+	dismissedUntil: number | null;
+	reloadAction: (() => void) | null;
+	reloading: boolean;
 }
 
 export const useUpdateStore = defineStore("update", {
@@ -121,8 +131,8 @@ export const useUpdateStore = defineStore("update", {
 		isUpdateReady(state: UpdateState): boolean {
 			return Boolean(
 				state.availableVersion &&
-					state.currentVersion &&
-					state.availableVersion !== state.currentVersion,
+				state.currentVersion &&
+				state.availableVersion !== state.currentVersion,
 			);
 		},
 		shouldPrompt(state: UpdateState): boolean {
@@ -132,35 +142,56 @@ export const useUpdateStore = defineStore("update", {
 			return !state.dismissedUntil || state.dismissedUntil <= Date.now();
 		},
 		formattedAvailableVersion(state: UpdateState): string | null {
-			return formatTimestamp(state.availableTimestamp) || state.availableVersion;
+			return (
+				formatTimestamp(state.availableTimestamp) ||
+				state.availableVersion
+			);
 		},
 	},
 	actions: {
 		initializeFromStorage() {
 			if (!hasBrowserContext) return;
-			const storedVersion = safeStorageGet(window.localStorage, VERSION_STORAGE_KEY);
+			const storedVersion = safeStorageGet(
+				window.localStorage,
+				VERSION_STORAGE_KEY,
+			);
 			if (storedVersion) {
 				this.$patch({
 					currentVersion: storedVersion,
 					availableVersion: this.availableVersion || storedVersion,
-					availableTimestamp: this.availableTimestamp || parseTimestamp(storedVersion),
+					availableTimestamp:
+						this.availableTimestamp ||
+						parseTimestamp(storedVersion),
 				});
 			}
-			const snoozeUntil = safeNumber(safeStorageGet(window.sessionStorage, SNOOZE_STORAGE_KEY));
-			if (snoozeUntil && (!this.dismissedUntil || snoozeUntil > this.dismissedUntil)) {
+			const snoozeUntil = safeNumber(
+				safeStorageGet(window.sessionStorage, SNOOZE_STORAGE_KEY),
+			);
+			if (
+				snoozeUntil &&
+				(!this.dismissedUntil || snoozeUntil > this.dismissedUntil)
+			) {
 				this.dismissedUntil = snoozeUntil;
 			}
 		},
-		setCurrentVersion(version: string | number | null, explicitTimestamp?: number | null) {
-			const { normalized, timestamp } = normalizeVersionInput(version, explicitTimestamp);
+		setCurrentVersion(
+			version: string | number | null,
+			explicitTimestamp?: number | null,
+		) {
+			const { normalized, timestamp } = normalizeVersionInput(
+				version,
+				explicitTimestamp,
+			);
 			if (!normalized) return;
-			const { currentVersion, availableVersion, availableTimestamp } = this;
+			const { currentVersion, availableVersion, availableTimestamp } =
+				this;
 			const updates: Partial<UpdateState> = {};
 			const versionChanged = currentVersion !== normalized;
 			if (versionChanged) {
 				updates.currentVersion = normalized;
 			}
-			const shouldSyncAvailable = !availableVersion || availableVersion === currentVersion;
+			const shouldSyncAvailable =
+				!availableVersion || availableVersion === currentVersion;
 			if (shouldSyncAvailable) {
 				if (availableVersion !== normalized) {
 					updates.availableVersion = normalized;
@@ -173,16 +204,28 @@ export const useUpdateStore = defineStore("update", {
 				this.$patch(updates);
 			}
 			if (versionChanged && hasBrowserContext) {
-				safeStorageSet(window.localStorage, VERSION_STORAGE_KEY, normalized);
+				safeStorageSet(
+					window.localStorage,
+					VERSION_STORAGE_KEY,
+					normalized,
+				);
 			}
 		},
-		setAvailableVersion(version: string | number | null, explicitTimestamp?: number | null) {
-			const { normalized, timestamp } = normalizeVersionInput(version, explicitTimestamp);
+		setAvailableVersion(
+			version: string | number | null,
+			explicitTimestamp?: number | null,
+		) {
+			const { normalized, timestamp } = normalizeVersionInput(
+				version,
+				explicitTimestamp,
+			);
 			if (!normalized) return;
-			const { availableVersion, availableTimestamp, currentVersion } = this;
+			const { availableVersion, availableTimestamp, currentVersion } =
+				this;
 			const updates: Partial<UpdateState> = {};
 			const versionChanged = availableVersion !== normalized;
-			const timestampChanged = (timestamp ?? null) !== (availableTimestamp ?? null);
+			const timestampChanged =
+				(timestamp ?? null) !== (availableTimestamp ?? null);
 			if (!versionChanged && !timestampChanged) {
 				if (!currentVersion) {
 					this.setCurrentVersion(normalized, timestamp);
@@ -202,25 +245,40 @@ export const useUpdateStore = defineStore("update", {
 				this.$patch(updates);
 			}
 			if (!currentVersion && hasBrowserContext) {
-				safeStorageSet(window.localStorage, VERSION_STORAGE_KEY, normalized);
+				safeStorageSet(
+					window.localStorage,
+					VERSION_STORAGE_KEY,
+					normalized,
+				);
 			}
 		},
-		markUpdateApplied(version?: string | number | null, explicitTimestamp?: number | null) {
+		markUpdateApplied(
+			version?: string | number | null,
+			explicitTimestamp?: number | null,
+		) {
 			const updates: Partial<UpdateState> = {
 				reloading: false,
 				dismissedUntil: null,
 			};
 			if (version) {
-				const { normalized, timestamp } = normalizeVersionInput(version, explicitTimestamp);
+				const { normalized, timestamp } = normalizeVersionInput(
+					version,
+					explicitTimestamp,
+				);
 				updates.currentVersion = normalized;
 				updates.availableVersion = normalized;
 				updates.availableTimestamp = timestamp;
 				if (hasBrowserContext) {
-					safeStorageSet(window.localStorage, VERSION_STORAGE_KEY, normalized || "");
+					safeStorageSet(
+						window.localStorage,
+						VERSION_STORAGE_KEY,
+						normalized || "",
+					);
 				}
 			} else if (this.currentVersion) {
 				const normalized = this.currentVersion;
-				const timestamp = explicitTimestamp ?? parseTimestamp(normalized);
+				const timestamp =
+					explicitTimestamp ?? parseTimestamp(normalized);
 				updates.availableVersion = normalized;
 				updates.availableTimestamp = timestamp ?? null;
 			}
@@ -247,7 +305,11 @@ export const useUpdateStore = defineStore("update", {
 			}
 			this.dismissedUntil = until;
 			if (hasBrowserContext) {
-				safeStorageSet(window.sessionStorage, SNOOZE_STORAGE_KEY, String(until));
+				safeStorageSet(
+					window.sessionStorage,
+					SNOOZE_STORAGE_KEY,
+					String(until),
+				);
 			}
 		},
 		resetSnooze() {

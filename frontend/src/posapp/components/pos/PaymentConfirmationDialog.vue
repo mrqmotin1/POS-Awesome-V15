@@ -1,9 +1,5 @@
 <template>
-	<v-dialog
-		v-model="dialog"
-		max-width="400"
-		transition="dialog-bottom-transition"
-	>
+	<v-dialog v-model="dialog" max-width="400" transition="dialog-bottom-transition">
 		<v-card>
 			<v-card-title class="text-h6">
 				{{ __("Open Payments?") }}
@@ -16,12 +12,7 @@
 				<v-btn color="error" variant="text" @click="onCancel">
 					{{ __("Cancel") }}
 				</v-btn>
-				<v-btn
-					ref="confirmPaymentBtn"
-					color="primary"
-					variant="text"
-					@click="onConfirm"
-				>
+				<v-btn ref="confirmPaymentBtn" color="primary" variant="text" @click="onConfirm">
 					{{ __("Yes") }}
 				</v-btn>
 			</v-card-actions>
@@ -40,9 +31,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-	(e: "update:modelValue", value: boolean): void;
-	(e: "confirm"): void;
-	(e: "cancel"): void;
+	"update:modelValue": [value: boolean];
+	confirm: [];
+	cancel: [];
 }>();
 
 const dialog = computed({
