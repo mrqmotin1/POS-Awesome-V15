@@ -60,4 +60,29 @@ export default [
 		files: ["**/*.vue"],
 		processor: pluginVue.processors[".vue"],
 	},
+	{
+		files: ["**/*.ts", "**/*.vue"],
+		rules: {
+			"no-undef": "off",
+		},
+	},
+	{
+		files: ["src/posapp/workers/opencvWorker.js"],
+		languageOptions: {
+			globals: {
+				...globals.worker,
+				importScripts: "readonly",
+				cv: "writable",
+				self: "readonly",
+			},
+		},
+	},
+	{
+		files: ["**/*.config.js", "**/*.spec.js", "**/*.test.js"],
+		languageOptions: {
+			globals: {
+				...globals.node,
+			},
+		},
+	},
 ];
