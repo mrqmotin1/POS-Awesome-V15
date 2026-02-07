@@ -56,13 +56,6 @@ export default defineConfig({
 						return contents.replace(/__BUILD_VERSION__/g, buildVersion);
 					},
 				},
-				{
-					src: "src/loader.ts",
-					dest: ".",
-					transform(contents) {
-						return contents.replace(/__BUILD_VERSION__/g, buildVersion);
-					},
-				},
 			],
 		}),
 	],
@@ -80,6 +73,7 @@ export default defineConfig({
 			input: {
 				posawesome: path.resolve(__dirname, "src/posawesome.bundle.ts"),
 				"offline/index": path.resolve(__dirname, "src/offline/index.ts"),
+				loader: path.resolve(__dirname, "src/loader.ts"),
 			},
 			external: ["socket.io-client"],
 			output: {
