@@ -1,6 +1,11 @@
-// @ts-nocheck
-export const useItemsSelectorFocus = ({ getVM, scannerInput, itemSelection }) => {
-	const getVm = () => (typeof getVM === "function" ? getVM() : null);
+type FocusDependencies = {
+	getVM?: () => any;
+	scannerInput?: any;
+	itemSelection?: any;
+};
+
+export const useItemsSelectorFocus = ({ getVM, scannerInput, itemSelection }: FocusDependencies) => {
+	const getVm = (): any => (typeof getVM === "function" ? getVM() : null);
 
 	const getSearchInputField = () => {
 		const vm = getVm();
@@ -74,17 +79,17 @@ export const useItemsSelectorFocus = ({ getVM, scannerInput, itemSelection }) =>
 		}
 	};
 
-	const handleSearchPaste = (event) => {
+	const handleSearchPaste = (event: ClipboardEvent) => {
 		if (scannerInput.handleSearchPaste) {
 			scannerInput.handleSearchPaste(event);
 		}
 	};
 
-	const handleSearchInput = (_event) => {
+	const handleSearchInput = (_event: Event) => {
 		// Handled by composable
 	};
 
-	const handleSearchKeydown = (event) => {
+	const handleSearchKeydown = (event: KeyboardEvent) => {
 		const vm = getVm();
 		if (!vm || !event) return;
 		if ((itemSelection || vm.itemSelection).handleSearchKeydown(event)) {

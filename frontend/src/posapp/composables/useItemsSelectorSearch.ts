@@ -1,12 +1,19 @@
-// @ts-nocheck
 import _ from "lodash";
 import { shouldReloadOnSearchClear } from "../utils/searchUtils.js";
 import { isOffline } from "../../offline/index.js";
 
-export const useItemsSelectorSearch = ({ getVM, scannerInput, itemSelection }) => {
-	const getVm = () => (typeof getVM === "function" ? getVM() : null);
+declare const flt: (_value: unknown) => number;
 
-	const get_search = (first_search) => {
+type SearchDeps = {
+	getVM?: () => any;
+	scannerInput?: any;
+	itemSelection?: any;
+};
+
+export const useItemsSelectorSearch = ({ getVM, scannerInput, itemSelection }: SearchDeps) => {
+	const getVm = (): any => (typeof getVM === "function" ? getVM() : null);
+
+	const get_search = (first_search: string) => {
 		if (!first_search) return "";
 		const prefix = scannerInput.getScaleBarcodePrefix();
 		const prefix_len = prefix.length;
@@ -18,11 +25,11 @@ export const useItemsSelectorSearch = ({ getVM, scannerInput, itemSelection }) =
 		return first_search.substr(0, prefix_len + item_code_len);
 	};
 
-	const get_item_qty = (first_search) => {
+	const get_item_qty = (first_search: string) => {
 		const vm = getVm();
 		if (!vm) return 1;
 		const qtyVal = vm.qty != null ? vm.qty : 1;
-		let scal_qty = Math.abs(qtyVal);
+		let scal_qty: number | string = Math.abs(qtyVal);
 		const prefix = scannerInput.getScaleBarcodePrefix();
 		const prefix_len = prefix.length;
 
@@ -46,12 +53,12 @@ export const useItemsSelectorSearch = ({ getVM, scannerInput, itemSelection }) =
 			scal_qty = pesokg;
 		}
 		if (vm.hide_qty_decimals) {
-			scal_qty = Math.trunc(scal_qty);
+			scal_qty = Math.trunc(Number(scal_qty));
 		}
 		return scal_qty;
 	};
 
-	const enter_event = async (scannedCode) => {
+	const enter_event = async (scannedCode?: string) => {
 		const vm = getVm();
 		if (!vm) return;
 
@@ -66,7 +73,7 @@ export const useItemsSelectorSearch = ({ getVM, scannerInput, itemSelection }) =
 		const isScaleBarcode = scannerInput.scaleBarcodeMatches(searchTerm);
 		vm.search = search;
 
-		const qty = parseFloat(get_item_qty(searchTerm));
+		const qty = Number(get_item_qty(searchTerm));
 		const new_item = { ...vm.displayedItems[0] };
 		new_item.qty = flt(qty);
 		if (isScaleBarcode) {
@@ -208,7 +215,7 @@ export const useItemsSelectorSearch = ({ getVM, scannerInput, itemSelection }) =
 		_performSearch();
 	}, 300);
 
-	const onEnter = (event) => {
+	const onEnter = (event?: KeyboardEvent) => {
 		const vm = getVm();
 		if (!vm) return;
 

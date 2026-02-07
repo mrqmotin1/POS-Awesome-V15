@@ -1,6 +1,8 @@
-// @ts-nocheck
 import { ref, onUnmounted } from "vue";
 import { checkDbHealth } from "../../offline/index.js";
+
+declare const __: (_text: string) => string;
+declare const frappe: any;
 
 /**
  * useItemStorageSafety Composable
@@ -11,7 +13,7 @@ import { checkDbHealth } from "../../offline/index.js";
 export function useItemStorageSafety() {
 	// State
 	const storageAvailable = ref(true);
-	const itemWorker = ref(null);
+	const itemWorker = ref<Worker | null>(null);
 
 	/**
 	 * Checks if the database is healthy and actionable.
@@ -22,7 +24,7 @@ export function useItemStorageSafety() {
 		// For now, we assume if it failed once, it's safer to degrade gracefully.
 		if (!storageAvailable.value) return false;
 
-		const isHealthy = await checkDbHealth();
+		const isHealthy = Boolean(await (checkDbHealth() as Promise<unknown>));
 		if (!isHealthy) {
 			console.warn("Storage health check failed");
 			markStorageUnavailable({
@@ -38,7 +40,7 @@ export function useItemStorageSafety() {
 	 * Marks storage as unavailable and stops related workers.
 	 * @param {Object} args - Error details
 	 */
-	function markStorageUnavailable(args = {}) {
+	function markStorageUnavailable(args: Record<string, unknown> = {}) {
 		if (!storageAvailable.value) return; // Already marked
 
 		console.error("Marking storage as unavailable", args);
@@ -85,7 +87,7 @@ export function useItemStorageSafety() {
 				itemWorker.value = new Worker(workerUrl, { type: "module" });
 			}
 
-			itemWorker.value.onmessage = (e) => {
+			itemWorker.value.onmessage = (e: MessageEvent) => {
 				// Handle generic worker messages if needed
 				// Most worker comms might be request/response based, handled by specific managers
 				// or just fire-and-forget syncs.
@@ -94,14 +96,14 @@ export function useItemStorageSafety() {
 				}
 			};
 
-			itemWorker.value.onerror = (e) => {
+			itemWorker.value.onerror = (e: ErrorEvent) => {
 				console.error("Item worker system error:", e);
 				// If the worker crashes, we might not want to kill the whole storage flag
 				// unless it's a persistent DB error.
 			};
 
 			console.log("Item Worker started");
-		} catch (e) {
+		} catch (e: unknown) {
 			console.error("Failed to start item worker", e);
 		}
 	}

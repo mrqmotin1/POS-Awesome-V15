@@ -1,12 +1,14 @@
-// @ts-nocheck
 import { toBaseCurrency, toSelectedCurrency } from "../utils/currencyConversion";
 import { useToastStore } from "../stores/toastStore";
 
-export function useDiscounts() {
+declare const flt: (_value: unknown, _precision?: number) => number;
+declare const __: (_text: string, _args?: any[]) => string;
+
+	export function useDiscounts() {
 	const toastStore = useToastStore();
 
 	// Update additional discount amount based on percentage
-	const updateDiscountAmount = (context) => {
+	const updateDiscountAmount = (context: any) => {
 		let value = flt(context.additional_discount_percentage);
 		const usePercentage = Boolean(context.pos_profile?.posa_use_percentage_discount);
 		const maxDiscount = flt(context.pos_profile?.posa_max_discount_allowed);
@@ -58,7 +60,7 @@ export function useDiscounts() {
 	};
 
 	// Calculate prices and discounts for an item based on field change
-	const calcPrices = (item, value, $event, context) => {
+	const calcPrices = (item: any, value: any, $event: any, context: any) => {
 		if (!$event?.target?.id || !item) return;
 
 		const fieldId = $event.target.id;
@@ -159,7 +161,7 @@ export function useDiscounts() {
 			// Update stock calculations and force UI update
 			if (context.calc_stock_qty) context.calc_stock_qty(item, item.qty);
 			if (context.forceUpdate) context.forceUpdate();
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error("Error calculating prices:", error);
 			toastStore.show({
 				title: __("Error calculating prices"),
@@ -169,7 +171,7 @@ export function useDiscounts() {
 	};
 
 	// Calculate item price and discount fields
-	const calcItemPrice = (item, context) => {
+	const calcItemPrice = (item: any, context: any) => {
 		// Skip recalculation if called from update_item_rates to avoid double calculations
 		if (item._skip_calc) {
 			item._skip_calc = false;

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { ref, reactive } from "vue";
 import {
 	getCachedItemDetails,
@@ -15,6 +14,14 @@ import {
 } from "../../offline/index.js";
 import { scheduleFrame } from "../utils/perf.js";
 
+declare const frappe: any;
+
+type ItemDetailRequestCache = {
+	key: string | null;
+	promise: Promise<any> | null;
+	result: any[] | null;
+};
+
 /**
  * useItemDetailFetcher
  *
@@ -26,20 +33,20 @@ import { scheduleFrame } from "../utils/perf.js";
  */
 export function useItemDetailFetcher() {
 	// State
-	const itemDetailsRequestCache = reactive({
+	const itemDetailsRequestCache = reactive<ItemDetailRequestCache>({
 		key: null,
 		promise: null,
 		result: null,
 	});
 	const itemDetailsRetryCount = ref(0);
-	const itemDetailsRetryTimeout = ref(null);
+	const itemDetailsRetryTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 	const refreshInFlight = ref(false);
 	const prePopulateInProgress = ref(false);
 	const background_sync_details_in_flight = ref(false);
-	const abortController = ref(null);
+	const abortController = ref<AbortController | null>(null);
 
 	// Context (Late Binding)
-	const ctx = {
+	const ctx: any = {
 		pos_profile: null,
 		active_price_list: null,
 		items: [],
@@ -53,7 +60,7 @@ export function useItemDetailFetcher() {
 		forceUpdate: null,
 	};
 
-	function registerContext(context) {
+	function registerContext(context: any) {
 		Object.assign(ctx, context);
 	}
 
@@ -67,7 +74,7 @@ export function useItemDetailFetcher() {
 		itemDetailsRequestCache.result = null;
 	}
 
-	async function fetchItemDetails(items) {
+	async function fetchItemDetails(items: any[]) {
 		if (!items || items.length === 0) {
 			return [];
 		}
@@ -95,7 +102,7 @@ export function useItemDetailFetcher() {
 		itemDetailsRequestCache.key = key;
 		abortController.value = new AbortController();
 
-		let timeoutId;
+		let timeoutId: ReturnType<typeof setTimeout>;
 		const timeoutPromise = new Promise((_, reject) => {
 			timeoutId = setTimeout(() => reject(new Error("Request timed out")), 5000);
 		});
@@ -130,15 +137,15 @@ export function useItemDetailFetcher() {
 				itemDetailsRequestCache.result = msg;
 			}
 			return msg;
-		} catch (err) {
-			if (err.message === "Request timed out") {
+		} catch (err: any) {
+			if (err?.message === "Request timed out") {
 				if (abortController.value) {
 					abortController.value.abort();
 				}
 				console.warn("Item details fetch timed out, proceeding with local data.");
 				// Prevent unhandled rejection from the aborted request
 				wrappedRequestPromise.catch(() => {});
-			} else if (err.name !== "AbortError") {
+			} else if (err?.name !== "AbortError") {
 				console.error("Error fetching item details:", err);
 			}
 			throw err;
@@ -163,12 +170,12 @@ export function useItemDetailFetcher() {
 				ctx.active_price_list,
 				itemCodes,
 			);
-			const updates = [];
+			const updates: Array<{ item: any; upd: any }> = [];
 
 			cacheResult.cached.forEach((det) => {
 				const item = ctx.displayedItems.find((it) => it.item_code === det.item_code);
 				if (item) {
-					const upd = { actual_qty: det.actual_qty };
+					const upd: any = { actual_qty: det.actual_qty };
 					if (det.item_uoms && det.item_uoms.length > 0) {
 						upd.item_uoms = det.item_uoms;
 						saveItemUOMs(item.item_code, det.item_uoms);
@@ -202,7 +209,7 @@ export function useItemDetailFetcher() {
 			details.forEach((updItem) => {
 				const item = ctx.displayedItems.find((it) => it.item_code === updItem.item_code);
 				if (item) {
-					const upd = { actual_qty: updItem.actual_qty };
+					const upd: any = { actual_qty: updItem.actual_qty };
 					if (updItem.item_uoms && updItem.item_uoms.length > 0) {
 						upd.item_uoms = updItem.item_uoms;
 						saveItemUOMs(item.item_code, updItem.item_uoms);
@@ -240,19 +247,19 @@ export function useItemDetailFetcher() {
 			) {
 				try {
 					await saveItemsBulk(details);
-				} catch (e) {
+				} catch (e: any) {
 					console.error("Failed to persist item details", e);
 					if (ctx.markStorageUnavailable) ctx.markStorageUnavailable();
 				}
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Failed to refresh prices for visible items:", error);
 		} finally {
 			refreshInFlight.value = false;
 		}
 	}
 
-	async function update_items_details(items, options = {}) {
+	async function update_items_details(items: any[], options: { forceRefresh?: boolean } = {}) {
 		const { forceRefresh = false } = options;
 
 		if (!items || !items.length) return;
@@ -267,7 +274,7 @@ export function useItemDetailFetcher() {
 		const affectedCodes = Array.from(
 			new Set(itemCodes.filter((code) => code !== undefined && code !== null)),
 		);
-		const baseRecords = new Map();
+		const baseRecords = new Map<string, number>();
 		const cacheResult = await getCachedItemDetails(
 			ctx.pos_profile?.name,
 			ctx.active_price_list,
@@ -369,7 +376,7 @@ export function useItemDetailFetcher() {
 			if (details && details.length) {
 				itemDetailsRetryCount.value = 0;
 				let qtyChanged = false;
-				let updatedItems = [];
+				let updatedItems: Array<{ item: any; updates: any }> = [];
 
 				items.forEach((item) => {
 					const updated_item = details.find((element) => element.item_code == item.item_code);
@@ -459,9 +466,9 @@ export function useItemDetailFetcher() {
 					ctx.forceUpdate();
 				}
 			}
-		} catch (err) {
-			const isTimeout = err.message === "Request timed out";
-			if (err.name !== "AbortError") {
+		} catch (err: any) {
+			const isTimeout = err?.message === "Request timed out";
+			if (err?.name !== "AbortError") {
 				console.error("Error fetching item details:", err);
 				items.forEach((item) => {
 					const localQty = getLocalStock(item.item_code);
@@ -528,7 +535,7 @@ export function useItemDetailFetcher() {
 				console.info("Pre-populating stock cache for", items.length, "items");
 			}
 			await initializeStockCache(items, ctx.pos_profile);
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Failed to pre-populate stock cache:", error);
 		} finally {
 			prePopulateInProgress.value = false;
@@ -548,7 +555,7 @@ export function useItemDetailFetcher() {
 				await update_items_details(chunk, { forceRefresh: true });
 				await scheduleFrame();
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Failed to refresh all item details in background", error);
 		} finally {
 			background_sync_details_in_flight.value = false;

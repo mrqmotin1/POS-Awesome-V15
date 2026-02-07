@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { ref, onUnmounted } from "vue";
 import stockCoordinator from "../utils/stockCoordinator.js";
 import {
@@ -7,37 +6,56 @@ import {
 	replaceBarcodeIndex,
 	resetBarcodeIndex,
 } from "./useBarcodeIndexing";
+import type { BarcodeIndexedItem } from "./useBarcodeIndexing";
+
+type AvailabilityItem = BarcodeIndexedItem & {
+	item_code?: string | number | null;
+	actual_qty?: number | null;
+	available_qty?: number | null;
+	_base_actual_qty?: number | null;
+	_base_available_qty?: number | null;
+};
+
+type AvailabilityCallbacks = {
+	getItems: () => AvailabilityItem[];
+	getDisplayedItems: () => AvailabilityItem[];
+	getFilteredItems: () => AvailabilityItem[];
+	updateItemsDetails: (
+		_items: AvailabilityItem[],
+		_options?: { forceRefresh?: boolean },
+	) => Promise<void>;
+};
 
 export function useItemAvailability() {
 	// Callbacks/Getters (Mutable for late binding)
-	const callbacks = {
+	const callbacks: AvailabilityCallbacks = {
 		getItems: () => [],
 		getDisplayedItems: () => [],
 		getFilteredItems: () => [],
 		updateItemsDetails: async () => {},
 	};
 
-	const registerCallbacks = (newCallbacks) => {
+	const registerCallbacks = (newCallbacks: Partial<AvailabilityCallbacks>) => {
 		Object.assign(callbacks, newCallbacks);
 	};
 
-	const barcodeIndex = ref(new Map());
-	const stockUnsubscribe = ref(null);
+	const barcodeIndex = ref<Map<string, BarcodeIndexedItem>>(new Map());
+	const stockUnsubscribe = ref<(() => void) | null>(null);
 
 	// --- Indexing ---
 
-	const indexItem = (item) => {
+	const indexItem = (item: AvailabilityItem) => {
 		if (barcodeIndex.value) {
 			indexItemInBarcodeIndex(barcodeIndex.value, item);
 		}
 	};
 
-	const lookupItemByBarcode = (code) => {
+	const lookupItemByBarcode = (code: unknown) => {
 		if (!barcodeIndex.value) return null;
 		return lookupItemInBarcodeIndex(barcodeIndex.value, code);
 	};
 
-	const rebuildBarcodeIndex = (newItems) => {
+	const rebuildBarcodeIndex = (newItems: AvailabilityItem[] | null | undefined) => {
 		if (barcodeIndex.value) {
 			replaceBarcodeIndex(barcodeIndex.value, newItems || []);
 		}
@@ -54,8 +72,8 @@ export function useItemAvailability() {
 	/**
 	 * Syncs items with the latest stock state from StockCoordinator
 	 */
-	const syncItemsWithStockState = (codes = null, options = {}) => {
-		const collections = [];
+	const syncItemsWithStockState = (codes: unknown = null, options: Record<string, unknown> = {}) => {
+		const collections: AvailabilityItem[][] = [];
 		const items = callbacks.getItems();
 		const displayedItems = callbacks.getDisplayedItems();
 		const filteredItems = callbacks.getFilteredItems();
@@ -74,10 +92,11 @@ export function useItemAvailability() {
 			if (codes === null) {
 				return null;
 			}
+			const iterableCandidate = codes as any;
 			const iterable = Array.isArray(codes)
 				? codes
-				: codes instanceof Set || typeof codes[Symbol.iterator] === "function"
-					? Array.from(codes)
+				: codes instanceof Set || typeof iterableCandidate?.[Symbol.iterator] === "function"
+					? Array.from(iterableCandidate)
 					: [codes];
 			return new Set(
 				iterable
@@ -101,7 +120,7 @@ export function useItemAvailability() {
 		const allItems = Array.isArray(items) ? [...items] : [];
 		// Also include visible items if they differ
 		const extra = Array.isArray(displayedItems) ? displayedItems : [];
-		extra.forEach((item) => {
+		extra.forEach((item: AvailabilityItem) => {
 			if (!allItems.includes(item)) {
 				allItems.push(item);
 			}
@@ -123,7 +142,7 @@ export function useItemAvailability() {
 	/**
 	 * Handle updates from StockCoordinator
 	 */
-	const handleStockSnapshotUpdate = (event = {}) => {
+	const handleStockSnapshotUpdate = (event: { codes?: unknown[] } = {}) => {
 		const codes = Array.isArray(event.codes) ? event.codes : [];
 		if (!codes.length) {
 			return;
@@ -134,10 +153,10 @@ export function useItemAvailability() {
 	/**
 	 * Capture base availability (initial fetch state)
 	 */
-	const captureBaseAvailability = (item, explicitActualQty = undefined) => {
+	const captureBaseAvailability = (item: AvailabilityItem, explicitActualQty: number | undefined = undefined) => {
 		if (!item) return;
 
-		let resolvedBase = null;
+		let resolvedBase: number | null = null;
 
 		if (typeof item.available_qty === "number" && !Number.isNaN(item.available_qty)) {
 			item._base_available_qty = item.available_qty;
@@ -169,7 +188,7 @@ export function useItemAvailability() {
 	/**
 	 * Helper to get base actual qty
 	 */
-	const getBaseActualQty = (item) => {
+	const getBaseActualQty = (item: AvailabilityItem | null | undefined): number | null => {
 		if (!item) return null;
 
 		if (typeof item._base_actual_qty === "number" && !Number.isNaN(item._base_actual_qty)) {
@@ -190,18 +209,19 @@ export function useItemAvailability() {
 	/**
 	 * Re-apply reservation logic to a specific item
 	 */
-	const applyReservationToItem = (item) => {
+	const applyReservationToItem = (item: AvailabilityItem) => {
 		if (!item || !item.item_code) return;
 
 		const codeKey = String(item.item_code).trim();
 		if (!codeKey) return;
 
-		if (getBaseActualQty(item) !== null) {
+		const baseQty = getBaseActualQty(item);
+		if (baseQty !== null) {
 			stockCoordinator.updateBaseQuantities(
 				[
 					{
 						item_code: codeKey,
-						actual_qty: item._base_actual_qty,
+						actual_qty: baseQty,
 					},
 				],
 				{ silent: true, source: "items-selector" },
@@ -214,7 +234,7 @@ export function useItemAvailability() {
 	/**
 	 * Recompute availability for a list of codes
 	 */
-	const recomputeAvailabilityForCodes = (codes = []) => {
+	const recomputeAvailabilityForCodes = (codes: unknown[] = []) => {
 		if (!Array.isArray(codes) || !codes.length) return;
 
 		const normalizedCodes = codes
@@ -235,7 +255,7 @@ export function useItemAvailability() {
 
 	// --- Event Handlers (External) ---
 
-	const handleCartQuantitiesUpdated = (totals = {}) => {
+	const handleCartQuantitiesUpdated = (totals: Record<string, unknown> = {}) => {
 		const impacted = stockCoordinator.updateReservations(totals, {
 			source: "items-selector",
 		});
@@ -244,27 +264,33 @@ export function useItemAvailability() {
 		}
 	};
 
-	const handleInvoiceStockAdjusted = async (payload = {}) => {
-		const collectedCodes = new Set();
-		const collectCode = (code) => {
+	const handleInvoiceStockAdjusted = async (payload: unknown = {}) => {
+		const collectedCodes = new Set<string>();
+		const collectCode = (code: unknown) => {
 			if (code === undefined || code === null) return;
 			const normalized = String(code).trim();
 			if (normalized) collectedCodes.add(normalized);
 		};
-		const collectFromItems = (items) => {
+		const collectFromItems = (items: unknown) => {
 			if (!Array.isArray(items)) return;
 			items.forEach((entry) => {
 				if (!entry) return;
 				if (typeof entry === "string" || typeof entry === "number") collectCode(entry);
-				else if (entry.item_code !== undefined) collectCode(entry.item_code);
+				else if ((entry as AvailabilityItem).item_code !== undefined)
+					collectCode((entry as AvailabilityItem).item_code);
 			});
 		};
 
 		if (Array.isArray(payload)) collectFromItems(payload);
 		else if (payload && typeof payload === "object") {
-			collectFromItems(payload.items);
-			collectFromItems(payload.item_codes);
-			if (payload.item_code !== undefined) collectCode(payload.item_code);
+			const payloadObj = payload as {
+				items?: unknown;
+				item_codes?: unknown;
+				item_code?: unknown;
+			};
+			collectFromItems(payloadObj.items);
+			collectFromItems(payloadObj.item_codes);
+			if (payloadObj.item_code !== undefined) collectCode(payloadObj.item_code);
 		} else {
 			collectCode(payload);
 		}
@@ -273,10 +299,10 @@ export function useItemAvailability() {
 
 		const codes = Array.from(collectedCodes);
 		const targetCodes = new Set(codes);
-		const seenItems = new Set();
-		const candidates = [];
+		const seenItems = new Set<AvailabilityItem>();
+		const candidates: AvailabilityItem[] = [];
 
-		const considerItem = (item) => {
+		const considerItem = (item: AvailabilityItem | null | undefined) => {
 			if (!item || !item.item_code) return;
 			const code = String(item.item_code).trim();
 			if (!code || !targetCodes.has(code)) return;

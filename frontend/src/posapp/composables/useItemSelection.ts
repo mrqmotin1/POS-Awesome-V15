@@ -1,6 +1,25 @@
-// @ts-nocheck
 import { ref } from "vue";
 import { findItemIndexByCode, getNextHighlightedIndex } from "../utils/itemHighlight.js";
+
+type SelectableItem = {
+	item_code?: string | null;
+	raw?: SelectableItem;
+	item?: SelectableItem;
+	[key: string]: unknown;
+};
+
+type FlyConfig = Record<string, unknown>;
+
+type ItemSelectionContext = {
+	items: SelectableItem[];
+	displayedItems: SelectableItem[];
+	addItem: ((_item: SelectableItem) => Promise<void> | void) | null;
+	clearSearch: (() => void) | null;
+	focusItemSearch: (() => void) | null;
+	fly: ((_source: Element, _target: Element, _config?: FlyConfig) => void) | null;
+	flyConfig: FlyConfig | undefined;
+	items_view: "card" | "list";
+};
 
 /**
  * useItemSelection
@@ -11,21 +30,21 @@ import { findItemIndexByCode, getNextHighlightedIndex } from "../utils/itemHighl
 export function useItemSelection() {
 	// State
 	const highlightedIndex = ref(-1);
-	const highlightedItemCode = ref(null);
+	const highlightedItemCode = ref<string | null>(null);
 
 	// Context (Late Binding)
-	const ctx = {
+	const ctx: ItemSelectionContext = {
 		items: [], // Access to full items list (if needed)
 		displayedItems: [], // The filtered/visible items
 		addItem: null, // Method to add item to cart
 		clearSearch: null,
 		focusItemSearch: null,
 		fly: null, // For animation
-		flyConfig: null,
+		flyConfig: undefined,
 		items_view: "card", // "card" or "list"
 	};
 
-	function registerContext(context) {
+	function registerContext(context: Partial<ItemSelectionContext>) {
 		Object.assign(ctx, context);
 	}
 
@@ -53,7 +72,7 @@ export function useItemSelection() {
 		clearHighlightedItem();
 	}
 
-	function navigateHighlightedItem(direction) {
+	function navigateHighlightedItem(direction: number) {
 		if (!Array.isArray(ctx.displayedItems) || ctx.displayedItems.length === 0) {
 			clearHighlightedItem();
 			return;
@@ -81,28 +100,29 @@ export function useItemSelection() {
 		// Scroll logic is watcher-driven in the component
 	}
 
-	function resolveHighlightedItem(item) {
+	function resolveHighlightedItem(item: unknown): SelectableItem | unknown {
 		if (!item || typeof item !== "object") {
 			return item;
 		}
-		if (item.raw) return item.raw;
-		if (item.item) return item.item.raw || item.item;
+		const asItem = item as SelectableItem;
+		if (asItem.raw) return asItem.raw;
+		if (asItem.item) return asItem.item.raw || asItem.item;
 		return item;
 	}
 
-	function isItemHighlighted(item) {
+	function isItemHighlighted(item: unknown) {
 		const resolvedItem = resolveHighlightedItem(item);
 		if (!resolvedItem || !highlightedItemCode.value) {
 			return false;
 		}
-		return resolvedItem.item_code === highlightedItemCode.value;
+		return (resolvedItem as SelectableItem).item_code === highlightedItemCode.value;
 	}
 
-	function getItemRowClass(item) {
+	function getItemRowClass(item: unknown) {
 		return isItemHighlighted(item) ? "item-row-highlighted" : "";
 	}
 
-	function getItemRowProps(item) {
+	function getItemRowProps(item: unknown) {
 		return isItemHighlighted(item) ? { class: "item-row-highlighted" } : {};
 	}
 
@@ -136,14 +156,18 @@ export function useItemSelection() {
 		if (!ctx.displayedItems || !ctx.displayedItems.length) {
 			return;
 		}
+		const firstItem = ctx.displayedItems[0];
+		if (!firstItem) {
+			return;
+		}
 		if (ctx.addItem) {
-			ctx.addItem(ctx.displayedItems[0]);
+			ctx.addItem(firstItem);
 		}
 	}
 
 	// --- Mouse Interaction ---
 
-	function triggerFlyAnimation(event, isRow = false) {
+	function triggerFlyAnimation(event: MouseEvent, isRow = false) {
 		if (!ctx.fly) return;
 
 		const targets = document.querySelectorAll(".items-table-container");
@@ -151,7 +175,7 @@ export function useItemSelection() {
 
 		if (!target) return;
 
-		let source;
+		let source: Element | null | undefined;
 		if (isRow) {
 			// For row click, we create a placeholder
 			const placeholder = document.createElement("div");
@@ -175,24 +199,25 @@ export function useItemSelection() {
 			placeholder.remove();
 		} else {
 			// For card click
-			source = event.currentTarget?.querySelector?.(".card-item-image") || event.currentTarget;
+			const currentTarget = event.currentTarget as Element | null;
+			source = currentTarget?.querySelector?.(".card-item-image") || currentTarget;
 			if (source) {
 				ctx.fly(source, target, ctx.flyConfig);
 			}
 		}
 	}
 
-	function handleItemSelection(event, item) {
+	function handleItemSelection(event: MouseEvent, item: SelectableItem) {
 		triggerFlyAnimation(event, false);
 		if (ctx.addItem) ctx.addItem(item);
 	}
 
-	async function handleRowClick(event, { item }) {
+	async function handleRowClick(event: MouseEvent, { item }: { item: SelectableItem }) {
 		triggerFlyAnimation(event, true);
 		if (ctx.addItem) await ctx.addItem(item);
 	}
 
-	function handleSearchKeydown(event) {
+	function handleSearchKeydown(event: KeyboardEvent) {
 		if (!event) return;
 		const key = event.key || "";
 

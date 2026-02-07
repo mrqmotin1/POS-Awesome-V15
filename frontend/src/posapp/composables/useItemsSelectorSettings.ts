@@ -1,9 +1,16 @@
-// @ts-nocheck
 import { normalizeBackgroundSyncInterval } from "../utils/backgroundSync.js";
 import { loadItemSelectorSettings, saveItemSelectorSettings } from "../utils/itemSelectorSettings.js";
 
-export const useItemsSelectorSettings = ({ getVM, itemSync }) => {
-	const getVm = () => (typeof getVM === "function" ? getVM() : null);
+declare const frappe: any;
+declare const __: (_text: string) => string;
+
+type SelectorSettingsDeps = {
+	getVM?: () => any;
+	itemSync?: any;
+};
+
+export const useItemsSelectorSettings = ({ getVM, itemSync }: SelectorSettingsDeps) => {
+	const getVm = (): any => (typeof getVM === "function" ? getVM() : null);
 
 	const toggleItemSettings = () => {
 		const vm = getVm();
@@ -40,21 +47,21 @@ export const useItemsSelectorSettings = ({ getVM, itemSync }) => {
 		saveItemSelectorSettings(settings);
 	};
 
-	const savePosProfileSetting = (field, value) => {
+	const savePosProfileSetting = (field: string, value: unknown) => {
 		const vm = getVm();
 		if (!vm || !vm.pos_profile || !vm.pos_profile.name) {
 			return;
 		}
-		frappe.db.set_value("POS Profile", vm.pos_profile.name, field, value ? 1 : 0).catch((e) => {
+		frappe.db.set_value("POS Profile", vm.pos_profile.name, field, value ? 1 : 0).catch((e: unknown) => {
 			console.error("Failed to save POS Profile setting", e);
 		});
 	};
 
-	const applyItemSettings = (payload) => {
+	const applyItemSettings = (payload: Record<string, unknown> | null | undefined) => {
 		const vm = getVm();
 		if (!vm) return;
 		const resolved = payload && typeof payload === "object" ? payload : {};
-		const getValue = (key, fallback) =>
+		const getValue = (key: string, fallback: any) =>
 			Object.prototype.hasOwnProperty.call(resolved, key) ? resolved[key] : fallback;
 
 		vm.hide_qty_decimals = getValue("hide_qty_decimals", vm.temp_hide_qty_decimals);

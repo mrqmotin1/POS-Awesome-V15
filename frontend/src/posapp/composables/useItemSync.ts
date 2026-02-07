@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { ref, onUnmounted } from "vue";
 import {
     getItemsLastSync,
@@ -13,14 +12,38 @@ import { normalizeBackgroundSyncInterval, shouldRunBackgroundSync } from "../uti
  * Manages background synchronization and incremental loading of items.
  */
 export function useItemSync() {
+	type SyncItem = { [key: string]: unknown };
+	type ItemDetailFetcher = {
+		update_items_details: (_items: SyncItem[], _options?: { forceRefresh?: boolean }) => Promise<void>;
+		refreshAllItemDetailsInBatches: (_batchSize?: number) => Promise<void>;
+	};
+	type EventBus = { emit: (_event: string, _payload?: unknown) => void };
+	type ItemSyncContext = {
+		pos_profile: unknown;
+		enable_background_sync: boolean;
+		background_sync_interval: number;
+		usesLimitSearch: boolean;
+		itemsPageLimit: number;
+		refreshModifiedItems: null | (() => Promise<{ items?: SyncItem[] }>);
+		backgroundSyncItems: null | ((_args?: unknown) => unknown);
+		get_items: null | ((_force?: boolean) => Promise<unknown>);
+		search_onchange: null | ((_value?: string, _fromScanner?: boolean) => Promise<unknown>);
+		itemDetailFetcher: ItemDetailFetcher | null;
+		eventBus: EventBus | null;
+		fetchServerItemsTimestamp: null | (() => Promise<string | null>);
+		getItems: () => SyncItem[];
+		getDisplayedItems: () => SyncItem[];
+		onBackgroundLoadFinished?: () => void;
+	};
+
     // State
-    const background_sync_timer = ref(null);
+    const background_sync_timer = ref<ReturnType<typeof setInterval> | null>(null);
     const background_sync_in_flight = ref(false);
     const isBackgroundLoading = ref(false);
-    const last_background_sync_time = ref(null);
+    const last_background_sync_time = ref<string | null>(null);
 
     // Context (Late Binding)
-    const ctx = {
+    const ctx: ItemSyncContext = {
         pos_profile: null,
         enable_background_sync: true,
         background_sync_interval: 30,
@@ -39,7 +62,7 @@ export function useItemSync() {
         getDisplayedItems: () => [],
     };
 
-    function registerContext(context) {
+    function registerContext(context: Partial<ItemSyncContext>) {
         Object.assign(ctx, context);
     }
 
@@ -83,7 +106,7 @@ export function useItemSync() {
         return null;
     }
 
-    async function performBackgroundSync({ source = "manual" } = {}) {
+    async function performBackgroundSync({ source = "manual" }: { source?: string } = {}) {
         if (
             !shouldRunBackgroundSync({
                 posProfile: ctx.pos_profile,
@@ -131,7 +154,7 @@ export function useItemSync() {
         }
     }
 
-    function kickoffBackgroundSync() {
+	function kickoffBackgroundSync(): Promise<SyncItem[]> {
         if (isBackgroundLoading.value || ctx.usesLimitSearch) {
             return Promise.resolve([]);
         }
@@ -143,15 +166,15 @@ export function useItemSync() {
             return Promise.resolve([]);
         }
 
-        return ctx.backgroundSyncItems()
-            .then((appended) => {
-                if (Array.isArray(appended) && appended.length) {
-                    if (ctx.eventBus) {
-                        ctx.eventBus.emit("set_all_items", ctx.getItems());
-                    }
-                }
-                return appended;
-            })
+		return Promise.resolve(ctx.backgroundSyncItems())
+			.then((appended) => {
+				if (Array.isArray(appended) && appended.length) {
+					if (ctx.eventBus) {
+						ctx.eventBus.emit("set_all_items", ctx.getItems());
+					}
+				}
+				return Array.isArray(appended) ? appended : [];
+			})
             .finally(() => {
                 finishBackgroundLoad();
             });

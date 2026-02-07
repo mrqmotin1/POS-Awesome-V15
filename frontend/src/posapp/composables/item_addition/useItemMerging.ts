@@ -1,17 +1,18 @@
-// @ts-nocheck
 import _ from "lodash";
 
 export function useItemMerging() {
+	type MergeEntry = any;
+	type MergeContext = any;
 	// PERF: maintain an O(1) lookup map for mergeable lines to avoid repeated O(n) scans when 100+ items are added
-	const shouldIndexItem = (entry) =>
+	const shouldIndexItem = (entry: MergeEntry) =>
 		entry && !entry.posa_is_offer && !entry.posa_is_replace && Number.parseFloat(entry.qty) > 0;
 
-	const buildMergeKey = (entry, requireBatch) => {
+	const buildMergeKey = (entry: MergeEntry, requireBatch: boolean) => {
 		const batchPart = requireBatch ? entry?.batch_no || "" : "";
 		return `${entry?.item_code || ""}::${entry?.uom || ""}::${batchPart}`;
 	};
 
-	const ensureMergeCache = (context) => {
+	const ensureMergeCache = (context: MergeContext) => {
 		if (!context) {
 			return { flexBatch: new Map(), strictBatch: new Map(), signature: -1, lastItems: null };
 		}
@@ -49,7 +50,7 @@ export function useItemMerging() {
 		return cache;
 	};
 
-	const findMergeTarget = (context, item, requireBatchMatch) => {
+	const findMergeTarget = (context: MergeContext, item: MergeEntry, requireBatchMatch: boolean) => {
 		const cache = ensureMergeCache(context);
 		const key = buildMergeKey(item, requireBatchMatch);
 		const bucket = requireBatchMatch ? cache.strictBatch : cache.flexBatch;
@@ -60,7 +61,11 @@ export function useItemMerging() {
 		return null;
 	};
 
-	const refreshMergeCacheEntry = (context, entry, indexHint = null) => {
+	const refreshMergeCacheEntry = (
+		context: MergeContext,
+		entry: MergeEntry,
+		indexHint: number | null = null,
+	) => {
 		if (!context || !entry) return;
 		const cache = ensureMergeCache(context);
 		const itemsRef = context.items || [];
@@ -84,14 +89,14 @@ export function useItemMerging() {
 		cache.lastItems = itemsRef;
 	};
 
-	const invalidateMergeCache = (context) => {
+	const invalidateMergeCache = (context: MergeContext) => {
 		if (context && context._mergeIndexCache) {
 			context._mergeIndexCache.signature = -1;
 			context._mergeIndexCache.lastItems = null;
 		}
 	};
 
-	const moveItemToTop = (context, target, currentIndex = null) => {
+	const moveItemToTop = (context: MergeContext, target: MergeEntry, currentIndex: number | null = null) => {
 		if (!target) return;
 		if (context.invoiceStore) {
 			// Using store actions
@@ -116,7 +121,7 @@ export function useItemMerging() {
 	};
 
 	// Add this utility for grouping logic, matching ItemsTable.vue
-	function groupAndAddItem(items, newItem, context) {
+	function groupAndAddItem(items: MergeEntry[], newItem: MergeEntry, context: MergeContext) {
 		// Find a matching item (by item_code, uom, and rate)
 		const match = items.find(
 			(item) =>

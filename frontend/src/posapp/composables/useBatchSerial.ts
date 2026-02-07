@@ -1,13 +1,12 @@
-// @ts-nocheck
 export function useBatchSerial() {
-	const normalizeSerialSelection = (item) => {
+	const normalizeSerialSelection = (item: any) => {
 		if (!Array.isArray(item.serial_no_selected)) {
 			item.serial_no_selected = [];
 		}
 		return item.serial_no_selected;
 	};
 
-	const applySerialBatchFilter = (item) => {
+	const applySerialBatchFilter = (item: any) => {
 		const serials = Array.isArray(item.serial_no_data) ? item.serial_no_data : [];
 		if (!item?.has_serial_no) {
 			item.filtered_serial_no_data = serials;
@@ -24,7 +23,7 @@ export function useBatchSerial() {
 		return filtered;
 	};
 
-	const isBatchExpired = (batch) => {
+	const isBatchExpired = (batch: any) => {
 		if (!batch || !batch.expiry_date) return false;
 
 		const today = new Date();
@@ -35,7 +34,7 @@ export function useBatchSerial() {
 	};
 
 	// Set serial numbers for an item (and update qty)
-	const setSerialNo = (item, context) => {
+	const setSerialNo = (item: any, context: any) => {
 		if (!item?.has_serial_no) return;
 
 		const filteredSerials = applySerialBatchFilter(item);
@@ -56,12 +55,12 @@ export function useBatchSerial() {
 	};
 
 	// Calculate batch availability and sort according to FIFO/Expiry
-	const getBatchAvailability = (item, context) => {
+	const getBatchAvailability = (item: any, context: any) => {
 		const existing_items = context.items.filter(
 			(element) => element.item_code == item.item_code && element.posa_row_id != item.posa_row_id,
 		);
 		const source_batches = Array.isArray(item.batch_no_data) ? item.batch_no_data : [];
-		const normalized_batch_data = source_batches
+		const normalized_batch_data: any[] = source_batches
 			.map((batch, index) => {
 				const baseQty =
 					Number(batch.original_batch_qty ?? batch.batch_qty ?? batch.available_qty) || 0;
@@ -109,19 +108,21 @@ export function useBatchSerial() {
 			}
 
 			if (a.expiry_date && b.expiry_date) {
-				return new Date(a.expiry_date) - new Date(b.expiry_date);
+				return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
 			} else if (a.expiry_date) {
 				return -1;
 			} else if (b.expiry_date) {
 				return 1;
 			} else if (a.manufacturing_date && b.manufacturing_date) {
-				return new Date(a.manufacturing_date) - new Date(b.manufacturing_date);
+				return (
+					new Date(a.manufacturing_date).getTime() - new Date(b.manufacturing_date).getTime()
+				);
 			} else if (a.manufacturing_date) {
 				return -1;
 			} else if (b.manufacturing_date) {
 				return 1;
 			} else if (a.creation && b.creation) {
-				return new Date(a.creation) - new Date(b.creation);
+				return new Date(a.creation).getTime() - new Date(b.creation).getTime();
 			} else {
 				return a._original_index - b._original_index;
 			}
@@ -131,18 +132,21 @@ export function useBatchSerial() {
 	};
 
 	// Set batch number for an item (and update batch data)
-	const setBatchQty = (item, value, update = true, context) => {
-		const normalized_batch_data = getBatchAvailability(item, context);
+	const setBatchQty = (item: any, value: any, update = true, context: any) => {
+		const normalized_batch_data: any[] = getBatchAvailability(item, context);
 		const selectable_batches = normalized_batch_data.filter((batch) => batch.available_qty > 0);
 		const selection_pool = selectable_batches.length > 0 ? selectable_batches : normalized_batch_data;
 
 		if (selection_pool.length > 0) {
-			let batch_to_use = null;
+			let batch_to_use: any = null;
 			if (value) {
 				batch_to_use = normalized_batch_data.find((batch) => batch.batch_no == value);
 			}
 			if (!batch_to_use) {
 				batch_to_use = selection_pool[0];
+			}
+			if (!batch_to_use) {
+				return;
 			}
 
 			item.batch_no = batch_to_use.batch_no;

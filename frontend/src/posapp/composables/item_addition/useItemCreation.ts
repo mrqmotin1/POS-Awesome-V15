@@ -1,7 +1,9 @@
-// @ts-nocheck
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
+
 export function useItemCreation() {
 	// Create a new item object with default and calculated fields
-	const getNewItem = (item, context) => {
+	const getNewItem = (item: any, context: any) => {
 		const new_item = { ...item };
 		new_item.original_item_name = new_item.item_name;
 		new_item.name_overridden = 0;
@@ -102,7 +104,7 @@ export function useItemCreation() {
 	 * Prepare item for adding to cart (UOMs, currency conversion, etc.)
 	 * Returns the prepared item (modified in place mostly, but best to return it)
 	 */
-	async function prepareItemForCart(item, requestedQty, context) {
+	async function prepareItemForCart(item: any, requestedQty: number, context: any) {
 		const { pos_profile, itemCurrencyUtils, itemDetailFetcher, hide_qty_decimals } = context;
 
 		// Ensure UOMs are initialized
@@ -110,8 +112,9 @@ export function useItemCreation() {
 			item.uom = item.stock_uom;
 		}
 		if (!item.item_uoms || item.item_uoms.length === 0) {
-			if (typeof window.getItemUOMs === "function") {
-				const cachedUoms = window.getItemUOMs(item.item_code);
+			const getItemUOMs = (window as any).getItemUOMs;
+			if (typeof getItemUOMs === "function") {
+				const cachedUoms = getItemUOMs(item.item_code);
 				if (cachedUoms.length > 0) {
 					item.item_uoms = cachedUoms;
 				} else {
@@ -172,7 +175,7 @@ export function useItemCreation() {
 	/**
 	 * Handle variant item selection
 	 */
-	async function handleVariantItem(item, context) {
+	async function handleVariantItem(item: any, context: any) {
 		if (!context) return;
 		const { items, pos_profile, active_price_list, customer, toastStore, uiStore } = context;
 

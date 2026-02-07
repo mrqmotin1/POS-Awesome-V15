@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Integration layer between existing ItemsSelector component and Pinia store
  * Provides backward compatibility while leveraging new state management
@@ -8,7 +7,18 @@ import { computed, watch, onMounted, onUnmounted } from "vue";
 import { useItemsStore } from "../stores/itemsStore.js";
 import { storeToRefs } from "pinia";
 
-export function useItemsIntegration(options = {}) {
+type IntegrationOptions = {
+	enableDebounce?: boolean;
+	debounceDelay?: number;
+};
+
+type MemoryUsage = {
+	used: number;
+	total: number;
+	limit: number;
+};
+
+export function useItemsIntegration(options: IntegrationOptions = {}) {
 	const { enableDebounce = true, debounceDelay = 300 } = options;
 
 	// Get store instance
@@ -49,23 +59,24 @@ export function useItemsIntegration(options = {}) {
 	const search = computed({
 		get: () => searchTerm.value,
 		set: (value) => {
+			const normalized = String(value ?? "");
 			if (enableDebounce) {
-				debouncedSearch(value);
+				debouncedSearch(normalized);
 			} else {
-				itemsStore.searchItems(value);
+				itemsStore.searchItems(normalized);
 			}
 		},
 	});
 	const filtered_items = computed(() => filteredItems.value);
 	const customer_price_list = computed({
 		get: () => customerPriceList.value,
-		set: (value) => itemsStore.updatePriceList(value),
+		set: (value) => itemsStore.updatePriceList(String(value ?? "")),
 	});
 	const active_price_list = computed(() => activePriceList.value);
 
 	// Debounced search functionality
-	let searchTimeout = null;
-	const debouncedSearch = (term) => {
+	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+	const debouncedSearch = (term: string) => {
 		if (searchTimeout) {
 			clearTimeout(searchTimeout);
 		}
@@ -89,12 +100,15 @@ export function useItemsIntegration(options = {}) {
 	};
 
 	const get_items_groups = async () => {
-		await itemsStore.loadItemGroups();
+		if (!posProfile.value) {
+			return itemGroups.value;
+		}
+		await itemsStore.loadItemGroups(posProfile.value);
 		return itemGroups.value;
 	};
 
-	const search_onchange = async (searchValue = null, fromScanner = false) => {
-		const term = searchValue || searchTerm.value;
+	const search_onchange = async (searchValue: string | null = null, fromScanner = false) => {
+		const term = String(searchValue || searchTerm.value || "");
 
 		if (fromScanner) {
 			// For scanner input, try to find item by barcode first
@@ -113,29 +127,29 @@ export function useItemsIntegration(options = {}) {
 		return await itemsStore.searchItems(term);
 	};
 
-	const update_items_details = async (_itemList) => {
+	const update_items_details = async (_itemList: unknown[]) => {
 		// This is now handled automatically by the store in background
 		// Keep for compatibility but don't need to do anything
-		return Promise.resolve();
+		return Promise.resolve(undefined);
 	};
 
-	const memoizedSearch = (searchTerm, _itemGroup) => {
+	const memoizedSearch = (searchTerm: string, _itemGroup: string) => {
 		// The store now handles memoization internally
 		return itemsStore.searchItems(searchTerm);
 	};
 
 	// Item lookup helpers
-	const findItemByCode = (itemCode) => {
+	const findItemByCode = (itemCode: string) => {
 		return itemsStore.getItemByCode(itemCode);
 	};
 
-	const findItemByBarcode = (barcode) => {
+	const findItemByBarcode = (barcode: string) => {
 		return itemsStore.getItemByBarcode(barcode);
 	};
 
 	// Initialization method
-	const initializeStore = async (profile, cust = null, priceList = null) => {
-		await itemsStore.initialize(profile, cust, priceList);
+	const initializeStore = async (profile: unknown, cust: unknown = null, priceList: unknown = null) => {
+		await itemsStore.initialize(profile as any, cust as any, priceList as any);
 
 		// Initialization complete
 		console.log("Items store initialized:", {
@@ -154,16 +168,17 @@ export function useItemsIntegration(options = {}) {
 		};
 	};
 
-	const getMemoryUsage = () => {
+	const getMemoryUsage = (): MemoryUsage | null => {
 		try {
-			if (performance.memory) {
+			const memory = (performance as Performance & { memory?: any }).memory;
+			if (memory) {
 				return {
-					used: Math.round(performance.memory.usedJSHeapSize / 1048576),
-					total: Math.round(performance.memory.totalJSHeapSize / 1048576),
-					limit: Math.round(performance.memory.jsHeapSizeLimit / 1048576),
+					used: Math.round(memory.usedJSHeapSize / 1048576),
+					total: Math.round(memory.totalJSHeapSize / 1048576),
+					limit: Math.round(memory.jsHeapSizeLimit / 1048576),
 				};
 			}
-		} catch (e) {
+		} catch (e: unknown) {
 			console.warn("Memory usage not available:", e);
 		}
 		return null;

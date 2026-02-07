@@ -1,14 +1,17 @@
-// @ts-nocheck
-
 import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import _ from "lodash";
 import { getCardColumns, getCardGap, getCardPadding } from "../utils/itemSelectorLayout.js";
+
+type SelectorLayoutOptions = {
+	resizeDebounce?: number;
+	loadVisibleItems?: () => void;
+};
 
 /**
  * Manages the layout metrics and resize behavior for the ItemsSelector component.
  * Handles calculation of grid columns, card dimensions, and overflow detection.
  */
-export function useItemSelectorLayout(options = {}) {
+export function useItemSelectorLayout(options: SelectorLayoutOptions = {}) {
     const {
         resizeDebounce = 100,
         loadVisibleItems, // Method to load more items on scroll (pagination)
@@ -17,8 +20,8 @@ export function useItemSelectorLayout(options = {}) {
     // State
     const windowWidth = ref(window.innerWidth);
     const isOverflowing = ref(false);
-    const itemsContainerRef = ref(null);
-    const scrollThrottle = ref(null);
+	const itemsContainerRef = ref<any>(null);
+	const scrollThrottle = ref<number | null>(null);
 
     // Computed Metrics
     const cardColumns = computed(() => getCardColumns(windowWidth.value));
@@ -70,7 +73,7 @@ export function useItemSelectorLayout(options = {}) {
         windowWidth.value = window.innerWidth;
     };
 
-    const scheduleCardMetricsUpdate = _.debounce(() => {
+	const scheduleCardMetricsUpdate = _.debounce(() => {
         updateWindowWidth();
         // Force re-evaluation of container width if needed by accessing ref
         if (itemsContainerRef.value) {
@@ -79,11 +82,11 @@ export function useItemSelectorLayout(options = {}) {
         checkItemContainerOverflow();
     }, resizeDebounce);
 
-    const getItemsContainerElement = () => {
-        if (!itemsContainerRef.value) return null;
-        // Handle both Vue component ref and raw element
-        return itemsContainerRef.value.$el || itemsContainerRef.value;
-    };
+	const getItemsContainerElement = (): HTMLElement | null => {
+		if (!itemsContainerRef.value) return null;
+		// Handle both Vue component ref and raw element
+		return (itemsContainerRef.value.$el || itemsContainerRef.value) as HTMLElement | null;
+	};
 
     const checkItemContainerOverflow = () => {
         const el = getItemsContainerElement();
@@ -98,8 +101,10 @@ export function useItemSelectorLayout(options = {}) {
             return;
         }
 
-        const stickyHeader = el.closest(".dynamic-padding")?.querySelector(".sticky-header");
-        const headerHeight = stickyHeader ? stickyHeader.offsetHeight : 0;
+		const stickyHeader = el.closest(".dynamic-padding")?.querySelector(".sticky-header") as
+			| HTMLElement
+			| null;
+		const headerHeight = stickyHeader ? stickyHeader.offsetHeight : 0;
         const availableHeight = containerHeight - headerHeight;
 
         // Only apply if calculated height is valid
@@ -112,21 +117,22 @@ export function useItemSelectorLayout(options = {}) {
         // But be careful of infinite loops; separate updateWindowWidth logic if needed
     };
 
-    const onListScroll = (event) => {
-        if (scrollThrottle.value) return;
+	const onListScroll = (event: Event) => {
+		if (scrollThrottle.value) return;
 
-        scrollThrottle.value = requestAnimationFrame(() => {
-            try {
-                const el = event.target;
-                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
+		scrollThrottle.value = requestAnimationFrame(() => {
+			try {
+				const el = event.target as HTMLElement | null;
+				if (!el) return;
+				if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
                     // Trigger pagination via callback
                     if (typeof loadVisibleItems === "function") {
                         // We need access to currentPage logic, but usually loadVisibleItems handles the "next/more" logic
                         loadVisibleItems();
                     }
                 }
-            } catch (error) {
-                console.error("Error in list scroll handler:", error);
+			} catch (error: unknown) {
+				console.error("Error in list scroll handler:", error);
             } finally {
                 scrollThrottle.value = null;
             }

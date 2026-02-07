@@ -1,4 +1,3 @@
-// @ts-nocheck
 import _ from "lodash";
 import { withPerf } from "../utils/perf";
 import { parseBooleanSetting } from "../utils/stock";
@@ -12,11 +11,14 @@ import { useItemCreation } from "./item_addition/useItemCreation";
 import { useItemBatchSerial } from "./item_addition/useItemBatchSerial";
 import { useItemBundles } from "./item_addition/useItemBundles";
 
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
+
 export function useItemAddition() {
 	const toastStore = useToastStore();
 	const { calcStockQty } = useStockUtils();
 
-	const { runAsyncTask, scheduleItemTask } = useItemTasks();
+	const { runAsyncTask, scheduleItemTask } = useItemTasks() as any;
 
 	const {
 		findMergeTarget,
@@ -25,13 +27,13 @@ export function useItemAddition() {
 		moveItemToTop,
 		groupAndAddItem,
 		groupAndAddItemDebounced,
-	} = useItemMerging();
+	} = useItemMerging() as any;
 
-	const { getNewItem, prepareItemForCart, handleVariantItem } = useItemCreation();
+	const { getNewItem, prepareItemForCart, handleVariantItem } = useItemCreation() as any;
 
-	const { shouldAutoSetBatch, showBatchDialog, handleItemExpansion } = useItemBatchSerial();
+	const { shouldAutoSetBatch, showBatchDialog, handleItemExpansion } = useItemBatchSerial() as any;
 
-	const { expandBundle } = useItemBundles();
+	const { expandBundle } = useItemBundles() as any;
 
 	// Remove item from invoice
 	const removeItem = (item, context) => {
@@ -59,9 +61,9 @@ export function useItemAddition() {
 	};
 
 	// Micro-batching state
-	let pendingItems = [];
-	let pendingResolvers = [];
-	let pendingUpdates = new Map(); // rowId -> { qty, resolvers[] }
+	let pendingItems: any[] = [];
+	let pendingResolvers: Array<Array<(_value: any) => void>> = [];
+	let pendingUpdates = new Map<any, { qty: number; resolvers: Array<(_value: any) => void> }>(); // rowId -> { qty, resolvers[] }
 	let flushScheduled = false;
 
 	const flushPendingItems = async (context) => {
@@ -105,7 +107,7 @@ export function useItemAddition() {
 			const addedItems = context.invoiceStore.addItems(currentItems, 0); // Prepend to top
 
 			addedItems.forEach((item, index) => {
-				const resolvers = currentResolvers[index]; // Array of resolvers
+				const resolvers = currentResolvers[index] || []; // Array of resolvers
 				refreshMergeCacheEntry(context, item, 0);
 				// Benchmark note: Use preloaded batch data to avoid extra fetches on auto-assign.
 				if (shouldAutoSetBatch(context, item)) {
@@ -126,13 +128,7 @@ export function useItemAddition() {
 				handleItemExpansion(item, context);
 
 				// Resolve all promises waiting for this new item
-				if (Array.isArray(resolvers)) {
-					resolvers.forEach((r) => r(item));
-				} else {
-					// Fallback if structure mismatches (shouldn't happen with new logic)
-					if (typeof resolvers === "function") resolvers(item);
-					else if (resolvers && resolvers.resolve) resolvers.resolve(item);
-				}
+				resolvers.forEach((r) => r(item));
 			});
 		}
 
@@ -189,7 +185,7 @@ export function useItemAddition() {
 			item.uom = item.stock_uom;
 		}
 		let index = -1;
-		let mergeTarget = null;
+		let mergeTarget: any = null;
 		const requireBatchMatch = !(context.pos_profile.posa_auto_set_batch && item.has_batch_no);
 		if (!context.new_line) {
 			// For normal additions (not returns), only merge with existing positive quantity lines
@@ -197,7 +193,7 @@ export function useItemAddition() {
 			index = mergeTarget ? mergeTarget.index : -1;
 		}
 
-		let new_item;
+		let new_item: any;
 		if (index === -1 || context.new_line) {
 			new_item = getNewItem(item, context);
 			new_item._needs_update = true; // Mark new item for background update
@@ -215,7 +211,7 @@ export function useItemAddition() {
 				item.batch_no = null;
 				if (context.setBatchQty) context.setBatchQty(new_item, new_item.batch_no, false);
 			}
-			const extra_items = [];
+			const extra_items: any[] = [];
 			if (shouldAutoSetBatch(context, new_item) && context.getBatchAvailability) {
 				// Get sorted availability (taking existing cart items into account)
 				const batches = context.getBatchAvailability(new_item, context);
@@ -229,7 +225,7 @@ export function useItemAddition() {
 				} else {
 					let remaining_qty = new_item.qty;
 
-					const allocations = [];
+					const allocations: Array<{ batch: any; qty: number }> = [];
 
 					for (const batch of usable_batches) {
 						if (remaining_qty <= 0) break;
@@ -241,7 +237,10 @@ export function useItemAddition() {
 					// If we still have remainder but ran out of batches, add it to the last allocation
 					if (remaining_qty > 0) {
 						if (allocations.length > 0) {
-							allocations[allocations.length - 1].qty += remaining_qty;
+							const lastAllocation = allocations[allocations.length - 1];
+							if (lastAllocation) {
+								lastAllocation.qty += remaining_qty;
+							}
 						} else {
 							// No usable batches found? Just use standard logic
 							context.setBatchQty(new_item, null, false);
@@ -251,12 +250,15 @@ export function useItemAddition() {
 					if (allocations.length > 0) {
 						// Apply first allocation to new_item
 						const first = allocations[0];
-						new_item.qty = first.qty;
-						context.setBatchQty(new_item, first.batch, false);
+						if (first) {
+							new_item.qty = first.qty;
+							context.setBatchQty(new_item, first.batch, false);
+						}
 
 						// Create items for rest
 						for (let i = 1; i < allocations.length; i++) {
 							const alloc = allocations[i];
+							if (!alloc) continue;
 							// Clone new_item. Using getNewItem again is safer to ensure unique IDs
 							const split_item = getNewItem({ ...item, qty: alloc.qty }, context);
 							// Copy crucial flags from new_item if any changed
@@ -324,10 +326,9 @@ export function useItemAddition() {
 							}
 
 							// Add this resolver to the existing item's resolver list
-							if (!Array.isArray(pendingResolvers[pendingIndex])) {
-								pendingResolvers[pendingIndex] = [pendingResolvers[pendingIndex]];
-							}
-							pendingResolvers[pendingIndex].push(resolve);
+							const existingResolvers = pendingResolvers[pendingIndex] || [];
+							existingResolvers.push(resolve);
+							pendingResolvers[pendingIndex] = existingResolvers;
 						} else {
 							// Add as new pending item
 							pendingItems.push(new_item);
@@ -383,6 +384,7 @@ export function useItemAddition() {
 						const rowId = cur_item.posa_row_id;
 						if (pendingUpdates.has(rowId)) {
 							const data = pendingUpdates.get(rowId);
+							if (!data) return;
 							data.qty += qtyDelta;
 							data.resolvers.push(resolve);
 						} else {
@@ -524,7 +526,7 @@ export function useItemAddition() {
 	});
 
 	// Reset all invoice fields to default/empty values
-	const clearInvoice = (context, options = {}) => {
+	const clearInvoice = (context, options: { preserveStickies?: boolean } = {}) => {
 		const { preserveStickies = false } = options;
 
 		if (context.invoiceStore) {

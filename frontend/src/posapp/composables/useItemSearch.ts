@@ -1,9 +1,27 @@
-// @ts-nocheck
 import { ref } from "vue";
 import { perfMarkStart, perfMarkEnd } from "../utils/perf.js";
 
+declare const frappe: any;
+
+type SearchItem = {
+	item_code?: string;
+	item_name?: string;
+	barcode?: string;
+	description?: string;
+	brand?: string;
+	item_group?: string;
+	barcodes?: Array<string | number>;
+	item_barcode?: Array<{ barcode?: string }>;
+	serial_no_data?: Array<{ serial_no?: string }>;
+	batch_no_data?: Array<{ batch_no?: string }>;
+	rate?: number | string;
+	variant_of?: string;
+	_search_index?: string;
+	[key: string]: unknown;
+};
+
 export function useItemSearch() {
-	const searchCache = new Map();
+	const searchCache = new Map<string, SearchItem[]>();
 	const showOnlyBarcodeItems = ref(false);
 
 	/**
@@ -13,7 +31,7 @@ export function useItemSearch() {
 	 * @param {string} itemGroup - The item group filter.
 	 * @returns {Array} - Filtered list of items.
 	 */
-	const memoizedSearch = (items, searchTerm, itemGroup) => {
+	const memoizedSearch = (items: SearchItem[], searchTerm: string, itemGroup: string) => {
 		const cacheKey = `${searchTerm || ""}_${itemGroup || "ALL"}_${showOnlyBarcodeItems.value}`;
 
 		if (searchCache.has(cacheKey)) {
@@ -32,7 +50,7 @@ export function useItemSearch() {
 	 * @param {string} itemGroup
 	 * @returns {Array}
 	 */
-	const performSearch = (items, searchTerm, itemGroup) => {
+	const performSearch = (items: SearchItem[], searchTerm: string, itemGroup: string) => {
 		const mark = perfMarkStart("pos:search-filter");
 		if (!items || !items.length) {
 			perfMarkEnd("pos:search-filter", mark);
@@ -68,8 +86,8 @@ export function useItemSearch() {
 				if (!searchWords.length) return true;
 
 				// Collect all searchable values into a single string or array for checking
-				const searchable = [];
-				const pushValue = (v) => {
+			const searchable: string[] = [];
+			const pushValue = (v: unknown) => {
 					if (v) searchable.push(String(v).toLowerCase());
 				};
 
@@ -148,7 +166,7 @@ export function useItemSearch() {
 	 * @returns {Array} - Filtered and paginated items
 	 */
 	const filterAndPaginate = (
-		items,
+		items: SearchItem[],
 		{ searchTerm = "", hideZeroRate = false, hideVariants = false, onlyBarcode = false, limit = 50 } = {},
 	) => {
 		if (!items || !items.length) return [];
@@ -161,20 +179,22 @@ export function useItemSearch() {
 			return items.slice(0, limit);
 		}
 
-		let searchTerms = null;
+		let searchTerms: string[] | null = null;
 		if (needsLocalSearch) {
 			searchTerms = term.split(/\s+/).filter(Boolean);
 		}
 
-		const result = [];
+		const result: SearchItem[] = [];
+		const activeTerms = searchTerms || [];
 		for (let i = 0; i < items.length; i++) {
 			const item = items[i];
+			if (!item) continue;
 
 			// 1. Search Filter
 			if (needsLocalSearch) {
 				let matches = false;
 				if (item._search_index) {
-					matches = searchTerms.every((t) => item._search_index.includes(t));
+					matches = activeTerms.every((t) => item._search_index!.includes(t));
 				} else {
 					// Fallback
 					const rawIndex = (
@@ -184,14 +204,14 @@ export function useItemSearch() {
 						" " +
 						(item.barcode || "")
 					).toLowerCase();
-					matches = searchTerms.every((t) => rawIndex.includes(t));
+					matches = activeTerms.every((t) => rawIndex.includes(t));
 				}
 				if (!matches) continue;
 			}
 
 			// 2. Zero Rate Filter
 			if (hideZeroRate) {
-				if (parseFloat(item.rate || 0) <= 0) continue;
+				if (parseFloat(String(item.rate ?? 0)) <= 0) continue;
 			}
 
 			// 3. Variant Filter

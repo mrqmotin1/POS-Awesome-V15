@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useBundles } from "../useBundles";
 import { useStockUtils } from "../useStockUtils";
 
@@ -6,7 +5,7 @@ export function useItemBundles() {
 	const { getBundleComponents } = useBundles();
 	const { calcStockQty } = useStockUtils();
 
-	const expandBundle = async (parent, context) => {
+	const expandBundle = async (parent: any, context: any) => {
 		const components = await getBundleComponents(parent.item_code);
 		if (!components || !components.length) {
 			return;

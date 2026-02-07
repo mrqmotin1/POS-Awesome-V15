@@ -1,9 +1,8 @@
-// @ts-nocheck
 export function useItemTasks() {
-	const runAsyncTask = (task, contextLabel) => {
+	const runAsyncTask = (task: (() => unknown) | null | undefined, contextLabel?: string) => {
 		Promise.resolve().then(() => {
 			try {
-				const result = typeof task === "function" ? task() : null;
+				const result: any = typeof task === "function" ? task() : null;
 				if (result && typeof result.then === "function") {
 					result.catch((error) => {
 						console.error(`Async task failed${contextLabel ? ` (${contextLabel})` : ""}:`, error);
@@ -18,7 +17,13 @@ export function useItemTasks() {
 		});
 	};
 
-	const scheduleItemTask = (context, item, taskName, task, contextLabel) => {
+	const scheduleItemTask = (
+		context: any,
+		item: any,
+		taskName: string,
+		task: (() => unknown) | null | undefined,
+		contextLabel?: string,
+	) => {
 		runAsyncTask(() => {
 			if (item?.posa_row_id && typeof context?.getItemTaskPromise === "function") {
 				const existing = context.getItemTaskPromise(item.posa_row_id, taskName);

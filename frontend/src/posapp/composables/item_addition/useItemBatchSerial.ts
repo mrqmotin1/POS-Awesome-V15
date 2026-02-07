@@ -1,8 +1,10 @@
-// @ts-nocheck
 import { nextTick } from "vue";
 
+declare const frappe: any;
+declare const __: (_text: string) => string;
+
 export function useItemBatchSerial() {
-	const shouldAutoSetBatch = (context, item) => {
+	const shouldAutoSetBatch = (context: any, item: any) => {
 		if (!context?.setBatchQty || !context?.pos_profile?.posa_auto_set_batch) {
 			return false;
 		}
@@ -12,7 +14,7 @@ export function useItemBatchSerial() {
 		return Array.isArray(item.batch_no_data) && item.batch_no_data.length > 0;
 	};
 
-	const showBatchDialog = (item, context) => {
+	const showBatchDialog = (item: any, context: any) => {
 		const opts =
 			Array.isArray(item.batch_no_data) && item.batch_no_data.length > 0 ? item.batch_no_data : null;
 		if (opts) {
@@ -45,7 +47,7 @@ export function useItemBatchSerial() {
 		}
 	};
 
-	const handleItemExpansion = (item, context) => {
+	const handleItemExpansion = (item: any, context: any) => {
 		if ((!context.pos_profile.posa_auto_set_batch && item.has_batch_no) || item.has_serial_no) {
 			nextTick(() => {
 				if (Array.isArray(context.expanded)) {
