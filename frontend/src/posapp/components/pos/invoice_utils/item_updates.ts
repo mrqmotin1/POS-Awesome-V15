@@ -1,8 +1,10 @@
-// @ts-nocheck
 import stockCoordinator from "../../../utils/stockCoordinator";
 import { isOffline } from "../../../../offline/index.js";
 
-export async function update_items_details(context, items) {
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
+
+export async function update_items_details(context: any, items: any[]) {
 	if (!items?.length) return;
 	if (!context.pos_profile) return;
 
@@ -97,7 +99,7 @@ export async function update_items_details(context, items) {
 	}
 }
 
-export async function update_item_detail(context, item, force_update = false) {
+export async function update_item_detail(context: any, item: any, force_update = false) {
 	if (context.queueItemTask) {
 		return context.queueItemTask(
 			item,
@@ -109,7 +111,7 @@ export async function update_item_detail(context, item, force_update = false) {
 	return _performItemDetailUpdate(context, item, force_update);
 }
 
-export async function _performItemDetailUpdate(context, item, force_update = false) {
+export async function _performItemDetailUpdate(context: any, item: any, force_update = false) {
 	if (!item || !item.item_code) return;
 
 	if (item._manual_rate_set && !force_update) return;
@@ -188,7 +190,7 @@ export async function _performItemDetailUpdate(context, item, force_update = fal
 	}
 }
 
-export function _applyItemDetailPayload(context, item, data, options = {}) {
+export function _applyItemDetailPayload(context: any, item: any, data: any, options: any = {}) {
 	const { forceUpdate = false } = options;
 
 	if (!item.warehouse) {
@@ -299,13 +301,13 @@ export function _applyItemDetailPayload(context, item, data, options = {}) {
 	}
 }
 
-export function _collectManualRateOverrides(context, items) {
+export function _collectManualRateOverrides(context: any, items: any[]) {
 	if (!Array.isArray(items) || !items.length) return [];
 
 	return items
 		.filter((item) => item && item._manual_rate_set)
 		.map((item) => {
-			const keys = {
+			const keys: any = {
 				name: item.name || null,
 				posa_row_id: item.posa_row_id || null,
 				item_code: item.item_code || null,
@@ -357,7 +359,7 @@ export function _collectManualRateOverrides(context, items) {
 		});
 }
 
-export function _doesManualOverrideMatchItem(context, override, item) {
+export function _doesManualOverrideMatchItem(context: any, override: any, item: any) {
 	if (!override?.keys || !item) return false;
 
 	const {
@@ -430,7 +432,7 @@ export function _doesManualOverrideMatchItem(context, override, item) {
 	return false;
 }
 
-export function _assignManualOverrideValues(context, item, values = {}) {
+export function _assignManualOverrideValues(context: any, item: any, values: any = {}) {
 	if (!item || !values) return;
 
 	item._manual_rate_set = true;
@@ -466,7 +468,7 @@ export function _assignManualOverrideValues(context, item, values = {}) {
 	}
 }
 
-export function _applyManualRateOverridesToDoc(context, doc, overrides) {
+export function _applyManualRateOverridesToDoc(context: any, doc: any, overrides: any[]) {
 	if (!doc || !Array.isArray(doc.items) || !Array.isArray(overrides) || !overrides.length) return;
 
 	const remaining = [...overrides];
@@ -482,7 +484,7 @@ export function _applyManualRateOverridesToDoc(context, doc, overrides) {
 	});
 }
 
-export function _buildManualOverrideKeyFromItem(context, item) {
+export function _buildManualOverrideKeyFromItem(context: any, item: any) {
 	if (!item) return null;
 
 	const idx =
@@ -502,7 +504,7 @@ export function _buildManualOverrideKeyFromItem(context, item) {
 	};
 }
 
-export function _snapshotManualValuesFromDocItems(context, items) {
+export function _snapshotManualValuesFromDocItems(context: any, items: any[]) {
 	if (!Array.isArray(items) || !items.length) return [];
 
 	const EPSILON = 0.000001;
@@ -552,7 +554,7 @@ export function _snapshotManualValuesFromDocItems(context, items) {
 		.filter((entry) => entry !== null);
 }
 
-export function _restoreManualSnapshots(context, items, snapshots) {
+export function _restoreManualSnapshots(context: any, items: any[], snapshots: any[]) {
 	if (!Array.isArray(items) || !Array.isArray(snapshots) || !snapshots.length) return;
 
 	const remaining = [...snapshots];
@@ -598,10 +600,10 @@ export function _restoreManualSnapshots(context, items, snapshots) {
 	});
 }
 
-export async function flushBackgroundUpdates(context) {
+export async function flushBackgroundUpdates(context: any) {
 	if (isOffline()) return;
 
-	const itemsToUpdate = [];
+	const itemsToUpdate: any[] = [];
 	const items = context.invoiceStore ? context.invoiceStore.items.value : context.items;
 
 	if (!Array.isArray(items)) return;
@@ -629,7 +631,7 @@ export async function flushBackgroundUpdates(context) {
 	}
 }
 
-export function _normalizeReturnDocTotals(context, doc) {
+export function _normalizeReturnDocTotals(context: any, doc: any) {
 	if (!doc || !doc.is_return) return doc;
 
 	const negate = (val) => (val > 0 ? -Math.abs(val) : val);

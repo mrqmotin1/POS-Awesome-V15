@@ -1,9 +1,11 @@
-// @ts-nocheck
 import { isOffline } from "../../../../offline/index.js";
 import { usePricingRulesStore } from "../../../stores/pricingRulesStore.js";
 import { useItemsStore } from "../../../stores/itemsStore.js";
 import { evaluatePricingRules } from "../../../../lib/pricingEngine.js";
 import { _syncAutoFreeLines } from "./free_items";
+
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
 
 /**
  * Pricing Utils
@@ -33,21 +35,21 @@ import { _syncAutoFreeLines } from "./free_items";
  * - context.$forceUpdate (method, optional)
  */
 
-export function _getPricingRulesStore(context) {
+export function _getPricingRulesStore(context: any) {
 	if (!context._pricingRulesStore) {
 		context._pricingRulesStore = usePricingRulesStore();
 	}
 	return context._pricingRulesStore;
 }
 
-export function _getItemsStore(context) {
+export function _getItemsStore(context: any) {
 	if (!context._itemsStore) {
 		context._itemsStore = useItemsStore();
 	}
 	return context._itemsStore;
 }
 
-export function _getPricingContext(context) {
+export function _getPricingContext(context: any) {
 	const priceList = context.get_price_list ? context.get_price_list() : context.selected_price_list;
 	const selectedCurrency =
 		context.selected_currency || context.price_list_currency || context.pos_profile?.currency;
@@ -70,7 +72,7 @@ export function _getPricingContext(context) {
 	};
 }
 
-export async function _ensurePricingRules(context, force = false) {
+export async function _ensurePricingRules(context: any, force = false) {
 	const store = _getPricingRulesStore(context);
 	const ctx = _getPricingContext(context);
 	if (!ctx.company || !ctx.price_list || !ctx.currency) {
@@ -80,13 +82,13 @@ export async function _ensurePricingRules(context, force = false) {
 	return { store, ctx };
 }
 
-export function _resolveBaseRate(context, item) {
+export function _resolveBaseRate(context: any, item: any) {
 	if (!item) {
 		return 0;
 	}
 	const candidates = [item.base_price_list_rate, item.price_list_rate, item.base_rate, item.rate];
 	for (const candidate of candidates) {
-		const numeric = Number.parseFloat(candidate);
+		const numeric = Number.parseFloat(String(candidate ?? 0));
 		if (Number.isFinite(numeric) && !Number.isNaN(numeric)) {
 			return numeric;
 		}
@@ -94,13 +96,13 @@ export function _resolveBaseRate(context, item) {
 	return 0;
 }
 
-export function _resolvePricingQty(context, item) {
+export function _resolvePricingQty(context: any, item: any) {
 	if (!item) {
 		return 0;
 	}
 
 	const parse = (value) => {
-		const numeric = Number.parseFloat(value);
+		const numeric = Number.parseFloat(String(value ?? 0));
 		return Number.isFinite(numeric) ? numeric : null;
 	};
 
@@ -128,7 +130,7 @@ export function _resolvePricingQty(context, item) {
 	return qty;
 }
 
-export function _updatePricingBadge(context, item, applied = []) {
+export function _updatePricingBadge(context: any, item: any, applied: any[] = []) {
 	if (!item) {
 		return;
 	}
@@ -161,7 +163,13 @@ export function _updatePricingBadge(context, item, applied = []) {
 	item.pricing_rules = JSON.stringify(names);
 }
 
-export function _applyPricingToLine(context, item, ctx, indexes, freebiesMap) {
+export function _applyPricingToLine(
+	context: any,
+	item: any,
+	ctx: any,
+	indexes: any,
+	freebiesMap: Map<string, any>,
+) {
 	if (!item) {
 		return;
 	}
@@ -198,7 +206,7 @@ export function _applyPricingToLine(context, item, ctx, indexes, freebiesMap) {
 			? pricing.discountPerUnit
 			: baseRate - proposedRate;
 
-		let baseDiscountPerUnit = Math.abs(Number.parseFloat(proposedDiscount || 0));
+		let baseDiscountPerUnit = Math.abs(Number(proposedDiscount || 0));
 		if (!Number.isFinite(baseDiscountPerUnit)) {
 			baseDiscountPerUnit = 0;
 		}
@@ -243,10 +251,10 @@ export function _applyPricingToLine(context, item, ctx, indexes, freebiesMap) {
 		freebies.forEach((entry) => {
 			const key = `${entry.rule}::${entry.item_code}::${item.posa_row_id}`;
 			const existing = freebiesMap.get(key) || { qty: 0 };
-			const parsedEntryQty = Number.parseFloat(entry.qty || 0) || 0;
-			const parsedExistingQty = Number.parseFloat(existing.qty || 0) || 0;
-			const parsedEntryStock = Number.parseFloat(entry.stock_qty || entry.qty || 0) || 0;
-			const parsedExistingStock = Number.parseFloat(existing.stock_qty || existing.qty || 0) || 0;
+			const parsedEntryQty = Number(entry.qty || 0) || 0;
+			const parsedExistingQty = Number(existing.qty || 0) || 0;
+			const parsedEntryStock = Number(entry.stock_qty || entry.qty || 0) || 0;
+			const parsedExistingStock = Number(existing.stock_qty || existing.qty || 0) || 0;
 			freebiesMap.set(key, {
 				...existing,
 				...entry,
@@ -258,7 +266,7 @@ export function _applyPricingToLine(context, item, ctx, indexes, freebiesMap) {
 	}
 }
 
-export async function applyPricingRulesForCart(context, force = false) {
+export async function applyPricingRulesForCart(context: any, force = false) {
 	if (context.isReturnInvoice) {
 		return;
 	}
@@ -288,7 +296,7 @@ export async function applyPricingRulesForCart(context, force = false) {
 	}
 }
 
-export async function _applyLocalPricingRules(context, force = false) {
+export async function _applyLocalPricingRules(context: any, force = false) {
 	try {
 		const { store, ctx } = await _ensurePricingRules(context, force);
 		if (!store) {
@@ -313,7 +321,7 @@ export async function _applyLocalPricingRules(context, force = false) {
 	}
 }
 
-export async function _applyServerPricingRules(context, ctx = {}) {
+export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 	if (!ctx || !ctx.company || !ctx.price_list || !ctx.currency) {
 		return;
 	}
@@ -321,7 +329,7 @@ export async function _applyServerPricingRules(context, ctx = {}) {
 	const freebiesMap = new Map();
 	const precision = context.currency_precision || 2;
 	const toBase = (value, fallback = 0) => {
-		const numeric = Number.parseFloat(value ?? fallback ?? 0);
+		const numeric = Number.parseFloat(String(value ?? fallback ?? 0));
 		if (!Number.isFinite(numeric)) {
 			return 0;
 		}
@@ -331,7 +339,7 @@ export async function _applyServerPricingRules(context, ctx = {}) {
 		return numeric;
 	};
 	const fromBase = (value) => {
-		const numeric = Number.parseFloat(value ?? 0) || 0;
+		const numeric = Number.parseFloat(String(value ?? 0)) || 0;
 		if (context._fromBaseCurrency) {
 			return context._fromBaseCurrency(numeric);
 		}
@@ -339,7 +347,7 @@ export async function _applyServerPricingRules(context, ctx = {}) {
 	};
 
 	const parseServerFloat = (value) => {
-		const numeric = Number.parseFloat(value);
+		const numeric = Number.parseFloat(String(value ?? 0));
 		return Number.isFinite(numeric) ? numeric : null;
 	};
 

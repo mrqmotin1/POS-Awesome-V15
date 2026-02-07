@@ -1,5 +1,6 @@
-// @ts-nocheck
 import { useItemsStore } from "../../../stores/itemsStore.js";
+
+declare const __: (_text: string, _args?: any[]) => string;
 
 /**
  * Free Items Utils
@@ -18,7 +19,7 @@ import { useItemsStore } from "../../../stores/itemsStore.js";
  * - context._getItemsStore (method internal or import)
  */
 
-export function _isFreeLine(context, item) {
+export function _isFreeLine(context: any, item: any) {
 	if (!item) {
 		return false;
 	}
@@ -38,10 +39,10 @@ export function _isFreeLine(context, item) {
 	return false;
 }
 
-export function _syncAutoFreeLines(context, freebiesMap = new Map()) {
+export function _syncAutoFreeLines(context: any, freebiesMap: Map<string, any> = new Map()) {
 	const expectedKeys = new Set(freebiesMap.keys());
 	const existing = new Map();
-	const legacyFreeLines = [];
+	const legacyFreeLines: any[] = [];
 
 	const resolveRuleName = (line) => {
 		if (!line) {
@@ -225,7 +226,7 @@ export function _syncAutoFreeLines(context, freebiesMap = new Map()) {
 		const parsedMultiplier = Number.parseFloat(data?.multiplier ?? 0);
 		const multiplier = Number.isFinite(parsedMultiplier) ? parsedMultiplier : null;
 
-		const parts = [];
+		const parts: string[] = [];
 		if (data?.apply_per_threshold && thresholdQty > 0 && perThreshold !== null) {
 			const perThresholdValue = perThreshold !== null ? perThreshold : freeQty;
 			parts.push(`${__("Every")} ${thresholdQty} → ${perThresholdValue} ${__("Free")}`);
@@ -377,7 +378,7 @@ export function _syncAutoFreeLines(context, freebiesMap = new Map()) {
 		}
 	}
 
-	const removable = [];
+	const removable: any[] = [];
 	context.items.forEach((line) => {
 		if (line && line.auto_free_source && !expectedKeys.has(line.auto_free_source)) {
 			removable.push(line);

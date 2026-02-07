@@ -1,7 +1,9 @@
-// @ts-nocheck
 import { isOffline } from "../../../../offline/index.js";
 
-export async function show_payment(context) {
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
+
+export async function show_payment(context: any) {
 	if (context._suppressClosePaymentsTimer) {
 		clearTimeout(context._suppressClosePaymentsTimer);
 		context._suppressClosePaymentsTimer = null;
@@ -122,7 +124,7 @@ export async function show_payment(context) {
 		}
 		context.eventBus.emit("show_payment", "true");
 		context.eventBus.emit("send_invoice_doc_payment", invoice_doc);
-	} catch (error) {
+	} catch (error: any) {
 		console.error("Error in show_payment:", error);
 		context.toastStore.show({
 			title: __("Error processing payment"),
@@ -137,7 +139,7 @@ export async function show_payment(context) {
 	}
 }
 
-export async function get_draft_invoices(context) {
+export async function get_draft_invoices(context: any) {
 	try {
 		const { message } = await frappe.call({
 			method: "posawesome.posawesome.api.invoices.get_draft_invoices",
@@ -160,7 +162,7 @@ export async function get_draft_invoices(context) {
 	}
 }
 
-export async function get_draft_orders(context) {
+export async function get_draft_orders(context: any) {
 	try {
 		const { message } = await frappe.call({
 			method: "posawesome.posawesome.api.sales_orders.search_orders",
@@ -181,15 +183,15 @@ export async function get_draft_orders(context) {
 	}
 }
 
-export function open_purchase_orders(context) {
+export function open_purchase_orders(context: any) {
 	context.eventBus.emit("open_purchase_orders");
 }
 
-export function open_returns(context) {
+export function open_returns(context: any) {
 	context.eventBus.emit("open_returns", context.pos_profile.company);
 }
 
-export function close_payments(context) {
+export function close_payments(context: any) {
 	if (context._suppressClosePayments) {
 		return;
 	}
@@ -205,6 +207,6 @@ export function close_payments(context) {
 	context.eventBus.emit("show_payment", "false");
 }
 
-export function change_price_list_rate(context, item) {
+export function change_price_list_rate(context: any, item: any) {
 	context.eventBus.emit("change_price_list_rate", item);
 }

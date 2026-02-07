@@ -1,7 +1,9 @@
-// @ts-nocheck
 import { useItemAddition } from "../../../composables/useItemAddition";
 import { get_invoice_doc, get_invoice_items, get_payments } from "./document";
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency";
+
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
 
 /**
  * Action Utils
@@ -41,7 +43,7 @@ import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency";
 
 const { removeItem, addItem, getNewItem, clearInvoice } = useItemAddition();
 
-export function remove_item(context, item) {
+export function remove_item(context: any, item: any) {
 	const result = removeItem(item, context);
 	if (context.schedulePricingRuleApplication) {
 		context.schedulePricingRuleApplication();
@@ -49,7 +51,7 @@ export function remove_item(context, item) {
 	return result;
 }
 
-export async function add_item(context, item, options = {}) {
+export async function add_item(context: any, item: any, options: any = {}) {
 	// Build price context for debug
 	const priceContext = {
 		customer: context.customer,
@@ -101,15 +103,15 @@ export async function add_item(context, item, options = {}) {
 	return res;
 }
 
-export function get_new_item(context, item) {
+export function get_new_item(context: any, item: any) {
 	return getNewItem(item, context);
 }
 
-export function clear_invoice(context, options = {}) {
+export function clear_invoice(context: any, options: any = {}) {
 	return clearInvoice(context, options);
 }
 
-export async function cancel_invoice(context) {
+export async function cancel_invoice(context: any) {
 	// We can directly call get_invoice_doc from document.js if we pass context
 	// Or assume context has the method proxied.
 	// Since we are refactoring, let's call the util directly if possible, or rely on context.
@@ -148,7 +150,7 @@ export async function cancel_invoice(context) {
 	context.cancel_dialog = false;
 }
 
-export async function save_and_clear_invoice(context) {
+export async function save_and_clear_invoice(context: any) {
 	let old_invoice = null;
 	const doc = get_invoice_doc(context);
 
@@ -181,7 +183,7 @@ export async function save_and_clear_invoice(context) {
 	}
 }
 
-export async function new_order(context, data = {}) {
+export async function new_order(context: any, data: any = {}) {
 	if (context.eventBus) context.eventBus.emit("set_customer_readonly", false);
 	context.expanded = [];
 	context.posa_offers = [];
@@ -254,8 +256,8 @@ export async function new_order(context, data = {}) {
 	}
 }
 
-export async function get_invoice_from_order_doc(context) {
-	let doc = {};
+export async function get_invoice_from_order_doc(context: any) {
+	let doc: any = {};
 	if (context.invoice_doc.doctype == "Sales Order") {
 		await frappe.call({
 			method: "posawesome.posawesome.api.invoices.create_sales_invoice_from_order",
@@ -271,8 +273,8 @@ export async function get_invoice_from_order_doc(context) {
 	} else {
 		doc = context.invoice_doc;
 	}
-	const items = [];
-	const updatedItemsData = get_invoice_items(context);
+	const items: any[] = [];
+	const updatedItemsData: any[] = get_invoice_items(context);
 	doc.items.forEach((item) => {
 		const updatedData = updatedItemsData.find((updatedItem) => updatedItem.item_code === item.item_code);
 		if (updatedData) {
@@ -302,7 +304,7 @@ export async function get_invoice_from_order_doc(context) {
 	});
 
 	doc.items = items;
-	const newItems = [...doc.items];
+	const newItems: any[] = [...doc.items];
 	const existingItemCodes = new Set(newItems.map((item) => item.item_code));
 	updatedItemsData.forEach((updatedItem) => {
 		if (!existingItemCodes.has(updatedItem.item_code)) {

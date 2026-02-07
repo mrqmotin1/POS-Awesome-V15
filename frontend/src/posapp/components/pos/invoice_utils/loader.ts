@@ -1,6 +1,9 @@
-// @ts-nocheck
 import { isOffline, saveCustomerBalance, getCachedCustomerBalance } from "../../../../offline/index.js";
 import { useDiscounts } from "../../../composables/useDiscounts";
+
+declare const __: (_text: string, _args?: any[]) => string;
+declare const flt: (_value: unknown, _precision?: number) => number;
+declare const frappe: any;
 
 /**
  * Loader Utils
@@ -36,7 +39,7 @@ import { useDiscounts } from "../../../composables/useDiscounts";
  * - context.toastStore
  */
 
-export async function fetch_customer_balance(context) {
+export async function fetch_customer_balance(context: any) {
 	try {
 		if (!context.customer) {
 			context.customer_balance = 0;
@@ -94,13 +97,13 @@ export async function fetch_customer_balance(context) {
 	}
 }
 
-export async function load_invoice(context, data = {}, options = {}) {
+export async function load_invoice(context: any, data: any = {}, options: any = {}) {
 	const { preserveAdditionalDiscountPercentage = false, preserveStickies = false } = options || {};
 	const usePercentageDiscount = Boolean(context.pos_profile?.posa_use_percentage_discount);
 	// Note: flt global assumption
-	const previousDiscountPercentage = usePercentageDiscount
+	const previousDiscountPercentage: number = usePercentageDiscount
 		? flt(context.additional_discount_percentage)
-		: null;
+		: 0;
 	const shouldPreserveDiscountPercentage =
 		usePercentageDiscount &&
 		preserveAdditionalDiscountPercentage &&
@@ -247,7 +250,7 @@ export async function load_invoice(context, data = {}, options = {}) {
 		) {
 			resolvedPercentage = docDiscountPercentage;
 		} else {
-			const totalsForPercentage = [];
+			const totalsForPercentage: number[] = [];
 
 			if (context.Total) {
 				const signedTotal = docIsReturn ? -Math.abs(context.Total) : context.Total;

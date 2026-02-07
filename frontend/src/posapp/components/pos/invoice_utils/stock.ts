@@ -1,12 +1,15 @@
-// @ts-nocheck
 import { parseBooleanSetting } from "../../../utils/stock";
 import { useStockUtils } from "../../../composables/useStockUtils";
 import { useBatchSerial } from "../../../composables/useBatchSerial";
 
+declare const __: (_text: string, _args?: any[]) => string;
+declare const flt: (_value: unknown, _precision?: number) => number;
+declare const frappe: any;
+
 const { calcStockQty, calcUom } = useStockUtils();
 const { setSerialNo, setBatchQty } = useBatchSerial();
 
-export function calc_stock_qty(context, item, value) {
+export function calc_stock_qty(context: any, item: any, value: any) {
 	if (!item) return;
 
 	// Delegate to composable logic
@@ -55,7 +58,7 @@ export function calc_stock_qty(context, item, value) {
 	}
 }
 
-export function update_qty_limits(context, item) {
+export function update_qty_limits(context: any, item: any) {
 	if (item && item.is_stock_item === 0) {
 		item.max_qty = undefined;
 		item.disable_increment = false;
@@ -86,7 +89,7 @@ export function update_qty_limits(context, item) {
 	}
 }
 
-export async function fetch_available_qty(context, item) {
+export async function fetch_available_qty(context: any, item: any) {
 	if (!item || !item.item_code || !item.warehouse || item.is_stock_item === 0) return;
 
 	// Use cache methods from context or import? They were methods on mixin.
@@ -144,17 +147,17 @@ export async function fetch_available_qty(context, item) {
 	return runner();
 }
 
-export function set_serial_no(context, item) {
+export function set_serial_no(context: any, item: any) {
 	// legacy delegate
 	return setSerialNo(item, context);
 }
 
-export function set_batch_qty(context, item, value, update = true) {
+export function set_batch_qty(context: any, item: any, value: any, update = true) {
 	// legacy delegate
 	return setBatchQty(item, value, update, context);
 }
 
-export function calc_uom(context, item, value) {
+export function calc_uom(context: any, item: any, value: any) {
 	if (!item) return;
 	const task = () => calcUom(item, value, context);
 	if (context.queueItemTask) {

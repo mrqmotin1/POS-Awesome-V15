@@ -1,5 +1,7 @@
-// @ts-nocheck
-export async function validate(context) {
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
+
+export async function validate(context: any) {
 	// For all returns, check if amounts are negative
 	if (context.isReturnInvoice) {
 		// Check if quantities are negative
@@ -34,7 +36,7 @@ export async function validate(context) {
 	if (currentInvoice && currentInvoice.is_return && currentInvoice.return_against) {
 		try {
 			// Get original invoice items for comparison
-			const original_items = await new Promise((resolve, reject) => {
+			const original_items: any[] = await new Promise((resolve, reject) => {
 				frappe.call({
 					method: "frappe.client.get",
 					args: {
@@ -96,7 +98,7 @@ export async function validate(context) {
 					return false;
 				}
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error in validation:", error);
 			context.toastStore.show({
 				title: __(`Error validating return: ${error.message}`),
@@ -108,7 +110,7 @@ export async function validate(context) {
 	return true;
 }
 
-export async function ensure_auto_batch_selection(context) {
+export async function ensure_auto_batch_selection(context: any) {
 	if (!context.pos_profile?.posa_auto_set_batch) {
 		return;
 	}
@@ -117,8 +119,8 @@ export async function ensure_auto_batch_selection(context) {
 		return;
 	}
 
-	const pending = [];
-	const ready = [];
+	const pending: any[] = [];
+	const ready: any[] = [];
 
 	context.items.forEach((item) => {
 		if (!item?.has_batch_no || item.batch_no) {

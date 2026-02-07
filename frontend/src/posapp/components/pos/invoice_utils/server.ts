@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { isOffline } from "../../../../offline/index.js";
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency";
 import {
@@ -8,7 +7,10 @@ import {
 } from "./item_updates"; // _normalizeReturnDocTotals needs extraction or location check
 import { load_invoice } from "./loader";
 
-export async function update_invoice(context, doc) {
+declare const __: (_text: string, _args?: any[]) => string;
+declare const frappe: any;
+
+export async function update_invoice(context: any, doc: any) {
 	if (isOffline()) {
 		context.invoice_doc = Object.assign({}, context.invoice_doc || {}, doc);
 		return context.invoice_doc;
@@ -75,7 +77,7 @@ export async function update_invoice(context, doc) {
 	}
 }
 
-export async function update_invoice_from_order(context, doc) {
+export async function update_invoice_from_order(context: any, doc: any) {
 	if (isOffline()) {
 		context.invoice_doc = Object.assign({}, context.invoice_doc || {}, doc);
 		return context.invoice_doc;
@@ -121,7 +123,7 @@ export async function update_invoice_from_order(context, doc) {
 	}
 }
 
-export async function process_invoice(context) {
+export async function process_invoice(context: any) {
 	const doc = context.get_invoice_doc ? context.get_invoice_doc() : {};
 	_logPriceListDebug(context, "pre-submit", {
 		customer: context.customer,
@@ -140,7 +142,7 @@ export async function process_invoice(context) {
 				: updated_doc.posting_date;
 		}
 		return updated_doc;
-	} catch (error) {
+	} catch (error: any) {
 		console.error("Error in process_invoice:", error);
 		context.toastStore.show({
 			title: __(error.message || "Error processing invoice"),
@@ -150,12 +152,12 @@ export async function process_invoice(context) {
 	}
 }
 
-export async function process_invoice_from_order(context) {
+export async function process_invoice_from_order(context: any) {
 	const doc = await context.get_invoice_from_order_doc();
 	return update_invoice_from_order(context, doc);
 }
 
-export async function apply_offers_and_reload(context) {
+export async function apply_offers_and_reload(context: any) {
 	try {
 		if (!Array.isArray(context.items) || context.items.length === 0) {
 			context.toastStore.show({
@@ -192,7 +194,7 @@ export async function apply_offers_and_reload(context) {
 	}
 }
 
-export async function reload_current_invoice_from_backend(context) {
+export async function reload_current_invoice_from_backend(context: any) {
 	try {
 		if (isOffline()) {
 			return null;

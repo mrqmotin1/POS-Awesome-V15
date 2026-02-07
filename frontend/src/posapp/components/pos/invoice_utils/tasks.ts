@@ -1,4 +1,4 @@
-// @ts-nocheck
+type InvoiceContext = any;
 
 /**
  * Task Management Utils
@@ -8,7 +8,7 @@
  * - context._itemTaskCache (Map)
  */
 
-export function _ensureTaskBucket(context, rowId) {
+export function _ensureTaskBucket(context: InvoiceContext, rowId: string | null | undefined) {
     if (!rowId) {
         return null;
     }
@@ -21,7 +21,11 @@ export function _ensureTaskBucket(context, rowId) {
     return context._itemTaskCache.get(rowId);
 }
 
-export function _getItemTaskPromise(context, rowId, taskName) {
+export function _getItemTaskPromise(
+	context: InvoiceContext,
+	rowId: string | null | undefined,
+	taskName: string,
+) {
     if (!rowId || !context._itemTaskCache) {
         return null;
     }
@@ -29,7 +33,12 @@ export function _getItemTaskPromise(context, rowId, taskName) {
     return bucket ? bucket[taskName] || null : null;
 }
 
-export function _setItemTaskPromise(context, rowId, taskName, promise) {
+export function _setItemTaskPromise(
+	context: InvoiceContext,
+	rowId: string | null | undefined,
+	taskName: string,
+	promise: Promise<unknown>,
+) {
     if (!rowId || !promise) {
         return promise;
     }
@@ -47,7 +56,11 @@ export function _setItemTaskPromise(context, rowId, taskName, promise) {
     return trackedPromise;
 }
 
-export function resetItemTaskCache(context, rowId, taskName = null) {
+export function resetItemTaskCache(
+	context: InvoiceContext,
+	rowId: string | null | undefined,
+	taskName: string | null = null,
+) {
     if (!context._itemTaskCache) {
         return;
     }
@@ -69,7 +82,13 @@ export function resetItemTaskCache(context, rowId, taskName = null) {
     }
 }
 
-export function queueItemTask(context, itemOrRowId, taskName, taskFn, options = {}) {
+export function queueItemTask(
+	context: InvoiceContext,
+	itemOrRowId: any,
+	taskName: string,
+	taskFn: () => unknown,
+	options: { force?: boolean } = {},
+) {
     const rowId = typeof itemOrRowId === "string" ? itemOrRowId : itemOrRowId?.posa_row_id;
     const { force = false } = options;
     const executeTask = () => Promise.resolve().then(() => taskFn());
@@ -91,10 +110,10 @@ export function queueItemTask(context, itemOrRowId, taskName, taskFn, options = 
     return _setItemTaskPromise(context, rowId, taskName, promise);
 }
 
-export function hasItemTaskPromise(context, rowId, taskName) {
+export function hasItemTaskPromise(context: InvoiceContext, rowId: string, taskName: string) {
     return !!_getItemTaskPromise(context, rowId, taskName);
 }
 
-export function getItemTaskPromise(context, rowId, taskName) {
+export function getItemTaskPromise(context: InvoiceContext, rowId: string, taskName: string) {
     return _getItemTaskPromise(context, rowId, taskName);
 }

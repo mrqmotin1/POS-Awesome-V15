@@ -1,7 +1,8 @@
-// @ts-nocheck
 import { getStoredCustomer, getCachedPriceListItems } from "../../../../offline/index.js";
 
-export async function fetch_customer_details(context) {
+declare const frappe: any;
+
+export async function fetch_customer_details(context: any) {
 	try {
 		if (!context.customer) return;
 
@@ -35,17 +36,17 @@ export async function fetch_customer_details(context) {
 	}
 }
 
-export function get_effective_price_list(context) {
+export function get_effective_price_list(context: any) {
 	if (context.selected_price_list) return context.selected_price_list;
 	if (context.customer_info?.customer_price_list) return context.customer_info.customer_price_list;
 	return context.pos_profile?.selling_price_list;
 }
 
-export function get_price_list(context) {
+export function get_price_list(context: any) {
 	return get_effective_price_list(context);
 }
 
-export async function update_price_list(context) {
+export async function update_price_list(context: any) {
 	if (context.items.length && context.apply_cached_price_list) {
 		context.apply_cached_price_list(get_price_list(context));
 	}
@@ -53,7 +54,7 @@ export async function update_price_list(context) {
 	if (context.schedulePricingRuleApplication) context.schedulePricingRuleApplication(true);
 }
 
-export function sync_invoice_customer_details(context, details = null) {
+export function sync_invoice_customer_details(context: any, details: any = null) {
 	if (!details) {
 		details = context.customer_info;
 	}
@@ -67,7 +68,7 @@ export function sync_invoice_customer_details(context, details = null) {
 	}
 }
 
-export function _applyPriceListRate(context, item, newRate, priceCurrency) {
+export function _applyPriceListRate(context: any, item: any, newRate: number, priceCurrency: string) {
 	if (!item) return;
 
 	if (context._computePriceConversion) {
@@ -86,7 +87,7 @@ export function _applyPriceListRate(context, item, newRate, priceCurrency) {
 	}
 }
 
-export function _computePriceConversion(context, rate, _priceCurrency) {
+export function _computePriceConversion(context: any, rate: number, _priceCurrency: string) {
 	const plcConversionRate = context._getPlcConversionRate ? context._getPlcConversionRate() : 1;
 	const base_price_list_rate = rate * plcConversionRate;
 
@@ -96,7 +97,7 @@ export function _computePriceConversion(context, rate, _priceCurrency) {
 	};
 }
 
-export function apply_cached_price_list(context, price_list) {
+export function apply_cached_price_list(context: any, price_list: string) {
 	if (!price_list) return;
 	const itemsMap = getCachedPriceListItems(price_list);
 	if (!itemsMap) return;

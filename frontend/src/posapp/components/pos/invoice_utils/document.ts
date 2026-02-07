@@ -1,6 +1,7 @@
-// @ts-nocheck
 import { getTaxTemplate, getTaxInclusiveSetting, isOffline } from "../../../../offline/index.js";
 import { _getPlcConversionRate } from "./currency";
+
+declare const flt: (_value: unknown, _precision?: number) => number;
 
 /**
  * Document Utils
@@ -31,8 +32,8 @@ import { _getPlcConversionRate } from "./currency";
  * - context.formatDateForBackend (method)
  */
 
-export function get_invoice_doc(context) {
-	let doc = {};
+export function get_invoice_doc(context: any) {
+	let doc: any = {};
 	const sourceDoc = context.invoice_doc || {};
 
 	if (sourceDoc.name) {
@@ -306,8 +307,8 @@ export function get_invoice_doc(context) {
 	return doc;
 }
 
-export function get_invoice_items(context) {
-	const items_list = [];
+export function get_invoice_items(context: any) {
+	const items_list: any[] = [];
 	const isReturn = context.isReturnInvoice;
 	const omitFreebies = !isOffline();
 
@@ -395,8 +396,8 @@ export function get_invoice_items(context) {
 	return items_list;
 }
 
-export function get_order_items(context) {
-	const items_list = [];
+export function get_order_items(context: any) {
+	const items_list: any[] = [];
 	context.items.forEach((item) => {
 		const new_item = {
 			item_code: item.item_code,
@@ -429,7 +430,7 @@ export function get_order_items(context) {
 	return items_list;
 }
 
-export function get_payments(context) {
+export function get_payments(context: any) {
 	if (
 		context.isReturnInvoice &&
 		Array.isArray(context.invoice_doc?.payments) &&

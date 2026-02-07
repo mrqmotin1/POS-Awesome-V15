@@ -1,4 +1,4 @@
-// @ts-nocheck
+type InvoiceContext = any;
 
 /**
  * Cache Utils
@@ -13,7 +13,7 @@
 const ITEM_DETAIL_CACHE_TTL = 5000;
 const STOCK_CACHE_TTL = 5000;
 
-export function _getItemDetailCacheKey(context, item) {
+export function _getItemDetailCacheKey(context: InvoiceContext, item: any) {
     const code = item?.item_code;
     const warehouse = item?.warehouse || context.pos_profile?.warehouse;
     if (!code || !warehouse) {
@@ -22,7 +22,7 @@ export function _getItemDetailCacheKey(context, item) {
     return `${code}::${warehouse}`;
 }
 
-export function _getCachedItemDetail(context, key) {
+export function _getCachedItemDetail(context: InvoiceContext, key: string | null) {
     if (!key) {
         return null;
     }
@@ -38,7 +38,7 @@ export function _getCachedItemDetail(context, key) {
     return entry.data;
 }
 
-export function _storeItemDetailCache(context, key, data) {
+export function _storeItemDetailCache(context: InvoiceContext, key: string | null, data: any) {
     if (!key || !data) {
         return;
     }
@@ -51,11 +51,11 @@ export function _storeItemDetailCache(context, key, data) {
     };
 }
 
-export function clearItemDetailCache(context) {
+export function clearItemDetailCache(context: InvoiceContext) {
     context.item_detail_cache = {};
 }
 
-export function _getStockCacheKey(context, item) {
+export function _getStockCacheKey(context: InvoiceContext, item: any) {
     const code = item?.item_code;
     const warehouse = item?.warehouse || context.pos_profile?.warehouse;
     if (!code || !warehouse) {
@@ -64,7 +64,7 @@ export function _getStockCacheKey(context, item) {
     return `${code}::${warehouse}`;
 }
 
-export function _getCachedStockQty(context, key) {
+export function _getCachedStockQty(context: InvoiceContext, key: string | null) {
     if (!key) {
         return null;
     }
@@ -80,7 +80,7 @@ export function _getCachedStockQty(context, key) {
     return entry.qty;
 }
 
-export function _storeStockQty(context, key, qty) {
+export function _storeStockQty(context: InvoiceContext, key: string | null, qty: number) {
     if (!key) {
         return;
     }
@@ -90,6 +90,6 @@ export function _storeStockQty(context, key, qty) {
     context.item_stock_cache[key] = { ts: Date.now(), qty };
 }
 
-export function clearItemStockCache(context) {
+export function clearItemStockCache(context: InvoiceContext) {
     context.item_stock_cache = {};
 }
