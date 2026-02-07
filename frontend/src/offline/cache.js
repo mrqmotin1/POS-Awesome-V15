@@ -355,6 +355,39 @@ export function getItemsLastSync() {
     return null;
 }
 
+export function setCustomersLastSync(timestamp) {
+    if (typeof localStorage !== "undefined") {
+        localStorage.setItem("posa_customers_last_sync", timestamp);
+    }
+}
+
+export function getCustomersLastSync() {
+    if (typeof localStorage !== "undefined") {
+        return localStorage.getItem("posa_customers_last_sync");
+    }
+    return null;
+}
+
+export async function getCustomerStorageCount() {
+    try {
+        await checkDbHealth();
+        if (!db.isOpen()) await db.open();
+        return await db.table("customers").count();
+    } catch (e) {
+        return 0;
+    }
+}
+
+export async function clearCustomerStorage() {
+    try {
+        await checkDbHealth();
+        if (!db.isOpen()) await db.open();
+        await db.table("customers").clear();
+    } catch (e) {
+        console.error("Failed to clear customer storage", e);
+    }
+}
+
 // Pricing Rules Logic
 function sanitiseSnapshot(snapshot = []) {
 	if (!Array.isArray(snapshot)) {
