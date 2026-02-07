@@ -1,5 +1,5 @@
 import Dexie from "dexie/dist/dexie.mjs";
-import { withWriteLock } from "./db-utils.js";
+import { withWriteLock } from "./db-utils";
 
 // --- Dexie initialization ---------------------------------------------------
 export const db = new Dexie("posawesome_offline");

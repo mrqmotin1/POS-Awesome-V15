@@ -1,7 +1,7 @@
-import { memory } from "./cache.js";
-import { persist } from "./core.js";
+import { memory } from "./db";
+import { persist } from "./core";
 
-export function saveCoupons(customer, coupons) {
+export function saveCoupons(customer: string, coupons: unknown) {
 	try {
 		const cache = memory.coupons_cache || {};
 		const clean =
@@ -16,7 +16,7 @@ export function saveCoupons(customer, coupons) {
 	}
 }
 
-export function getCachedCoupons(customer) {
+export function getCachedCoupons(customer: string) {
 	try {
 		const cache = memory.coupons_cache || {};
 		return cache[customer] || [];
@@ -26,7 +26,7 @@ export function getCachedCoupons(customer) {
 	}
 }
 
-export function clearCoupons(customer) {
+export function clearCoupons(customer?: string) {
 	try {
 		const cache = memory.coupons_cache || {};
 		if (customer) {

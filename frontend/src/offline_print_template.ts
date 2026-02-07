@@ -1,30 +1,35 @@
-import { getPrintTemplate, getTermsAndConditions, memoryInitPromise } from "./offline/index.js";
+import {
+	getPrintTemplate,
+	getTermsAndConditions,
+	memoryInitPromise,
+} from "./offline/index.js";
 import nunjucks from "nunjucks";
 
-function normaliseTemplate(template) {
-	// Nunjucks doesn't understand Python-style triple quotes.
-	// Convert any """multiline""" strings to standard JS strings so the
-	// renderer can parse templates that include SQL or other blocks.
+declare const frappe: any;
+
+function normaliseTemplate(template: string) {
 	if (!template) return template;
 	return template.replace(/"""([\s\S]*?)"""/g, (_, str) => {
-		const escaped = str.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, "\\n");
+		const escaped = str
+			.replace(/\\/g, "\\\\")
+			.replace(/"/g, '\\"')
+			.replace(/\r?\n/g, "\\n");
 		return `"${escaped}"`;
 	});
 }
 
-function attachFormatter(obj) {
+function attachFormatter(obj: any) {
 	if (!obj || typeof obj !== "object" || obj.get_formatted) return;
-	// mimic Frappe's get_formatted by returning the raw field value
-	obj.get_formatted = function (field) {
+	obj.get_formatted = function (field: string) {
 		return this?.[field];
 	};
 }
 
-function computePaidAmount(doc) {
+function computePaidAmount(doc: any) {
 	if (!doc) return 0;
 
 	const paymentsTotal = (doc.payments || []).reduce(
-		(sum, p) => sum + Math.abs(parseFloat(p.amount) || 0),
+		(sum: number, p: any) => sum + Math.abs(parseFloat(p.amount) || 0),
 		0,
 	);
 
@@ -42,16 +47,19 @@ function computePaidAmount(doc) {
 	return paymentsTotal || base;
 }
 
-function defaultOfflineHTML(invoice, terms = "") {
+function defaultOfflineHTML(invoice: any, terms = "") {
 	if (!invoice) return "";
 
 	const itemsRows = (invoice.items || [])
-		.map((it) => {
+		.map((it: any) => {
 			const sn = it.serial_no
 				? `<div class="serial">SR.No: ${it.serial_no.replace(/\n/g, ", ")}</div>`
 				: "";
 			const marker =
-				invoice.posa_show_custom_name_marker_on_print && it.name_overridden ? " (custom)" : "";
+				invoice.posa_show_custom_name_marker_on_print &&
+				it.name_overridden
+					? " (custom)"
+					: "";
 			return `<tr>
                 <td>${it.item_code}${
 					it.item_name && it.item_name !== it.item_code
@@ -67,7 +75,7 @@ function defaultOfflineHTML(invoice, terms = "") {
 
 	const taxesRows = (invoice.taxes || [])
 		.map(
-			(row) => `<tr>
+			(row: any) => `<tr>
                 <td style="width:60%">${row.description}@${row.rate}%</td>
                 <td style="width:40%; text-align:right;">${row.tax_amount}</td>
             </tr>`,
@@ -159,7 +167,7 @@ function defaultOfflineHTML(invoice, terms = "") {
 </html>`;
 }
 
-export default async function renderOfflineInvoiceHTML(invoice) {
+export default async function renderOfflineInvoiceHTML(invoice: any) {
 	if (!invoice) return "";
 
 	await memoryInitPromise;
@@ -178,14 +186,17 @@ export default async function renderOfflineInvoiceHTML(invoice) {
 	(doc.taxes || []).forEach(attachFormatter);
 
 	if (!template) {
-		console.warn("No offline print template cached; using fallback template");
+		console.warn(
+			"No offline print template cached; using fallback template",
+		);
 		return defaultOfflineHTML(doc, doc.terms_and_conditions);
 	}
 
 	try {
 		const env = nunjucks.configure({ autoescape: false });
-		env.addFilter("format_currency", (value, currency) => {
-			const number = typeof value === "number" ? value : parseFloat(value);
+		env.addFilter("format_currency", (value: unknown, currency: string) => {
+			const number =
+				typeof value === "number" ? value : parseFloat(String(value));
 			if (Number.isNaN(number)) return value;
 			try {
 				return new Intl.NumberFormat(undefined, {
@@ -196,16 +207,18 @@ export default async function renderOfflineInvoiceHTML(invoice) {
 				return currency ? `${currency} ${number}` : String(number);
 			}
 		});
-		env.addFilter("currency", (value, currency) => env.filters.format_currency(value, currency));
-		env.getFilter = function (name) {
-			return this.filters[name] || ((v) => v);
+		env.addFilter("currency", (value: unknown, currency: string) =>
+			(env as any).filters.format_currency(value, currency),
+		);
+		(env as any).getFilter = function (name: string) {
+			return (this as any).filters[name] || ((v: unknown) => v);
 		};
 
 		const context = {
 			doc,
 			terms: doc.terms,
 			terms_and_conditions: doc.terms_and_conditions,
-			_: frappe?._ ? frappe._ : (t) => t,
+			_: frappe?._ ? frappe._ : (t: string) => t,
 			frappe: {
 				db: { get_value: () => "", sql: () => [] },
 				get_list: () => [],

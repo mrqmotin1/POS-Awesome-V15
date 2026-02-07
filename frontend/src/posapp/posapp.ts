@@ -21,7 +21,7 @@ import { pinia } from "./stores";
 import { useToastStore } from "./stores/toastStore";
 import { useSocketStore } from "./stores/socketStore";
 import { createPosAppRouter } from "./router";
-import "../sw-updater.js"; // Initialize service worker auto-updater
+import "../sw-updater"; // Initialize service worker auto-updater
 import App from "./App.vue";
 // @ts-ignore
 import {

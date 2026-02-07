@@ -1,9 +1,9 @@
-import { db } from "./core.js";
+import { db } from "./core";
 import Dexie from "dexie/dist/dexie.mjs";
 
-let writeChain = Promise.resolve();
+let writeChain: Promise<unknown> = Promise.resolve();
 
-export function withWriteLock(fn) {
+export function withWriteLock(fn: () => Promise<unknown> | unknown) {
 	writeChain = writeChain
 		.then(() => fn())
 		.catch((e) => {
@@ -12,12 +12,12 @@ export function withWriteLock(fn) {
 	return writeChain;
 }
 
-export async function getAllByCursor(store, limit = Infinity) {
-	const results = [];
+export async function getAllByCursor(store: string, limit = Infinity) {
+	const results: any[] = [];
 	try {
 		await db.transaction("r", db.table(store), async () => {
 			let count = 0;
-			await db.table(store).each((item) => {
+			await db.table(store).each((item: any) => {
 				results.push(item);
 				count += 1;
 				if (count >= limit) throw Dexie.IterationComplete;

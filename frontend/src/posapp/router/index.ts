@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { start, stop } from "../composables/useLoading.js";
+import { start, stop } from "../composables/useLoading";
 
 const routes = [
 	{ path: "/", redirect: "/pos" },
@@ -46,14 +46,13 @@ const createPosAppRouter = () => {
 		routes,
 	});
 
-	router.beforeEach((to, from, next) => {
+	router.beforeEach((_to, _from, next) => {
 		start("route");
 		next();
 	});
 
 	router.afterEach(() => {
 		stop("route");
-		// Reset scroll position
 		window.scrollTo(0, 0);
 	});
 

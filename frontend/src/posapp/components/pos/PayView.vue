@@ -129,7 +129,7 @@ import {
 	appendDebugPrintParam,
 	silentPrint,
 	watchPrintWindow,
-} from "../../plugins/print.js";
+} from "../../plugins/print";
 
 import { useRtl } from "../../composables/useRtl";
 import { useCustomersStore } from "../../stores/customersStore.js";

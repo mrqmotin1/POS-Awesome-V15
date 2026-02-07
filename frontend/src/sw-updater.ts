@@ -5,9 +5,12 @@ const VERSION_ENDPOINT = "/assets/posawesome/dist/js/version.json";
 const SERVICE_WORKER_SCOPE = "/sw.js";
 const VERSION_CACHE_TTL = 30 * 1000;
 
-let cachedVersionInfo = null;
+let cachedVersionInfo: {
+	version: string | null;
+	timestamp: number | null;
+} | null = null;
 let cachedVersionTimestamp = 0;
-let pendingVersionRequest = null;
+let pendingVersionRequest: Promise<any> | null = null;
 
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 	setActivePinia(pinia);
@@ -20,7 +23,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 	let reloadScheduled = false;
 
 	navigator.serviceWorker.addEventListener("message", (event) => {
-		const data = event.data || {};
+		const data: any = event.data || {};
 		if (data.type === "SW_VERSION_INFO") {
 			handleActiveVersion(data.version, data.timestamp);
 		}
@@ -61,7 +64,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 
 		const channel = new MessageChannel();
 		channel.port1.onmessage = (event) => {
-			const payload = event.data || {};
+			const payload: any = event.data || {};
 			if (payload.type === "SW_VERSION_INFO") {
 				handleActiveVersion(payload.version, payload.timestamp);
 			}
@@ -73,18 +76,21 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 		}
 	}
 
-	async function checkWaitingWorker(registration) {
+	async function checkWaitingWorker(registration: ServiceWorkerRegistration) {
 		if (registration.waiting) {
 			await announceAvailableUpdate(true);
 		}
 	}
 
-	function monitorRegistration(registration) {
+	function monitorRegistration(registration: ServiceWorkerRegistration) {
 		registration.addEventListener("updatefound", () => {
 			const newWorker = registration.installing;
 			if (!newWorker) return;
 			newWorker.addEventListener("statechange", async () => {
-				if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+				if (
+					newWorker.state === "installed" &&
+					navigator.serviceWorker.controller
+				) {
 					await announceAvailableUpdate(true);
 				}
 			});
@@ -105,7 +111,11 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 			return pendingVersionRequest;
 		}
 		const now = Date.now();
-		if (!force && cachedVersionInfo && now - cachedVersionTimestamp < VERSION_CACHE_TTL) {
+		if (
+			!force &&
+			cachedVersionInfo &&
+			now - cachedVersionTimestamp < VERSION_CACHE_TTL
+		) {
 			return cachedVersionInfo;
 		}
 		pendingVersionRequest = (async () => {
@@ -122,7 +132,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 				if (!response.ok) {
 					return null;
 				}
-				const data = await response.json();
+				const data: any = await response.json();
 				const version = data.version || data.buildVersion || null;
 				const timestamp = Number(data.timestamp || data.buildTimestamp);
 				const parsed = {
@@ -142,7 +152,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 		return pendingVersionRequest;
 	}
 
-	function handleActiveVersion(version, timestamp) {
+	function handleActiveVersion(version: string, timestamp: number) {
 		if (!version) return;
 		if (timestamp) {
 			cachedVersionInfo = {
@@ -175,7 +185,10 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 
 	async function triggerServiceWorkerUpdate() {
 		try {
-			const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_SCOPE);
+			const registration =
+				await navigator.serviceWorker.getRegistration(
+					SERVICE_WORKER_SCOPE,
+				);
 			if (!registration) {
 				updateStore.reloading = false;
 				return;
@@ -187,7 +200,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 			if (registration.installing) {
 				registration.installing.addEventListener("statechange", () => {
 					if (registration.installing?.state === "installed") {
-						registration.waiting?.postMessage({ type: "SKIP_WAITING" });
+						registration.waiting?.postMessage({
+							type: "SKIP_WAITING",
+						});
 					}
 				});
 				return;

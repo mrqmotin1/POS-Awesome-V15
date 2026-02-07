@@ -1,12 +1,17 @@
 const DEFAULT_PRECISION = 6;
 
-const parseOptionalFloat = (value) => {
-	const numeric = Number.parseFloat(value);
+type AnyRecord = Record<string, any>;
+
+const parseOptionalFloat = (value: unknown): number | null => {
+	const numeric = Number.parseFloat(String(value));
 	return Number.isFinite(numeric) ? numeric : null;
 };
 
-export const round = (value, precision = DEFAULT_PRECISION) => {
-	const numeric = Number.parseFloat(value || 0);
+export const round = (
+	value: unknown,
+	precision = DEFAULT_PRECISION,
+): number => {
+	const numeric = Number.parseFloat(String(value ?? 0));
 	if (!Number.isFinite(numeric)) {
 		return 0;
 	}
@@ -14,7 +19,11 @@ export const round = (value, precision = DEFAULT_PRECISION) => {
 	return Math.round(numeric * factor) / factor;
 };
 
-export const inDateRange = (currentDate, start, end) => {
+export const inDateRange = (
+	currentDate: string | Date | null | undefined,
+	start: string | Date | null | undefined,
+	end: string | Date | null | undefined,
+): boolean => {
 	if (!currentDate) {
 		return true;
 	}
@@ -40,11 +49,20 @@ export const inDateRange = (currentDate, start, end) => {
 	return true;
 };
 
-export const matchParty = (rule, customer, customerGroup, territory) => {
+export const matchParty = (
+	rule: AnyRecord,
+	customer: string | null | undefined,
+	customerGroup: string | null | undefined,
+	territory: string | null | undefined,
+): boolean => {
 	if (rule.customer && customer && rule.customer !== customer) {
 		return false;
 	}
-	if (rule.customer_group && customerGroup && rule.customer_group !== customerGroup) {
+	if (
+		rule.customer_group &&
+		customerGroup &&
+		rule.customer_group !== customerGroup
+	) {
 		return false;
 	}
 	if (rule.territory && territory && rule.territory !== territory) {
@@ -62,7 +80,11 @@ export const matchParty = (rule, customer, customerGroup, territory) => {
 	return true;
 };
 
-export const matchPriceListAndCurrency = (rule, priceList, currency) => {
+export const matchPriceListAndCurrency = (
+	rule: AnyRecord,
+	priceList: string | null | undefined,
+	currency: string | null | undefined,
+): boolean => {
 	if (rule.price_list && priceList && rule.price_list !== priceList) {
 		return false;
 	}
@@ -78,31 +100,47 @@ export const matchPriceListAndCurrency = (rule, priceList, currency) => {
 	return true;
 };
 
-const pushUnique = (bucket, rule, seen) => {
+const pushUnique = (
+	bucket: AnyRecord[],
+	rule: AnyRecord | null | undefined,
+	seen: Set<string>,
+) => {
 	if (!rule || seen.has(rule.name)) {
 		return;
 	}
 	bucket.push(rule);
-	seen.add(rule.name);
+	seen.add(String(rule.name));
 };
 
-export const collectCandidates = (item = {}, indexBundle = {}) => {
+export const collectCandidates = (
+	item: AnyRecord = {},
+	indexBundle: {
+		byItem?: Map<string, AnyRecord[]>;
+		byGroup?: Map<string, AnyRecord[]>;
+		byBrand?: Map<string, AnyRecord[]>;
+		general?: AnyRecord[];
+	} = {},
+): AnyRecord[] => {
 	const { byItem, byGroup, byBrand, general } = indexBundle;
-	const bucket = [];
-	const seen = new Set();
+	const bucket: AnyRecord[] = [];
+	const seen = new Set<string>();
 
 	if (item.item_code && byItem instanceof Map && byItem.has(item.item_code)) {
-		for (const rule of byItem.get(item.item_code)) {
+		for (const rule of byItem.get(item.item_code) || []) {
 			pushUnique(bucket, rule, seen);
 		}
 	}
-	if (item.item_group && byGroup instanceof Map && byGroup.has(item.item_group)) {
-		for (const rule of byGroup.get(item.item_group)) {
+	if (
+		item.item_group &&
+		byGroup instanceof Map &&
+		byGroup.has(item.item_group)
+	) {
+		for (const rule of byGroup.get(item.item_group) || []) {
 			pushUnique(bucket, rule, seen);
 		}
 	}
 	if (item.brand && byBrand instanceof Map && byBrand.has(item.brand)) {
-		for (const rule of byBrand.get(item.brand)) {
+		for (const rule of byBrand.get(item.brand) || []) {
 			pushUnique(bucket, rule, seen);
 		}
 	}
@@ -115,14 +153,15 @@ export const collectCandidates = (item = {}, indexBundle = {}) => {
 	return bucket;
 };
 
-const ruleBenefitScore = (rule = {}) => {
+const ruleBenefitScore = (rule: AnyRecord = {}): number => {
 	const discount = Math.abs(rule.rate_or_discount || 0);
 	const margin = Math.abs(rule.margin_rate_or_amount || 0);
-	const freebies = Math.abs(rule.free_qty || 0) + Math.abs(rule.free_qty_per_unit || 0);
+	const freebies =
+		Math.abs(rule.free_qty || 0) + Math.abs(rule.free_qty_per_unit || 0);
 	return Math.max(discount, margin, freebies);
 };
 
-export const ruleSort = (a, b) => {
+export const ruleSort = (a: AnyRecord, b: AnyRecord): number => {
 	if ((b.specificity || 0) !== (a.specificity || 0)) {
 		return (b.specificity || 0) - (a.specificity || 0);
 	}
@@ -136,23 +175,28 @@ export const ruleSort = (a, b) => {
 	return String(a.name || "").localeCompare(String(b.name || ""));
 };
 
-const selectSlab = (rule, qty) => {
+const selectSlab = (rule: AnyRecord, qty: number): AnyRecord | null => {
 	if (!Array.isArray(rule.slabs) || !rule.slabs.length) {
 		return null;
 	}
-	let chosen = null;
+	let chosen: AnyRecord | null = null;
 	for (const slab of rule.slabs) {
 		const minQty = Number.parseFloat(slab.min_qty || 0);
-		if (qty >= minQty && (!chosen || minQty >= Number.parseFloat(chosen.min_qty || 0))) {
+		if (
+			qty >= minQty &&
+			(!chosen || minQty >= Number.parseFloat(chosen.min_qty || 0))
+		) {
 			chosen = slab;
 		}
 	}
 	return chosen;
 };
 
-const applyMargin = (baseRate, rule) => {
+const applyMargin = (baseRate: number, rule: AnyRecord): number => {
 	const marginType = rule.margin_type || rule.discount_type;
-	const marginValue = Number.parseFloat(rule.margin_rate_or_amount || rule.rate_or_discount || 0);
+	const marginValue = Number.parseFloat(
+		rule.margin_rate_or_amount || rule.rate_or_discount || 0,
+	);
 
 	if (!marginValue) {
 		return baseRate;
@@ -167,14 +211,23 @@ const applyMargin = (baseRate, rule) => {
 	return baseRate;
 };
 
-const resolveSlabValue = (rule, slab) => {
-	if (slab && slab.rate_or_discount !== undefined && slab.rate_or_discount !== null) {
+const resolveSlabValue = (rule: AnyRecord, slab: AnyRecord | null): number => {
+	if (
+		slab &&
+		slab.rate_or_discount !== undefined &&
+		slab.rate_or_discount !== null
+	) {
 		return Number.parseFloat(slab.rate_or_discount);
 	}
 	return Number.parseFloat(rule.rate_or_discount || 0);
 };
 
-const applyOneRule = (currentRate, rule, qty, baseRate) => {
+const applyOneRule = (
+	currentRate: number,
+	rule: AnyRecord,
+	qty: number,
+	baseRate: number,
+) => {
 	const slab = selectSlab(rule, qty);
 	const value = resolveSlabValue(rule, slab);
 
@@ -189,9 +242,14 @@ const applyOneRule = (currentRate, rule, qty, baseRate) => {
 	const isMargin = discountType === "margin" || !!rule.margin_type;
 	const isPriceOverride =
 		priceMode === "price" &&
-		(rawType === "rate" || rawType === "price" || (!rawType && discountType === "rate"));
+		(rawType === "rate" ||
+			rawType === "price" ||
+			(!rawType && discountType === "rate"));
 
-	let type = rule.discount_type || rule.rate_or_discount_type || rule.price_or_discount;
+	let type =
+		rule.discount_type ||
+		rule.rate_or_discount_type ||
+		rule.price_or_discount;
 
 	if (rule.is_free_item_rule) {
 		return { newRate: currentRate, discount: 0, detail: null };
@@ -234,15 +292,19 @@ const applyOneRule = (currentRate, rule, qty, baseRate) => {
 	return { newRate, discount: change, detail };
 };
 
-const isFreeRule = (rule) =>
-	rule && (rule.is_free_item_rule || (rule.price_or_discount || "").toLowerCase() === "product");
+const isFreeRule = (rule: AnyRecord | null | undefined): boolean =>
+	rule &&
+	(rule.is_free_item_rule ||
+		(rule.price_or_discount || "").toLowerCase() === "product");
 
-const computeThresholdInfo = (rule, qty) => {
-	const minimum = Number.parseFloat(rule.min_qty || rule.recurse_for || 1) || 1;
+const computeThresholdInfo = (rule: AnyRecord, qty: number) => {
+	const minimum =
+		Number.parseFloat(rule.min_qty || rule.recurse_for || 1) || 1;
 	let multiplier = 0;
 
 	if (rule.apply_per_threshold) {
-		const divisor = Number.parseFloat(rule.recurse_for || rule.min_qty || 1) || 1;
+		const divisor =
+			Number.parseFloat(rule.recurse_for || rule.min_qty || 1) || 1;
 		multiplier = Math.floor(qty / divisor);
 	} else {
 		multiplier = qty >= minimum ? 1 : 0;
@@ -251,7 +313,11 @@ const computeThresholdInfo = (rule, qty) => {
 	return { minimum, multiplier };
 };
 
-const applyFreeItemRule = (rule, item, effectiveQty) => {
+const applyFreeItemRule = (
+	rule: AnyRecord,
+	item: AnyRecord,
+	effectiveQty: number,
+) => {
 	const { minimum, multiplier } = computeThresholdInfo(rule, effectiveQty);
 	let freeQty = 0;
 	const thresholdQty = minimum;
@@ -288,7 +354,8 @@ const applyFreeItemRule = (rule, item, effectiveQty) => {
 		parseOptionalFloat(rule.base_free_item_rate) ??
 		parseOptionalFloat(rule.free_item_rate);
 	const rawDisplayRate =
-		parseOptionalFloat(rule.free_item_rate) ?? parseOptionalFloat(rule.rate_for_free_item);
+		parseOptionalFloat(rule.free_item_rate) ??
+		parseOptionalFloat(rule.rate_for_free_item);
 
 	const baseRate = rawBaseRate ?? rawDisplayRate ?? null;
 
@@ -297,20 +364,28 @@ const applyFreeItemRule = (rule, item, effectiveQty) => {
 		parseOptionalFloat(rule.free_item_price_list_rate) ??
 		parseOptionalFloat(rule.base_for_price_list_rate);
 	const rawDisplayPriceListRate =
-		parseOptionalFloat(rule.free_item_price_list_rate) ?? parseOptionalFloat(rule.for_price_list_rate);
+		parseOptionalFloat(rule.free_item_price_list_rate) ??
+		parseOptionalFloat(rule.for_price_list_rate);
 
-	const basePriceListRate = rawBasePriceListRate ?? rawDisplayPriceListRate ?? baseRate;
+	const basePriceListRate =
+		rawBasePriceListRate ?? rawDisplayPriceListRate ?? baseRate;
 
 	let baseDiscount =
 		parseOptionalFloat(rule.free_item_base_discount_amount) ??
 		parseOptionalFloat(rule.free_item_discount_amount);
-	if (baseDiscount === null && basePriceListRate !== null && baseRate !== null) {
+	if (
+		baseDiscount === null &&
+		basePriceListRate !== null &&
+		baseRate !== null
+	) {
 		baseDiscount = Math.max(basePriceListRate - baseRate, 0);
 	}
 
 	const discountPercentage =
 		parseOptionalFloat(rule.free_item_discount_percentage) ??
-		(basePriceListRate ? Math.max(((baseDiscount ?? 0) / basePriceListRate) * 100, 0) : null);
+		(basePriceListRate
+			? Math.max(((baseDiscount ?? 0) / basePriceListRate) * 100, 0)
+			: null);
 
 	return {
 		item_code: sameItem ? item.item_code : rule.free_item || item.item_code,
@@ -320,44 +395,103 @@ const applyFreeItemRule = (rule, item, effectiveQty) => {
 		same_item: sameItem,
 		min_qty: minimum,
 		multiplier,
-		apply_per_threshold: !!rule.apply_per_threshold || !!rule.is_recursive || !!rule.recurse_for,
+		apply_per_threshold:
+			!!rule.apply_per_threshold ||
+			!!rule.is_recursive ||
+			!!rule.recurse_for,
 		max_free_qty: rule.max_free_qty,
 		threshold_qty: thresholdQty,
 		free_qty_per_threshold: freePerThreshold,
 		uom,
 		conversion_factor: conversionFactor,
-		...(baseRate !== null ? { base_rate: baseRate, rate: rawDisplayRate ?? baseRate } : {}),
+		...(baseRate !== null
+			? { base_rate: baseRate, rate: rawDisplayRate ?? baseRate }
+			: {}),
 		...(basePriceListRate !== null
 			? {
 					base_price_list_rate: basePriceListRate,
-					price_list_rate: rawDisplayPriceListRate ?? basePriceListRate,
+					price_list_rate:
+						rawDisplayPriceListRate ?? basePriceListRate,
 				}
 			: {}),
 		...(baseDiscount !== null
 			? {
 					base_discount_amount: baseDiscount,
-					discount_amount: parseOptionalFloat(rule.free_item_discount_amount) ?? baseDiscount,
+					discount_amount:
+						parseOptionalFloat(rule.free_item_discount_amount) ??
+						baseDiscount,
 				}
 			: {}),
-		...(discountPercentage !== null ? { discount_percentage: discountPercentage } : {}),
+		...(discountPercentage !== null
+			? { discount_percentage: discountPercentage }
+			: {}),
 	};
 };
 
 // Unified function to evaluate both pricing and free items in a single pass
-export const evaluatePricingRules = ({ item, qty, docQty, baseRate, ctx, indexes }) => {
-	const rawRuleQty = Number.parseFloat(qty ?? item?.qty ?? 0);
+export const evaluatePricingRules = ({
+	item,
+	qty,
+	docQty,
+	baseRate,
+	ctx,
+	indexes,
+}: {
+	item: AnyRecord;
+	qty?: number | string;
+	docQty?: number | string;
+	baseRate?: number;
+	ctx?: AnyRecord;
+	indexes?: {
+		byItem?: Map<string, AnyRecord[]>;
+		byGroup?: Map<string, AnyRecord[]>;
+		byBrand?: Map<string, AnyRecord[]>;
+		general?: AnyRecord[];
+	};
+}): {
+	pricing: {
+		rate: number;
+		discountPerUnit: number;
+		applied: AnyRecord[];
+	};
+	freebies: AnyRecord[];
+} => {
+	const rawRuleQty = Number.parseFloat(String(qty ?? item?.qty ?? 0));
 	const rawDocQty =
-		docQty !== undefined ? Number.parseFloat(docQty) : Number.parseFloat(item?.qty ?? rawRuleQty);
-	const rawStockQty = Number.parseFloat(item?.stock_qty ?? item?.base_qty ?? item?.base_quantity ?? 0);
+		docQty !== undefined
+			? Number.parseFloat(String(docQty))
+			: Number.parseFloat(String(item?.qty ?? rawRuleQty));
+	const rawStockQty = Number.parseFloat(
+		String(item?.stock_qty ?? item?.base_qty ?? item?.base_quantity ?? 0),
+	);
 
-	const absoluteQty = Math.max(0, Number.isFinite(rawRuleQty) ? rawRuleQty : 0);
-	const absoluteDocQty = Math.max(0, Number.isFinite(rawDocQty) ? rawDocQty : 0);
-	const absoluteStockQty = Math.max(0, Number.isFinite(rawStockQty) ? rawStockQty : 0);
-	const effectiveQty = Math.max(absoluteQty, absoluteDocQty, absoluteStockQty);
+	const absoluteQty = Math.max(
+		0,
+		Number.isFinite(rawRuleQty) ? rawRuleQty : 0,
+	);
+	const absoluteDocQty = Math.max(
+		0,
+		Number.isFinite(rawDocQty) ? rawDocQty : 0,
+	);
+	const absoluteStockQty = Math.max(
+		0,
+		Number.isFinite(rawStockQty) ? rawStockQty : 0,
+	);
+	const effectiveQty = Math.max(
+		absoluteQty,
+		absoluteDocQty,
+		absoluteStockQty,
+	);
 
-	const effectiveBase = Number.isFinite(baseRate)
-		? baseRate
-		: Number.parseFloat(item?.base_price_list_rate || item?.price_list_rate || item?.rate || 0);
+	const effectiveBase =
+		typeof baseRate === "number" && Number.isFinite(baseRate)
+			? baseRate
+			: Number.parseFloat(
+					item?.base_price_list_rate ||
+						item?.price_list_rate ||
+						item?.rate ||
+						0,
+				);
 	const startRate = Number.isFinite(effectiveBase) ? effectiveBase : 0;
 
 	// Optimization: collect candidates once
@@ -365,9 +499,20 @@ export const evaluatePricingRules = ({ item, qty, docQty, baseRate, ctx, indexes
 
 	// Shared filters
 	const validCandidates = candidates
-		.filter((rule) => inDateRange(ctx?.date, rule.valid_from, rule.valid_upto))
-		.filter((rule) => matchParty(rule, ctx?.customer, ctx?.customer_group, ctx?.territory))
-		.filter((rule) => matchPriceListAndCurrency(rule, ctx?.price_list, ctx?.currency));
+		.filter((rule) =>
+			inDateRange(ctx?.date, rule.valid_from, rule.valid_upto),
+		)
+		.filter((rule) =>
+			matchParty(
+				rule,
+				ctx?.customer,
+				ctx?.customer_group,
+				ctx?.territory,
+			),
+		)
+		.filter((rule) =>
+			matchPriceListAndCurrency(rule, ctx?.price_list, ctx?.currency),
+		);
 
 	// Pricing logic
 	const pricingRules = validCandidates
@@ -393,18 +538,27 @@ export const evaluatePricingRules = ({ item, qty, docQty, baseRate, ctx, indexes
 		})
 		.sort(ruleSort);
 
-	let pricing = {
+	let pricing: {
+		rate: number;
+		discountPerUnit: number;
+		applied: AnyRecord[];
+	} = {
 		rate: round(startRate),
 		discountPerUnit: 0,
 		applied: [],
 	};
 
 	if (pricingRules.length) {
-		const applied = [];
+		const applied: AnyRecord[] = [];
 		let rate = startRate;
 
 		for (const rule of pricingRules) {
-			const { newRate, discount, detail } = applyOneRule(rate, rule, effectiveQty, startRate);
+			const { newRate, discount, detail } = applyOneRule(
+				rate,
+				rule,
+				effectiveQty,
+				startRate,
+			);
 			rate = newRate;
 			if (detail) {
 				applied.push(detail);
@@ -428,12 +582,13 @@ export const evaluatePricingRules = ({ item, qty, docQty, baseRate, ctx, indexes
 	const freeRules = validCandidates
 		.filter((rule) => isFreeRule(rule))
 		.filter((rule) => {
-			const minimum = Number.parseFloat(rule.min_qty || rule.recurse_for || 1) || 1;
+			const minimum =
+				Number.parseFloat(rule.min_qty || rule.recurse_for || 1) || 1;
 			return effectiveQty >= minimum;
 		})
 		.sort(ruleSort);
 
-	const freebies = [];
+	const freebies: AnyRecord[] = [];
 
 	if (freeRules.length) {
 		for (const rule of freeRules) {
@@ -452,12 +607,36 @@ export const evaluatePricingRules = ({ item, qty, docQty, baseRate, ctx, indexes
 };
 
 // Deprecated: Wrappers for backward compatibility
-export const applyLocalPricingRules = (params) => {
+export const applyLocalPricingRules = (params: {
+	item: AnyRecord;
+	qty?: number | string;
+	docQty?: number | string;
+	baseRate?: number;
+	ctx?: AnyRecord;
+	indexes?: {
+		byItem?: Map<string, AnyRecord[]>;
+		byGroup?: Map<string, AnyRecord[]>;
+		byBrand?: Map<string, AnyRecord[]>;
+		general?: AnyRecord[];
+	};
+}) => {
 	const { pricing } = evaluatePricingRules(params);
 	return pricing;
 };
 
-export const computeFreeItems = (params) => {
+export const computeFreeItems = (params: {
+	item: AnyRecord;
+	qty?: number | string;
+	docQty?: number | string;
+	baseRate?: number;
+	ctx?: AnyRecord;
+	indexes?: {
+		byItem?: Map<string, AnyRecord[]>;
+		byGroup?: Map<string, AnyRecord[]>;
+		byBrand?: Map<string, AnyRecord[]>;
+		general?: AnyRecord[];
+	};
+}) => {
 	const { freebies } = evaluatePricingRules(params);
 	return freebies;
 };

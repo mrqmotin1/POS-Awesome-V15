@@ -1,7 +1,7 @@
 import { isOffline } from "../../../../offline/index.js";
 import { usePricingRulesStore } from "../../../stores/pricingRulesStore.js";
 import { useItemsStore } from "../../../stores/itemsStore.js";
-import { evaluatePricingRules } from "../../../../lib/pricingEngine.js";
+import { evaluatePricingRules } from "../../../../lib/pricingEngine";
 import { _syncAutoFreeLines } from "./free_items";
 
 declare const __: (_text: string, _args?: any[]) => string;
@@ -50,24 +50,33 @@ export function _getItemsStore(context: any) {
 }
 
 export function _getPricingContext(context: any) {
-	const priceList = context.get_price_list ? context.get_price_list() : context.selected_price_list;
+	const priceList = context.get_price_list
+		? context.get_price_list()
+		: context.selected_price_list;
 	const selectedCurrency =
-		context.selected_currency || context.price_list_currency || context.pos_profile?.currency;
+		context.selected_currency ||
+		context.price_list_currency ||
+		context.pos_profile?.currency;
 	const doc =
-		typeof context.get_invoice_doc === "function" ? context.get_invoice_doc() : context.invoice_doc || {};
+		typeof context.get_invoice_doc === "function"
+			? context.get_invoice_doc()
+			: context.invoice_doc || {};
 	const customerInfo = context.customer_info || {};
 
 	return {
 		company: context.pos_profile?.company || doc.company || null,
-		price_list: priceList || context.pos_profile?.selling_price_list || null,
+		price_list:
+			priceList || context.pos_profile?.selling_price_list || null,
 		currency: selectedCurrency || context.pos_profile?.currency || null,
 		date:
 			context.posting_date ||
 			context.posting_date_display ||
 			doc.posting_date ||
 			new Date().toISOString().slice(0, 10),
-		customer: context.customer || doc.customer || customerInfo.customer || null,
-		customer_group: doc.customer_group || customerInfo.customer_group || null,
+		customer:
+			context.customer || doc.customer || customerInfo.customer || null,
+		customer_group:
+			doc.customer_group || customerInfo.customer_group || null,
 		territory: doc.territory || customerInfo.territory || null,
 	};
 }
@@ -86,7 +95,12 @@ export function _resolveBaseRate(context: any, item: any) {
 	if (!item) {
 		return 0;
 	}
-	const candidates = [item.base_price_list_rate, item.price_list_rate, item.base_rate, item.rate];
+	const candidates = [
+		item.base_price_list_rate,
+		item.price_list_rate,
+		item.base_rate,
+		item.rate,
+	];
 	for (const candidate of candidates) {
 		const numeric = Number.parseFloat(String(candidate ?? 0));
 		if (Number.isFinite(numeric) && !Number.isNaN(numeric)) {
@@ -106,7 +120,12 @@ export function _resolvePricingQty(context: any, item: any) {
 		return Number.isFinite(numeric) ? numeric : null;
 	};
 
-	const direct = [item.stock_qty, item.base_qty, item.base_quantity, item.transfer_qty]
+	const direct = [
+		item.stock_qty,
+		item.base_qty,
+		item.base_quantity,
+		item.transfer_qty,
+	]
 		.map(parse)
 		.find((value) => value !== null);
 
@@ -130,7 +149,11 @@ export function _resolvePricingQty(context: any, item: any) {
 	return qty;
 }
 
-export function _updatePricingBadge(context: any, item: any, applied: any[] = []) {
+export function _updatePricingBadge(
+	context: any,
+	item: any,
+	applied: any[] = [],
+) {
 	if (!item) {
 		return;
 	}
@@ -176,12 +199,15 @@ export function _applyPricingToLine(
 
 	const manualFromUom = item._manual_rate_set_from_uom === true;
 	const manualOverride = item._manual_rate_set === true && !manualFromUom;
-	const allowRateUpdate = !item.locked_price && !item.posa_offer_applied && !manualOverride;
+	const allowRateUpdate =
+		!item.locked_price && !item.posa_offer_applied && !manualOverride;
 	const rawDocQty = Number.parseFloat(item.qty || 0);
 	const signedDocQty = Number.isFinite(rawDocQty) ? rawDocQty : 0;
 	const docQty = Math.abs(signedDocQty);
 	const rawPricingQty = _resolvePricingQty(context, item);
-	const pricingQty = Number.isFinite(rawPricingQty) ? rawPricingQty : signedDocQty;
+	const pricingQty = Number.isFinite(rawPricingQty)
+		? rawPricingQty
+		: signedDocQty;
 	const qty = Math.abs(pricingQty);
 
 	if (docQty === 0 && qty === 0) {
@@ -201,7 +227,9 @@ export function _applyPricingToLine(
 	_updatePricingBadge(context, item, pricing.applied);
 
 	if (allowRateUpdate) {
-		const proposedRate = Number.isFinite(pricing.rate) ? pricing.rate : baseRate;
+		const proposedRate = Number.isFinite(pricing.rate)
+			? pricing.rate
+			: baseRate;
 		const proposedDiscount = Number.isFinite(pricing.discountPerUnit)
 			? pricing.discountPerUnit
 			: baseRate - proposedRate;
@@ -223,7 +251,8 @@ export function _applyPricingToLine(
 
 		const baseAmount = effectiveBaseRate * signedDocQty;
 		const convertedRate = context._fromBaseCurrency(effectiveBaseRate);
-		const convertedDiscount = context._fromBaseCurrency(baseDiscountPerUnit);
+		const convertedDiscount =
+			context._fromBaseCurrency(baseDiscountPerUnit);
 		const normalizedBaseDiscount = Math.abs(baseDiscountPerUnit);
 		const normalizedDiscount = Math.abs(convertedDiscount);
 
@@ -231,20 +260,32 @@ export function _applyPricingToLine(
 		item.base_rate = effectiveBaseRate;
 		item.base_discount_amount = normalizedBaseDiscount;
 		item.price_list_rate = context.flt
-			? context.flt(context._fromBaseCurrency(baseRate), context.currency_precision)
+			? context.flt(
+					context._fromBaseCurrency(baseRate),
+					context.currency_precision,
+				)
 			: context._fromBaseCurrency(baseRate);
-		item.rate = context.flt ? context.flt(convertedRate, context.currency_precision) : convertedRate;
+		item.rate = context.flt
+			? context.flt(convertedRate, context.currency_precision)
+			: convertedRate;
 		item.discount_amount = context.flt
 			? context.flt(normalizedDiscount, context.currency_precision)
 			: normalizedDiscount;
-		const rawDiscountPercentage = baseRate ? (normalizedBaseDiscount / baseRate) * 100 : 0;
+		const rawDiscountPercentage = baseRate
+			? (normalizedBaseDiscount / baseRate) * 100
+			: 0;
 		item.discount_percentage = baseRate
-			? context.flt(Math.abs(rawDiscountPercentage), context.float_precision)
+			? context.flt(
+					Math.abs(rawDiscountPercentage),
+					context.float_precision,
+				)
 			: 0;
 		item.amount = context.flt
 			? context.flt(item.rate * item.qty, context.currency_precision)
 			: item.rate * item.qty;
-		item.base_amount = context.flt ? context.flt(baseAmount, context.currency_precision) : baseAmount;
+		item.base_amount = context.flt
+			? context.flt(baseAmount, context.currency_precision)
+			: baseAmount;
 	}
 
 	if (Array.isArray(freebies)) {
@@ -253,8 +294,10 @@ export function _applyPricingToLine(
 			const existing = freebiesMap.get(key) || { qty: 0 };
 			const parsedEntryQty = Number(entry.qty || 0) || 0;
 			const parsedExistingQty = Number(existing.qty || 0) || 0;
-			const parsedEntryStock = Number(entry.stock_qty || entry.qty || 0) || 0;
-			const parsedExistingStock = Number(existing.stock_qty || existing.qty || 0) || 0;
+			const parsedEntryStock =
+				Number(entry.stock_qty || entry.qty || 0) || 0;
+			const parsedExistingStock =
+				Number(existing.stock_qty || existing.qty || 0) || 0;
 			freebiesMap.set(key, {
 				...existing,
 				...entry,
@@ -276,7 +319,8 @@ export async function applyPricingRulesForCart(context: any, force = false) {
 	}
 
 	const ctx = context._getPricingContext ? context._getPricingContext() : {};
-	const hasServerContext = ctx && ctx.company && ctx.price_list && ctx.currency && !isOffline();
+	const hasServerContext =
+		ctx && ctx.company && ctx.price_list && ctx.currency && !isOffline();
 
 	context._applyingPricingRules = true;
 	try {
@@ -351,7 +395,8 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		return Number.isFinite(numeric) ? numeric : null;
 	};
 
-	const asServerBool = (value) => value === true || value === 1 || value === "1";
+	const asServerBool = (value) =>
+		value === true || value === 1 || value === "1";
 
 	const sameItemFreeParents = new Map();
 	const sameItemFreeCodes = new Set();
@@ -363,9 +408,13 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		}
 
 		const segments = key.split("::");
-		const parentSegment = segments.length > 2 ? segments.slice(2).join("::") : null;
+		const parentSegment =
+			segments.length > 2 ? segments.slice(2).join("::") : null;
 
-		const sameItemFlag = asServerBool(line.same_item) || line.same_item === 1 || line.same_item === "1";
+		const sameItemFlag =
+			asServerBool(line.same_item) ||
+			line.same_item === 1 ||
+			line.same_item === "1";
 
 		const snapshot = {
 			parentRowId: line.parent_row_id || parentSegment || null,
@@ -373,9 +422,13 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			stock_qty: parseServerFloat(line.stock_qty),
 			base_rate: parseServerFloat(line.base_rate ?? line.rate),
 			rate: parseServerFloat(line.rate),
-			base_price_list_rate: parseServerFloat(line.base_price_list_rate ?? line.price_list_rate),
+			base_price_list_rate: parseServerFloat(
+				line.base_price_list_rate ?? line.price_list_rate,
+			),
 			price_list_rate: parseServerFloat(line.price_list_rate),
-			base_discount_amount: parseServerFloat(line.base_discount_amount ?? line.discount_amount),
+			base_discount_amount: parseServerFloat(
+				line.base_discount_amount ?? line.discount_amount,
+			),
 			discount_amount: parseServerFloat(line.discount_amount),
 			discount_percentage: parseServerFloat(line.discount_percentage),
 			uom: line.uom,
@@ -399,12 +452,21 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		}
 	});
 
-	const resolveWithFallback = (primary, fallback, treatZeroAsMissing = false) => {
+	const resolveWithFallback = (
+		primary,
+		fallback,
+		treatZeroAsMissing = false,
+	) => {
 		const fallbackFinite = Number.isFinite(fallback) ? fallback : null;
 		if (!Number.isFinite(primary)) {
 			return fallbackFinite;
 		}
-		if (treatZeroAsMissing && primary <= 0 && Number.isFinite(fallback) && fallback > 0) {
+		if (
+			treatZeroAsMissing &&
+			primary <= 0 &&
+			Number.isFinite(fallback) &&
+			fallback > 0
+		) {
 			return fallback;
 		}
 		return primary;
@@ -416,16 +478,22 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			const baseRate = Number.isFinite(Number.parseFloat(item.base_rate))
 				? Number.parseFloat(item.base_rate)
 				: toBase(item.rate);
-			const basePriceListRateRaw = Number.parseFloat(item.base_price_list_rate);
+			const basePriceListRateRaw = Number.parseFloat(
+				item.base_price_list_rate,
+			);
 			const basePriceListRate = Number.isFinite(basePriceListRateRaw)
 				? basePriceListRateRaw
 				: toBase(item.price_list_rate);
-			const baseDiscountRaw = Number.parseFloat(item.base_discount_amount);
+			const baseDiscountRaw = Number.parseFloat(
+				item.base_discount_amount,
+			);
 			const baseDiscount = Number.isFinite(baseDiscountRaw)
 				? baseDiscountRaw
 				: toBase(item.discount_amount);
 			const stockQty = _resolvePricingQty(context, item);
-			const conversionFactor = Number.parseFloat(item.conversion_factor || 1);
+			const conversionFactor = Number.parseFloat(
+				item.conversion_factor || 1,
+			);
 
 			return {
 				posa_row_id: item.posa_row_id,
@@ -434,11 +502,14 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 				stock_qty: Number.isFinite(stockQty) ? stockQty : undefined,
 				base_qty: Number.isFinite(stockQty) ? stockQty : undefined,
 				conversion_factor:
-					Number.isFinite(conversionFactor) && conversionFactor > 0 ? conversionFactor : undefined,
+					Number.isFinite(conversionFactor) && conversionFactor > 0
+						? conversionFactor
+						: undefined,
 				rate: baseRate || 0,
 				price_list_rate: basePriceListRate || 0,
 				discount_amount: baseDiscount || 0,
-				discount_percentage: Number.parseFloat(item.discount_percentage || 0) || 0,
+				discount_percentage:
+					Number.parseFloat(item.discount_percentage || 0) || 0,
 				warehouse: item.warehouse,
 				uom: item.uom,
 				item_group: item.item_group,
@@ -466,7 +537,9 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			stock_qty: Number.isFinite(Number.parseFloat(item.stock_qty))
 				? Number.parseFloat(item.stock_qty)
 				: undefined,
-			conversion_factor: Number.isFinite(Number.parseFloat(item.conversion_factor || 1))
+			conversion_factor: Number.isFinite(
+				Number.parseFloat(item.conversion_factor || 1),
+			)
 				? Number.parseFloat(item.conversion_factor || 1)
 				: undefined,
 		}));
@@ -484,24 +557,38 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 
 	const message = response?.message || {};
 	const updates = Array.isArray(message.updates) ? message.updates : [];
-	const serverFree = Array.isArray(message.free_lines) ? message.free_lines : [];
+	const serverFree = Array.isArray(message.free_lines)
+		? message.free_lines
+		: [];
 	const invoiceUpdates = message.invoice_updates || {};
 
 	const hasDiscountUpdate =
 		invoiceUpdates &&
-		(Object.prototype.hasOwnProperty.call(invoiceUpdates, "discount_amount") ||
-			Object.prototype.hasOwnProperty.call(invoiceUpdates, "additional_discount_percentage"));
+		(Object.prototype.hasOwnProperty.call(
+			invoiceUpdates,
+			"discount_amount",
+		) ||
+			Object.prototype.hasOwnProperty.call(
+				invoiceUpdates,
+				"additional_discount_percentage",
+			));
 
-	const serverDiscountAmount = Number.parseFloat(invoiceUpdates.discount_amount || 0);
-	const serverDiscountPercentage = Number.parseFloat(invoiceUpdates.additional_discount_percentage || 0);
+	const serverDiscountAmount = Number.parseFloat(
+		invoiceUpdates.discount_amount || 0,
+	);
+	const serverDiscountPercentage = Number.parseFloat(
+		invoiceUpdates.additional_discount_percentage || 0,
+	);
 	const serverRules = invoiceUpdates.pricing_rules;
 
 	if (hasDiscountUpdate) {
 		if (context.pos_profile?.posa_use_percentage_discount) {
 			if (serverDiscountPercentage > 0) {
-				context.additional_discount_percentage = serverDiscountPercentage;
+				context.additional_discount_percentage =
+					serverDiscountPercentage;
 			} else if (serverDiscountAmount > 0 && context.Total > 0) {
-				context.additional_discount_percentage = (serverDiscountAmount / context.Total) * 100;
+				context.additional_discount_percentage =
+					(serverDiscountAmount / context.Total) * 100;
 			} else {
 				context.additional_discount_percentage = 0;
 			}
@@ -517,7 +604,9 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		if (context.invoice_doc) {
 			context.invoice_doc.pricing_rules = serverRules || null;
 		} else {
-			context.invoiceStore?.mergeInvoiceDoc({ pricing_rules: serverRules || null });
+			context.invoiceStore?.mergeInvoiceDoc({
+				pricing_rules: serverRules || null,
+			});
 		}
 	}
 
@@ -535,22 +624,35 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		const keyBase = `${ruleName || ""}::${entry.item_code}`;
 
 		const fallbackSnapshot =
-			existingFreebieSnapshots.get(parentRowId ? `${keyBase}::${parentRowId}` : keyBase) ||
+			existingFreebieSnapshots.get(
+				parentRowId ? `${keyBase}::${parentRowId}` : keyBase,
+			) ||
 			existingFreebieSnapshots.get(keyBase) ||
 			null;
 
-		const normalizedParentRowId = parentRowId || fallbackSnapshot?.parentRowId || null;
-		const key = normalizedParentRowId ? `${keyBase}::${normalizedParentRowId}` : keyBase;
+		const normalizedParentRowId =
+			parentRowId || fallbackSnapshot?.parentRowId || null;
+		const key = normalizedParentRowId
+			? `${keyBase}::${normalizedParentRowId}`
+			: keyBase;
 
 		const qtyRaw = parseServerFloat(entry.qty);
-		const qty = resolveWithFallback(qtyRaw, fallbackSnapshot?.qty, false) ?? 0;
+		const qty =
+			resolveWithFallback(qtyRaw, fallbackSnapshot?.qty, false) ?? 0;
 
-		const stockQtyRaw = parseServerFloat(entry.stock_qty ?? entry.base_qty ?? entry.qty);
+		const stockQtyRaw = parseServerFloat(
+			entry.stock_qty ?? entry.base_qty ?? entry.qty,
+		);
 		const stockQty =
-			resolveWithFallback(stockQtyRaw, fallbackSnapshot?.stock_qty ?? fallbackSnapshot?.qty, false) ??
-			qty;
+			resolveWithFallback(
+				stockQtyRaw,
+				fallbackSnapshot?.stock_qty ?? fallbackSnapshot?.qty,
+				false,
+			) ?? qty;
 
-		const conversionFactorRaw = parseServerFloat(entry.conversion_factor ?? entry.cf);
+		const conversionFactorRaw = parseServerFloat(
+			entry.conversion_factor ?? entry.cf,
+		);
 		const conversionFactor = resolveWithFallback(
 			conversionFactorRaw,
 			fallbackSnapshot?.conversion_factor,
@@ -562,11 +664,18 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			fallbackSnapshot?.base_rate ?? fallbackSnapshot?.rate,
 			true,
 		);
-		let displayRate = resolveWithFallback(parseServerFloat(entry.rate), fallbackSnapshot?.rate, true);
+		let displayRate = resolveWithFallback(
+			parseServerFloat(entry.rate),
+			fallbackSnapshot?.rate,
+			true,
+		);
 
 		let basePriceListRate = resolveWithFallback(
-			parseServerFloat(entry.base_price_list_rate ?? entry.price_list_rate),
-			fallbackSnapshot?.base_price_list_rate ?? fallbackSnapshot?.price_list_rate,
+			parseServerFloat(
+				entry.base_price_list_rate ?? entry.price_list_rate,
+			),
+			fallbackSnapshot?.base_price_list_rate ??
+				fallbackSnapshot?.price_list_rate,
 			true,
 		);
 		let displayPriceListRate = resolveWithFallback(
@@ -576,8 +685,11 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		);
 
 		let baseDiscount = resolveWithFallback(
-			parseServerFloat(entry.base_discount_amount ?? entry.discount_amount),
-			fallbackSnapshot?.base_discount_amount ?? fallbackSnapshot?.discount_amount,
+			parseServerFloat(
+				entry.base_discount_amount ?? entry.discount_amount,
+			),
+			fallbackSnapshot?.base_discount_amount ??
+				fallbackSnapshot?.discount_amount,
 			true,
 		);
 		let discountAmount = resolveWithFallback(
@@ -598,10 +710,16 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			displayRate = baseRate;
 		}
 
-		if (!Number.isFinite(basePriceListRate) && Number.isFinite(displayPriceListRate)) {
+		if (
+			!Number.isFinite(basePriceListRate) &&
+			Number.isFinite(displayPriceListRate)
+		) {
 			basePriceListRate = displayPriceListRate;
 		}
-		if (!Number.isFinite(displayPriceListRate) && Number.isFinite(basePriceListRate)) {
+		if (
+			!Number.isFinite(displayPriceListRate) &&
+			Number.isFinite(basePriceListRate)
+		) {
 			displayPriceListRate = basePriceListRate;
 		}
 
@@ -618,12 +736,17 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			Number.isFinite(basePriceListRate) &&
 			basePriceListRate
 		) {
-			discountPercentage = Math.max((baseDiscount / basePriceListRate) * 100, 0);
+			discountPercentage = Math.max(
+				(baseDiscount / basePriceListRate) * 100,
+				0,
+			);
 		}
 
 		const sameItem =
 			asServerBool(entry.same_item) ||
-			(!!fallbackSnapshot && (fallbackSnapshot.same_item === 1 || fallbackSnapshot.same_item === true));
+			(!!fallbackSnapshot &&
+				(fallbackSnapshot.same_item === 1 ||
+					fallbackSnapshot.same_item === true));
 
 		const uom = entry.uom || fallbackSnapshot?.uom;
 
@@ -634,20 +757,33 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			parentRowId: normalizedParentRowId,
 			uom,
 			stock_qty: stockQty,
-			conversion_factor: Number.isFinite(conversionFactor) ? conversionFactor : undefined,
+			conversion_factor: Number.isFinite(conversionFactor)
+				? conversionFactor
+				: undefined,
 			...(sameItem ? { same_item: 1 } : {}),
 			...(Number.isFinite(baseRate) ? { base_rate: baseRate } : {}),
 			...(Number.isFinite(displayRate) ? { rate: displayRate } : {}),
-			...(Number.isFinite(basePriceListRate) ? { base_price_list_rate: basePriceListRate } : {}),
-			...(Number.isFinite(displayPriceListRate) ? { price_list_rate: displayPriceListRate } : {}),
-			...(Number.isFinite(baseDiscount) ? { base_discount_amount: baseDiscount } : {}),
-			...(Number.isFinite(discountAmount) ? { discount_amount: discountAmount } : {}),
-			...(Number.isFinite(discountPercentage) ? { discount_percentage: discountPercentage } : {}),
+			...(Number.isFinite(basePriceListRate)
+				? { base_price_list_rate: basePriceListRate }
+				: {}),
+			...(Number.isFinite(displayPriceListRate)
+				? { price_list_rate: displayPriceListRate }
+				: {}),
+			...(Number.isFinite(baseDiscount)
+				? { base_discount_amount: baseDiscount }
+				: {}),
+			...(Number.isFinite(discountAmount)
+				? { discount_amount: discountAmount }
+				: {}),
+			...(Number.isFinite(discountPercentage)
+				? { discount_percentage: discountPercentage }
+				: {}),
 		});
 
 		if (sameItem) {
 			if (normalizedParentRowId) {
-				const bucket = sameItemFreeParents.get(normalizedParentRowId) || new Set();
+				const bucket =
+					sameItemFreeParents.get(normalizedParentRowId) || new Set();
 				bucket.add(entry.item_code);
 				sameItemFreeParents.set(normalizedParentRowId, bucket);
 			} else {
@@ -670,12 +806,20 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			return;
 		}
 
-		const baseRate = Number.parseFloat(update.rate ?? item.base_rate ?? 0) || 0;
+		const baseRate =
+			Number.parseFloat(update.rate ?? item.base_rate ?? 0) || 0;
 		const basePriceListRate =
-			Number.parseFloat(update.price_list_rate ?? item.base_price_list_rate ?? 0) || 0;
-		const baseDiscount = Number.parseFloat(update.discount_amount ?? item.base_discount_amount ?? 0) || 0;
+			Number.parseFloat(
+				update.price_list_rate ?? item.base_price_list_rate ?? 0,
+			) || 0;
+		const baseDiscount =
+			Number.parseFloat(
+				update.discount_amount ?? item.base_discount_amount ?? 0,
+			) || 0;
 		const discountPercentage =
-			Number.parseFloat(update.discount_percentage ?? item.discount_percentage ?? 0) || 0;
+			Number.parseFloat(
+				update.discount_percentage ?? item.discount_percentage ?? 0,
+			) || 0;
 
 		const manualFromUom = item._manual_rate_set_from_uom === true;
 		const manualOverride = item._manual_rate_set === true && !manualFromUom;
@@ -685,38 +829,53 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			item.posa_offer_applied === 1 ||
 			item.posa_offer_applied === "1";
 
-		let allowServerRateUpdate = !manualOverride && !priceLocked && !offerApplied;
+		let allowServerRateUpdate =
+			!manualOverride && !priceLocked && !offerApplied;
 
 		if (allowServerRateUpdate) {
 			const parentKey = item.posa_row_id || item.name || targetId || null;
 			const sameItemCodes =
-				parentKey && sameItemFreeParents.has(parentKey) ? sameItemFreeParents.get(parentKey) : null;
-			let hasSameItemFree = sameItemCodes instanceof Set && sameItemCodes.has(item.item_code);
+				parentKey && sameItemFreeParents.has(parentKey)
+					? sameItemFreeParents.get(parentKey)
+					: null;
+			let hasSameItemFree =
+				sameItemCodes instanceof Set &&
+				sameItemCodes.has(item.item_code);
 			if (!hasSameItemFree && sameItemFreeCodes.has(item.item_code)) {
 				hasSameItemFree = true;
 			}
-			const originalBaseRate = Number.isFinite(Number.parseFloat(item.base_rate))
+			const originalBaseRate = Number.isFinite(
+				Number.parseFloat(item.base_rate),
+			)
 				? Number.parseFloat(item.base_rate)
 				: toBase(item.rate);
-			const originalBasePriceList = Number.isFinite(Number.parseFloat(item.base_price_list_rate))
+			const originalBasePriceList = Number.isFinite(
+				Number.parseFloat(item.base_price_list_rate),
+			)
 				? Number.parseFloat(item.base_price_list_rate)
 				: toBase(item.price_list_rate);
-			const originalBaseDiscount = Number.isFinite(Number.parseFloat(item.base_discount_amount))
+			const originalBaseDiscount = Number.isFinite(
+				Number.parseFloat(item.base_discount_amount),
+			)
 				? Number.parseFloat(item.base_discount_amount)
 				: toBase(item.discount_amount);
 			const epsilon = 1e-6;
 			const zeroRateFromServer = basePriceListRate > 0 && baseRate <= 0;
-			const zeroPriceListFromServer = !Number.isFinite(basePriceListRate) || basePriceListRate <= 0;
+			const zeroPriceListFromServer =
+				!Number.isFinite(basePriceListRate) || basePriceListRate <= 0;
 			const serverRemovedPriceList =
-				zeroPriceListFromServer && Number.isFinite(originalBasePriceList)
+				zeroPriceListFromServer &&
+				Number.isFinite(originalBasePriceList)
 					? originalBasePriceList > 0
 					: false;
 			const serverRemovedDiscount =
-				(!Number.isFinite(baseDiscount) || baseDiscount <= 0) && Number.isFinite(originalBaseDiscount)
+				(!Number.isFinite(baseDiscount) || baseDiscount <= 0) &&
+				Number.isFinite(originalBaseDiscount)
 					? originalBaseDiscount > 0
 					: false;
 			const serverRemovedPercentage =
-				(!Number.isFinite(discountPercentage) || discountPercentage <= 0) &&
+				(!Number.isFinite(discountPercentage) ||
+					discountPercentage <= 0) &&
 				Number.isFinite(originalBaseDiscount) &&
 				Number.isFinite(originalBasePriceList) &&
 				originalBasePriceList > 0
@@ -744,7 +903,9 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			if (
 				hasSameItemFree &&
 				originalBaseRate > 0 &&
-				(serverZeroedValues || serverFullDiscount || fallbackFullDiscount)
+				(serverZeroedValues ||
+					serverFullDiscount ||
+					fallbackFullDiscount)
 			) {
 				allowServerRateUpdate = false;
 			}
@@ -759,21 +920,31 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 			item.base_price_list_rate = basePriceListRate;
 			item.base_discount_amount = baseDiscount;
 			item.discount_percentage = discountPercentage;
-			item.rate = context.flt ? context.flt(convertedRate, precision) : convertedRate;
+			item.rate = context.flt
+				? context.flt(convertedRate, precision)
+				: convertedRate;
 			item.price_list_rate = context.flt
 				? context.flt(convertedPriceListRate, precision)
 				: convertedPriceListRate;
 			item.discount_amount = context.flt
 				? context.flt(convertedDiscount, precision)
 				: convertedDiscount;
-			item.amount = context.flt ? context.flt(item.rate * item.qty, precision) : item.rate * item.qty;
+			item.amount = context.flt
+				? context.flt(item.rate * item.qty, precision)
+				: item.rate * item.qty;
 			item.base_amount = context.flt
 				? context.flt(baseRate * item.qty, precision)
 				: baseRate * item.qty;
 		}
 
-		const rulesProvided = Object.prototype.hasOwnProperty.call(update, "pricing_rules");
-		const detailsProvided = Object.prototype.hasOwnProperty.call(update, "pricing_rule_details");
+		const rulesProvided = Object.prototype.hasOwnProperty.call(
+			update,
+			"pricing_rules",
+		);
+		const detailsProvided = Object.prototype.hasOwnProperty.call(
+			update,
+			"pricing_rule_details",
+		);
 
 		const appliedRules = rulesProvided
 			? Array.isArray(update.pricing_rules)
@@ -793,7 +964,11 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 					if (typeof detail === "string") {
 						return { name: detail };
 					}
-					const name = detail.name || detail.pricing_rule || detail.rule || null;
+					const name =
+						detail.name ||
+						detail.pricing_rule ||
+						detail.rule ||
+						null;
 					if (!name) {
 						return null;
 					}
@@ -802,7 +977,9 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 				})
 				.filter((detail) => !!detail);
 		} else if (!rulesProvided && Array.isArray(item.pricing_rule_details)) {
-			detailed = item.pricing_rule_details.map((detail) => ({ ...detail }));
+			detailed = item.pricing_rule_details.map((detail) => ({
+				...detail,
+			}));
 		} else {
 			detailed = appliedRules.map((name) => ({ name }));
 		}

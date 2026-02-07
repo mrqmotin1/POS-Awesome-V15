@@ -1,11 +1,39 @@
-import renderOfflineInvoiceHTML from "../../offline_print_template.js";
+import renderOfflineInvoiceHTML from "../../offline_print_template";
+
+interface PrintDebugInfo {
+	printFormat?: string;
+	templatePath?: string;
+}
+
+interface PrintOptions {
+	triggerPrint?: string | number | null;
+	debugPrint?: boolean;
+	selectors?: string[] | string;
+	timeout?: number;
+	invoiceDoc?: any;
+	allowOfflineFallback?: boolean;
+	shouldPrint?: boolean;
+	showSessionMessage?: boolean;
+	debugInfo?: PrintDebugInfo;
+}
+
+interface PrintDebugPayload {
+	debugPrint: boolean;
+	location?: string | null;
+	online: boolean;
+	triggerPrint: string | null;
+	printFormat?: string | null;
+	templatePath?: string | null;
+	shouldPrint: boolean;
+	note?: string;
+}
 
 const DEFAULT_READY_SELECTORS = ["#print-view", ".print-format"];
 const DEFAULT_TIMEOUT = 10000;
 const DEBUG_PRINT_PARAM = "debug_print";
 const TRIGGER_PRINT_PARAM = "trigger_print";
 
-function getWindowHref(targetWindow) {
+function getWindowHref(targetWindow: Window | null | undefined) {
 	try {
 		return targetWindow?.location?.href || "";
 	} catch {
@@ -13,7 +41,7 @@ function getWindowHref(targetWindow) {
 	}
 }
 
-function getSearchParamFromHref(href, param) {
+function getSearchParamFromHref(href: string, param: string) {
 	if (!href) return null;
 	try {
 		const resolved = new URL(href, window.location.origin);
@@ -23,14 +51,23 @@ function getSearchParamFromHref(href, param) {
 	}
 }
 
-function resolveTriggerPrint(targetWindow, options = {}) {
+function resolveTriggerPrint(
+	targetWindow: Window | null | undefined,
+	options: PrintOptions = {},
+) {
 	if (options.triggerPrint !== undefined && options.triggerPrint !== null) {
 		return String(options.triggerPrint);
 	}
-	return getSearchParamFromHref(getWindowHref(targetWindow), TRIGGER_PRINT_PARAM);
+	return getSearchParamFromHref(
+		getWindowHref(targetWindow),
+		TRIGGER_PRINT_PARAM,
+	);
 }
 
-function resolveDebugPrint(targetWindow, options = {}) {
+function resolveDebugPrint(
+	targetWindow: Window | null | undefined,
+	options: PrintOptions = {},
+) {
 	if (typeof options.debugPrint === "boolean") {
 		return options.debugPrint;
 	}
@@ -41,7 +78,7 @@ function resolveDebugPrint(targetWindow, options = {}) {
 	return isDebugPrintEnabled();
 }
 
-function resolveOnlineStatus(targetWindow) {
+function resolveOnlineStatus(targetWindow: Window | null | undefined) {
 	try {
 		return Boolean(targetWindow?.navigator?.onLine);
 	} catch {
@@ -49,9 +86,9 @@ function resolveOnlineStatus(targetWindow) {
 	}
 }
 
-function logPrintDebug(details) {
+function logPrintDebug(details: PrintDebugPayload) {
 	if (!details?.debugPrint) return;
-	const payload = {
+	const payload: Record<string, unknown> = {
 		location: details.location || null,
 		online: details.online,
 		trigger_print: details.triggerPrint,
@@ -65,20 +102,22 @@ function logPrintDebug(details) {
 	console.log("[POSAwesome][Print Debug]", payload);
 }
 
-function isLoginRedirect(targetWindow) {
+function isLoginRedirect(targetWindow: Window | null | undefined) {
 	try {
 		const path = targetWindow?.location?.pathname || "";
 		if (path.includes("login")) return true;
 		const title = targetWindow?.document?.title || "";
 		if (/login|session/i.test(title)) return true;
-		const loginForm = targetWindow?.document?.querySelector("form[action*='login']");
+		const loginForm = targetWindow?.document?.querySelector(
+			"form[action*='login']",
+		);
 		return Boolean(loginForm);
 	} catch {
 		return false;
 	}
 }
 
-function showSessionMessage(targetWindow) {
+function showSessionMessage(targetWindow: Window | null | undefined) {
 	if (!targetWindow) return;
 	try {
 		const message =
@@ -97,8 +136,12 @@ function showSessionMessage(targetWindow) {
 	}
 }
 
-function waitForDocumentSelectors(targetWindow, selectors, timeout) {
-	return new Promise((resolve, reject) => {
+function waitForDocumentSelectors(
+	targetWindow: Window | null | undefined,
+	selectors: string[],
+	timeout: number,
+) {
+	return new Promise<void>((resolve, reject) => {
 		if (!targetWindow) {
 			reject(new Error("No print target available"));
 			return;
@@ -118,10 +161,10 @@ function waitForDocumentSelectors(targetWindow, selectors, timeout) {
 		}
 
 		let completed = false;
-		let observer;
-		let interval;
-		let timer;
-		let handleUnload;
+		let observer: MutationObserver | null = null;
+		let interval: ReturnType<typeof setInterval> | null = null;
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		let handleUnload: (() => void) | null = null;
 
 		const cleanup = () => {
 			if (observer) observer.disconnect();
@@ -129,14 +172,20 @@ function waitForDocumentSelectors(targetWindow, selectors, timeout) {
 			if (timer) clearTimeout(timer);
 			if (handleUnload) {
 				try {
-					targetWindow.removeEventListener("beforeunload", handleUnload);
+					targetWindow.removeEventListener(
+						"beforeunload",
+						handleUnload,
+					);
 				} catch (err) {
-					console.warn("Failed to remove unload handler from print target", err);
+					console.warn(
+						"Failed to remove unload handler from print target",
+						err,
+					);
 				}
 			}
 		};
 
-		const finish = (err) => {
+		const finish = (err?: unknown) => {
 			if (completed) return;
 			completed = true;
 			cleanup();
@@ -149,7 +198,9 @@ function waitForDocumentSelectors(targetWindow, selectors, timeout) {
 
 		const isReady = () => {
 			try {
-				return selectors.some((selector) => doc.querySelector(selector));
+				return selectors.some((selector) =>
+					doc.querySelector(selector),
+				);
 			} catch (err) {
 				console.warn("Failed to query print selector", err);
 				return false;
@@ -194,14 +245,23 @@ function waitForDocumentSelectors(targetWindow, selectors, timeout) {
 		}, timeout);
 
 		try {
-			targetWindow.addEventListener("beforeunload", handleUnload, { once: true });
+			targetWindow.addEventListener("beforeunload", handleUnload, {
+				once: true,
+			});
 		} catch (err) {
-			console.warn("Failed to attach unload handler to print target", err);
+			console.warn(
+				"Failed to attach unload handler to print target",
+				err,
+			);
 		}
 	});
 }
 
-async function fallbackToOfflinePrint(invoiceDoc, existingWindow, options = {}) {
+async function fallbackToOfflinePrint(
+	invoiceDoc: any,
+	existingWindow: Window | null | undefined,
+	options: PrintOptions = {},
+) {
 	if (!invoiceDoc) {
 		return false;
 	}
@@ -212,12 +272,16 @@ async function fallbackToOfflinePrint(invoiceDoc, existingWindow, options = {}) 
 			return false;
 		}
 
-		let target = existingWindow && !existingWindow.closed ? existingWindow : null;
+		let target: Window | null =
+			existingWindow && !existingWindow.closed ? existingWindow : null;
 		if (target) {
 			try {
 				target.document.open();
 			} catch (err) {
-				console.warn("Failed to reuse print window for offline fallback", err);
+				console.warn(
+					"Failed to reuse print window for offline fallback",
+					err,
+				);
 				target = null;
 			}
 		}
@@ -253,7 +317,10 @@ async function fallbackToOfflinePrint(invoiceDoc, existingWindow, options = {}) 
 	}
 }
 
-async function ensureReadyAndPrint(targetWindow, options = {}) {
+async function ensureReadyAndPrint(
+	targetWindow: Window | null | undefined,
+	options: PrintOptions = {},
+) {
 	if (!targetWindow) {
 		return;
 	}
@@ -266,7 +333,9 @@ async function ensureReadyAndPrint(targetWindow, options = {}) {
 		shouldPrint = true,
 	} = options;
 
-	const readySelectors = Array.isArray(selectors) ? selectors.filter(Boolean) : [selectors].filter(Boolean);
+	const readySelectors = Array.isArray(selectors)
+		? selectors.filter(Boolean)
+		: [selectors].filter(Boolean);
 	const resolvedDebugPrint = resolveDebugPrint(targetWindow, options);
 	const resolvedOnline = resolveOnlineStatus(targetWindow);
 	const resolvePrintState = () => {
@@ -330,23 +399,33 @@ async function ensureReadyAndPrint(targetWindow, options = {}) {
 		}
 		let usedFallback = false;
 		if (allowOfflineFallback && invoiceDoc) {
-			usedFallback = await fallbackToOfflinePrint(invoiceDoc, targetWindow, {
-				...options,
-				shouldPrint: resolvedShouldPrint,
-			});
+			usedFallback = await fallbackToOfflinePrint(
+				invoiceDoc,
+				targetWindow,
+				{
+					...options,
+					shouldPrint: resolvedShouldPrint,
+				},
+			);
 		}
 		if (!usedFallback && resolvedShouldPrint) {
 			try {
 				targetWindow.focus();
 				targetWindow.print();
 			} catch (printErr) {
-				console.error("Printing failed after readiness check error", printErr);
+				console.error(
+					"Printing failed after readiness check error",
+					printErr,
+				);
 			}
 		}
 	}
 }
 
-export function watchPrintWindow(printWindow, options = {}) {
+export function watchPrintWindow(
+	printWindow: Window | null | undefined,
+	options: PrintOptions = {},
+) {
 	if (!printWindow) {
 		return;
 	}
@@ -368,7 +447,7 @@ export function watchPrintWindow(printWindow, options = {}) {
 	}
 }
 
-export function silentPrint(url, options = {}) {
+export function silentPrint(url: string, options: PrintOptions = {}) {
 	if (!url) return;
 	try {
 		const iframe = document.createElement("iframe");
@@ -381,7 +460,9 @@ export function silentPrint(url, options = {}) {
 		iframe.onload = () => {
 			const contentWindow = iframe.contentWindow;
 			const cleanup = () => setTimeout(() => iframe.remove(), 1000);
-			Promise.resolve(ensureReadyAndPrint(contentWindow, options)).finally(cleanup);
+			Promise.resolve(
+				ensureReadyAndPrint(contentWindow, options),
+			).finally(cleanup);
 		};
 		iframe.src = url;
 		document.body.appendChild(iframe);
@@ -394,7 +475,9 @@ export function silentPrint(url, options = {}) {
 	}
 }
 
-export function isDebugPrintEnabled(sourceWindow = window) {
+export function isDebugPrintEnabled(
+	sourceWindow: Window | null | undefined = window,
+) {
 	try {
 		const href = sourceWindow?.location?.href || "";
 		return getSearchParamFromHref(href, DEBUG_PRINT_PARAM) === "1";
@@ -403,7 +486,10 @@ export function isDebugPrintEnabled(sourceWindow = window) {
 	}
 }
 
-export function appendDebugPrintParam(url, debugEnabled = isDebugPrintEnabled()) {
+export function appendDebugPrintParam(
+	url: string,
+	debugEnabled = isDebugPrintEnabled(),
+) {
 	if (!url || !debugEnabled) {
 		return url;
 	}
