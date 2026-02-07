@@ -1,20 +1,20 @@
 import { debounce } from "lodash";
 
-import * as Tasks from "./invoice_utils/tasks.js";
-import * as Currency from "./invoice_utils/currency.js";
-import * as Cache from "./invoice_utils/cache.js";
-import * as Loader from "./invoice_utils/loader.js";
-import * as Document from "./invoice_utils/document.js";
-import * as Pricing from "./invoice_utils/pricing.js";
-import * as FreeItems from "./invoice_utils/free_items.js";
-import * as Actions from "./invoice_utils/actions.js";
-import * as Validation from "./invoice_utils/validation.js";
-import * as ItemUpdates from "./invoice_utils/item_updates.js";
-import * as Customer from "./invoice_utils/customer.js";
-import * as Server from "./invoice_utils/server.js";
-import * as Dialogs from "./invoice_utils/dialogs.js";
-import * as Stock from "./invoice_utils/stock.js";
-import * as Discounts from "./invoice_utils/discounts.js";
+import * as Tasks from "./invoice_utils/tasks";
+import * as Currency from "./invoice_utils/currency";
+import * as Cache from "./invoice_utils/cache";
+import * as Loader from "./invoice_utils/loader";
+import * as Document from "./invoice_utils/document";
+import * as Pricing from "./invoice_utils/pricing";
+import * as FreeItems from "./invoice_utils/free_items";
+import * as Actions from "./invoice_utils/actions";
+import * as Validation from "./invoice_utils/validation";
+import * as ItemUpdates from "./invoice_utils/item_updates";
+import * as Customer from "./invoice_utils/customer";
+import * as Server from "./invoice_utils/server";
+import * as Dialogs from "./invoice_utils/dialogs";
+import * as Stock from "./invoice_utils/stock";
+import * as Discounts from "./invoice_utils/discounts";
 
 interface InvoiceItemMethodsVm {
 	applyPricingRulesForCart: (_force?: boolean) => void;
