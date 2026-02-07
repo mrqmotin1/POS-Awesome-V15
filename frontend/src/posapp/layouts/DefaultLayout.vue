@@ -354,26 +354,21 @@ const initializeData = async () => {
 const setupEventListeners = () => {
 	// Listen for POS profile registration
 	if (eventBus) {
-		// Event listener removed - using uiStore now.
-		// Keeping legacy code for reference if needed during migration phases but commenting it out.
-		/*
-		eventBus.on("register_pos_profile", (data) => {
-			posProfile.value = data.pos_profile || {};
-			if (navigator.onLine) {
-				refreshTaxInclusiveSetting();
-			}
-		});
-		*/
-
-		// Watch posProfile changes from store to refresh settings
+		// Watch for POS profile becoming available to trigger customer load
 		watch(
 			posProfile,
 			(newProfile) => {
-				if (newProfile && newProfile.name && navigator.onLine) {
-					refreshTaxInclusiveSetting();
+				if (newProfile && newProfile.name) {
+					// Update customers store with profile
+					customersStore.setPosProfile(newProfile);
+					
+					if (navigator.onLine && !getIsManualOffline()) {
+						refreshTaxInclusiveSetting();
+						customersStore.get_customer_names();
+					}
 				}
 			},
-			{ deep: true },
+			{ deep: true, immediate: true },
 		);
 
 		// Track last submitted invoice id
