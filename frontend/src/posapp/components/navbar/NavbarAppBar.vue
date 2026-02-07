@@ -1,6 +1,5 @@
 <template>
 	<v-app-bar
-		app
 		flat
 		:height="isMobile ? 64 : 56"
 		:class="[
@@ -78,7 +77,7 @@
 						:aria-label="__('View offline invoices') + ` (${pendingInvoices})`"
 						@click="$emit('show-offline-invoices')"
 					>
-						<v-badge v-if="pendingInvoices > 0" :content="pendingInvoices" color="error" overlap>
+						<v-badge v-if="pendingInvoices > 0" :content="pendingInvoices" color="error" floating>
 							<v-icon class="pos-text-primary">mdi-file-document-multiple-outline</v-icon>
 						</v-badge>
 						<v-icon v-else class="pos-text-primary">mdi-file-document-multiple-outline</v-icon>
@@ -165,7 +164,7 @@
 						@keydown.enter="$emit('show-offline-invoices')"
 						tabindex="0"
 					>
-						<v-badge v-if="pendingInvoices > 0" :content="pendingInvoices" color="error" overlap>
+						<v-badge v-if="pendingInvoices > 0" :content="pendingInvoices" color="error" floating>
 							<v-icon class="pos-text-primary">mdi-file-document-multiple-outline</v-icon>
 						</v-badge>
 						<v-icon v-else class="pos-text-primary">mdi-file-document-multiple-outline</v-icon>

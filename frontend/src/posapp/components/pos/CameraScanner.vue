@@ -331,29 +331,31 @@ const opencvTrackFunction = (detectedCodes, ctx) => {
 	if (isProcessing.value) return Promise.resolve(detectedCodes);
 	isProcessing.value = true;
 
-	return new Promise(async (resolve) => {
-		try {
-			const canvas = ctx.canvas;
+	return new Promise((resolve) => {
+		const processFrame = async () => {
+			try {
+				const canvas = ctx.canvas;
 
-			if (frameSkipCounter.value > 0) {
-				frameSkipCounter.value--;
-				isProcessing.value = false;
+				if (frameSkipCounter.value > 0) {
+					frameSkipCounter.value--;
+					resolve(detectedCodes);
+					return;
+				}
+				frameSkipCounter.value = 2; // process every 3rd frame
+
+				const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+				const processedImageData = await opencvProcessor.quickProcess(imageData);
+				ctx.putImageData(processedImageData, 0, 0);
 				resolve(detectedCodes);
-				return;
+			} catch (error) {
+				console.warn("OpenCV processing failed:", error);
+				resolve(detectedCodes);
+			} finally {
+				isProcessing.value = false;
 			}
-			frameSkipCounter.value = 2; // process every 3rd frame
+		};
 
-			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-			const processedImageData = await opencvProcessor.quickProcess(imageData);
-			ctx.putImageData(processedImageData, 0, 0);
-
-			isProcessing.value = false;
-			resolve(detectedCodes);
-		} catch (error) {
-			console.warn("OpenCV processing failed:", error);
-			isProcessing.value = false;
-			resolve(detectedCodes);
-		}
+		processFrame();
 	});
 };
 

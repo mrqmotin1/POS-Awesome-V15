@@ -2,11 +2,10 @@
 	<v-snackbar
 		:model-value="true"
 		v-if="visible"
-		class="pos-update-snackbar"
+		class="pos-update-snackbar elevation-8"
 		:location="isRtl ? 'bottom left' : 'bottom right'"
 		:timeout="-1"
 		color="primary"
-		elevation="8"
 	>
 		<div class="pos-update-message">
 			<v-icon size="20" class="mr-2">mdi-alert-decagram</v-icon>

@@ -390,13 +390,6 @@ export default {
 			},
 		};
 	},
-	mounted() {
-		// Add window resize listener for responsive behavior
-		this.handleResize = () => {
-			this.windowWidth = window.innerWidth;
-		};
-		window.addEventListener("resize", this.handleResize);
-	},
 	beforeUnmount() {
 		// Clean up the event listener
 		window.removeEventListener("resize", this.handleResize);
@@ -444,7 +437,10 @@ export default {
 		},
 	},
 	async mounted() {
-		// Add window resize listener for responsive behavior (already added above)
+		this.handleResize = () => {
+			this.windowWidth = window.innerWidth;
+		};
+		window.addEventListener("resize", this.handleResize);
 		await this.initializeLanguage();
 		this.initializeWesternNumerals();
 	},

@@ -184,7 +184,7 @@
 								v-model="selected"
 								select-strategy="single"
 								return-object
-								:item-class="returnRowClass"
+								:row-props="returnRowProps"
 								:footer-props="{
 									'items-per-page-options': [10, 25, 50, 100],
 									'items-per-page-text': 'Invoices per page',
@@ -331,6 +331,10 @@ export default {
 		},
 	},
 	methods: {
+		returnRowProps({ item }) {
+			const rowClass = this.returnRowClass(item);
+			return rowClass ? { class: rowClass } : {};
+		},
 		returnRowClass(item) {
 			if (!item || typeof item !== "object") {
 				return "";

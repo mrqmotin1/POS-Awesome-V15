@@ -14,7 +14,7 @@
 						:model-value="unreadCount > 0"
 						:content="unreadCount"
 						color="error"
-						overlap
+						floating
 						v-if="notifications.length"
 					>
 						<v-icon class="pos-text-primary">mdi-bell-outline</v-icon>
@@ -26,7 +26,7 @@
 			<v-card class="pos-themed-card notification-card" elevation="12">
 				<div class="notification-card__header">
 					<div class="header-text">
-						<div class="title">{{ __("Notifications") }}</div>
+						<div class="notification-heading">{{ __("Notifications") }}</div>
 						<div class="subtitle">
 							{{
 								notifications.length
@@ -158,7 +158,7 @@ function formatTimestamp(ts: string | number | Date) {
 	padding: 12px 16px;
 }
 
-.header-text .title {
+.header-text .notification-heading {
 	font-weight: 700;
 	font-size: 1rem;
 }

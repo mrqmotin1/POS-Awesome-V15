@@ -255,7 +255,6 @@ export function get_invoice_doc(context) {
 
 	// Preserve the real price list currency
 	doc.price_list_currency = context.price_list_currency;
-	doc.plc_conversion_rate = doc.plc_conversion_rate; // already calculated
 	doc.ignore_default_fields = 1; // Add this to prevent default field updates
 
 	// Add custom fields to track offer rates
@@ -309,7 +308,6 @@ export function get_invoice_doc(context) {
 export function get_invoice_items(context) {
 	const items_list = [];
 	const isReturn = context.isReturnInvoice;
-	const usesPosInvoice = context.pos_profile.create_pos_invoice_instead_of_sales_invoice;
 	const omitFreebies = !isOffline();
 
 	context.items.forEach((item) => {
