@@ -369,7 +369,13 @@ export const useCustomersStore = defineStore("customers", () => {
 			return;
 		}
 
-		const syncSince = getCustomersLastSync();
+		let syncSince = getCustomersLastSync();
+		// Ensure syncSince is a valid ISO string or null.
+		// Some backends might choke on empty string or "null" string.
+		if (!syncSince || syncSince === "null") {
+			syncSince = null;
+		}
+
 		loadProgress.value = 0;
 		loadingCustomers.value = true;
 		try {
