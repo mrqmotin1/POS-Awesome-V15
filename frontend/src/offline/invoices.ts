@@ -5,24 +5,50 @@ import { reduceCacheUsage } from "./cache";
 
 type AnyRecord = Record<string, any>;
 
+const asBoolean = (value: any): boolean => {
+	return (
+		value === true ||
+		value === 1 ||
+		value === "1" ||
+		value === "true" ||
+		value === "Yes" ||
+		value === "yes"
+	);
+};
+
 // Flag to avoid concurrent invoice syncs which can cause duplicate submissions
 let invoiceSyncInProgress = false;
 
 // Validate stock for offline invoice
 export function validateStockForOfflineInvoice(items: AnyRecord[]) {
-	const allowNegativeStock =
-		memory.pos_opening_storage?.stock_settings?.allow_negative_stock;
+	const openingStorage = memory.pos_opening_storage || {};
+	const stockSettings = openingStorage?.stock_settings || {};
+	const posProfile = openingStorage?.pos_profile || {};
+
+	const allowNegativeStock = asBoolean(stockSettings?.allow_negative_stock);
 	if (allowNegativeStock) {
 		return { isValid: true, invalidItems: [], errorMessage: "" };
 	}
+
+	const blockSaleBeyondAvailableQty = asBoolean(
+		posProfile?.posa_block_sale_beyond_available_qty,
+	);
 
 	const stockCache = memory.local_stock_cache || {};
 	const invalidItems: AnyRecord[] = [];
 
 	items.forEach((item) => {
+		if (asBoolean(item?.allow_negative_stock)) {
+			return;
+		}
+
 		const itemCode = item.item_code;
 		const requestedQty = Math.abs(item.qty || 0);
 		const currentStock = stockCache[itemCode]?.actual_qty || 0;
+
+		if (!blockSaleBeyondAvailableQty) {
+			return;
+		}
 
 		if (currentStock - requestedQty < 0) {
 			invalidItems.push({

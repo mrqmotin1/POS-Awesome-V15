@@ -1,4 +1,8 @@
-import { getTaxTemplate, getTaxInclusiveSetting, isOffline } from "../../../../offline/index";
+import {
+	getTaxTemplate,
+	getTaxInclusiveSetting,
+	isOffline,
+} from "../../../../offline/index";
 import { _getPlcConversionRate } from "./currency";
 
 declare const flt: (_value: unknown, _precision?: number) => number;
@@ -43,9 +47,14 @@ export function get_invoice_doc(context: any) {
 	// Always set these fields first
 	if (context.invoiceType === "Quotation") {
 		doc.doctype = "Quotation";
-	} else if (context.invoiceType === "Order" && context.pos_profile?.posa_create_only_sales_order) {
+	} else if (
+		context.invoiceType === "Order" &&
+		context.pos_profile?.posa_create_only_sales_order
+	) {
 		doc.doctype = "Sales Order";
-	} else if (context.pos_profile?.create_pos_invoice_instead_of_sales_invoice) {
+	} else if (
+		context.pos_profile?.create_pos_invoice_instead_of_sales_invoice
+	) {
 		doc.doctype = "POS Invoice";
 	} else {
 		doc.doctype = "Sales Invoice";
@@ -58,8 +67,12 @@ export function get_invoice_doc(context: any) {
 		context.pos_profile?.posa_show_custom_name_marker_on_print ?? null;
 
 	// Currency related fields
-	doc.currency = context.selected_currency || context.pos_profile?.currency || null;
-	doc.conversion_rate = (sourceDoc && sourceDoc.conversion_rate) || context.conversion_rate || 1;
+	doc.currency =
+		context.selected_currency || context.pos_profile?.currency || null;
+	doc.conversion_rate =
+		(sourceDoc && sourceDoc.conversion_rate) ||
+		context.conversion_rate ||
+		1;
 
 	// Use actual price list currency if available
 	doc.price_list_currency = context.price_list_currency;
@@ -67,11 +80,17 @@ export function get_invoice_doc(context: any) {
 
 	// Other fields
 	doc.campaign = doc.campaign || context.pos_profile?.campaign || null;
-	doc.selling_price_list = context.get_price_list ? context.get_price_list() : context.selected_price_list;
-	doc.naming_series = doc.naming_series || context.pos_profile?.naming_series || null;
+	doc.selling_price_list = context.get_price_list
+		? context.get_price_list()
+		: context.selected_price_list;
+	doc.naming_series =
+		doc.naming_series || context.pos_profile?.naming_series || null;
 	const customerDetails =
-		context.customer_info && typeof context.customer_info === "object" ? context.customer_info : {};
-	const resolvedCustomer = context.customer || customerDetails.customer || doc.customer || null;
+		context.customer_info && typeof context.customer_info === "object"
+			? context.customer_info
+			: {};
+	const resolvedCustomer =
+		context.customer || customerDetails.customer || doc.customer || null;
 	doc.customer = resolvedCustomer;
 	if (!doc.customer_name && customerDetails.customer_name) {
 		doc.customer_name = customerDetails.customer_name;
@@ -113,7 +132,8 @@ export function get_invoice_doc(context: any) {
 
 	// Apply discounts with correct sign for returns
 	let discountAmount = flt(context.additional_discount);
-	if (isReturn && discountAmount > 0) discountAmount = -Math.abs(discountAmount);
+	if (isReturn && discountAmount > 0)
+		discountAmount = -Math.abs(discountAmount);
 
 	doc.discount_amount = discountAmount;
 	doc.base_discount_amount = discountAmount * (context.conversion_rate || 1);
@@ -147,7 +167,8 @@ export function get_invoice_doc(context: any) {
 				included_in_print_rate: tax.included_in_print_rate || 0,
 				tax_amount: tax.tax_amount,
 				total: tax.total,
-				base_tax_amount: tax.tax_amount * (context.conversion_rate || 1),
+				base_tax_amount:
+					tax.tax_amount * (context.conversion_rate || 1),
 				base_total: tax.total * (context.conversion_rate || 1),
 			});
 		});
@@ -176,16 +197,19 @@ export function get_invoice_doc(context: any) {
 					charge_type: row.charge_type || "On Net Total",
 					description: row.description,
 					rate: row.rate,
-					included_in_print_rate: row.charge_type === "Actual" ? 0 : inclusive ? 1 : 0,
+					included_in_print_rate:
+						row.charge_type === "Actual" ? 0 : inclusive ? 1 : 0,
 					tax_amount: tax_amount,
 					total: runningTotal,
-					base_tax_amount: tax_amount * (context.conversion_rate || 1),
+					base_tax_amount:
+						tax_amount * (context.conversion_rate || 1),
 					base_total: runningTotal * (context.conversion_rate || 1),
 				});
 			});
 			if (inclusive) {
 				doc.net_total = doc.total - totalTax;
-				doc.base_net_total = doc.net_total * (context.conversion_rate || 1);
+				doc.base_net_total =
+					doc.net_total * (context.conversion_rate || 1);
 				grandTotal = doc.total;
 			} else {
 				grandTotal = runningTotal;
@@ -202,9 +226,14 @@ export function get_invoice_doc(context: any) {
 	// Apply rounding to get rounded total unless disabled in POS Profile
 	if (context.pos_profile.disable_rounded_total) {
 		doc.rounded_total = flt(grandTotal, context.currency_precision);
-		doc.base_rounded_total = flt(doc.base_grand_total, context.currency_precision);
+		doc.base_rounded_total = flt(
+			doc.base_grand_total,
+			context.currency_precision,
+		);
 	} else {
-		doc.rounded_total = context.roundAmount ? context.roundAmount(grandTotal) : Math.round(grandTotal);
+		doc.rounded_total = context.roundAmount
+			? context.roundAmount(grandTotal)
+			: Math.round(grandTotal);
 		doc.base_rounded_total = context.roundAmount
 			? context.roundAmount(doc.base_grand_total)
 			: Math.round(doc.base_grand_total);
@@ -223,19 +252,25 @@ export function get_invoice_doc(context: any) {
 
 		// Double-check all values are negative
 		if (doc.grand_total > 0) doc.grand_total = -Math.abs(doc.grand_total);
-		if (doc.base_grand_total > 0) doc.base_grand_total = -Math.abs(doc.base_grand_total);
-		if (doc.rounded_total > 0) doc.rounded_total = -Math.abs(doc.rounded_total);
-		if (doc.base_rounded_total > 0) doc.base_rounded_total = -Math.abs(doc.base_rounded_total);
+		if (doc.base_grand_total > 0)
+			doc.base_grand_total = -Math.abs(doc.base_grand_total);
+		if (doc.rounded_total > 0)
+			doc.rounded_total = -Math.abs(doc.rounded_total);
+		if (doc.base_rounded_total > 0)
+			doc.base_rounded_total = -Math.abs(doc.base_rounded_total);
 		if (doc.total > 0) doc.total = -Math.abs(doc.total);
 		if (doc.base_total > 0) doc.base_total = -Math.abs(doc.base_total);
 		if (doc.net_total > 0) doc.net_total = -Math.abs(doc.net_total);
-		if (doc.base_net_total > 0) doc.base_net_total = -Math.abs(doc.base_net_total);
+		if (doc.base_net_total > 0)
+			doc.base_net_total = -Math.abs(doc.base_net_total);
 
 		// Ensure payments have negative amounts
 		if (doc.payments && doc.payments.length) {
 			doc.payments.forEach((payment) => {
-				if (payment.amount > 0) payment.amount = -Math.abs(payment.amount);
-				if (payment.base_amount > 0) payment.base_amount = -Math.abs(payment.base_amount);
+				if (payment.amount > 0)
+					payment.amount = -Math.abs(payment.amount);
+				if (payment.base_amount > 0)
+					payment.base_amount = -Math.abs(payment.base_amount);
 			});
 		}
 	}
@@ -264,17 +299,23 @@ export function get_invoice_doc(context: any) {
 
 	// Calculate base amounts using the exchange rate
 	const companyCurrency =
-		(context.company && context.company.default_currency) || context.pos_profile?.currency || null;
+		(context.company && context.company.default_currency) ||
+		context.pos_profile?.currency ||
+		null;
 	if (context.selected_currency !== companyCurrency) {
 		// For returns, we need to ensure negative values
 		const multiplier = isReturn ? -1 : 1;
 
 		// Convert amounts back to the base currency
 		doc.base_total = total * (context.conversion_rate || 1) * multiplier;
-		doc.base_net_total = total * (context.conversion_rate || 1) * multiplier;
-		doc.base_discount_amount = discountAmount * (context.conversion_rate || 1) * multiplier;
-		doc.base_grand_total = grandTotal * (context.conversion_rate || 1) * multiplier;
-		doc.base_rounded_total = grandTotal * (context.conversion_rate || 1) * multiplier;
+		doc.base_net_total =
+			total * (context.conversion_rate || 1) * multiplier;
+		doc.base_discount_amount =
+			discountAmount * (context.conversion_rate || 1) * multiplier;
+		doc.base_grand_total =
+			grandTotal * (context.conversion_rate || 1) * multiplier;
+		doc.base_rounded_total =
+			grandTotal * (context.conversion_rate || 1) * multiplier;
 	} else {
 		// Same currency, just ensure negative values for returns
 		const multiplier = isReturn ? -1 : 1;
@@ -291,7 +332,8 @@ export function get_invoice_doc(context: any) {
 		doc.payments.forEach((payment) => {
 			if (context.selected_currency !== companyCurrency) {
 				// Convert payment amount to base currency
-				payment.base_amount = payment.amount * (context.conversion_rate || 1);
+				payment.base_amount =
+					payment.amount * (context.conversion_rate || 1);
 			} else {
 				payment.base_amount = payment.amount;
 			}
@@ -335,8 +377,12 @@ export function get_invoice_items(context: any) {
 			// Link to original invoice item when doing returns
 			// Needed for backend validation that the item exists in
 			// the referenced Sales or POS Invoice
-			...(item.sales_invoice_item && { sales_invoice_item: item.sales_invoice_item }),
-			...(item.pos_invoice_item && { pos_invoice_item: item.pos_invoice_item }),
+			...(item.sales_invoice_item && {
+				sales_invoice_item: item.sales_invoice_item,
+			}),
+			...(item.pos_invoice_item && {
+				pos_invoice_item: item.pos_invoice_item,
+			}),
 			// Explicitly include stock status to optimize backend validation loops
 			// where O(N) cache lookups occur if this flag is missing.
 			is_stock_item: item.is_stock_item,
@@ -355,30 +401,37 @@ export function get_invoice_items(context: any) {
 			new_item.rate = flt(item.rate); // Keep rate in USD
 
 			// Use pre-stored base_rate if available, otherwise calculate
-			new_item.base_rate = item.base_rate || flt(item.rate * (context.conversion_rate || 1));
+			new_item.base_rate =
+				item.base_rate ||
+				flt(item.rate * (context.conversion_rate || 1));
 
 			new_item.price_list_rate = flt(item.price_list_rate); // Keep price list rate in USD
 			new_item.base_price_list_rate =
-				item.base_price_list_rate ?? flt(item.price_list_rate * (context.conversion_rate || 1));
+				item.base_price_list_rate ??
+				flt(item.price_list_rate * (context.conversion_rate || 1));
 
 			// Calculate amounts
 			new_item.amount = flt(item.qty) * new_item.rate; // Amount in USD
-			new_item.base_amount = new_item.amount * (context.conversion_rate || 1); // Convert to base currency
+			new_item.base_amount =
+				new_item.amount * (context.conversion_rate || 1); // Convert to base currency
 
 			// Handle discount amount
 			new_item.discount_amount = flt(item.discount_amount); // Keep discount in USD
 			new_item.base_discount_amount =
-				item.base_discount_amount || flt(item.discount_amount * (context.conversion_rate || 1));
+				item.base_discount_amount ||
+				flt(item.discount_amount * (context.conversion_rate || 1));
 		} else {
 			// Same currency (base currency), make sure we use base rates if available
 			new_item.rate = flt(item.rate);
 			new_item.base_rate = item.base_rate || flt(item.rate);
 			new_item.price_list_rate = flt(item.price_list_rate);
-			new_item.base_price_list_rate = item.base_price_list_rate ?? flt(item.price_list_rate);
+			new_item.base_price_list_rate =
+				item.base_price_list_rate ?? flt(item.price_list_rate);
 			new_item.amount = flt(item.qty) * new_item.rate;
 			new_item.base_amount = new_item.amount;
 			new_item.discount_amount = flt(item.discount_amount);
-			new_item.base_discount_amount = item.base_discount_amount || flt(item.discount_amount);
+			new_item.base_discount_amount =
+				item.base_discount_amount || flt(item.discount_amount);
 		}
 
 		// For returns, ensure all amounts are negative
@@ -387,7 +440,9 @@ export function get_invoice_items(context: any) {
 			new_item.amount = -Math.abs(new_item.amount);
 			new_item.base_amount = -Math.abs(new_item.base_amount);
 			new_item.discount_amount = -Math.abs(new_item.discount_amount);
-			new_item.base_discount_amount = -Math.abs(new_item.base_discount_amount);
+			new_item.base_discount_amount = -Math.abs(
+				new_item.base_discount_amount,
+			);
 		}
 
 		items_list.push(new_item);
@@ -437,9 +492,18 @@ export function get_payments(context: any) {
 		context.invoice_doc.payments.length
 	) {
 		const total_amount = Math.abs(context.subtotal);
-		const sourcePayments = context.invoice_doc.payments.filter((payment) => payment?.mode_of_payment);
+		const sourcePayments = context.invoice_doc.payments.filter(
+			(payment) => payment?.mode_of_payment,
+		);
 		const sourceTotal = sourcePayments.reduce(
-			(sum, payment) => sum + Math.abs(context.flt(payment.amount || 0, context.currency_precision)),
+			(sum, payment) =>
+				sum +
+				Math.abs(
+					context.flt(
+						payment.amount || 0,
+						context.currency_precision,
+					),
+				),
 			0,
 		);
 
@@ -449,11 +513,19 @@ export function get_payments(context: any) {
 
 			return sourcePayments.map((payment, index) => {
 				const share =
-					Math.abs(context.flt(payment.amount || 0, context.currency_precision)) / sourceTotal;
+					Math.abs(
+						context.flt(
+							payment.amount || 0,
+							context.currency_precision,
+						),
+					) / sourceTotal;
 				let payment_amount =
 					index === sourcePayments.length - 1
 						? remaining_amount
-						: context.flt(total_amount * share, context.currency_precision);
+						: context.flt(
+								total_amount * share,
+								context.currency_precision,
+							);
 				payment_amount = -Math.abs(payment_amount);
 				remaining_amount = context.flt(
 					remaining_amount - Math.abs(payment_amount),
@@ -472,7 +544,54 @@ export function get_payments(context: any) {
 	}
 
 	if (!context.invoice_doc || !Array.isArray(context.invoice_doc.payments)) {
-		return [];
+		const profilePayments = Array.isArray(context.pos_profile?.payments)
+			? context.pos_profile.payments
+			: [];
+
+		if (!profilePayments.length) {
+			return [];
+		}
+
+		return profilePayments
+			.filter((payment) => payment?.mode_of_payment)
+			.map((payment, index) => ({
+				mode_of_payment: payment.mode_of_payment,
+				amount: 0,
+				account: payment.account,
+				type: payment.type,
+				default:
+					payment.default === 1 ||
+					payment.default === true ||
+					index === 0
+						? 1
+						: 0,
+				base_amount: 0,
+			}));
 	}
+
+	if (!context.invoice_doc.payments.length) {
+		const profilePayments = Array.isArray(context.pos_profile?.payments)
+			? context.pos_profile.payments
+			: [];
+		if (!profilePayments.length) {
+			return [];
+		}
+		return profilePayments
+			.filter((payment) => payment?.mode_of_payment)
+			.map((payment, index) => ({
+				mode_of_payment: payment.mode_of_payment,
+				amount: 0,
+				account: payment.account,
+				type: payment.type,
+				default:
+					payment.default === 1 ||
+					payment.default === true ||
+					index === 0
+						? 1
+						: 0,
+				base_amount: 0,
+			}));
+	}
+
 	return context.invoice_doc.payments;
 }
