@@ -685,12 +685,17 @@ export default {
 
 		this._busHandlers = {
 			add_item: this.add_item,
+			clear_invoice: this.handleClearInvoice,
 			update_invoice_offers: this.handleUpdateInvoiceOffers,
 			update_invoice_coupons: this.handleUpdateInvoiceCoupons,
 			set_all_items: this.handleSetAllItems,
 			load_return_invoice: this.handleLoadReturnInvoice,
 			set_new_line: this.handleSetNewLine,
 			calc_uom: this.calc_uom,
+			reset_invoice_type_to_invoice: () => {
+				this.invoiceType = "Invoice";
+				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
+			},
 		};
 
 		Object.entries(this._busHandlers).forEach(([eventName, handler]) => {

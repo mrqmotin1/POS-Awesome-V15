@@ -523,11 +523,23 @@ const back_to_invoice = () => {
 };
 
 const finishSubmissionNavigation = (clearInvoice = false) => {
+	const submittedType = invoiceType.value;
 	back_to_invoice();
 	if (clearInvoice) {
 		addresses.value = [];
-		invoiceStore.clear();
-		invoiceStore.resetPostingDate();
+		if (eventBus && typeof eventBus.emit === "function") {
+			eventBus.emit("clear_invoice");
+		} else {
+			invoiceStore.clear();
+			invoiceStore.resetPostingDate();
+		}
+
+		if (submittedType === "Quotation") {
+			invoiceType.value = "Invoice";
+			if (eventBus && typeof eventBus.emit === "function") {
+				eventBus.emit("reset_invoice_type_to_invoice");
+			}
+		}
 	}
 };
 

@@ -676,8 +676,9 @@ export function useItemAddition() {
 				context.discount_amount = 0;
 				context.additional_discount = 0;
 				context.additional_discount_percentage = 0;
+				context.base_delivery_charges_rate = 0;
 				context.delivery_charges_rate = 0;
-				context.selected_delivery_charge = "";
+				context.selected_delivery_charge = null;
 			}
 		}
 
@@ -698,9 +699,12 @@ export function useItemAddition() {
 		context.customer = context.pos_profile.customer;
 
 		context.eventBus.emit("set_customer_readonly", false);
-		context.invoiceType = context.pos_profile.posa_default_sales_order
-			? "Order"
-			: "Invoice";
+		const wasQuotation = context.invoiceType === "Quotation";
+		context.invoiceType = wasQuotation
+			? "Invoice"
+			: context.pos_profile.posa_default_sales_order
+				? "Order"
+				: "Invoice";
 		context.invoiceTypes = ["Invoice", "Order", "Quotation"];
 
 		if (Object.prototype.hasOwnProperty.call(context, "itemSearch")) {

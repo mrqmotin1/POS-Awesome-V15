@@ -57,9 +57,12 @@ export async function add_item(context: any, item: any, options: any = {}) {
 		customer: context.customer,
 		customer_price_list: context.customer_info?.customer_price_list || null,
 		pos_profile_price_list: context.pos_profile?.selling_price_list || null,
-		effective_price_list: context.get_price_list ? context.get_price_list() : null,
+		effective_price_list: context.get_price_list
+			? context.get_price_list()
+			: null,
 		selected_price_list: context.selected_price_list || null,
-		invoice_selling_price_list: context.invoice_doc?.selling_price_list || null,
+		invoice_selling_price_list:
+			context.invoice_doc?.selling_price_list || null,
 		item_before: _buildPriceListSnapshot(context, [item]),
 	};
 
@@ -76,17 +79,24 @@ export async function add_item(context: any, item: any, options: any = {}) {
 	});
 
 	const shouldNotify =
-		options?.notifyOnSuccess === true && !options?.skipNotification && context.toastStore;
+		options?.notifyOnSuccess === true &&
+		!options?.skipNotification &&
+		context.toastStore;
 
 	if (shouldNotify) {
-		const rawQty = typeof item?.qty === "number" ? item.qty : parseFloat(item?.qty);
+		const rawQty =
+			typeof item?.qty === "number" ? item.qty : parseFloat(item?.qty);
 		const shouldAnnounce = Number.isFinite(rawQty) ? rawQty > 0 : true;
 
 		if (shouldAnnounce) {
 			const addedQty = Number.isFinite(rawQty) ? Math.abs(rawQty) : 1;
 			const rawPrecision = Number(context.float_precision);
-			const precision = Number.isInteger(rawPrecision) ? Math.min(Math.max(rawPrecision, 0), 6) : 2;
-			const displayQty = Number.isInteger(addedQty) ? addedQty : Number(addedQty.toFixed(precision));
+			const precision = Number.isInteger(rawPrecision)
+				? Math.min(Math.max(rawPrecision, 0), 6)
+				: 2;
+			const displayQty = Number.isInteger(addedQty)
+				? addedQty
+				: Number(addedQty.toFixed(precision));
 			const itemName = item?.item_name || item?.item_code || __("Item");
 			const detail = __("{0} (Qty: {1})", [itemName, displayQty]);
 
@@ -117,8 +127,6 @@ export async function cancel_invoice(context: any) {
 	// Since we are refactoring, let's call the util directly if possible, or rely on context.
 	const doc = get_invoice_doc(context);
 
-	context.invoiceType = context.pos_profile.posa_default_sales_order ? "Order" : "Invoice";
-	context.invoiceTypes = ["Invoice", "Order", "Quotation"];
 	context.posting_date = frappe.datetime.nowdate();
 
 	if (doc.name && context.pos_profile.posa_allow_delete) {
@@ -205,9 +213,11 @@ export async function new_order(context: any, data: any = {}) {
 				context._normalizeReturnDocTotals(data);
 			}
 			if (data.return_against) {
-				if (context.eventBus) context.eventBus.emit("set_customer_readonly", true);
+				if (context.eventBus)
+					context.eventBus.emit("set_customer_readonly", true);
 			} else {
-				if (context.eventBus) context.eventBus.emit("set_customer_readonly", false);
+				if (context.eventBus)
+					context.eventBus.emit("set_customer_readonly", false);
 			}
 			context.invoiceType = "Return";
 			context.invoiceTypes = ["Return"];
@@ -223,22 +233,29 @@ export async function new_order(context: any, data: any = {}) {
 					: Math.random().toString(36).substr(2, 9);
 			}
 			if (item.batch_no) {
-				if (context.set_batch_qty) context.set_batch_qty(item, item.batch_no);
+				if (context.set_batch_qty)
+					context.set_batch_qty(item, item.batch_no);
 			}
 		});
 
 		context.customer = data.customer;
 		context.posting_date = context.formatDateForBackend
-			? context.formatDateForBackend(data.posting_date || frappe.datetime.nowdate())
+			? context.formatDateForBackend(
+					data.posting_date || frappe.datetime.nowdate(),
+				)
 			: data.posting_date || new Date().toISOString().slice(0, 10);
 		context.discount_amount = data.discount_amount;
 
-		if (data.is_return && context.pos_profile?.posa_use_percentage_discount) {
+		if (
+			data.is_return &&
+			context.pos_profile?.posa_use_percentage_discount
+		) {
 			context.additional_discount_percentage = -Math.abs(
 				Number.parseFloat(data.additional_discount_percentage),
 			);
 		} else {
-			context.additional_discount_percentage = data.additional_discount_percentage;
+			context.additional_discount_percentage =
+				data.additional_discount_percentage;
 		}
 
 		context.items.forEach((item) => {
@@ -276,7 +293,9 @@ export async function get_invoice_from_order_doc(context: any) {
 	const items: any[] = [];
 	const updatedItemsData: any[] = get_invoice_items(context);
 	doc.items.forEach((item) => {
-		const updatedData = updatedItemsData.find((updatedItem) => updatedItem.item_code === item.item_code);
+		const updatedData = updatedItemsData.find(
+			(updatedItem) => updatedItem.item_code === item.item_code,
+		);
 		if (updatedData) {
 			item.item_code = updatedData.item_code;
 			item.posa_row_id = updatedData.posa_row_id;
@@ -288,11 +307,17 @@ export async function get_invoice_from_order_doc(context: any) {
 			item.qty = Number.parseFloat(updatedData.qty);
 			item.rate = Number.parseFloat(updatedData.rate);
 			item.uom = updatedData.uom;
-			item.amount = Number.parseFloat(updatedData.qty) * Number.parseFloat(updatedData.rate);
+			item.amount =
+				Number.parseFloat(updatedData.qty) *
+				Number.parseFloat(updatedData.rate);
 			item.conversion_factor = updatedData.conversion_factor;
 			item.serial_no = updatedData.serial_no;
-			item.discount_percentage = Number.parseFloat(updatedData.discount_percentage);
-			item.discount_amount = Number.parseFloat(updatedData.discount_amount);
+			item.discount_percentage = Number.parseFloat(
+				updatedData.discount_percentage,
+			);
+			item.discount_amount = Number.parseFloat(
+				updatedData.discount_amount,
+			);
 			item.batch_no = updatedData.batch_no;
 			item.posa_notes = updatedData.posa_notes;
 			item.posa_delivery_date = context.formatDateForDisplay
