@@ -1219,7 +1219,7 @@ export function useInvoiceOffers() {
 		// primeInvoiceStockState? -> Needs another dependency or move logic here.
 	};
 
-	const applyPricingRulesForCart = async (_force = false) => {
+	const applyOfferRefreshForCart = async (_force = false) => {
 		// This logic usually triggers offer refresh?
 		// In Invoice.vue it was calling logic.
 		// Maybe this calls handelOffers?
@@ -1243,7 +1243,7 @@ export function useInvoiceOffers() {
 		cancelScheduledOfferRefresh,
 		setUpdateItemDetail,
 
-		applyPricingRulesForCart, // Exposed for use in Invoice.vue
+		applyOfferRefreshForCart,
 
 		// Expose state for template usage?
 	};
