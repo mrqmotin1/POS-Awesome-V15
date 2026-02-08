@@ -686,6 +686,11 @@ export default {
 		this._busHandlers = {
 			add_item: this.add_item,
 			clear_invoice: this.handleClearInvoice,
+			apply_pricing_rules: () => {
+				if (typeof this.schedulePricingRuleApplication === "function") {
+					this.schedulePricingRuleApplication();
+				}
+			},
 			update_invoice_offers: this.handleUpdateInvoiceOffers,
 			update_invoice_coupons: this.handleUpdateInvoiceCoupons,
 			set_all_items: this.handleSetAllItems,

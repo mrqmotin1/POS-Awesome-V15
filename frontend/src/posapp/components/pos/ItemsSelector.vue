@@ -484,6 +484,9 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 		if (isValid) {
 			await useItemAddition().prepareItemForCart(item, requestedQty, context);
 			await useItemAddition().addItem(item, context);
+			if (eventBus && typeof eventBus.emit === "function") {
+				eventBus.emit("apply_pricing_rules");
+			}
 			qty.value = 1;
 		}
 	} else {

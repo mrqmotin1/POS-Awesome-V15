@@ -12,6 +12,16 @@ const frappe = window.frappe;
 // @ts-ignore
 
 export function useInvoiceOffers() {
+	const isOfferDebugEnabled =
+		typeof window !== "undefined" &&
+		window.localStorage?.getItem("posawesome_debug_offers") === "1";
+	const offerDebugLog = (...args: any[]) => {
+		if (!isOfferDebugEnabled) {
+			return;
+		}
+		console.log(...args);
+	};
+
 	const invoiceStore = useInvoiceStore();
 	const uiStore = useUIStore();
 	const toastStore = useToastStore();
@@ -38,7 +48,7 @@ export function useInvoiceOffers() {
 	watch(
 		[items, posOffers, posa_coupons, () => invoiceStore.metadata],
 		() => {
-			console.log(
+			offerDebugLog(
 				"[useInvoiceOffers] watch triggered for items/offers/coupons/metadata",
 			);
 			scheduleOfferRefresh();
@@ -80,7 +90,7 @@ export function useInvoiceOffers() {
 		if (_offerRefreshPending.value) return;
 
 		_offerRefreshPending.value = true;
-		console.log(
+		offerDebugLog(
 			"[useInvoiceOffers] scheduleOfferRefresh: refresh scheduled",
 		);
 
@@ -101,7 +111,7 @@ export function useInvoiceOffers() {
 			const removedRows = _pendingRemovedRowInfo.value;
 			_pendingRemovedRowInfo.value = {};
 
-			console.log("[useInvoiceOffers] Refreshing offers now", {
+			offerDebugLog("[useInvoiceOffers] Refreshing offers now", {
 				pendingRows,
 			});
 			handelOffers(pendingRows, removedRows);
@@ -208,12 +218,12 @@ export function useInvoiceOffers() {
 		removedRows: any = {},
 	) => {
 		if (isApplyingOffer.value) {
-			console.log(
+			offerDebugLog(
 				"[useInvoiceOffers] handelOffers skipped: isApplyingOffer=true",
 			);
 			return;
 		}
-		console.log("[useInvoiceOffers] handelOffers starting...", {
+		offerDebugLog("[useInvoiceOffers] handelOffers starting...", {
 			changedRowIds,
 		});
 		try {
@@ -221,7 +231,7 @@ export function useInvoiceOffers() {
 				? posOffers.value
 				: [];
 			if (!sourceOffers.length) {
-				console.log("[useInvoiceOffers] No source offers available");
+				offerDebugLog("[useInvoiceOffers] No source offers available");
 				updatePosOffers([]);
 				_cachedOfferResults.value.clear();
 				return;
@@ -289,7 +299,7 @@ export function useInvoiceOffers() {
 				.map((offer: any) => cache.get(offer.name))
 				.filter((entry: any) => !!entry);
 
-			console.log(
+			offerDebugLog(
 				"[useInvoiceOffers] Evaluation complete. Derived offers:",
 				offers.length,
 			);
@@ -324,13 +334,13 @@ export function useInvoiceOffers() {
 			);
 
 			if (currentOffersDigest === _lastAppliedOffersDigest.value) {
-				console.log(
+				offerDebugLog(
 					"[useInvoiceOffers] handelOffers: No change in offers state, skipping update.",
 				);
 				return;
 			}
 
-			console.log(
+			offerDebugLog(
 				"[useInvoiceOffers] Digest changed. Applying updates...",
 				{
 					prev: _lastAppliedOffersDigest.value?.length,
