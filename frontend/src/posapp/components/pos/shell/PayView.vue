@@ -539,8 +539,11 @@ export default {
 					}
 				}
 				get_pos_profiles();
-				get_outstanding_invoices();
-				get_draft_mpesa_payments_register(payment_methods_list.value);
+				if (customer_name.value) {
+					get_outstanding_invoices();
+					get_unallocated_payments();
+					get_draft_mpesa_payments_register(payment_methods_list.value);
+				}
 			} catch (e) {
 				console.error("Error checking opening entry", e);
 			}
@@ -600,7 +603,18 @@ export default {
 					exchangeRate.value = null;
 					return;
 				}
-				if (normalized === customer_name.value) return;
+				if (normalized === customer_name.value) {
+					if (
+						company.value &&
+						!outstanding_invoices.value.length &&
+						!unallocated_payments.value.length
+					) {
+						get_outstanding_invoices();
+						get_unallocated_payments();
+						get_draft_mpesa_payments_register(payment_methods_list.value);
+					}
+					return;
+				}
 				clearSelections();
 				outstanding_invoices.value = [];
 				unallocated_payments.value = [];
@@ -617,6 +631,13 @@ export default {
 
 		watch(refreshToken, () => {
 			if (customer_name.value) fetch_customer_details();
+		});
+
+		watch(company, (newCompany, oldCompany) => {
+			if (!newCompany || newCompany === oldCompany || !customer_name.value) return;
+			get_outstanding_invoices();
+			get_unallocated_payments();
+			get_draft_mpesa_payments_register(payment_methods_list.value);
 		});
 
 		watch(invoiceTotalCurrency, fetchExchangeRate, { immediate: true });

@@ -116,6 +116,7 @@ export function usePosPayData({
 					customer: customerName.value,
 					company: company.value,
 					currency: posProfile.value.currency,
+					include_all_currencies: true,
 				},
 			);
 
