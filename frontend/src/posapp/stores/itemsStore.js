@@ -1145,6 +1145,7 @@ export const useItemsStore = defineStore("items", () => {
 
 				await loadItemDetailsBatch(batch);
 			}
+			console.log('Background load item details complete')
 		} catch (error) {
 			console.error("Background item details loading failed:", error);
 		}
