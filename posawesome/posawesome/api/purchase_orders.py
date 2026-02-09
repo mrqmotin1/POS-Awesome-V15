@@ -41,6 +41,30 @@ def _ensure_allowed(profile, flag, label):
         frappe.throw(_("{0} is disabled for this POS Profile.").format(label))
 
 
+def _resolve_supplier(supplier_value):
+    if isinstance(supplier_value, dict):
+        supplier_value = (
+            supplier_value.get("name")
+            or supplier_value.get("supplier_name")
+            or supplier_value.get("supplier")
+        )
+
+    supplier = str(supplier_value or "").strip()
+    if not supplier:
+        return None
+
+    if frappe.db.exists("Supplier", supplier):
+        return supplier
+
+    supplier_by_label = frappe.db.get_value(
+        "Supplier", {"supplier_name": supplier}, "name"
+    )
+    if supplier_by_label:
+        return supplier_by_label
+
+    return None
+
+
 def _resolve_buying_price_list():
     buying_price_list = frappe.db.get_single_value("Buying Settings", "buying_price_list")
     if not buying_price_list:
@@ -397,11 +421,13 @@ def create_purchase_order(data):
     if receive_now:
         _ensure_allowed(profile, "posa_allow_purchase_receipt", _("Receive stock"))
 
-    supplier = payload.get("supplier")
-    if not supplier:
+    supplier_input = payload.get("supplier")
+    if not supplier_input:
         frappe.throw(_("Supplier is required."))
-    if not frappe.db.exists("Supplier", supplier):
-        frappe.throw(_("Supplier {0} was not found.").format(supplier))
+
+    supplier = _resolve_supplier(supplier_input)
+    if not supplier:
+        frappe.throw(_("Supplier {0} was not found.").format(supplier_input))
 
     company = payload.get("company") or profile.get("company") or frappe.defaults.get_default("company")
     if not company:
