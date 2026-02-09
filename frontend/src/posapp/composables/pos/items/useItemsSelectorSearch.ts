@@ -154,7 +154,14 @@ export const useItemsSelectorSearch = ({
 		const vm = getVm();
 		if (!vm) return;
 
-		vm.itemDetailFetcher.cancelItemDetailsRequest();
+		if (
+			vm.itemDetailFetcher &&
+			typeof vm.itemDetailFetcher.cancelItemDetailsRequest === "function"
+		) {
+			vm.itemDetailFetcher.cancelItemDetailsRequest();
+		} else if (typeof vm.cancelItemDetailsRequest === "function") {
+			vm.cancelItemDetailsRequest();
+		}
 
 		// Determine the actual query string and trim whitespace
 		const trimmedQuery = (vm.first_search || "").trim();
@@ -210,9 +217,15 @@ export const useItemsSelectorSearch = ({
 
 			if (vm.displayedItems && vm.displayedItems.length > 0) {
 				setTimeout(() => {
-					vm.itemDetailFetcher.update_items_details(
-						vm.displayedItems,
-					);
+					if (
+						vm.itemDetailFetcher &&
+						typeof vm.itemDetailFetcher.update_items_details ===
+							"function"
+					) {
+						vm.itemDetailFetcher.update_items_details(
+							vm.displayedItems,
+						);
+					}
 				}, 300);
 			}
 		}

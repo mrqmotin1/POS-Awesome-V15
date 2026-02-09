@@ -857,6 +857,7 @@ const startCameraScanning = () => {
 	scannerInput.cameraScannerActive.value = true;
 };
 const forceReloadItems = () => itemsIntegration.get_items(true);
+const cancelItemDetailsRequest = () => itemDetailFetcher.cancelItemDetailsRequest();
 
 const onBarcodeScanned = async (code: string) => {
 	// This function body was empty in the instruction, keeping it empty or adding a placeholder
@@ -938,6 +939,7 @@ defineExpose({
 	startCameraScanning,
 	toggleItemSettings,
 	forceReloadItems,
+	cancelItemDetailsRequest,
 	applyItemSettings,
 	show_item_settings,
 	items_group,

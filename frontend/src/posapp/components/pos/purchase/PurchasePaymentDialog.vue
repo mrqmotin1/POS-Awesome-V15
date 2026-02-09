@@ -264,7 +264,15 @@ const paidAmount = computed(() =>
 
 const remainingAmount = computed(() => props.totalAmount - paidAmount.value);
 
-const isPaymentValid = computed(() => paidAmount.value > 0 && remainingAmount.value <= 0);
+const isPaymentValid = computed(() => {
+	const hasNegativePayment = paymentLines.value.some((p) => (parseFloat(p.amount) || 0) < 0);
+	if (hasNegativePayment) return false;
+
+	// Allow submitting Purchase Order even with zero payment.
+	// If any payment is entered, keep full-settlement behavior.
+	if (paidAmount.value <= 0) return true;
+	return remainingAmount.value <= 0;
+});
 
 watch(
 	() => props.modelValue,

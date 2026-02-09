@@ -250,6 +250,32 @@ export default {
 			submitPurchaseOrder(print, print_format, print_invoice);
 		};
 
+		const extractServerError = (error) => {
+			const parseServerMessages = (raw) => {
+				if (!raw) return "";
+				try {
+					const parsed = JSON.parse(raw);
+					if (Array.isArray(parsed) && parsed.length) {
+						const first = parsed[0];
+						if (typeof first === "string") {
+							return first.replace(/<[^>]*>/g, "").trim();
+						}
+					}
+				} catch {
+					return String(raw);
+				}
+				return "";
+			};
+
+			return (
+				parseServerMessages(error?._server_messages) ||
+				parseServerMessages(error?.responseJSON?._server_messages) ||
+				error?.message ||
+				error?.responseJSON?.message ||
+				__("Unable to create purchase order")
+			);
+		};
+
 		const submitPurchaseOrder = async (print = false, printFormat = null, printInvoice = false) => {
 			if (!supplier.value || !transactionDate.value || !scheduleDate.value) {
 				errorMessage.value = __("Supplier and dates are required.");
@@ -266,8 +292,13 @@ export default {
 					return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 				};
 
+				const resolvedSupplier =
+					typeof supplier.value === "object" && supplier.value !== null
+						? supplier.value.name || supplier.value.supplier_name || ""
+						: supplier.value;
+
 				const payload = {
-					supplier: supplier.value,
+					supplier: resolvedSupplier,
 					company: pos_profile.value.company,
 					warehouse: warehouse.value,
 					currency: supplierCurrency.value,
@@ -311,8 +342,9 @@ export default {
 					}
 					resetForm();
 				}
-			} catch {
-				errorMessage.value = __("Unable to create purchase order");
+			} catch (error) {
+				errorMessage.value = extractServerError(error);
+				toastStore.show({ title: errorMessage.value, color: "error" });
 			} finally {
 				submitLoading.value = false;
 			}

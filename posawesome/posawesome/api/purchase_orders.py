@@ -62,6 +62,20 @@ def _resolve_supplier(supplier_value):
     if supplier_by_label:
         return supplier_by_label
 
+    # Fallback: case-insensitive lookup by name/supplier_name
+    ci_match = frappe.db.sql(
+        """
+        select name
+        from `tabSupplier`
+        where lower(name) = lower(%s)
+           or lower(supplier_name) = lower(%s)
+        limit 1
+        """,
+        (supplier, supplier),
+    )
+    if ci_match and ci_match[0]:
+        return ci_match[0][0]
+
     return None
 
 
