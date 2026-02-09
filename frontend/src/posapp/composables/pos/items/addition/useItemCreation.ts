@@ -48,7 +48,8 @@ export function useItemCreation() {
 
 		// Setup base rates properly for multi-currency
 		const companyCurrency = context.pos_profile.currency;
-		if (context.selected_currency !== companyCurrency) {
+		const selectedCurrency = context.selected_currency || companyCurrency;
+		if (selectedCurrency !== companyCurrency) {
 			// Store original base currency values (Selected -> Company)
 			const conversionRate = context.conversion_rate || 1;
 			new_item.base_price_list_rate =
@@ -169,6 +170,12 @@ export function useItemCreation() {
 
 		// Handle multi-currency conversion
 		if (pos_profile?.posa_allow_multi_currency && itemCurrencyUtils) {
+			if (!context.price_list_currency) {
+				context.price_list_currency =
+					item.original_currency ||
+					item.currency ||
+					pos_profile.currency;
+			}
 			// applyCurrencyConversionToItem logic
 			itemCurrencyUtils.applyCurrencyConversionToItem(item, context);
 

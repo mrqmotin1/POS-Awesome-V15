@@ -209,6 +209,7 @@ import { useItemDisplay } from "../../../composables/pos/items/useItemDisplay";
 import { useItemsLoader } from "../../../composables/pos/items/useItemsLoader";
 import { useBarcodeIndexing } from "../../../composables/pos/items/useBarcodeIndexing";
 import { useScanProcessor } from "../../../composables/pos/items/useScanProcessor";
+import { useItemCurrency } from "../../../composables/pos/items/useItemCurrency";
 
 import { useCustomersStore } from "../../../stores/customersStore";
 import { useToastStore } from "../../../stores/toastStore";
@@ -268,6 +269,7 @@ const itemSelection = useItemSelection();
 const itemSync = useItemSync();
 const itemDisplay = useItemDisplay();
 const itemsLoader = useItemsLoader();
+const itemCurrencyUtils = useItemCurrency();
 const { startItemWorker, itemWorker } = useItemStorageSafety();
 const {
 	ensureBarcodeIndex,
@@ -466,6 +468,11 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 			pos_profile: pos_profile.value,
 			stock_settings: stock_settings.value,
 			customer: selectedCustomer.value,
+			selected_currency: selected_currency.value,
+			exchange_rate: selected_exchange_rate.value,
+			conversion_rate: selected_conversion_rate.value,
+			price_list_currency: item.original_currency || item.currency || pos_profile.value?.currency,
+			itemCurrencyUtils,
 			invoiceStore,
 			itemDetailFetcher,
 			items: invoiceStore.items,
