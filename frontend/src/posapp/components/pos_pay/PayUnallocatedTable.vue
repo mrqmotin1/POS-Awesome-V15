@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-	<div v-if="posProfile.posa_allow_reconcile_payments && payments.length">
+	<div v-if="posProfile?.posa_allow_reconcile_payments">
 		<v-row>
 			<v-col md="7" cols="12">
 				<p>
