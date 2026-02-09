@@ -3732,12 +3732,10 @@ export default {
 		}
 
 		if (!item.locked_price) {
-			if (forceUpdate || !item.base_rate) {
-				if (data.price_list_rate !== 0 || !item.base_price_list_rate) {
-					item.base_price_list_rate = data.price_list_rate;
-					if (!item.posa_offer_applied) {
-						item.base_rate = data.price_list_rate;
-					}
+			if (data.price_list_rate) {
+				item.base_price_list_rate = data.price_list_rate;
+				if (!item.posa_offer_applied) {
+					item.base_rate = data.price_list_rate;
 				}
 			}
 
