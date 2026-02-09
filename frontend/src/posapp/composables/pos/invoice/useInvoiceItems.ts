@@ -303,12 +303,11 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		if (!pos_profile.value) return;
 		try {
 			const r = await frappe.call({
-				method: "posawesome.posawesome.api.pos_settings.get_delivery_charges",
+				method: "posawesome.posawesome.api.offers.get_applicable_delivery_charges",
 				args: {
-					filters: {
-						pos_profile: pos_profile.value.name,
-						customer: customer,
-					},
+					company: pos_profile.value.company,
+					pos_profile: pos_profile.value.name,
+					customer: customer,
 				},
 			});
 			if (r.message) {
