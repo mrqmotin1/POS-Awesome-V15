@@ -14,13 +14,17 @@ from frappe.utils.caching import redis_cache
 def _resolve_cache_ttl(ttl: Optional[int]) -> int:
     """Return a numeric TTL value while falling back to the default window."""
 
-    return int(ttl) if ttl else 300
-
-
+    if ttl is None:
+        return 300
+    if ttl <= 0:
+        return 0   # signals no cache
+    return int(ttl)
 def _cache_wrapper(store: Dict[int, Callable[..., Any]], ttl: Optional[int], fn: Callable[..., Any]):
     """Memoize the redis cache decorator for a given TTL to avoid re-wrapping."""
 
     resolved_ttl = _resolve_cache_ttl(ttl)
+    if resolved_ttl <= 0:
+        return fn
     cached = store.get(resolved_ttl)
     if cached is None:
         cached = redis_cache(ttl=resolved_ttl)(fn)
@@ -468,12 +472,20 @@ class ItemDetailAggregator:
         """Convert the POS profile cache duration to seconds."""
 
         ttl = self.pos_profile.get("posa_server_cache_duration")
-        if not ttl:
+        if ttl is None or ttl == "":
             return None
+
         try:
-            return int(ttl) * 60
-        except Exception:
-            return None
+            ttl = int(ttl)
+        except (TypeError, ValueError):
+            return 0
+
+        # Explicit disable
+        if ttl <= 0:
+            return 0
+
+        # Minutes → seconds
+        return ttl * 60
 
     def _determine_price_list_currency(self) -> Optional[str]:
         """Resolve the currency backing the active selling price list."""
