@@ -349,7 +349,7 @@
 							:label="frappe._('Grand Total')"
 							class="sleek-field pos-themed-input"
 							hide-details
-							:model-value="formatCurrency(invoice_doc.total + invoice_doc.custom_total_items_discount)"
+							:model-value="formatCurrency(invoice_doc.grand_total)"
 							readonly
 							:prefix="currencySymbol(invoice_doc.currency)"
 							persistent-placeholder
