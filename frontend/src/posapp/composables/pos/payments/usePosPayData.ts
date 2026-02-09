@@ -41,6 +41,12 @@ export function usePosPayData({
 	) {
 		invoices_loading.value = true;
 
+		if (!customerName.value || !company.value) {
+			outstanding_invoices.value = [];
+			invoices_loading.value = false;
+			return;
+		}
+
 		if (isOffline()) {
 			outstanding_invoices.value = [];
 			invoices_loading.value = false;
@@ -70,7 +76,7 @@ export function usePosPayData({
 		if (!posProfile.value.posa_allow_reconcile_payments) return;
 		unallocated_payments_loading.value = true;
 
-		if (!customerName.value || isOffline()) {
+		if (!customerName.value || !company.value || isOffline()) {
 			unallocated_payments.value = [];
 			unallocated_payments_loading.value = false;
 			return;
@@ -104,6 +110,12 @@ export function usePosPayData({
 		if (!posProfile.value.posa_allow_mpesa_reconcile_payments) return;
 		mpesa_payments_loading.value = true;
 
+		if (!company.value) {
+			mpesa_payments.value = [];
+			mpesa_payments_loading.value = false;
+			return;
+		}
+
 		if (isOffline()) {
 			mpesa_payments.value = [];
 			mpesa_payments_loading.value = false;
@@ -131,6 +143,10 @@ export function usePosPayData({
 		if (!posProfile.value.posa_allow_reconcile_payments) return;
 		if (!customerName.value) {
 			frappe.msgprint(__("Please select a customer before reconciling."));
+			return;
+		}
+		if (!company.value) {
+			frappe.msgprint(__("Please select company before reconciling."));
 			return;
 		}
 		if (!outstanding_invoices.value.length || isOffline()) return;
