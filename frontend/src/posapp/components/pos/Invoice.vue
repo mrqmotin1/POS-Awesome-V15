@@ -146,7 +146,7 @@
 							hide-details
 							clearable
 							autocomplete="off"
-							:disabled="invoiceStore.items.length === 0"
+							:disabled="invoiceStore.items.length === 0 || paymentVisible"
 							@keydown.enter.prevent="apply_discount_percent_to_all_items"
 							@blur="apply_discount_percent_to_all_items"
 						></v-text-field>
@@ -171,7 +171,7 @@
 							hide-details
 							clearable
 							autocomplete="off"
-							:disabled="invoiceStore.items.length === 0"
+							:disabled="invoiceStore.items.length === 0 || paymentVisible"
 							@focus="startEditing"
 							@keydown.enter.prevent="apply_discount_amount_to_all_items"
 							@blur="apply_discount_amount_to_all_items"
@@ -272,6 +272,7 @@
 						@show-drop-feedback="showDropFeedback"
 						@item-dropped="showDropFeedback(false)"
 						@view-packed="openPackedItems"
+						:paymentVisible="paymentVisible"
 					/>
 					<v-dialog v-model="show_packed_dialog" max-width="800px">
 						<v-card>

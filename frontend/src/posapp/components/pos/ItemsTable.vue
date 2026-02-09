@@ -99,7 +99,7 @@
 						}"
 						:data-length="memoizedQtyLength(item.qty)"
 						:title="memoizedFormatFloat(item.qty, hide_qty_decimals ? 0 : undefined)"
-						@click.stop="openQtyEdit(item)"
+						@click.stop="!paymentVisible && openQtyEdit(item)"
 					>
 						{{ memoizedFormatFloat(item.qty, 0) }}
 					</div>
@@ -236,7 +236,7 @@
 					<div
 						v-if="editing_discount_percent_row_id !== item.posa_row_id"
 						class="pos-table__editor-display"
-						@click.stop="openDiscountPercentEdit(item)"
+						@click.stop="!paymentVisible && openDiscountPercentEdit(item)"
 					>
 						<span class="amount-value">
 							{{
@@ -294,7 +294,7 @@
 					<div
 						v-if="editing_discount_amount_row_id !== item.posa_row_id"
 						class="pos-table__editor-display"
-						@click.stop="openDiscountAmountEdit(item)"
+						@click.stop="!paymentVisible && openDiscountAmountEdit(item)"
 					>
 						<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
 						<span class="amount-value">{{
@@ -351,7 +351,7 @@
 			<!-- Actions -->
 			<template v-slot:item.actions="{ item }">
 				<v-btn
-					:disabled="!!item.posa_is_replace"
+					:disabled="!!item.posa_is_replace || paymentVisible"
 					size="small"
 					variant="flat"
 					class="pos-table__delete-btn delete-action-btn"
@@ -408,7 +408,7 @@
 											"
 											@change="handleQtyChange(item, $event)"
 											:rules="[isNumber]"
-											:disabled="!!item.posa_is_replace"
+											:disabled="!!item.posa_is_replace || paymentVisible"
 											prepend-inner-icon="mdi-numeric"
 										></v-text-field>
 										<div v-if="item.max_qty !== undefined" class="text-caption mt-1">
@@ -436,7 +436,8 @@
 											@update:model-value="calcUom(item, $event)"
 											:disabled="
 												!!item.posa_is_replace ||
-												(isReturnInvoice && invoice_doc.return_against)
+												(isReturnInvoice && invoice_doc.return_against) ||
+												paymentVisible
 											"
 											prepend-inner-icon="mdi-weight"
 										></v-select>
@@ -468,7 +469,8 @@
 											:disabled="
 												!pos_profile.posa_allow_user_to_edit_rate ||
 												!!item.posa_is_replace ||
-												!!item.posa_offer_applied
+												!!item.posa_offer_applied ||
+												paymentVisible
 											"
 											prepend-inner-icon="mdi-currency-usd"
 										></v-text-field>
@@ -498,7 +500,8 @@
 											:disabled="
 												!pos_profile.posa_allow_user_to_edit_item_discount ||
 												!!item.posa_is_replace ||
-												!!item.posa_offer_applied
+												!!item.posa_offer_applied ||
+												paymentVisible
 											"
 											prepend-inner-icon="mdi-percent"
 										></v-text-field>
@@ -528,7 +531,8 @@
 											:disabled="
 												!pos_profile.posa_allow_user_to_edit_item_discount ||
 												!!item.posa_is_replace ||
-												!!item.posa_offer_applied
+												!!item.posa_offer_applied ||
+												paymentVisible
 											"
 											prepend-inner-icon="mdi-tag-minus"
 										></v-text-field>
@@ -902,6 +906,7 @@ export default {
 		toggleOffer: Function,
 		changePriceListRate: Function,
 		isNegative: Function,
+		paymentVisible:Boolean,
 	},
 	data() {
 		return {
