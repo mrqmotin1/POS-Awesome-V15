@@ -100,7 +100,7 @@
 </template>
 
 <script>
-import format from "../../../format";
+import format, { formatUtils } from "../../../format";
 import { useUIStore } from "../../../stores/uiStore.js";
 import { getOpeningStorage } from "../../../../offline/index";
 import { useItemsStore } from "../../../stores/itemsStore";
@@ -285,7 +285,7 @@ export default {
 			try {
 				const formatDateForBackend = (date) => {
 					if (!date) return null;
-					const western = format.methods.fromArabicNumerals(String(date));
+					const western = formatUtils.fromArabicNumerals(String(date));
 					if (/^\d{4}-\d{2}-\d{2}$/.test(western)) return western;
 					const d = new Date(western);
 					if (isNaN(d.getTime())) return western;

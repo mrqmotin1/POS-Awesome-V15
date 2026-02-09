@@ -539,33 +539,45 @@ def create_purchase_order(data):
     frappe.flags.ignore_account_permission = True
     po_doc.save()
 
-    if cint(payload.get("submit", 1)):
-        po_doc.submit()
+    # Persist a safe draft first so if any downstream step fails (submit/PR/PI/payment),
+    # the operator does not lose the created PO.
+    frappe.db.commit()
 
-    receipt_name = None
-    receipt_doc = None
-    if receive_now:
-        receipt_name = _create_purchase_receipt(po_doc, payload, warehouse, transaction_date)
-        if receipt_name:
-            receipt_doc = frappe.get_doc("Purchase Receipt", receipt_name)
-    invoice_name = None
-    if cint(payload.get("create_invoice", 0)):
-        invoice_name = _create_purchase_invoice(
-            po_doc, payload, warehouse, transaction_date, receipt_doc=receipt_doc
+    try:
+        if cint(payload.get("submit", 1)):
+            po_doc.submit()
+
+        receipt_name = None
+        receipt_doc = None
+        if receive_now:
+            receipt_name = _create_purchase_receipt(po_doc, payload, warehouse, transaction_date)
+            if receipt_name:
+                receipt_doc = frappe.get_doc("Purchase Receipt", receipt_name)
+        invoice_name = None
+        if cint(payload.get("create_invoice", 0)):
+            invoice_name = _create_purchase_invoice(
+                po_doc, payload, warehouse, transaction_date, receipt_doc=receipt_doc
+            )
+
+        payments = payload.get("payments")
+        if payments:
+            # Use PI if created, otherwise PO
+            ref_doc = frappe.get_doc("Purchase Invoice", invoice_name) if invoice_name else po_doc
+            _create_payment_entry(ref_doc, payments, company, transaction_date)
+
+        return {
+            "purchase_order": po_doc.name,
+            "purchase_receipt": receipt_name,
+            "purchase_invoice": invoice_name,
+        }
+    except Exception as err:
+        frappe.db.rollback()
+        frappe.log_error(frappe.get_traceback(), "POS Awesome PO Submit Flow Failed")
+        frappe.throw(
+            _("Purchase Order {0} has been saved as Draft. Error: {1}").format(
+                po_doc.name, str(err)
+            )
         )
-
-    payments = payload.get("payments")
-    if payments:
-        # Use PI if created, otherwise PO
-        ref_doc = frappe.get_doc("Purchase Invoice", invoice_name) if invoice_name else po_doc
-        _create_payment_entry(ref_doc, payments, company, transaction_date)
-
-    return {
-
-        "purchase_order": po_doc.name,
-        "purchase_receipt": receipt_name,
-        "purchase_invoice": invoice_name,
-    }
 
 
 @frappe.whitelist()
