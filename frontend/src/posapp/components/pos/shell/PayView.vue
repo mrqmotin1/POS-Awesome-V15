@@ -633,6 +633,17 @@ export default {
 			if (customer_name.value) fetch_customer_details();
 		});
 
+		watch(
+			() => pos_profile.value?.posa_allow_reconcile_payments,
+			(enabled) => {
+				if (!enabled || !customer_name.value || !company.value) return;
+				if (!unallocated_payments.value.length) {
+					get_unallocated_payments();
+				}
+			},
+			{ immediate: true },
+		);
+
 		watch(company, (newCompany, oldCompany) => {
 			if (!newCompany || newCompany === oldCompany || !customer_name.value) return;
 			get_outstanding_invoices();

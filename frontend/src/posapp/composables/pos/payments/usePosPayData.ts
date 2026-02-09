@@ -46,7 +46,6 @@ export function usePosPayData({
 		const requestToken = ++outstandingReqToken.value;
 		const requestCustomer = customerName.value;
 		const requestCompany = company.value;
-		const requestCurrency = posProfile.value?.currency;
 
 		if (!customerName.value || !company.value) {
 			outstanding_invoices.value = [];
@@ -75,8 +74,7 @@ export function usePosPayData({
 			if (
 				requestToken !== outstandingReqToken.value ||
 				requestCustomer !== customerName.value ||
-				requestCompany !== company.value ||
-				requestCurrency !== posProfile.value?.currency
+				requestCompany !== company.value
 			) {
 				return;
 			}
@@ -101,7 +99,6 @@ export function usePosPayData({
 		const requestToken = ++unallocatedReqToken.value;
 		const requestCustomer = customerName.value;
 		const requestCompany = company.value;
-		const requestCurrency = posProfile.value?.currency;
 
 		if (!customerName.value || !company.value || isOffline()) {
 			unallocated_payments.value = [];
@@ -115,7 +112,7 @@ export function usePosPayData({
 				{
 					customer: customerName.value,
 					company: company.value,
-					currency: posProfile.value.currency,
+					currency: posProfile.value?.currency || null,
 					include_all_currencies: true,
 				},
 			);
@@ -123,8 +120,7 @@ export function usePosPayData({
 			if (
 				requestToken !== unallocatedReqToken.value ||
 				requestCustomer !== customerName.value ||
-				requestCompany !== company.value ||
-				requestCurrency !== posProfile.value?.currency
+				requestCompany !== company.value
 			) {
 				return;
 			}
