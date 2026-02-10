@@ -269,22 +269,20 @@ const handleQtyChange = (item: any, event: any) => {
 };
 
 const handleMinusClick = (item: any) => {
-	if (props.isReturnInvoice) {
-		if (item.is_free_item || item.posa_is_offer || item.posa_is_replace) {
-			props.removeItem(item);
-			return;
-		}
-		if (item.qty < 0) {
-			props.subtractOne(item);
-		} else {
-			props.removeItem(item);
-		}
+	// For free items, offers, or replacements, always remove
+	if (item.is_free_item || item.posa_is_offer || item.posa_is_replace) {
+		props.removeItem(item);
+		return;
+	}
+
+	// magnitude-based removal: only remove if qty magnitude <= 1
+	// This handles -1 for returns and 1 for normal invoices correctly
+	const absQty = Math.abs(item.qty || 0);
+	if (absQty <= 1) {
+		props.removeItem(item);
 	} else {
-		if (item.qty <= 1) {
-			props.removeItem(item);
-		} else {
-			props.subtractOne(item);
-		}
+		// subtract_one handles the sign-aware logic (e.g. -5 -> -4 in returns)
+		props.subtractOne(item);
 	}
 };
 

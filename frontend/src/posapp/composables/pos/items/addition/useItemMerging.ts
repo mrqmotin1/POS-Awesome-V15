@@ -8,7 +8,7 @@ export function useItemMerging() {
 		entry &&
 		!entry.posa_is_offer &&
 		!entry.posa_is_replace &&
-		Number.parseFloat(entry.qty) > 0;
+		Number.parseFloat(entry.qty) !== 0;
 
 	const buildMergeKey = (entry: MergeEntry, requireBatch: boolean) => {
 		const batchPart = requireBatch ? entry?.batch_no || "" : "";
@@ -137,8 +137,8 @@ export function useItemMerging() {
 				typeof currentIndex === "number" && currentIndex >= 0
 					? currentIndex
 					: context.items.findIndex(
-							(item) => item.posa_row_id === target.posa_row_id,
-						);
+						(item) => item.posa_row_id === target.posa_row_id,
+					);
 			if (resolvedIndex > 0) {
 				const [existing] = context.items.splice(resolvedIndex, 1);
 				context.items.unshift(existing);

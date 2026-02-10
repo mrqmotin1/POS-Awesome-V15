@@ -244,7 +244,9 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 	};
 
 	const add_one = (item: any) => {
-		const proposed = (item.qty || 0) + (isReturnInvoice.value ? -1 : 1);
+		const delta = item.qty < 0 ? -1 : 1;
+		const proposed = (item.qty || 0) + delta;
+
 		if (proposed === 0) {
 			removeItem(item, {
 				invoiceStore,
@@ -257,7 +259,9 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 	};
 
 	const subtract_one = (item: any) => {
-		const proposed = (item.qty || 0) + (isReturnInvoice.value ? 1 : -1);
+		const delta = item.qty < 0 ? 1 : -1;
+		const proposed = (item.qty || 0) + delta;
+
 		if (proposed === 0) {
 			removeItem(item, {
 				invoiceStore,
