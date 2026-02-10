@@ -188,6 +188,10 @@ export function set_batch_qty(
 
 export function calc_uom(context: any, item: any, value: any) {
 	if (!item) return;
+	console.log("[stock.ts] calc_uom event received", {
+		item: item.item_code,
+		uom: value,
+	});
 	const task = () => calcUom(item, value, context);
 	if (context.queueItemTask) {
 		return context.queueItemTask(item, "calc_uom", task, { force: true });

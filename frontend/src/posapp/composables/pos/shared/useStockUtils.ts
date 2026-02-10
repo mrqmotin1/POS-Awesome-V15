@@ -142,6 +142,15 @@ export function useStockUtils() {
 			}
 		}
 
+		console.log("[useStockUtils] calcUom progress", {
+			item: item.item_code,
+			requestedUom: value,
+			foundUom: new_uom?.uom,
+			cf: item.conversion_factor,
+			uomRate,
+			token: activeUomCalcToken
+		});
+
 		if (activeUomCalcToken !== item._uom_calc_token) {
 			return;
 		}
@@ -245,6 +254,14 @@ export function useStockUtils() {
 
 			if (context.calc_stock_qty) context.calc_stock_qty(item, item.qty);
 			if (context.forceUpdate) context.forceUpdate();
+
+			console.log("[useStockUtils] calcUom DONE (specific price)", {
+				item: item.item_code,
+				rate: item.rate,
+				price_list_rate: item.price_list_rate,
+				base_rate: item.base_rate,
+				base_price_list_rate: item.base_price_list_rate
+			});
 			return;
 		}
 
@@ -444,6 +461,16 @@ export function useStockUtils() {
 		// Update item details
 		if (context.calc_stock_qty) context.calc_stock_qty(item, item.qty);
 		if (context.forceUpdate) context.forceUpdate();
+
+		console.log("[useStockUtils] calcUom DONE (proportionate)", {
+			item: item.item_code,
+			uom: item.uom,
+			cf: item.conversion_factor,
+			rate: item.rate,
+			price_list_rate: item.price_list_rate,
+			orig_base: item.original_base_rate,
+			orig_base_pl: item.original_base_price_list_rate
+		});
 	};
 
 	// Calculate stock quantity for an item
