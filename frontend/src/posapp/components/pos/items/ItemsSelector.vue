@@ -332,6 +332,10 @@ const active_price_list = computed(
 	() => itemsIntegration.active_price_list.value || pos_profile.value?.selling_price_list,
 );
 
+const isReturnInvoice = computed(() => {
+	return !!invoiceStore.invoiceDoc?.is_return;
+});
+
 const blockSaleBeyondAvailableQty = computed(() =>
 	parseBooleanSetting(pos_profile.value?.posa_block_sale_beyond_available_qty),
 );
@@ -476,6 +480,7 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 			invoiceStore,
 			itemDetailFetcher,
 			items: invoiceStore.items,
+			isReturnInvoice: isReturnInvoice.value,
 			...options,
 		};
 

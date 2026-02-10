@@ -275,7 +275,7 @@ const handleMinusClick = (item: any) => {
 			return;
 		}
 		if (item.qty < 0) {
-			props.addOne(item);
+			props.subtractOne(item);
 		} else {
 			props.removeItem(item);
 		}

@@ -274,6 +274,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			invoiceStore,
 			items: invoiceStore.items,
 			pos_profile: pos_profile.value,
+			isReturnInvoice: isReturnInvoice.value,
 		});
 	};
 
