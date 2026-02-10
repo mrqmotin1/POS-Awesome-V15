@@ -72,6 +72,17 @@ export function useItemCreation() {
 			new_item.base_discount_amount = 0;
 		}
 
+		// Baseline for UOM recalculations
+		const initialCF = new_item.conversion_factor || 1;
+		new_item.original_base_rate =
+			new_item.base_rate !== undefined
+				? new_item.base_rate / initialCF
+				: 0;
+		new_item.original_base_price_list_rate =
+			new_item.base_price_list_rate !== undefined
+				? new_item.base_price_list_rate / initialCF
+				: new_item.original_base_rate;
+
 		new_item.qty = item.qty;
 		new_item.uom = item.uom ? item.uom : item.stock_uom;
 		// Ensure item_uoms is initialized
@@ -82,10 +93,20 @@ export function useItemCreation() {
 				conversion_factor: 1,
 			});
 		}
+
+		// Correct conversion factor initialization
+		if (item.conversion_factor !== undefined) {
+			new_item.conversion_factor = item.conversion_factor;
+		} else {
+			const uom_data = new_item.item_uoms.find(
+				(u) => u.uom === new_item.uom,
+			);
+			new_item.conversion_factor = uom_data
+				? uom_data.conversion_factor
+				: 1;
+		}
+
 		new_item.actual_batch_qty = "";
-		new_item.batch_no_expiry_date = item.batch_no_expiry_date || null;
-		new_item.batch_no_is_expired = item.batch_no_is_expired || false;
-		new_item.conversion_factor = 1;
 		new_item.posa_offers = JSON.stringify([]);
 		new_item.posa_offer_applied = 0;
 		new_item.posa_is_offer = item.posa_is_offer;

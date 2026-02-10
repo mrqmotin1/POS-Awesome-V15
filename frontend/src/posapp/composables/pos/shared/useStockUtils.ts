@@ -49,8 +49,8 @@ export function useStockUtils() {
 		const oldBasePriceListRaw = Number.parseFloat(
 			String(
 				item.base_price_list_rate ??
-					item.price_list_rate ??
-					oldBaseRateRaw,
+				item.price_list_rate ??
+				oldBaseRateRaw,
 			),
 		);
 		const oldBaseRate = Number.isFinite(oldBaseRateRaw)
@@ -62,22 +62,21 @@ export function useStockUtils() {
 
 		// Keep a stock-unit baseline so repeated UOM switches always recalculate
 		// from a stable source, even after a UOM-specific rate was applied.
-		if (
-			item.original_base_rate === undefined ||
-			item.original_base_rate === null ||
-			!Number.isFinite(Number.parseFloat(String(item.original_base_rate)))
-		) {
+		const isInvalidBase = (val: any) =>
+			val === undefined ||
+			val === null ||
+			!Number.isFinite(Number.parseFloat(String(val))) ||
+			Number.parseFloat(String(val)) === 0;
+
+		if (isInvalidBase(item.original_base_rate) && oldBaseRate !== 0) {
 			item.original_base_rate =
 				old_conversion_factor !== 0
 					? oldBaseRate / old_conversion_factor
 					: oldBaseRate;
 		}
 		if (
-			item.original_base_price_list_rate === undefined ||
-			item.original_base_price_list_rate === null ||
-			!Number.isFinite(
-				Number.parseFloat(String(item.original_base_price_list_rate)),
-			)
+			isInvalidBase(item.original_base_price_list_rate) &&
+			oldBasePriceListRate !== 0
 		) {
 			item.original_base_price_list_rate =
 				old_conversion_factor !== 0
@@ -180,16 +179,16 @@ export function useStockUtils() {
 				const offer =
 					context.posOffers && Array.isArray(context.posOffers)
 						? context.posOffers.find((o) => {
-								if (!o || !o.items) return false;
-								const items =
-									typeof o.items === "string"
-										? JSON.parse(o.items)
-										: o.items;
-								return (
-									Array.isArray(items) &&
-									items.includes(item.posa_row_id)
-								);
-							})
+							if (!o || !o.items) return false;
+							const items =
+								typeof o.items === "string"
+									? JSON.parse(o.items)
+									: o.items;
+							return (
+								Array.isArray(items) &&
+								items.includes(item.posa_row_id)
+							);
+						})
 						: null;
 
 				if (offer) {
@@ -284,16 +283,16 @@ export function useStockUtils() {
 			const offer =
 				context.posOffers && Array.isArray(context.posOffers)
 					? context.posOffers.find((o) => {
-							if (!o || !o.items) return false;
-							const items =
-								typeof o.items === "string"
-									? JSON.parse(o.items)
-									: o.items;
-							return (
-								Array.isArray(items) &&
-								items.includes(item.posa_row_id)
-							);
-						})
+						if (!o || !o.items) return false;
+						const items =
+							typeof o.items === "string"
+								? JSON.parse(o.items)
+								: o.items;
+						return (
+							Array.isArray(items) &&
+							items.includes(item.posa_row_id)
+						);
+					})
 					: null;
 
 			if (offer && offer.discount_type === "Rate") {
@@ -306,7 +305,7 @@ export function useStockUtils() {
 				const base_price = context.flt(
 					(item.original_base_price_list_rate ??
 						item.base_price_list_rate / old_conversion_factor) *
-						item.conversion_factor,
+					item.conversion_factor,
 					context.currency_precision,
 				);
 
@@ -344,9 +343,9 @@ export function useStockUtils() {
 				);
 				item.discount_percentage = base_price
 					? context.flt(
-							(item.base_discount_amount / base_price) * 100,
-							context.currency_precision,
-						)
+						(item.base_discount_amount / base_price) * 100,
+						context.currency_precision,
+					)
 					: 0;
 			} else if (offer && offer.discount_type === "Discount Percentage") {
 				// For percentage discount, recalculate from original price but with new conversion factor
@@ -354,7 +353,7 @@ export function useStockUtils() {
 				if (item.original_base_price_list_rate) {
 					updated_base_price = context.flt(
 						item.original_base_price_list_rate *
-							item.conversion_factor,
+						item.conversion_factor,
 						context.currency_precision,
 					);
 				} else {
