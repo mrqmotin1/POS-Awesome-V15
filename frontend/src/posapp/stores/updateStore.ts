@@ -1,8 +1,11 @@
 import { defineStore } from "pinia";
 
 const VERSION_STORAGE_KEY = "posawesome_version";
+const DISMISSED_VERSION_KEY = "posawesome_update_dismissed";
+const LAST_CHECK_KEY = "posawesome_update_last_check";
 const SNOOZE_STORAGE_KEY = "posawesome_update_snooze_until";
 const DEFAULT_SNOOZE_MINUTES = 10;
+const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const hasBrowserContext = typeof window !== "undefined";
 
 let cachedDateFormatter: Intl.DateTimeFormat | null | undefined = null;
@@ -111,9 +114,16 @@ function formatTimestamp(timestamp: number | null): string | null {
 
 export interface UpdateState {
 	currentVersion: string | null;
+	currentCommit: string | null;
 	availableVersion: string | null;
 	availableTimestamp: number | null;
 	dismissedUntil: number | null;
+	dismissedVersion: string | null;
+	lastCheckedAt: number | null;
+	availableMessage: string | null;
+	availableCommit: string | null;
+	availableCommitDate: string | null;
+	availableBranch: string | null;
 	reloadAction: (() => void) | null;
 	reloading: boolean;
 }
@@ -121,9 +131,16 @@ export interface UpdateState {
 export const useUpdateStore = defineStore("update", {
 	state: (): UpdateState => ({
 		currentVersion: null,
+		currentCommit: null,
 		availableVersion: null,
 		availableTimestamp: null,
 		dismissedUntil: null,
+		dismissedVersion: null,
+		lastCheckedAt: null,
+		availableMessage: null,
+		availableCommit: null,
+		availableCommitDate: null,
+		availableBranch: null,
 		reloadAction: null,
 		reloading: false,
 	}),
@@ -139,6 +156,12 @@ export const useUpdateStore = defineStore("update", {
 			if (!this.isUpdateReady || state.reloading) {
 				return false;
 			}
+			if (
+				state.dismissedVersion &&
+				state.availableVersion === state.dismissedVersion
+			) {
+				return false;
+			}
 			return !state.dismissedUntil || state.dismissedUntil <= Date.now();
 		},
 		formattedAvailableVersion(state: UpdateState): string | null {
@@ -146,6 +169,24 @@ export const useUpdateStore = defineStore("update", {
 				formatTimestamp(state.availableTimestamp) ||
 				state.availableVersion
 			);
+		},
+		formattedAvailableDetails(state: UpdateState): string | null {
+			if (!state.availableMessage && !state.availableCommitDate) {
+				return null;
+			}
+			const bits = [];
+			if (state.availableMessage) {
+				bits.push(state.availableMessage);
+			}
+			if (state.availableCommitDate) {
+				bits.push(state.availableCommitDate);
+			}
+			return bits.join(" • ");
+		},
+		formattedAvailableBranch(state: UpdateState): string | null {
+			return state.availableBranch
+				? `branch: ${state.availableBranch}`
+				: null;
 		},
 	},
 	actions: {
@@ -172,6 +213,19 @@ export const useUpdateStore = defineStore("update", {
 				(!this.dismissedUntil || snoozeUntil > this.dismissedUntil)
 			) {
 				this.dismissedUntil = snoozeUntil;
+			}
+			const dismissedVersion = safeStorageGet(
+				window.localStorage,
+				DISMISSED_VERSION_KEY,
+			);
+			if (dismissedVersion) {
+				this.dismissedVersion = dismissedVersion;
+			}
+			const lastCheckedAt = safeNumber(
+				safeStorageGet(window.localStorage, LAST_CHECK_KEY),
+			);
+			if (lastCheckedAt) {
+				this.lastCheckedAt = lastCheckedAt;
 			}
 		},
 		setCurrentVersion(
@@ -211,6 +265,11 @@ export const useUpdateStore = defineStore("update", {
 				);
 			}
 		},
+		setCurrentCommit(commit: string | null) {
+			if (!commit) return;
+			if (this.currentCommit === commit) return;
+			this.currentCommit = commit;
+		},
 		setAvailableVersion(
 			version: string | number | null,
 			explicitTimestamp?: number | null,
@@ -233,10 +292,27 @@ export const useUpdateStore = defineStore("update", {
 				return;
 			}
 			if (versionChanged) {
+				if (this.dismissedVersion === normalized) {
+					this.dismissedVersion = null;
+					if (hasBrowserContext) {
+						safeStorageRemove(
+							window.localStorage,
+							DISMISSED_VERSION_KEY,
+						);
+					}
+				}
+			}
+			if (versionChanged) {
 				updates.availableVersion = normalized;
 			}
 			if (timestampChanged) {
 				updates.availableTimestamp = timestamp;
+			}
+			if (versionChanged) {
+				updates.availableMessage = null;
+				updates.availableCommit = null;
+				updates.availableCommitDate = null;
+				updates.availableBranch = null;
 			}
 			if (!currentVersion) {
 				updates.currentVersion = normalized;
@@ -259,6 +335,7 @@ export const useUpdateStore = defineStore("update", {
 			const updates: Partial<UpdateState> = {
 				reloading: false,
 				dismissedUntil: null,
+				dismissedVersion: null,
 			};
 			if (version) {
 				const { normalized, timestamp } = normalizeVersionInput(
@@ -285,6 +362,82 @@ export const useUpdateStore = defineStore("update", {
 			this.$patch(updates);
 			if (hasBrowserContext) {
 				safeStorageRemove(window.sessionStorage, SNOOZE_STORAGE_KEY);
+				safeStorageRemove(window.localStorage, DISMISSED_VERSION_KEY);
+			}
+		},
+		dismissUpdate() {
+			if (!this.availableVersion) {
+				return;
+			}
+			this.dismissedVersion = this.availableVersion;
+			this.dismissedUntil = null;
+			if (hasBrowserContext) {
+				safeStorageSet(
+					window.localStorage,
+					DISMISSED_VERSION_KEY,
+					this.availableVersion,
+				);
+				safeStorageRemove(
+					window.sessionStorage,
+					SNOOZE_STORAGE_KEY,
+				);
+			}
+		},
+		shouldCheckNow(force = false) {
+			if (force) return true;
+			if (!this.lastCheckedAt) return true;
+			return Date.now() - this.lastCheckedAt >= CHECK_INTERVAL_MS;
+		},
+		async checkForUpdates(force = false) {
+			if (!hasBrowserContext) return;
+			if (!this.shouldCheckNow(force)) return;
+			this.lastCheckedAt = Date.now();
+			safeStorageSet(
+				window.localStorage,
+				LAST_CHECK_KEY,
+				String(this.lastCheckedAt),
+			);
+			// @ts-ignore
+			const frappe = (window as any).frappe;
+			if (!frappe?.call) return;
+			try {
+				const r = await frappe.call({
+					method: "posawesome.posawesome.api.utilities.get_remote_update_info",
+				});
+				const buildVersion = r?.message?.build_version;
+				const currentCommit = r?.message?.commit_hash;
+				if (currentCommit) {
+					this.setCurrentCommit(currentCommit);
+				}
+				if (buildVersion) {
+					this.setAvailableVersion(buildVersion);
+				}
+				if (r?.message?.remote_ahead) {
+					const remoteAhead = r.message.remote_ahead || {};
+					const branches = Object.keys(remoteAhead);
+					if (branches.length) {
+						const sample = r.message.remote_sample || {};
+						this.availableBranch =
+							r.message.remote_sample_branch || branches[0];
+						this.availableCommit =
+							sample.commit_hash || remoteAhead[branches[0]];
+						this.availableMessage =
+							sample.commit_message?.trim() || null;
+						this.availableCommitDate =
+							sample.commit_date || null;
+						this.availableVersion =
+							this.availableCommit || buildVersion;
+						return;
+					}
+				}
+				if (r?.message?.commit_message) {
+					this.availableMessage =
+						r?.message?.commit_message?.trim() || null;
+					this.availableCommit = r?.message?.commit_hash || null;
+					this.availableCommitDate = r?.message?.commit_date || null;
+				}
+			} catch (err) {
+				console.warn("Failed to check for updates", err);
 			}
 		},
 		setReloadAction(action: () => void) {

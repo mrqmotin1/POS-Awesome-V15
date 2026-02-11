@@ -1,32 +1,38 @@
 <template>
-	<v-snackbar
-		:model-value="true"
-		v-if="visible"
-		class="pos-update-snackbar elevation-8"
-		:location="isRtl ? 'bottom left' : 'bottom right'"
-		:timeout="-1"
-		color="primary"
-	>
-		<div class="pos-update-message">
-			<v-icon size="20" class="mr-2">mdi-alert-decagram</v-icon>
-			<div>
-				<div class="text-subtitle-2 font-weight-medium">
+	<v-dialog v-model="visible" max-width="420" persistent>
+		<v-card class="pos-update-dialog pos-themed-card">
+			<v-card-title class="d-flex align-center">
+				<v-icon size="22" class="mr-2">mdi-alert-decagram</v-icon>
+				<span class="text-subtitle-1 font-weight-medium">
 					{{ __("New version ready") }}
+				</span>
+			</v-card-title>
+			<v-card-text>
+				<div class="text-body-2">
+					{{ __("A new update is available. Reload to apply changes.") }}
 				</div>
-				<div class="text-caption text-white text-opacity-80" v-if="label">
-					{{ label }}
+				<div
+					class="text-caption text-medium-emphasis mt-2"
+					v-if="label || detail || branch"
+				>
+					<span v-if="label">{{ label }}</span>
+					<span v-if="label && (detail || branch)"> • </span>
+					<span v-if="detail">{{ detail }}</span>
+					<span v-if="detail && branch"> • </span>
+					<span v-if="branch">{{ branch }}</span>
 				</div>
-			</div>
-		</div>
-		<template #actions>
-			<v-btn variant="text" color="white" class="mr-2" @click="snooze">
-				{{ __("Later") }}
-			</v-btn>
-			<v-btn variant="elevated" color="white" class="text-primary" @click="reload">
-				{{ updateStore.reloading ? __("Updating...") : __("Reload Now") }}
-			</v-btn>
-		</template>
-	</v-snackbar>
+			</v-card-text>
+			<v-card-actions>
+				<v-spacer></v-spacer>
+				<v-btn variant="text" color="primary" @click="dismiss">
+					{{ __("Dismiss") }}
+				</v-btn>
+				<v-btn variant="elevated" color="primary" @click="reload">
+					{{ updateStore.reloading ? __("Updating...") : __("Reload Now") }}
+				</v-btn>
+			</v-card-actions>
+		</v-card>
+	</v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -54,26 +60,25 @@ watch(
 );
 
 const label = computed(() => updateStore.formattedAvailableVersion);
+const detail = computed(() => updateStore.formattedAvailableDetails);
+const branch = computed(() => updateStore.formattedAvailableBranch);
 
 function reload() {
 	updateStore.resetSnooze();
 	updateStore.reloadNow();
 }
 
-function snooze() {
-	updateStore.snooze();
+function dismiss() {
+	updateStore.dismissUpdate();
 	visible.value = false;
 }
 </script>
 
 <style scoped>
-.pos-update-snackbar {
-	max-width: 360px;
-}
-
-.pos-update-message {
-	display: flex;
-	align-items: center;
-	gap: 12px;
+.pos-update-dialog {
+	border-radius: 14px;
 }
 </style>
+
+
+

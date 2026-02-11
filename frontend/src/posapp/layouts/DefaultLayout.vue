@@ -52,6 +52,7 @@ import { useCustomersStore } from "../stores/customersStore.js";
 import { useSyncStore } from "../stores/syncStore.js";
 import { useToastStore } from "../stores/toastStore.js";
 import { useUIStore } from "../stores/uiStore.js";
+import { useUpdateStore } from "../stores/updateStore.js";
 import { useItemsStore } from "../stores/itemsStore.js";
 import { storeToRefs } from "pinia";
 import {
@@ -111,6 +112,7 @@ const customersStore = useCustomersStore();
 const itemsStore = useItemsStore();
 const toastStore = useToastStore();
 const uiStore = useUIStore();
+const updateStore = useUpdateStore();
 
 // UI Store State
 const { posProfile, lastInvoiceId } = storeToRefs(uiStore);
@@ -138,6 +140,7 @@ const cacheUsage = ref(0);
 const cacheUsageLoading = ref(false);
 const cacheUsageDetails = ref({ total: 0, indexedDB: 0, localStorage: 0 });
 let _sidebarObserver = null;
+let updateInterval = null;
 
 // Event Bus
 const eventBus = instance?.proxy?.eventBus;
@@ -212,9 +215,29 @@ onMounted(() => {
 	setupNetworkListeners(); // Local function wrapper
 	setupEventListeners();
 	handleRefreshCacheUsage();
+
+	updateStore.initializeFromStorage();
+	// @ts-ignore
+	const BUILD_VERSION =
+		typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : null;
+	if (BUILD_VERSION) {
+		updateStore.setCurrentVersion(BUILD_VERSION);
+	}
+	updateStore.setReloadAction(() => {
+		window.location.reload();
+	});
+	updateStore.checkForUpdates(true);
+	updateInterval = setInterval(
+		() => updateStore.checkForUpdates(),
+		24 * 60 * 60 * 1000,
+	);
 });
 
 onBeforeUnmount(() => {
+	if (updateInterval) {
+		clearInterval(updateInterval);
+		updateInterval = null;
+	}
 	if (eventBus) {
 		eventBus.off("data-loaded");
 		eventBus.off("register_pos_profile");

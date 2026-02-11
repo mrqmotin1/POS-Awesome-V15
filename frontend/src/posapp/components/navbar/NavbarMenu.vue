@@ -173,6 +173,26 @@
 						</div>
 					</v-list-item>
 
+					<v-list-item
+						@click="checkForUpdates"
+						:disabled="manualOffline || !networkOnline || !serverOnline"
+						class="menu-item-compact info-action"
+					>
+						<template v-slot:prepend>
+							<div class="menu-icon-wrapper-compact info-icon">
+								<v-icon color="white" size="16">mdi-update</v-icon>
+							</div>
+						</template>
+						<div class="menu-content-compact">
+							<v-list-item-title class="menu-item-title-compact">{{
+								__("Check for Updates")
+							}}</v-list-item-title>
+							<v-list-item-subtitle class="menu-item-subtitle-compact">{{
+								__("Check for new commits")
+							}}</v-list-item-subtitle>
+						</div>
+					</v-list-item>
+
 					<v-divider class="menu-section-divider-compact"></v-divider>
 
 					<v-list-item @click="$emit('show-about')" class="menu-item-compact neutral-action">
@@ -358,6 +378,7 @@ const FALLBACK_LANGUAGES = [
 ];
 
 import { useLastInvoicePrinting } from "../../composables/core/useLastInvoicePrinting";
+import { useUpdateStore } from "../../stores/updateStore";
 
 export default {
 	name: "NavbarMenu",
@@ -369,7 +390,8 @@ export default {
 	},
 	setup() {
 		const { printLastInvoice } = useLastInvoicePrinting();
-		return { printLastInvoice };
+		const updateStore = useUpdateStore();
+		return { printLastInvoice, updateStore };
 	},
 	data() {
 		return {
@@ -573,6 +595,22 @@ export default {
 
 		hideNotification() {
 			this.notification.show = false;
+		},
+
+		async checkForUpdates() {
+			try {
+				await this.updateStore.checkForUpdates(true);
+				if (this.updateStore.isUpdateReady) {
+					this.showNotification("Update available", "info");
+				} else {
+					this.showNotification("You are up to date", "success");
+				}
+			} catch (error) {
+				this.showNotification(
+					`Failed to check for updates: ${error?.message || "Unknown error"}`,
+					"error",
+				);
+			}
 		},
 
 		__(text) {
