@@ -73,6 +73,9 @@ doctype_js = {
 # after_install = "posawesome.install.after_install"
 # before_uninstall = "posawesome.uninstall.before_uninstall"
 after_uninstall = "posawesome.uninstall.after_uninstall"
+after_migrate = [
+    "posawesome.patches.add_pos_cash_movement_settings.execute",
+]
 
 # Desk Notifications
 # ------------------
