@@ -1,6 +1,7 @@
 import { useItemAddition } from "../../../composables/pos/items/useItemAddition";
 import { get_invoice_doc, get_invoice_items, get_payments } from "./document";
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency";
+import { applyReturnDiscountProration } from "./item_updates";
 
 declare const __: (_text: string, _args?: any[]) => string;
 declare const frappe: any;
@@ -48,6 +49,7 @@ export function remove_item(context: any, item: any) {
 	if (context.schedulePricingRuleApplication) {
 		context.schedulePricingRuleApplication();
 	}
+	applyReturnDiscountProration(context);
 	return result;
 }
 
@@ -71,6 +73,7 @@ export async function add_item(context: any, item: any, options: any = {}) {
 	if (context.schedulePricingRuleApplication) {
 		context.schedulePricingRuleApplication();
 	}
+	applyReturnDiscountProration(context);
 
 	// Log debug info
 	_logPriceListDebug(context, "add_item", {

@@ -810,3 +810,49 @@ export function _normalizeReturnDocTotals(context: any, doc: any) {
 
 	return doc;
 }
+
+export function applyReturnDiscountProration(context: any) {
+	if (
+		!context ||
+		!context.isReturnInvoice ||
+		context.pos_profile?.posa_use_percentage_discount ||
+		!context.return_doc ||
+		typeof context.return_doc !== "object"
+	) {
+		return;
+	}
+
+	const returnDoc = context.return_doc;
+	const originalDiscount = Math.abs(
+		Number(returnDoc.discount_amount || 0),
+	);
+	const originalTotal = Math.abs(
+		Number(
+			returnDoc.total ??
+				returnDoc.net_total ??
+				returnDoc.grand_total ??
+				0,
+		),
+	);
+	const returnTotal = Math.abs(Number(context.Total || 0));
+
+	if (!originalDiscount || !originalTotal || !returnTotal) {
+		return;
+	}
+
+	const ratio = Math.min(1, returnTotal / originalTotal);
+	const prorated = -Math.abs(originalDiscount * ratio);
+	const current = Number(context.additional_discount || 0);
+	if (Math.abs(current - prorated) > 0.0001) {
+		console.log("[POSA][Returns] Hook auto-prorate discount", {
+			originalDiscount,
+			originalTotal,
+			returnTotal,
+			ratio,
+			prorated,
+		});
+		context.additional_discount = prorated;
+		context.discount_amount = prorated;
+		context.additional_discount_percentage = 0;
+	}
+}
