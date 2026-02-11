@@ -19,6 +19,7 @@ interface InvoiceWatchersVm {
 	additional_discount?: number;
 	additional_discount_percentage?: number;
 	return_doc?: Record<string, unknown> | string | null;
+	update_discount_umount?: () => void;
 	pos_profile: {
 		posa_use_percentage_discount?: boolean;
 		selling_price_list?: string;
@@ -155,6 +156,13 @@ const invoiceWatchers: Record<string, unknown> & ThisType<InvoiceWatchersVm> = {
 		},
 	},
 	Total(this: InvoiceWatchersVm) {
+		if (
+			this.pos_profile?.posa_use_percentage_discount &&
+			Number(this.additional_discount_percentage || 0) !== 0 &&
+			typeof this.update_discount_umount === "function"
+		) {
+			this.update_discount_umount();
+		}
 		applyReturnDiscountProration(this);
 	},
 
