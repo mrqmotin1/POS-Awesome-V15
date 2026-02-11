@@ -39,8 +39,16 @@
 				/>
 			</v-col>
 			<v-col cols="12" md="4" v-if="movementType === 'Expense'">
-				<v-text-field
+				<v-autocomplete
 					v-model="expenseAccount"
+					:items="expenseAccountOptions"
+					:loading="expenseAccountLoading"
+					:search="expenseAccountSearch"
+					@update:search="onExpenseSearch"
+					@focus="loadExpenseAccounts('')"
+					no-filter
+					clearable
+					hide-no-data
 					variant="outlined"
 					density="compact"
 					:label="__('Expense Account (Optional Override)')"
@@ -48,8 +56,16 @@
 				/>
 			</v-col>
 			<v-col cols="12" md="4" v-if="movementType === 'Deposit'">
-				<v-text-field
+				<v-autocomplete
 					v-model="targetAccount"
+					:items="targetAccountOptions"
+					:loading="targetAccountLoading"
+					:search="targetAccountSearch"
+					@update:search="onTargetSearch"
+					@focus="loadTargetAccounts('')"
+					no-filter
+					clearable
+					hide-no-data
 					variant="outlined"
 					density="compact"
 					:label="__('Back Office Cash Account (Optional Override)')"
@@ -93,6 +109,7 @@
 import { computed, ref, watch } from "vue";
 
 type MovementType = "Expense" | "Deposit";
+type AccountSearchType = "expense" | "cash";
 
 const __ = window.__ || ((text: string, _args?: any[]) => text);
 
@@ -110,6 +127,14 @@ const amount = ref<number>(0);
 const remarks = ref<string>("");
 const expenseAccount = ref<string>("");
 const targetAccount = ref<string>("");
+const expenseAccountOptions = ref<string[]>([]);
+const targetAccountOptions = ref<string[]>([]);
+const expenseAccountSearch = ref("");
+const targetAccountSearch = ref("");
+const expenseAccountLoading = ref(false);
+const targetAccountLoading = ref(false);
+let expenseSearchTimer: ReturnType<typeof setTimeout> | null = null;
+let targetSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const enabled = computed(() => !!props.context?.enable_cash_movement);
 const allowExpense = computed(() => !!props.context?.allow_pos_expense);
@@ -127,10 +152,17 @@ const movementTypes = computed(() => {
 
 watch(
 	() => props.context,
-	(newContext) => {
+	async (newContext) => {
 		if (!newContext) return;
 		expenseAccount.value = newContext.default_expense_account || "";
 		targetAccount.value = newContext.back_office_cash_account || "";
+		if (expenseAccount.value) {
+			ensureOptionExists(expenseAccountOptions.value, expenseAccount.value);
+		}
+		if (targetAccount.value) {
+			ensureOptionExists(targetAccountOptions.value, targetAccount.value);
+		}
+		await Promise.all([loadExpenseAccounts(""), loadTargetAccounts("")]);
 	},
 	{ immediate: true, deep: true },
 );
@@ -146,6 +178,103 @@ watch(
 	},
 	{ immediate: true },
 );
+
+function ensureOptionExists(options: string[], value: string) {
+	if (!value) return;
+	if (!options.includes(value)) {
+		options.unshift(value);
+	}
+}
+
+function normalizeSearchResults(rows: any[]): string[] {
+	const result: string[] = [];
+	for (const row of rows || []) {
+		let value = "";
+		if (typeof row === "string") {
+			value = row;
+		} else if (Array.isArray(row) && row.length) {
+			value = String(row[0] || "");
+		} else if (row?.value) {
+			value = String(row.value);
+		} else if (row?.name) {
+			value = String(row.name);
+		}
+		if (value && !result.includes(value)) {
+			result.push(value);
+		}
+	}
+	return result;
+}
+
+async function fetchAccountOptions(searchText: string, type: AccountSearchType): Promise<string[]> {
+	const company = props.context?.company;
+	const filters: Record<string, any> = {
+		is_group: 0,
+	};
+	if (company) {
+		filters.company = company;
+	}
+	if (type === "expense") {
+		filters.root_type = "Expense";
+	} else {
+		filters.account_type = "Cash";
+	}
+
+	const response = await frappe.call({
+		method: "frappe.desk.search.search_link",
+		args: {
+			doctype: "Account",
+			txt: searchText || "",
+			page_length: 20,
+			filters,
+		},
+	});
+	return normalizeSearchResults(response?.message || []);
+}
+
+async function loadExpenseAccounts(searchText = "") {
+	if (!enabled.value || !allowExpense.value) return;
+	expenseAccountLoading.value = true;
+	try {
+		const results = await fetchAccountOptions(searchText, "expense");
+		expenseAccountOptions.value = results;
+		ensureOptionExists(expenseAccountOptions.value, expenseAccount.value);
+	} finally {
+		expenseAccountLoading.value = false;
+	}
+}
+
+async function loadTargetAccounts(searchText = "") {
+	if (!enabled.value || !allowDeposit.value) return;
+	targetAccountLoading.value = true;
+	try {
+		const results = await fetchAccountOptions(searchText, "cash");
+		targetAccountOptions.value = results;
+		ensureOptionExists(targetAccountOptions.value, targetAccount.value);
+	} finally {
+		targetAccountLoading.value = false;
+	}
+}
+
+function onExpenseSearch(value: string) {
+	expenseAccountSearch.value = value || "";
+	if (expenseSearchTimer) {
+		clearTimeout(expenseSearchTimer);
+	}
+	expenseSearchTimer = setTimeout(() => {
+		loadExpenseAccounts(expenseAccountSearch.value);
+	}, 250);
+}
+
+function onTargetSearch(value: string) {
+	targetAccountSearch.value = value || "";
+	if (targetSearchTimer) {
+		clearTimeout(targetSearchTimer);
+	}
+	targetSearchTimer = setTimeout(() => {
+		loadTargetAccounts(targetAccountSearch.value);
+	}, 250);
+}
 
 function onSubmit(type: MovementType) {
 	emit("submit", {
