@@ -7,6 +7,10 @@
 
 ---
 
+NOTE: Application is undergoing major refactoring. please report for any bug or issue it will be solved on high priority. For now it is stable and tested.
+
+Recommended to use stable version for production. 
+
 ### Quick Start
 
 Follow these steps to install and start using POS Awesome:
@@ -57,6 +61,59 @@ After switching branches or pulling latest changes:
 Go to developer tools in browser, then go to application tab, then go to storage and clear site data.
 After clearing site data go to browser settings and delete cache and images data in history also.
 
+---
+
+### Project Structure (Modernized)
+
+Key folders in the modernized POS app:
+
+- `frontend/src/posapp/components/pos/` UI split into small, focused components (invoice, items, payments, closing, etc.)
+- `frontend/src/posapp/composables/` business logic and state orchestration (invoice, items, payments, offers, offline)
+- `frontend/src/posapp/stores/` Pinia stores for normalized app state
+- `posawesome/posawesome/api/` backend APIs split by domain (invoice_processing, item_processing, payment_processing)
+
+---
+
+### TypeScript Migration Status
+
+The POS frontend has been migrated to TypeScript. If you add new modules, prefer `.ts`/`.vue` with `lang="ts"` and keep types in `frontend/src/posapp/types/`.
+
+---
+
+### Returns & Discounts (Important Behavior)
+
+- **Return invoices** use negative quantities and negative totals.
+- **Additional Discount (Percentage)** is recalculated automatically based on the current return total.
+- **Additional Discount (Amount)** is **prorated** on partial returns.
+- Applied as a **negative** discount on returns.
+- For **Return without Invoice**, discount logic depends on the POS Profile and may require manual adjustment.
+
+---
+
+### Payments & Write-Offs
+
+- Write-off amount is capped by POS Profile and validated against payment coverage.
+- Refunds/returns use negative payment amounts.
+- Partial payments and credit sales respect the same write-off limits.
+
+---
+
+### Offline Mode
+
+- Invoices, customers, and payments can be created offline.
+- Background sync replays changes when connectivity returns.
+- Failed offline submissions are saved as Drafts.
+
+---
+
+### Debugging (Quick Tips)
+
+- Check browser console for errors and attached logs with issue for better debugging.
+- If UI totals look stale after a major update, clear site data from developer tools and browser cache and files from browsing history.
+
+---
+
+
 ### Electron Desktop App
 
 Use the bundled Electron shell when you need an offline-friendly desktop build that remembers the ERPNext server URL.
@@ -72,6 +129,13 @@ Notes:
 - Windows (`.exe`) builds require Wine/Mono when running `electron-builder` on Linux. By default, `yarn electron:build` targets the current platform and writes artifacts into `dist-electron/`.
 
 ### Main Features
+
+#### 🏗️ Architecture (New)
+
+- **Vue Router**: Fully Client-Side Routing for instant navigation between POS, Orders, and Payments.
+- **Modular Design**: Separated concerns using Vue 3 Composition API.
+
+#### 🎨 UI/UX & Interface
 
 #### 🎨 UI/UX & Interface
 
@@ -182,6 +246,7 @@ Notes:
 - [Frappe](https://github.com/frappe/frappe)
 - [Erpnext](https://github.com/frappe/erpnext)
 - [Vue.js](https://github.com/vuejs/vue)
+- [Vue Router](https://router.vuejs.org/) (New Architecture)
 - [Vuetify.js](https://github.com/vuetifyjs/vuetify)
 
 ---

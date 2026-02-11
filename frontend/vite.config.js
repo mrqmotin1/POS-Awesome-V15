@@ -49,24 +49,6 @@ export default defineConfig({
 					src: "node_modules/html2pdf.js/dist/html2pdf.bundle.min.js",
 					dest: "libs",
 				},
-				{
-					src: "src/offline/*",
-					dest: "offline",
-				},
-				{
-					src: "src/sw.js",
-					dest: "../www",
-					transform(contents) {
-						return contents.replace(/__BUILD_VERSION__/g, buildVersion);
-					},
-				},
-				{
-					src: "src/loader.js",
-					dest: ".",
-					transform(contents) {
-						return contents.replace(/__BUILD_VERSION__/g, buildVersion);
-					},
-				},
 			],
 		}),
 	],
@@ -82,7 +64,9 @@ export default defineConfig({
 		cssCodeSplit: false,
 		rollupOptions: {
 			input: {
-				posawesome: path.resolve(__dirname, "src/posawesome.bundle.js"),
+				posawesome: path.resolve(__dirname, "src/posawesome.bundle.ts"),
+				"offline/index": path.resolve(__dirname, "src/offline/index.ts"),
+				loader: path.resolve(__dirname, "src/loader.ts"),
 			},
 			external: ["socket.io-client"],
 			output: {

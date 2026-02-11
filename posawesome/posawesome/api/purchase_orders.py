@@ -41,6 +41,44 @@ def _ensure_allowed(profile, flag, label):
         frappe.throw(_("{0} is disabled for this POS Profile.").format(label))
 
 
+def _resolve_supplier(supplier_value):
+    if isinstance(supplier_value, dict):
+        supplier_value = (
+            supplier_value.get("name")
+            or supplier_value.get("supplier_name")
+            or supplier_value.get("supplier")
+        )
+
+    supplier = str(supplier_value or "").strip()
+    if not supplier:
+        return None
+
+    if frappe.db.exists("Supplier", supplier):
+        return supplier
+
+    supplier_by_label = frappe.db.get_value(
+        "Supplier", {"supplier_name": supplier}, "name"
+    )
+    if supplier_by_label:
+        return supplier_by_label
+
+    # Fallback: case-insensitive lookup by name/supplier_name
+    ci_match = frappe.db.sql(
+        """
+        select name
+        from `tabSupplier`
+        where lower(name) = lower(%s)
+           or lower(supplier_name) = lower(%s)
+        limit 1
+        """,
+        (supplier, supplier),
+    )
+    if ci_match and ci_match[0]:
+        return ci_match[0][0]
+
+    return None
+
+
 def _resolve_buying_price_list():
     buying_price_list = frappe.db.get_single_value("Buying Settings", "buying_price_list")
     if not buying_price_list:
@@ -397,11 +435,13 @@ def create_purchase_order(data):
     if receive_now:
         _ensure_allowed(profile, "posa_allow_purchase_receipt", _("Receive stock"))
 
-    supplier = payload.get("supplier")
-    if not supplier:
+    supplier_input = payload.get("supplier")
+    if not supplier_input:
         frappe.throw(_("Supplier is required."))
-    if not frappe.db.exists("Supplier", supplier):
-        frappe.throw(_("Supplier {0} was not found.").format(supplier))
+
+    supplier = _resolve_supplier(supplier_input)
+    if not supplier:
+        frappe.throw(_("Supplier {0} was not found.").format(supplier_input))
 
     company = payload.get("company") or profile.get("company") or frappe.defaults.get_default("company")
     if not company:
@@ -499,33 +539,45 @@ def create_purchase_order(data):
     frappe.flags.ignore_account_permission = True
     po_doc.save()
 
-    if cint(payload.get("submit", 1)):
-        po_doc.submit()
+    # Persist a safe draft first so if any downstream step fails (submit/PR/PI/payment),
+    # the operator does not lose the created PO.
+    frappe.db.commit()
 
-    receipt_name = None
-    receipt_doc = None
-    if receive_now:
-        receipt_name = _create_purchase_receipt(po_doc, payload, warehouse, transaction_date)
-        if receipt_name:
-            receipt_doc = frappe.get_doc("Purchase Receipt", receipt_name)
-    invoice_name = None
-    if cint(payload.get("create_invoice", 0)):
-        invoice_name = _create_purchase_invoice(
-            po_doc, payload, warehouse, transaction_date, receipt_doc=receipt_doc
+    try:
+        if cint(payload.get("submit", 1)):
+            po_doc.submit()
+
+        receipt_name = None
+        receipt_doc = None
+        if receive_now:
+            receipt_name = _create_purchase_receipt(po_doc, payload, warehouse, transaction_date)
+            if receipt_name:
+                receipt_doc = frappe.get_doc("Purchase Receipt", receipt_name)
+        invoice_name = None
+        if cint(payload.get("create_invoice", 0)):
+            invoice_name = _create_purchase_invoice(
+                po_doc, payload, warehouse, transaction_date, receipt_doc=receipt_doc
+            )
+
+        payments = payload.get("payments")
+        if payments:
+            # Use PI if created, otherwise PO
+            ref_doc = frappe.get_doc("Purchase Invoice", invoice_name) if invoice_name else po_doc
+            _create_payment_entry(ref_doc, payments, company, transaction_date)
+
+        return {
+            "purchase_order": po_doc.name,
+            "purchase_receipt": receipt_name,
+            "purchase_invoice": invoice_name,
+        }
+    except Exception as err:
+        frappe.db.rollback()
+        frappe.log_error(frappe.get_traceback(), "POS Awesome PO Submit Flow Failed")
+        frappe.throw(
+            _("Purchase Order {0} has been saved as Draft. Error: {1}").format(
+                po_doc.name, str(err)
+            )
         )
-
-    payments = payload.get("payments")
-    if payments:
-        # Use PI if created, otherwise PO
-        ref_doc = frappe.get_doc("Purchase Invoice", invoice_name) if invoice_name else po_doc
-        _create_payment_entry(ref_doc, payments, company, transaction_date)
-
-    return {
-
-        "purchase_order": po_doc.name,
-        "purchase_receipt": receipt_name,
-        "purchase_invoice": invoice_name,
-    }
 
 
 @frappe.whitelist()

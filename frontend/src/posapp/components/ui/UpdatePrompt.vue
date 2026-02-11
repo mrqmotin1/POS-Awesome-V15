@@ -1,12 +1,11 @@
 <template>
 	<v-snackbar
-		model-value="true"
+		:model-value="true"
 		v-if="visible"
-		class="pos-update-snackbar"
+		class="pos-update-snackbar elevation-8"
 		:location="isRtl ? 'bottom left' : 'bottom right'"
 		:timeout="-1"
 		color="primary"
-		elevation="8"
 	>
 		<div class="pos-update-message">
 			<v-icon size="20" class="mr-2">mdi-alert-decagram</v-icon>
@@ -30,48 +29,41 @@
 	</v-snackbar>
 </template>
 
-<script>
-import { computed, watch, ref } from "vue";
-import { useUpdateStore } from "../../stores/updateStore.js";
-import { useRtl } from "../../composables/useRtl.js";
+<script setup lang="ts">
+import { computed, ref, watch } from "vue";
+import { useUpdateStore } from "../../stores/updateStore";
+import { useRtl } from "../../composables/core/useRtl";
 
-export default {
+defineOptions({
 	name: "UpdatePrompt",
-	setup() {
-		const updateStore = useUpdateStore();
-		const { isRtl } = useRtl();
-		const visible = ref(false);
+});
 
-		watch(
-			() => updateStore.shouldPrompt,
-			(shouldShow) => {
-				visible.value = shouldShow;
-			},
-			{ immediate: true },
-		);
+const updateStore = useUpdateStore();
+const { isRtl } = useRtl();
+const visible = ref(false);
 
-		const label = computed(() => updateStore.formattedAvailableVersion);
+// @ts-ignore
+const __ = (window as any).__ || ((s: string) => s);
 
-		function reload() {
-			updateStore.resetSnooze();
-			updateStore.reloadNow();
-		}
-
-		function snooze() {
-			updateStore.snooze();
-			visible.value = false;
-		}
-
-		return {
-			updateStore,
-			visible,
-			label,
-			reload,
-			snooze,
-			isRtl,
-		};
+watch(
+	() => updateStore.shouldPrompt,
+	(shouldShow) => {
+		visible.value = shouldShow;
 	},
-};
+	{ immediate: true },
+);
+
+const label = computed(() => updateStore.formattedAvailableVersion);
+
+function reload() {
+	updateStore.resetSnooze();
+	updateStore.reloadNow();
+}
+
+function snooze() {
+	updateStore.snooze();
+	visible.value = false;
+}
 </script>
 
 <style scoped>

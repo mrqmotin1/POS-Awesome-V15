@@ -6,10 +6,11 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe.utils import cstr, add_to_date, get_datetime
-from typing import List, Dict
+from typing import List, Dict, Any
 import time
 import os
 import re
+import json
 
 try:
     import psutil
@@ -474,6 +475,29 @@ LANGUAGE_NAMES = {
 }
 
 
+def _clip_text(value: Any, max_length: int = 2000) -> str:
+    text = cstr(value or "")
+    if len(text) <= max_length:
+        return text
+    return text[:max_length] + "..."
+
+
+def _sanitize_client_error_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "kind": _clip_text(payload.get("kind") or "unknown", 80),
+        "message": _clip_text(payload.get("message") or "Unknown client error", 2000),
+        "stack": _clip_text(payload.get("stack") or "", 8000),
+        "filename": _clip_text(payload.get("filename") or "", 500),
+        "lineno": payload.get("lineno"),
+        "colno": payload.get("colno"),
+        "info": _clip_text(payload.get("info") or "", 1000),
+        "route": _clip_text(payload.get("route") or "", 500),
+        "url": _clip_text(payload.get("url") or "", 1000),
+        "user_agent": _clip_text(payload.get("userAgent") or "", 500),
+        "timestamp": _clip_text(payload.get("timestamp") or "", 80),
+    }
+
+
 def _is_cache_valid():
     """Check if language cache is still valid."""
     if not _LANGUAGE_CACHE["last_updated"]:
@@ -650,3 +674,32 @@ def get_language_info(lang_code):
     except Exception as e:
         frappe.log_error(f"Error getting language info for {lang_code}: {str(e)}")
         return {"success": False, "message": "Failed to get language info"}
+
+
+@frappe.whitelist()
+def log_client_error(payload=None):
+    """Capture frontend runtime errors in server logs for debugging."""
+    try:
+        if isinstance(payload, str):
+            parsed_payload = json.loads(payload)
+        elif isinstance(payload, dict):
+            parsed_payload = payload
+        else:
+            parsed_payload = {"message": _clip_text(payload)}
+
+        sanitized_payload = _sanitize_client_error_payload(parsed_payload)
+        title = f"POS Client Error [{sanitized_payload.get('kind', 'unknown')}]"
+        message = {
+            "user": frappe.session.user,
+            "site": frappe.local.site,
+            "payload": sanitized_payload,
+        }
+
+        frappe.log_error(message=json.dumps(message, ensure_ascii=True, default=str), title=title)
+        return {"ok": True}
+    except Exception as exc:
+        frappe.log_error(
+            message=f"Failed to log POS client error: {cstr(exc)}\n{frappe.get_traceback()}",
+            title="POS Client Error Logging Failure",
+        )
+        return {"ok": False}
