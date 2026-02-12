@@ -5,25 +5,84 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		title: "POS Awesome",
 		single_column: true,
 	});
+	const pageRef = (wrapper && wrapper.page) || page;
+	const BOOT_RETRY_KEY = "posa_boot_retry_once";
 
-	const waitForPosApp = () => {
-		return new Promise((resolve) => {
-			if (frappe.PosApp && frappe.PosApp.posapp) {
-				resolve();
-			} else {
-				const interval = setInterval(() => {
-					if (frappe.PosApp && frappe.PosApp.posapp) {
-						clearInterval(interval);
-						resolve();
-					}
-				}, 100);
-			}
+	const waitForPosApp = (timeoutMs = 15000) => {
+		return new Promise((resolve, reject) => {
+			const startedAt = Date.now();
+			const interval = setInterval(() => {
+				if (frappe.PosApp && frappe.PosApp.posapp) {
+					clearInterval(interval);
+					resolve();
+					return;
+				}
+
+				if (Date.now() - startedAt >= timeoutMs) {
+					clearInterval(interval);
+					reject(new Error("Timed out waiting for frappe.PosApp.posapp"));
+				}
+			}, 100);
 		});
 	};
 
-	await waitForPosApp();
+	const handleBootstrapFailure = (error) => {
+		console.error("POS App bootstrap failed", error);
+		let alreadyRetried = false;
+		try {
+			alreadyRetried = window.sessionStorage.getItem(BOOT_RETRY_KEY) === "1";
+		} catch (err) {
+			console.warn("Unable to read boot retry state", err);
+		}
 
-	this.page.$PosApp = new frappe.PosApp.posapp(this.page);
+		if (!alreadyRetried) {
+			try {
+				window.sessionStorage.setItem(BOOT_RETRY_KEY, "1");
+			} catch (err) {
+				console.warn("Unable to persist boot retry state", err);
+			}
+			window.location.replace(`/app/posapp?_posa_boot_retry=${Date.now()}`);
+			return;
+		}
+
+		try {
+			window.sessionStorage.removeItem(BOOT_RETRY_KEY);
+		} catch (err) {
+			console.warn("Unable to clear boot retry state", err);
+		}
+
+		frappe.msgprint({
+			title: "POS Awesome",
+			indicator: "red",
+			message:
+				"POS app failed to start. Please clear browser cache or refresh assets, then reload /app/posapp.",
+		});
+	};
+
+	try {
+		if (
+			typeof window !== "undefined" &&
+			window.__posawesomeBundlePromise &&
+			typeof window.__posawesomeBundlePromise.then === "function"
+		) {
+			await window.__posawesomeBundlePromise;
+		}
+
+		await waitForPosApp();
+	} catch (error) {
+		handleBootstrapFailure(error);
+		return;
+	}
+
+	try {
+		window.sessionStorage.removeItem(BOOT_RETRY_KEY);
+	} catch (err) {
+		console.warn("Unable to clear boot retry state", err);
+	}
+
+	if (!pageRef.$PosApp) {
+		pageRef.$PosApp = new frappe.PosApp.posapp(pageRef);
+	}
 
 	$("div.navbar-fixed-top").find(".container").css("padding", "0");
 
@@ -31,11 +90,19 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		"<link href='/assets/posawesome/node_modules/vuetify/dist/vuetify.min.css' rel='stylesheet'>",
 	);
 
+	if (
+		pageRef._posaTaxInclusiveHandler &&
+		frappe.realtime &&
+		typeof frappe.realtime.off === "function"
+	) {
+		frappe.realtime.off("pos_profile_registered", pageRef._posaTaxInclusiveHandler);
+	}
+
 	// Listen for POS Profile registration
-	frappe.realtime.on("pos_profile_registered", () => {
+	pageRef._posaTaxInclusiveHandler = () => {
 		const update_totals_based_on_tax_inclusive = () => {
 			console.log("Updating totals based on tax inclusive settings");
-			const posProfile = this.page.$PosApp.pos_profile;
+			const posProfile = pageRef.$PosApp && pageRef.$PosApp.pos_profile;
 
 			if (!posProfile) {
 				console.error("POS Profile is not set.");
@@ -83,7 +150,7 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 										m.setTaxInclusiveSetting(posa_tax_inclusive);
 									}
 								})
-								.catch(() => { });
+								.catch(() => {});
 						} else {
 							console.error("Error fetching POS Profile or POS Profile not found.");
 						}
@@ -106,7 +173,7 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 								m.setTaxInclusiveSetting(val);
 							}
 						})
-						.catch(() => { });
+						.catch(() => {});
 				} catch (e) {
 					console.warn("Failed to parse cached tax inclusive value", e);
 				}
@@ -117,10 +184,22 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		};
 
 		update_totals_based_on_tax_inclusive();
-	});
+	};
+	frappe.realtime.on("pos_profile_registered", pageRef._posaTaxInclusiveHandler);
 };
 
 frappe.pages["posapp"].on_page_unload = function (wrapper) {
+	if (
+		wrapper &&
+		wrapper.page &&
+		wrapper.page._posaTaxInclusiveHandler &&
+		frappe.realtime &&
+		typeof frappe.realtime.off === "function"
+	) {
+		frappe.realtime.off("pos_profile_registered", wrapper.page._posaTaxInclusiveHandler);
+		wrapper.page._posaTaxInclusiveHandler = null;
+	}
+
 	// Only unmount if this specific page's app instance exists
 	// This prevents interference when navigating within ERPNext outside POS
 	if (wrapper && wrapper.page && wrapper.page.$PosApp && typeof wrapper.page.$PosApp.unmount === "function") {
