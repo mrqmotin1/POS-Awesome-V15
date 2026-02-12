@@ -1,4 +1,4 @@
-import { db } from "./core";
+import { db } from "./db";
 import Dexie from "dexie/dist/dexie.mjs";
 
 let writeChain: Promise<unknown> = Promise.resolve();

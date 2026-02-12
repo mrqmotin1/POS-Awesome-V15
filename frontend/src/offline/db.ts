@@ -21,6 +21,53 @@ const BASE_SCHEMA = {
 	sync_state: "&key",
 };
 
+export const KEY_TABLE_MAP: Record<string, string> = {
+	offline_invoices: "queue",
+	offline_customers: "queue",
+	offline_payments: "queue",
+	offline_cash_movements: "queue",
+	item_details_cache: "cache",
+	customer_storage: "cache",
+	local_stock_cache: "local_stock",
+	coupons_cache: "coupons",
+	item_groups_cache: "item_groups",
+	translation_cache: "translations",
+	pricing_rules_snapshot: "pricing_rules",
+	pricing_rules_context: "pricing_rules",
+	pricing_rules_last_sync: "pricing_rules",
+	pricing_rules_stale_at: "pricing_rules",
+	cache_version: "settings",
+	cache_ready: "settings",
+	stock_cache_ready: "settings",
+	manual_offline: "settings",
+	schema_signature: "settings",
+	items_last_sync: "sync_state",
+	customers_last_sync: "sync_state",
+	payment_methods_last_sync: "sync_state",
+	pos_last_sync_totals: "sync_state",
+};
+
+const LARGE_KEYS = new Set([
+	"items",
+	"item_details_cache",
+	"local_stock_cache",
+]);
+
+function tableForKey(key: string) {
+	return KEY_TABLE_MAP[key] || "keyval";
+}
+
+function isCorruptionError(err: unknown) {
+	if (!err || typeof err !== "object") return false;
+	const maybe = err as { name?: string; message?: string };
+	const name = maybe.name || "";
+	const message = (maybe.message || "").toLowerCase();
+	return (
+		["VersionError", "InvalidStateError", "NotFoundError"].includes(name) ||
+		message.includes("corrupt")
+	);
+}
+
 // Start with version 1 using the full schema immediately
 // This ensures new installations get the correct schema
 db.version(1).stores(BASE_SCHEMA);
@@ -85,7 +132,14 @@ export const initPromise = new Promise<void>((resolve) => {
 		try {
 			await db.open();
 			for (const key of Object.keys(memory)) {
-				const stored = await db.table("keyval").get(key);
+				const table = tableForKey(key);
+				let stored = await db.table(table).get(key);
+				if (
+					(!stored || stored.value === undefined) &&
+					table !== "keyval"
+				) {
+					stored = await db.table("keyval").get(key);
+				}
 				if (stored && stored.value !== undefined) {
 					memory[key] = stored.value;
 					continue;
@@ -120,24 +174,31 @@ export const initPromise = new Promise<void>((resolve) => {
 	}
 });
 
-export function persist(key: string) {
+export function persist(key: string, value: unknown = memory[key]) {
 	if (persistWorker) {
-		let clean = memory[key];
+		let clean = value;
 		try {
-			clean = JSON.parse(JSON.stringify(memory[key]));
+			clean = JSON.parse(JSON.stringify(value));
 		} catch (e) {
 			console.error("Failed to serialize", key, e);
 		}
 		persistWorker.postMessage({ type: "persist", key, value: clean });
 		return;
 	}
-	db.table("keyval")
-		.put({ key, value: memory[key] })
-		.catch((e) => console.error(`Failed to persist ${key}`, e));
 
-	if (typeof localStorage !== "undefined") {
+	const table = tableForKey(key);
+	db.table(table)
+		.put({ key, value })
+		.catch((e) => console.error(`Failed to persist ${key}`, e));
+	if (table !== "keyval") {
+		db.table("keyval")
+			.put({ key, value })
+			.catch((e) => console.error(`Failed to mirror ${key} to keyval`, e));
+	}
+
+	if (typeof localStorage !== "undefined" && !LARGE_KEYS.has(key)) {
 		try {
-			localStorage.setItem(`posa_${key}`, JSON.stringify(memory[key]));
+			localStorage.setItem(`posa_${key}`, JSON.stringify(value));
 		} catch (err) {
 			console.error("Failed to persist", key, "to localStorage", err);
 		}
@@ -246,11 +307,33 @@ export async function forceClearAllCache() {
 }
 
 export async function checkDbHealth() {
-	// Basic check to see if DB is accessible
 	try {
-		if (!db.isOpen()) await db.open();
+		if (!db.isOpen()) {
+			await db.open();
+		}
+		await db.table(tableForKey("health_check")).get("health_check");
+		return true;
 	} catch (e) {
 		console.error("DB Health Check Failed", e);
+		try {
+			if (db.isOpen()) {
+				db.close();
+			}
+			await db.open();
+			return true;
+		} catch (reopenError) {
+			console.error("DB reopen failed", reopenError);
+			if (isCorruptionError(reopenError)) {
+				try {
+					await Dexie.delete("posawesome_offline");
+					await db.open();
+					return true;
+				} catch (recreateError) {
+					console.error("DB recreate failed", recreateError);
+				}
+			}
+		}
+		return false;
 	}
 }
 

@@ -24,7 +24,7 @@ export function useItemStorageSafety() {
 		// For now, we assume if it failed once, it's safer to degrade gracefully.
 		if (!storageAvailable.value) return false;
 
-		const isHealthy = Boolean(await (checkDbHealth() as Promise<unknown>));
+		const isHealthy = await checkDbHealth();
 		if (!isHealthy) {
 			console.warn("Storage health check failed");
 			markStorageUnavailable({

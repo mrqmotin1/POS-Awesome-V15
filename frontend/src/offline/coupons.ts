@@ -1,5 +1,4 @@
-import { memory } from "./db";
-import { persist } from "./core";
+import { memory, persist } from "./db";
 
 export function saveCoupons(customer: string, coupons: unknown) {
 	try {
