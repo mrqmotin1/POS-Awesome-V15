@@ -1,13 +1,13 @@
 import frappe
 from frappe import _
-from frappe.utils import nowdate, getdate, flt
+from frappe.utils import nowdate, getdate, flt, cint
 from erpnext.accounts.party import get_party_account
 from erpnext.accounts.utils import get_outstanding_invoices as get_erpnext_outstanding_invoices
 from erpnext.controllers.accounts_controller import get_advance_payment_entries_for_regional
 
 @frappe.whitelist()
 def get_outstanding_invoices(customer=None, company=None, currency=None, pos_profile=None,
-                             include_all_currencies=False):
+                             include_all_currencies=False, page_start=0, page_length=None):
     """
     Fetch outstanding invoices with optional multi-currency support.
     
@@ -17,6 +17,59 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
     try:
         if not customer or not company:
             return []
+
+        page_start = max(cint(page_start or 0), 0)
+        page_length = cint(page_length) if page_length not in (None, "") else 0
+
+        # Fast-path for POS Pay list view: fetch paginated Sales Invoices directly
+        # to avoid expensive full-ledger reconciliation queries on very large customers.
+        if page_length > 0:
+            filters = {
+                "customer": customer,
+                "company": company,
+                "docstatus": 1,
+                "outstanding_amount": (">", 0),
+            }
+            if pos_profile:
+                filters["pos_profile"] = pos_profile
+            if currency and not include_all_currencies:
+                filters["currency"] = currency
+
+            rows = frappe.get_all(
+                "Sales Invoice",
+                filters=filters,
+                fields=[
+                    "name",
+                    "customer_name",
+                    "posting_date",
+                    "due_date",
+                    "grand_total",
+                    "outstanding_amount",
+                    "currency",
+                    "pos_profile",
+                ],
+                order_by="posting_date desc, name desc",
+                limit_start=page_start,
+                limit_page_length=page_length,
+            )
+
+            return [
+                frappe._dict(
+                    {
+                        "voucher_no": row.get("name"),
+                        "voucher_type": "Sales Invoice",
+                        "outstanding_amount": flt(row.get("outstanding_amount")),
+                        "invoice_amount": flt(row.get("grand_total")),
+                        "due_date": row.get("due_date") or row.get("posting_date"),
+                        "posting_date": row.get("posting_date"),
+                        "currency": row.get("currency"),
+                        "pos_profile": row.get("pos_profile"),
+                        "customer": customer,
+                        "customer_name": row.get("customer_name"),
+                    }
+                )
+                for row in rows
+            ]
 
         party_account = get_party_account("Customer", customer, company)
         customer_name = frappe.get_cached_value("Customer", customer, "customer_name")
