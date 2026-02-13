@@ -37,7 +37,7 @@
 					:pos-profile="pos_profile"
 					:scanner-locked="scannerLocked"
 					:enable-background-sync="enable_background_sync"
-					:last-sync-time="formatBackgroundSyncTime()"
+					:last-sync-time="lastSyncTimeLabel"
 					:sync-status="syncStatus"
 					:context="context"
 					@esc="esc_event"
@@ -380,6 +380,13 @@ const syncStatus = computed(() => {
 	return "";
 });
 
+const lastSyncTimeLabel = computed(() => {
+	const lastSync = itemSync.last_background_sync_time?.value;
+	if (!lastSync) return __("Never");
+	const parsed = new Date(lastSync);
+	return Number.isNaN(parsed.getTime()) ? __("Never") : parsed.toLocaleTimeString();
+});
+
 // 4. Initialization logic for Composables needing Context
 
 // Settings context object for useItemsSelectorSettings
@@ -594,13 +601,6 @@ const syncSelectorPriceList = async (incomingPriceList: unknown) => {
 
 	await itemsIntegration.get_items(true);
 	itemDetailFetcher.update_cur_items_details();
-};
-
-const formatBackgroundSyncTime = () => {
-	const lastSync = itemSync.last_background_sync_time?.value;
-	if (!lastSync) return __("Never");
-	const parsed = new Date(lastSync);
-	return Number.isNaN(parsed.getTime()) ? __("Never") : parsed.toLocaleTimeString();
 };
 
 const toggleItemSettings = () => {
@@ -933,7 +933,7 @@ defineExpose({
 	scanErrorCode,
 	scanErrorDetails,
 	acknowledgeScanError,
-	formatBackgroundSyncTime,
+	lastSyncTimeLabel,
 	esc_event,
 	onEnter,
 	handleSearchKeydown,
