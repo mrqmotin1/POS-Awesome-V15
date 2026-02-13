@@ -55,8 +55,20 @@ export function useInvoiceUI() {
 		}
 	};
 
-	const showDropFeedback = (isDragging: boolean, el: Element | null) => {
-		const itemsTable = el?.querySelector(".modern-items-table");
+	const resolveElement = (target: any): Element | null => {
+		if (!target) return null;
+		if (target instanceof Element) return target;
+		if (target?.value) return resolveElement(target.value);
+		if (target?.$el instanceof Element) return target.$el;
+		return null;
+	};
+
+	const showDropFeedback = (isDragging: boolean, target: any) => {
+		const root = resolveElement(target);
+		if (!root) return;
+		const itemsTable = root.matches(".modern-items-table")
+			? root
+			: root.querySelector(".modern-items-table") || root;
 		if (itemsTable) {
 			if (isDragging) {
 				itemsTable.classList.add("drag-over");

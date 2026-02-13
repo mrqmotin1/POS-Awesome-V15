@@ -21,4 +21,10 @@ describe("resolvePosAppNormalizedPath", () => {
 	it("matches path case-insensitively", () => {
 		expect(resolvePosAppNormalizedPath("/APP/POSAPP/pos")).toBe("/app/posapp");
 	});
+
+	it("normalizes trailing slash in basePath before comparison", () => {
+		expect(
+			resolvePosAppNormalizedPath("/app/posapp/pos", "/app/posapp/"),
+		).toBe("/app/posapp");
+	});
 });

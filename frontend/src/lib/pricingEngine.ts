@@ -105,11 +105,15 @@ const pushUnique = (
 	rule: AnyRecord | null | undefined,
 	seen: Set<string>,
 ) => {
-	if (!rule || seen.has(rule.name)) {
+	if (!rule) {
+		return;
+	}
+	const ruleKey = String(rule.name ?? "__missing_rule_name__");
+	if (seen.has(ruleKey)) {
 		return;
 	}
 	bucket.push(rule);
-	seen.add(String(rule.name));
+	seen.add(ruleKey);
 };
 
 export const collectCandidates = (

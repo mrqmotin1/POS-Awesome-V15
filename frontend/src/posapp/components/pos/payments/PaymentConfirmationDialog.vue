@@ -43,16 +43,22 @@ const dialog = computed({
 
 const confirmPaymentBtn = ref<HTMLElement | null>(null);
 
+const focus = () => {
+	nextTick(() => {
+		setTimeout(() => {
+			// @ts-ignore
+			confirmPaymentBtn.value?.$el?.focus();
+		}, 100);
+	});
+};
+
 watch(dialog, (val) => {
 	if (val) {
-		nextTick(() => {
-			setTimeout(() => {
-				// @ts-ignore
-				confirmPaymentBtn.value?.$el?.focus();
-			}, 100);
-		});
+		focus();
 	}
 });
+
+defineExpose({ focus });
 
 const onCancel = () => {
 	emit("cancel");

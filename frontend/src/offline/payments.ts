@@ -56,7 +56,7 @@ export function deleteOfflinePayment(index: number) {
 }
 
 export function getPendingOfflinePaymentCount() {
-	return memory.offline_payments.length;
+	return (memory.offline_payments ?? []).length;
 }
 
 export async function syncOfflinePayments() {

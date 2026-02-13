@@ -8,13 +8,16 @@ export function resolvePosAppNormalizedPath(
 		return null;
 	}
 
-	if (!pathname.toLowerCase().startsWith(`${basePath.toLowerCase()}/`)) {
+	const normalizedBasePath =
+		basePath.length > 1 ? basePath.replace(/\/+$/, "") : basePath;
+
+	if (!pathname.toLowerCase().startsWith(`${normalizedBasePath.toLowerCase()}/`)) {
 		return null;
 	}
 
-	if (pathname === basePath) {
+	if (pathname === normalizedBasePath) {
 		return null;
 	}
 
-	return basePath;
+	return normalizedBasePath;
 }

@@ -208,7 +208,6 @@ Notes:
 - **Modular Design**: Separated concerns using Vue 3 Composition API.
 
 #### 🎨 UI/UX & Interface
-
 #### 🎨 UI/UX & Interface
 
 - **Modern Interface**: User-friendly design using Vue.js and Vuetify, optimized for speed and experience.

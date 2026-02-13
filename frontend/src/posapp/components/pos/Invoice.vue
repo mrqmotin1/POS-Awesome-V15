@@ -123,7 +123,7 @@
 
 					<!-- ItemsTable component with reorder event handler -->
 					<ItemsTable
-						ref="itemsTable"
+						ref="itemsTableRef"
 						:headers="items_headers"
 						v-model:expanded="expanded"
 						:itemsPerPage="itemsPerPage"
@@ -152,8 +152,8 @@
 						@update:expanded="handleExpandedUpdate"
 						@reorder-items="handleItemReorder"
 						@add-item-from-drag="handleItemDrop"
-						@show-drop-feedback="showDropFeedback"
-						@item-dropped="showDropFeedback(false, $el)"
+						@show-drop-feedback="(isDragging) => showDropFeedback(isDragging, itemsTableRef)"
+						@item-dropped="showDropFeedback(false, itemsTableRef)"
 						@view-packed="openPackedItems"
 					/>
 
@@ -172,6 +172,7 @@
 
 		<!-- Payment Confirmation Dialog -->
 		<PaymentConfirmationDialog
+			ref="paymentConfirmationDialog"
 			v-model="confirm_payment_dialog"
 			@confirm="resolvePaymentConfirmation(true)"
 			@cancel="resolvePaymentConfirmation(false)"
@@ -255,6 +256,7 @@ export default {
 		const { items, packedItems: packed_items, invoiceDoc: invoice_doc } = storeToRefs(invoiceStore);
 
 		const invoiceType = ref("Invoice");
+		const itemsTableRef = ref(null);
 		const currencyState = useInvoiceCurrency({}, {});
 		const itemActions = useInvoiceItems(invoiceType);
 		const offerLogic = useInvoiceOffers();
@@ -282,6 +284,7 @@ export default {
 			selectedCustomer,
 			customerRefreshToken,
 			invoiceType,
+			itemsTableRef,
 			...currencyState,
 			...itemActions,
 			...offerLogic,
@@ -831,7 +834,7 @@ export default {
 		this.$watch(
 			() => this.uiStore.draggedItem,
 			(item) => {
-				this.showDropFeedback(!!item, this.$el);
+				this.showDropFeedback(!!item, this.itemsTableRef);
 			},
 		);
 
@@ -937,7 +940,7 @@ export default {
 			if (val) {
 				this.$nextTick(() => {
 					setTimeout(() => {
-						this.$refs.confirmPaymentBtn?.$el?.focus();
+						this.$refs.paymentConfirmationDialog?.focus?.();
 					}, 100);
 				});
 			}

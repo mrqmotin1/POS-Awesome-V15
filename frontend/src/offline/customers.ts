@@ -122,11 +122,10 @@ export async function setCustomerStorage(customers: AnyRecord[]) {
 
 		await db.table("customers").bulkPut(clean);
 		memory.customer_storage = clean;
+		persist("customer_storage");
 	} catch (e) {
 		console.error("Failed to save customers to storage", e);
-		memory.customer_storage = [];
 	}
-	persist("customer_storage");
 }
 
 export function saveCustomerBalance(customer: string, balance: number) {

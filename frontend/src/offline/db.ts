@@ -182,8 +182,11 @@ export function persist(key: string, value: unknown = memory[key]) {
 		} catch (e) {
 			console.error("Failed to serialize", key, e);
 		}
-		persistWorker.postMessage({ type: "persist", key, value: clean });
-		return;
+		try {
+			persistWorker.postMessage({ type: "persist", key, value: clean });
+		} catch (e) {
+			console.error("Failed to persist via worker", key, e);
+		}
 	}
 
 	const table = tableForKey(key);
