@@ -81,6 +81,13 @@ export function _getPricingContext(context: any) {
 	};
 }
 
+function syncAutoFreeLines(context: any, freebiesMap: Map<string, any>) {
+	if (typeof context._syncAutoFreeLines === "function") {
+		return context._syncAutoFreeLines(freebiesMap);
+	}
+	return _syncAutoFreeLines(context, freebiesMap);
+}
+
 export async function _ensurePricingRules(context: any, force = false) {
 	const store = _getPricingRulesStore(context);
 	const ctx = _getPricingContext(context);
@@ -355,7 +362,7 @@ export async function _applyLocalPricingRules(context: any, force = false) {
 			_applyPricingToLine(context, item, ctx, indexes, freebiesMap);
 		}
 
-		_syncAutoFreeLines(context, freebiesMap);
+		syncAutoFreeLines(context, freebiesMap);
 		if (typeof context.$forceUpdate === "function") {
 			context.$forceUpdate();
 		}
@@ -518,7 +525,7 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		});
 
 	if (!paidLines.length) {
-		_syncAutoFreeLines(context, freebiesMap);
+		syncAutoFreeLines(context, freebiesMap);
 		if (typeof context.$forceUpdate === "function") {
 			context.$forceUpdate();
 		}
@@ -984,7 +991,7 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		_updatePricingBadge(context, item, detailed);
 	});
 
-	_syncAutoFreeLines(context, freebiesMap);
+	syncAutoFreeLines(context, freebiesMap);
 	if (typeof context.$forceUpdate === "function") {
 		context.$forceUpdate();
 	}

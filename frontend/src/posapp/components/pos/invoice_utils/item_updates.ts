@@ -360,6 +360,51 @@ export function _applyItemDetailPayload(
 			}
 		}
 	}
+
+	const incomingDiscountPct = Number.parseFloat(
+		String(data.discount_percentage ?? 0),
+	);
+	const currentDiscount = Number.parseFloat(
+		String(item.discount_amount ?? 0),
+	);
+	const currentBaseDiscount = Number.parseFloat(
+		String(item.base_discount_amount ?? 0),
+	);
+	const hasExistingDiscount =
+		(Number.isFinite(currentDiscount) && currentDiscount > 0) ||
+		(Number.isFinite(currentBaseDiscount) && currentBaseDiscount > 0);
+
+	// Preserve existing discounts, but apply server percentage when no explicit discount is present.
+	if (
+		!item.locked_price &&
+		!hasExistingDiscount &&
+		Number.isFinite(incomingDiscountPct) &&
+		incomingDiscountPct > 0
+	) {
+		const basePriceListRate = Number.parseFloat(
+			String(item.base_price_list_rate ?? data.price_list_rate ?? 0),
+		);
+		if (Number.isFinite(basePriceListRate) && basePriceListRate > 0) {
+			const baseDiscountAmount =
+				(basePriceListRate * incomingDiscountPct) / 100;
+			const baseRate = Math.max(basePriceListRate - baseDiscountAmount, 0);
+			const toDisplay = (value: number) =>
+				typeof context._fromBaseCurrency === "function"
+					? context._fromBaseCurrency(value)
+					: value;
+			const fmt = (value: number) =>
+				context.flt
+					? context.flt(value, context.currency_precision)
+					: value;
+
+			item.base_discount_amount = baseDiscountAmount;
+			item.base_rate = baseRate;
+			item.discount_amount = fmt(toDisplay(baseDiscountAmount));
+			item.rate = fmt(toDisplay(baseRate));
+			item.base_amount = fmt(baseRate * (Number(item.qty) || 0));
+			item.amount = fmt(item.rate * (Number(item.qty) || 0));
+		}
+	}
 }
 
 export function _collectManualRateOverrides(context: any, items: any[]) {

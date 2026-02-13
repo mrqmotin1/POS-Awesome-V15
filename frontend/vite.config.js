@@ -101,4 +101,8 @@ export default defineConfig({
 		"process.env.NODE_ENV": '"production"',
 		process: '{"env":{}}',
 	},
+	test: {
+		include: ["tests/**/*.spec.{js,ts}", "tests/**/*.test.{js,ts}"],
+		exclude: ["tests/smoke/**"],
+	},
 });

@@ -119,7 +119,18 @@ export function _syncAutoFreeLines(context: any, freebiesMap: Map<string, any> =
 		}
 	});
 
-	const itemsStore = useItemsStore();
+	let itemsStore: any = null;
+	if (typeof context._getItemsStore === "function") {
+		itemsStore = context._getItemsStore();
+	} else if (context.itemsStore) {
+		itemsStore = context.itemsStore;
+	} else {
+		try {
+			itemsStore = useItemsStore();
+		} catch (_error) {
+			itemsStore = null;
+		}
+	}
 
 	const parseFinite = (value) => {
 		const numeric = Number.parseFloat(value);
@@ -340,7 +351,15 @@ export function _syncAutoFreeLines(context: any, freebiesMap: Map<string, any> =
 			price_list_rate: 0,
 			uom: resolvedUom || (catalogItem ? catalogItem.uom : undefined),
 		};
-		let freeLine = context.get_new_item(template);
+		let freeLine =
+			typeof context.get_new_item === "function"
+				? context.get_new_item(template)
+				: {
+					...template,
+					posa_row_id: `FREE-${Date.now()}-${Math.random()
+						.toString(36)
+						.slice(2, 8)}`,
+				};
 		freeLine.qty = quantity;
 		if (resolvedUom) {
 			freeLine.uom = resolvedUom;
@@ -386,6 +405,13 @@ export function _syncAutoFreeLines(context: any, freebiesMap: Map<string, any> =
 	});
 
 	removable.forEach((line) => {
-		context.remove_item(line);
+		if (typeof context.remove_item === "function") {
+			context.remove_item(line);
+			return;
+		}
+		const index = context.items.findIndex((entry) => entry === line);
+		if (index >= 0) {
+			context.items.splice(index, 1);
+		}
 	});
 }

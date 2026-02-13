@@ -6,11 +6,26 @@ declare const __: (_text: string, _args?: any[]) => string;
 declare const flt: (_value: unknown, _precision?: number) => number;
 declare const frappe: any;
 
-const { calcStockQty, calcUom } = useStockUtils();
-const { setSerialNo, setBatchQty } = useBatchSerial();
+let stockUtilsApi: ReturnType<typeof useStockUtils> | null = null;
+let batchSerialApi: ReturnType<typeof useBatchSerial> | null = null;
+
+function getStockUtilsApi() {
+	if (!stockUtilsApi) {
+		stockUtilsApi = useStockUtils();
+	}
+	return stockUtilsApi;
+}
+
+function getBatchSerialApi() {
+	if (!batchSerialApi) {
+		batchSerialApi = useBatchSerial();
+	}
+	return batchSerialApi;
+}
 
 export function calc_stock_qty(context: any, item: any, value: any) {
 	if (!item) return;
+	const { calcStockQty } = getStockUtilsApi();
 
 	// Delegate to composable logic
 	calcStockQty(item, value);
@@ -173,6 +188,7 @@ export async function fetch_available_qty(context: any, item: any) {
 
 export function set_serial_no(context: any, item: any) {
 	// legacy delegate
+	const { setSerialNo } = getBatchSerialApi();
 	return setSerialNo(item, context);
 }
 
@@ -183,11 +199,13 @@ export function set_batch_qty(
 	update = true,
 ) {
 	// legacy delegate
+	const { setBatchQty } = getBatchSerialApi();
 	return setBatchQty(item, value, update, context);
 }
 
 export function calc_uom(context: any, item: any, value: any) {
 	if (!item) return;
+	const { calcUom } = getStockUtilsApi();
 	console.log("[stock.ts] calc_uom event received", {
 		item: item.item_code,
 		uom: value,

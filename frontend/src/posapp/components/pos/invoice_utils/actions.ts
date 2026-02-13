@@ -42,9 +42,17 @@ declare const frappe: any;
  * - context.update_items_details (method)
  */
 
-const { removeItem, addItem, getNewItem, clearInvoice } = useItemAddition();
+let itemAdditionApi: ReturnType<typeof useItemAddition> | null = null;
+
+function getItemAdditionApi() {
+	if (!itemAdditionApi) {
+		itemAdditionApi = useItemAddition();
+	}
+	return itemAdditionApi;
+}
 
 export function remove_item(context: any, item: any) {
+	const { removeItem } = getItemAdditionApi();
 	const result = removeItem(item, context);
 	if (context.schedulePricingRuleApplication) {
 		context.schedulePricingRuleApplication();
@@ -54,6 +62,7 @@ export function remove_item(context: any, item: any) {
 }
 
 export async function add_item(context: any, item: any, options: any = {}) {
+	const { addItem } = getItemAdditionApi();
 	// Build price context for debug
 	const priceContext = {
 		customer: context.customer,
@@ -117,14 +126,17 @@ export async function add_item(context: any, item: any, options: any = {}) {
 }
 
 export function get_new_item(context: any, item: any) {
+	const { getNewItem } = getItemAdditionApi();
 	return getNewItem(item, context);
 }
 
 export function clear_invoice(context: any, options: any = {}) {
+	const { clearInvoice } = getItemAdditionApi();
 	return clearInvoice(context, options);
 }
 
 export async function cancel_invoice(context: any) {
+	const { clearInvoice } = getItemAdditionApi();
 	// We can directly call get_invoice_doc from document.js if we pass context
 	// Or assume context has the method proxied.
 	// Since we are refactoring, let's call the util directly if possible, or rely on context.
@@ -162,6 +174,7 @@ export async function cancel_invoice(context: any) {
 }
 
 export async function save_and_clear_invoice(context: any) {
+	const { clearInvoice } = getItemAdditionApi();
 	let old_invoice = null;
 	const doc = get_invoice_doc(context);
 
