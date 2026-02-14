@@ -130,6 +130,19 @@
 							:items-per-page="-1"
 							hide-default-footer
 						>
+							<template v-slot:item.uom="{ item }">
+								<v-select
+									v-if="getItemUomOptions(item).length"
+									v-model="item.uom"
+									:items="getItemUomOptions(item)"
+									density="compact"
+									variant="outlined"
+									hide-details
+									class="pos-themed-input"
+									@update:modelValue="onItemUomChange(item)"
+								></v-select>
+								<span v-else class="text-caption text-medium-emphasis">-</span>
+							</template>
 							<template v-slot:item.qty="{ item }">
 								<div class="pos-table__qty-counter">
 									<v-btn
@@ -258,7 +271,8 @@ export default {
 		headers() {
 			return [
 				{ title: __("Item Code"), key: "item_code", width: "20%" },
-				{ title: __("Item Name"), key: "item_name", width: "30%" },
+				{ title: __("Item Name"), key: "item_name", width: "26%" },
+				{ title: __("UOM"), key: "uom", width: "14%" },
 				{ title: __("Barcode"), key: "barcode", width: "20%" },
 				{ title: __("Quantity"), key: "qty", align: "center", width: "20%" },
 				{ title: "", key: "actions", align: "center", sortable: false, width: "10%" },
@@ -297,10 +311,23 @@ export default {
 
 			// 1. Try to find barcode in the passed item object
 			let barcode = item.barcode;
+			let itemBarcodes = Array.isArray(item.item_barcode) ? item.item_barcode : [];
+			let itemUoms = Array.isArray(item.item_uoms) ? item.item_uoms : [];
+			if (!itemUoms.length && itemBarcodes.length > 0) {
+				const barcodeUoms = itemBarcodes
+					.map((row) => row?.posa_uom || row?.uom)
+					.filter(Boolean)
+					.map((uom) => ({ uom }));
+				itemUoms = barcodeUoms;
+			}
+			let defaultUom = item.uom || item.stock_uom || itemUoms?.[0]?.uom || "";
 
-			// 2. Check item_barcode child table (array of objects)
-			if (!barcode && Array.isArray(item.item_barcode) && item.item_barcode.length > 0) {
-				barcode = item.item_barcode[0].barcode;
+			// 2. Resolve barcode from item_barcode/UOM mapping when available
+			if (itemBarcodes.length > 0) {
+				const resolved = this.resolveBarcodeForUom({ item_barcode: itemBarcodes, barcode }, defaultUom);
+				if (resolved) {
+					barcode = resolved;
+				}
 			}
 
 			// 3. Check barcodes array (if flattened)
@@ -324,13 +351,27 @@ export default {
 
 						const details = res.message && res.message[0];
 						if (details) {
-							if (details.barcode) {
+							itemBarcodes = Array.isArray(details.item_barcode) ? details.item_barcode : itemBarcodes;
+							itemUoms = Array.isArray(details.item_uoms) ? details.item_uoms : itemUoms;
+							if (!itemUoms.length && itemBarcodes.length > 0) {
+								const barcodeUoms = itemBarcodes
+									.map((row) => row?.posa_uom || row?.uom)
+									.filter(Boolean)
+									.map((uom) => ({ uom }));
+								itemUoms = barcodeUoms;
+							}
+							defaultUom =
+								details.uom || item.uom || item.stock_uom || itemUoms?.[0]?.uom || defaultUom;
+							if (itemBarcodes.length > 0) {
+								const resolved = this.resolveBarcodeForUom(
+									{ item_barcode: itemBarcodes, barcode: details.barcode || barcode },
+									defaultUom,
+								);
+								if (resolved) {
+									barcode = resolved;
+								}
+							} else if (details.barcode) {
 								barcode = details.barcode;
-							} else if (
-								Array.isArray(details.item_barcode) &&
-								details.item_barcode.length > 0
-							) {
-								barcode = details.item_barcode[0].barcode;
 							} else if (Array.isArray(details.barcodes) && details.barcodes.length > 0) {
 								barcode = details.barcodes[0];
 							}
@@ -349,12 +390,19 @@ export default {
 			}
 
 			// Open Quantity Dialog before adding
+			if (!defaultUom && itemUoms.length > 0) {
+				defaultUom = itemUoms[0].uom;
+			}
+
 			this.pendingAddItem = {
 				item_code: item.item_code,
 				item_name: item.item_name,
 				barcode: barcode || "",
 				qty: 1,
 				price: item.rate || item.standard_rate || 0,
+				item_barcode: itemBarcodes,
+				item_uoms: itemUoms,
+				uom: defaultUom || "",
 			};
 			this.addItemQty = ""; // Start empty
 			this.addItemDialog = true;
@@ -383,6 +431,49 @@ export default {
 		},
 		removeItem(item) {
 			this.items = this.items.filter((i) => i.item_code !== item.item_code);
+		},
+		getItemUomOptions(item) {
+			const options = Array.isArray(item.item_uoms)
+				? item.item_uoms.map((row) => row?.uom).filter(Boolean)
+				: [];
+			if (!options.length && Array.isArray(item.item_barcode)) {
+				item.item_barcode.forEach((row) => {
+					const uom = row?.posa_uom || row?.uom;
+					if (uom) options.push(uom);
+				});
+			}
+			if (item.uom && !options.includes(item.uom)) {
+				options.unshift(item.uom);
+			}
+			return Array.from(new Set(options));
+		},
+		resolveBarcodeForUom(item, uom) {
+			const barcodeRows = Array.isArray(item.item_barcode) ? item.item_barcode : [];
+			if (uom && barcodeRows.length > 0) {
+				const matched = barcodeRows.find(
+					(row) => row?.barcode && (row.posa_uom || row.uom) === uom,
+				);
+				if (matched?.barcode) return matched.barcode;
+			}
+			if (item.barcode) return item.barcode;
+			if (barcodeRows.length > 0 && barcodeRows[0]?.barcode) return barcodeRows[0].barcode;
+			if (Array.isArray(item.barcodes) && item.barcodes.length > 0) return item.barcodes[0];
+			return "";
+		},
+		onItemUomChange(item) {
+			const nextBarcode = this.resolveBarcodeForUom(item, item.uom);
+			if (nextBarcode) {
+				item.barcode = nextBarcode;
+				return;
+			}
+
+			const hasAnyBarcodes = Array.isArray(item.item_barcode) && item.item_barcode.length > 0;
+			if (hasAnyBarcodes) {
+				this.toastStore.show({
+					title: __("No barcode found for UOM '{0}'", [item.uom]),
+					color: "warning",
+				});
+			}
 		},
 		clearAll() {
 			this.items = [];
