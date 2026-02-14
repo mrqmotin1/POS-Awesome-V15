@@ -348,10 +348,17 @@ export function useItemAddition() {
 						context.setBatchQty(new_item, new_item.batch_no, false);
 				}
 				const extra_items: any[] = [];
-				if (
-					shouldAutoSetBatch(context, new_item) &&
-					context.getBatchAvailability
-				) {
+				const requestedQtyForBatching = Math.abs(
+					Number(new_item.qty || 0),
+				);
+				const shouldAllocateAcrossBatches =
+					new_item.has_batch_no &&
+					!new_item.batch_no &&
+					!!context.getBatchAvailability &&
+					(shouldAutoSetBatch(context, new_item) ||
+						requestedQtyForBatching > 1);
+
+				if (shouldAllocateAcrossBatches && context.getBatchAvailability) {
 					// Get sorted availability (taking existing cart items into account)
 					const batches = context.getBatchAvailability(
 						new_item,
@@ -431,6 +438,9 @@ export function useItemAddition() {
 										alloc.batch,
 										false,
 									);
+								if (split_item.has_serial_no) {
+									autoAssignSerials(split_item, context);
+								}
 
 								extra_items.push(split_item);
 							}
