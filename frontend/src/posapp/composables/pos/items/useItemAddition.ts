@@ -10,6 +10,7 @@ import { useItemMerging } from "./addition/useItemMerging";
 import { useItemCreation } from "./addition/useItemCreation";
 import { useItemBatchSerial } from "./addition/useItemBatchSerial";
 import { useItemBundles } from "./addition/useItemBundles";
+import { useBatchSerial } from "../shared/useBatchSerial";
 
 declare const __: (_text: string, _args?: any[]) => string;
 declare const frappe: any;
@@ -36,6 +37,42 @@ export function useItemAddition() {
 		useItemBatchSerial() as any;
 
 	const { expandBundle } = useItemBundles() as any;
+	const sharedBatchSerial = useBatchSerial();
+
+	const callSetBatchQty = (
+		context: any,
+		item: any,
+		value: any,
+		update = false,
+	) => {
+		if (typeof context?.setBatchQty === "function") {
+			return context.setBatchQty(item, value, update);
+		}
+		if (typeof context?.set_batch_qty === "function") {
+			return context.set_batch_qty(item, value, update);
+		}
+		return sharedBatchSerial.setBatchQty(item, value, update, context);
+	};
+
+	const callSetSerialNo = (context: any, item: any) => {
+		if (typeof context?.setSerialNo === "function") {
+			return context.setSerialNo(item);
+		}
+		if (typeof context?.set_serial_no === "function") {
+			return context.set_serial_no(item);
+		}
+		return sharedBatchSerial.setSerialNo(item, context);
+	};
+
+	const getBatchAvailabilityForItem = (context: any, item: any) => {
+		if (typeof context?.getBatchAvailability === "function") {
+			return context.getBatchAvailability(item, context);
+		}
+		if (typeof context?.get_batch_availability === "function") {
+			return context.get_batch_availability(item, context);
+		}
+		return sharedBatchSerial.getBatchAvailability(item, context);
+	};
 
 	const getRequestedSerialQty = (item: any) => {
 		const parsedQty = Number(item?.qty);
@@ -79,7 +116,7 @@ export function useItemAddition() {
 
 		const serialRows = Array.isArray(item.serial_no_data) ? item.serial_no_data : [];
 		if (!serialRows.length) {
-			if (context.setSerialNo) context.setSerialNo(item);
+			callSetSerialNo(context, item);
 			return;
 		}
 
@@ -96,7 +133,7 @@ export function useItemAddition() {
 
 		const targetQty = getRequestedSerialQty(item);
 		if (item.serial_no_selected.length >= targetQty) {
-			if (context.setSerialNo) context.setSerialNo(item);
+			callSetSerialNo(context, item);
 			return;
 		}
 
@@ -122,14 +159,12 @@ export function useItemAddition() {
 				const batchFromSerial = pickedRows.find((row: any) => row?.batch_no)?.batch_no;
 				if (batchFromSerial) {
 					item.batch_no = batchFromSerial;
-					if (context.setBatchQty) {
-						context.setBatchQty(item, batchFromSerial, false);
-					}
+					callSetBatchQty(context, item, batchFromSerial, false);
 				}
 			}
 		}
 
-		if (context.setSerialNo) context.setSerialNo(item);
+		callSetSerialNo(context, item);
 	};
 
 	// Remove item from invoice
@@ -200,10 +235,10 @@ export function useItemAddition() {
 				calcStockQty(item, item.qty);
 
 				// Handle other updates that happen on merge
-				if (item.has_batch_no && item.batch_no && context.setBatchQty) {
-					context.setBatchQty(item, item.batch_no, false);
+				if (item.has_batch_no && item.batch_no) {
+					callSetBatchQty(context, item, item.batch_no, false);
 				}
-				if (context.setSerialNo) context.setSerialNo(item);
+				callSetSerialNo(context, item);
 
 				// Resolve all promises waiting for this update
 				data.resolvers.forEach((r) => r(item));
@@ -222,7 +257,7 @@ export function useItemAddition() {
 				refreshMergeCacheEntry(context, item, 0);
 				// Benchmark note: Use preloaded batch data to avoid extra fetches on auto-assign.
 				if (shouldAutoSetBatch(context, item)) {
-					context.setBatchQty(item, null, false);
+					callSetBatchQty(context, item, null, false);
 				}
 				runAsyncTask(
 					() => expandBundle(item, context),
@@ -344,8 +379,7 @@ export function useItemAddition() {
 					new_item.batch_no = item.to_set_batch_no;
 					item.to_set_batch_no = null;
 					item.batch_no = null;
-					if (context.setBatchQty)
-						context.setBatchQty(new_item, new_item.batch_no, false);
+					callSetBatchQty(context, new_item, new_item.batch_no, false);
 				}
 				const extra_items: any[] = [];
 				const requestedQtyForBatching = Math.abs(
@@ -354,15 +388,14 @@ export function useItemAddition() {
 				const shouldAllocateAcrossBatches =
 					new_item.has_batch_no &&
 					!new_item.batch_no &&
-					!!context.getBatchAvailability &&
 					(shouldAutoSetBatch(context, new_item) ||
 						requestedQtyForBatching > 1);
 
-				if (shouldAllocateAcrossBatches && context.getBatchAvailability) {
+				if (shouldAllocateAcrossBatches) {
 					// Get sorted availability (taking existing cart items into account)
-					const batches = context.getBatchAvailability(
-						new_item,
+					const batches = getBatchAvailabilityForItem(
 						context,
+						new_item,
 					);
 					// Filter for usable batches
 					const usable_batches = batches.filter(
@@ -372,7 +405,7 @@ export function useItemAddition() {
 					// Standard Case: If no usable batches or only one needed/available
 					if (usable_batches.length === 0) {
 						// Fallback to standard behavior (likely picks first or none)
-						context.setBatchQty(new_item, null, false);
+						callSetBatchQty(context, new_item, null, false);
 					} else {
 						let remaining_qty = new_item.qty;
 
@@ -402,7 +435,7 @@ export function useItemAddition() {
 								}
 							} else {
 								// No usable batches found? Just use standard logic
-								context.setBatchQty(new_item, null, false);
+								callSetBatchQty(context, new_item, null, false);
 							}
 						}
 
@@ -411,7 +444,8 @@ export function useItemAddition() {
 							const first = allocations[0];
 							if (first) {
 								new_item.qty = first.qty;
-								context.setBatchQty(
+								callSetBatchQty(
+									context,
 									new_item,
 									first.batch,
 									false,
@@ -432,12 +466,12 @@ export function useItemAddition() {
 								split_item.batch_no = alloc.batch;
 
 								// Need to explicitly set batch here because getNewItem resets logic
-								if (context.setBatchQty)
-									context.setBatchQty(
-										split_item,
-										alloc.batch,
-										false,
-									);
+								callSetBatchQty(
+									context,
+									split_item,
+									alloc.batch,
+									false,
+								);
 								if (split_item.has_serial_no) {
 									autoAssignSerials(split_item, context);
 								}
@@ -448,7 +482,7 @@ export function useItemAddition() {
 					}
 				} else if (shouldAutoSetBatch(context, new_item)) {
 					// Fallback if getBatchAvailability is missing (should not happen after update)
-					context.setBatchQty(new_item, null, false);
+					callSetBatchQty(context, new_item, null, false);
 				}
 				// Make quantity negative for returns
 				if (context.isReturnInvoice) {
@@ -654,13 +688,17 @@ export function useItemAddition() {
 
 					if (
 						cur_item.has_batch_no &&
-						cur_item.batch_no &&
-						context.setBatchQty
+						cur_item.batch_no
 					) {
-						context.setBatchQty(cur_item, cur_item.batch_no, false);
+						callSetBatchQty(
+							context,
+							cur_item,
+							cur_item.batch_no,
+							false,
+						);
 					}
 
-					if (context.setSerialNo) context.setSerialNo(cur_item);
+					callSetSerialNo(context, cur_item);
 					if (cur_item.has_serial_no) autoAssignSerials(cur_item, context);
 
 					if (
@@ -728,13 +766,12 @@ export function useItemAddition() {
 				// Update batch quantity if needed
 				if (
 					cur_item.has_batch_no &&
-					cur_item.batch_no &&
-					context.setBatchQty
+					cur_item.batch_no
 				) {
-					context.setBatchQty(cur_item, cur_item.batch_no, false);
+					callSetBatchQty(context, cur_item, cur_item.batch_no, false);
 				}
 
-				if (context.setSerialNo) context.setSerialNo(cur_item);
+				callSetSerialNo(context, cur_item);
 				if (cur_item.has_serial_no) autoAssignSerials(cur_item, context);
 
 				// Recalculate rates if UOM differs from stock UOM
