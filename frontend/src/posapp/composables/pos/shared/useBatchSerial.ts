@@ -42,15 +42,38 @@ export function useBatchSerial() {
 		if (!item?.has_serial_no) return;
 
 		const filteredSerials = applySerialBatchFilter(item);
+		const currentSelection = normalizeSerialSelection(item);
+		const hasSerialDataset = filteredSerials.length > 0;
+
+		// Preserve explicitly selected serials when the backend has not returned
+		// serial rows yet (or rows are temporarily unavailable after refresh).
+		if (!hasSerialDataset) {
+			item.serial_no = currentSelection.join("\n");
+			item.serial_no_selected_count = currentSelection.length;
+			if (item.serial_no_selected_count != item.stock_qty) {
+				item.qty = item.serial_no_selected_count;
+				if (context?.forceUpdate) context.forceUpdate();
+			}
+			return;
+		}
+
 		const validSerials = new Set(
 			filteredSerials.map((serial) => serial?.serial_no).filter(Boolean),
 		);
 
-		const currentSelection = normalizeSerialSelection(item);
-		const sanitizedSelection = currentSelection.filter((serial) =>
+		let sanitizedSelection = currentSelection.filter((serial) =>
 			validSerials.has(serial),
 		);
-		if (sanitizedSelection.length !== currentSelection.length) {
+
+		// Keep scanned/manual serials sticky even if current filter excludes them.
+		if (sanitizedSelection.length === 0 && currentSelection.length > 0) {
+			sanitizedSelection = [...currentSelection];
+		}
+
+		if (
+			sanitizedSelection.length !== currentSelection.length ||
+			sanitizedSelection.some((serial, index) => serial !== currentSelection[index])
+		) {
 			item.serial_no_selected = sanitizedSelection;
 		}
 

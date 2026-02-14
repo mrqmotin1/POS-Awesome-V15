@@ -134,11 +134,53 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		});
 	};
 
+	type ScanAssignment = {
+		serialNo: string | null;
+		batchNo: string | null;
+	};
+
+	const extractScanAssignmentFromItem = (
+		item: any,
+		rawCode: string,
+	): ScanAssignment => {
+		const code = String(rawCode || "").trim();
+		if (!item || !code) {
+			return { serialNo: null, batchNo: null };
+		}
+
+		let serialNo: string | null = null;
+		let batchNo: string | null = null;
+
+		if (item.has_serial_no && Array.isArray(item.serial_no_data)) {
+			const serialMatch = item.serial_no_data.find(
+				(row: any) => String(row?.serial_no || "").trim() === code,
+			);
+			if (serialMatch?.serial_no) {
+				serialNo = String(serialMatch.serial_no);
+				if (!batchNo && serialMatch?.batch_no) {
+					batchNo = String(serialMatch.batch_no);
+				}
+			}
+		}
+
+		if (item.has_batch_no && Array.isArray(item.batch_no_data)) {
+			const batchMatch = item.batch_no_data.find(
+				(row: any) => String(row?.batch_no || "").trim() === code,
+			);
+			if (batchMatch?.batch_no) {
+				batchNo = String(batchMatch.batch_no);
+			}
+		}
+
+		return { serialNo, batchNo };
+	};
+
 	const addScannedItemToInvoice = async (
 		item: any,
 		scannedCode: string,
 		qtyFromBarcode: number | null = null,
 		priceFromBarcode: number | null = null,
+		scanAssignment: ScanAssignment = { serialNo: null, batchNo: null },
 	) => {
 		console.log("Adding scanned item to invoice:", item, scannedCode);
 
@@ -269,6 +311,13 @@ export function useScanProcessor(context: ScanProcessorContext) {
 			}
 		}
 
+		if (scanAssignment.serialNo && newItem.has_serial_no) {
+			newItem.to_set_serial_no = scanAssignment.serialNo;
+		}
+		if (scanAssignment.batchNo && newItem.has_batch_no) {
+			newItem.to_set_batch_no = scanAssignment.batchNo;
+		}
+
 		const requestedQtyRaw =
 			qtyFromBarcode !== null && !isNaN(qtyFromBarcode)
 				? qtyFromBarcode
@@ -376,6 +425,7 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		let qtyFromBarcode: number | null = null;
 		let priceFromBarcode: number | null = null;
 		let scaleResponse: any = null;
+		let scanAssignment: ScanAssignment = { serialNo: null, batchNo: null };
 
 		try {
 			const res = await frappe.call({
@@ -451,18 +501,76 @@ export function useScanProcessor(context: ScanProcessorContext) {
 					(Array.isArray(item.barcodes) &&
 						item.barcodes.some(
 							(bc: any) => String(bc) === searchCode,
+						)) ||
+					(Array.isArray(item.serial_no_data) &&
+						item.serial_no_data.some(
+							(sn: any) =>
+								String(sn?.serial_no || "") === searchCode,
+						)) ||
+					(Array.isArray(item.batch_no_data) &&
+						item.batch_no_data.some(
+							(bn: any) =>
+								String(bn?.batch_no || "") === searchCode,
 						));
 				return barcodeMatch || item.item_code === searchCode;
 			});
 		}
 
+		if (!foundItem && qtyFromBarcode === null) {
+			const searchSerialNo = parseBooleanSetting(
+				pos_profile.value?.posa_search_serial_no,
+			);
+			const searchBatchNo = parseBooleanSetting(
+				pos_profile.value?.posa_search_batch_no,
+			);
+
+			if (searchSerialNo || searchBatchNo) {
+				try {
+					const resolveRes = await frappe.call({
+						method: "posawesome.posawesome.api.items.search_serial_or_batch_or_barcode_number",
+						args: {
+							search_value: scannedCode,
+							search_serial_no: searchSerialNo ? 1 : 0,
+							search_batch_no: searchBatchNo ? 1 : 0,
+						},
+					});
+
+					const resolved = resolveRes?.message || {};
+					if (resolved?.item_code) {
+						searchCode = String(resolved.item_code);
+						if (resolved?.serial_no) {
+							scanAssignment.serialNo = String(resolved.serial_no);
+						}
+						if (resolved?.batch_no) {
+							scanAssignment.batchNo = String(resolved.batch_no);
+						}
+						foundItem = barcodeIndex.lookupItemByBarcode(searchCode);
+					}
+				} catch (error) {
+					console.error(
+						"Failed to resolve serial/batch scan on server:",
+						error,
+					);
+				}
+			}
+		}
+
 		if (foundItem) {
+			const localAssignment = extractScanAssignmentFromItem(
+				foundItem,
+				scannedCode,
+			);
+			scanAssignment = {
+				serialNo: scanAssignment.serialNo || localAssignment.serialNo,
+				batchNo: scanAssignment.batchNo || localAssignment.batchNo,
+			};
 			console.log("Found item by processed code:", foundItem);
 			await addScannedItemToInvoice(
 				foundItem,
-				searchCode,
+				scannedCode,
 				qtyFromBarcode,
 				priceFromBarcode,
+				scanAssignment,
 			);
 			return;
 		}
@@ -517,11 +625,20 @@ export function useScanProcessor(context: ScanProcessorContext) {
 					eventBus.emit("set_all_items", items.value);
 
 				await itemDetailFetcher.update_items_details([newItem]);
+				const localAssignment = extractScanAssignmentFromItem(
+					newItem,
+					scannedCode,
+				);
+				scanAssignment = {
+					serialNo: scanAssignment.serialNo || localAssignment.serialNo,
+					batchNo: scanAssignment.batchNo || localAssignment.batchNo,
+				};
 				await addScannedItemToInvoice(
 					newItem,
-					searchCode,
+					scannedCode,
 					qtyFromBarcode,
 					priceFromBarcode,
+					scanAssignment,
 				);
 				return;
 			}

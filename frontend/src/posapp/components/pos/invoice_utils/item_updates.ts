@@ -284,7 +284,9 @@ export function _applyItemDetailPayload(
 	item.has_batch_no = data.has_batch_no;
 	item.has_serial_no = data.has_serial_no;
 	item.allow_negative_stock = data.allow_negative_stock;
-	item.serial_no = data.serial_no;
+	if (data.serial_no !== undefined && data.serial_no !== null) {
+		item.serial_no = data.serial_no;
+	}
 	item.batch_no = data.batch_no;
 	item.is_stock_item = data.is_stock_item;
 	item.is_fixed_asset = data.is_fixed_asset;
@@ -325,6 +327,12 @@ export function _applyItemDetailPayload(
 	if (data.batch_no) item.batch_no = data.batch_no;
 	if (data.serial_no_data) item.serial_no_data = data.serial_no_data;
 	if (data.batch_no_data) item.batch_no_data = data.batch_no_data;
+
+	if (Array.isArray(item.serial_no_selected) && item.serial_no_selected.length) {
+		// Preserve explicit serial selections even when server response omits `serial_no`.
+		item.serial_no = item.serial_no_selected.join("\n");
+		item.serial_no_selected_count = item.serial_no_selected.length;
+	}
 
 	if (
 		item.has_batch_no &&
