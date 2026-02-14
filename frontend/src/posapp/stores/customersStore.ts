@@ -402,7 +402,7 @@ export const useCustomersStore = defineStore("customers", () => {
 
 	async function get_customer_names() {
 		if (!posProfile.value) {
-			console.log("No POS Profile available to fetch customers");
+			console.debug("Customer fetch skipped: POS Profile not ready");
 			return;
 		}
 		const serializedProfile = getSerializedProfile(posProfile.value);

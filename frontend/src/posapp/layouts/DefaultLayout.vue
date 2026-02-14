@@ -363,8 +363,14 @@ const initializeData = async () => {
 
 	markSourceLoaded("init");
 
-	// Trigger initial customer load if online
-	if (navigator.onLine && !isOffline()) {
+	// Trigger initial customer load only when POS profile is already available
+	if (
+		navigator.onLine &&
+		!isOffline() &&
+		posProfile.value &&
+		posProfile.value.name
+	) {
+		customersStore.setPosProfile(posProfile.value);
 		customersStore.get_customer_names();
 	}
 };
