@@ -38,6 +38,9 @@ export function useItemAddition() {
 
 	const { expandBundle } = useItemBundles() as any;
 	const sharedBatchSerial = useBatchSerial();
+	const logBatchFlow = (message: string, payload?: any) => {
+		console.debug(`[POS BatchFlow] ${message}`, payload || {});
+	};
 
 	const callSetBatchQty = (
 		context: any,
@@ -290,6 +293,43 @@ export function useItemAddition() {
 		if (context.triggerBackgroundFlush) context.triggerBackgroundFlush();
 	};
 
+	const addSplitItemsDirectly = (context: any, splitItems: any[]) => {
+		if (!Array.isArray(splitItems) || splitItems.length === 0) {
+			return;
+		}
+		logBatchFlow("Adding split items directly", {
+			count: splitItems.length,
+			items: splitItems.map((entry: any) => ({
+				item_code: entry?.item_code,
+				batch_no: entry?.batch_no,
+				qty: entry?.qty,
+			})),
+		});
+
+		if (context.invoiceStore) {
+			const added = context.invoiceStore.addItems(splitItems, 0);
+			added.forEach((line: any) => {
+				refreshMergeCacheEntry(context, line, 0);
+				runAsyncTask(() => expandBundle(line, context), "expand_bundle");
+				handleItemExpansion(line, context);
+			});
+			if (context.invoiceStore?.touch) {
+				context.invoiceStore.touch();
+			}
+		} else {
+			splitItems.forEach((line: any) => {
+				context.items.unshift(line);
+				refreshMergeCacheEntry(context, line, 0);
+				runAsyncTask(() => expandBundle(line, context), "expand_bundle");
+				handleItemExpansion(line, context);
+			});
+		}
+
+		if (context.triggerBackgroundFlush) {
+			context.triggerBackgroundFlush();
+		}
+	};
+
 	// Add item to invoice
 	const addItem = withPerf(
 		"pos:add-item",
@@ -416,12 +456,19 @@ export function useItemAddition() {
 								remaining_qty,
 								batch.available_qty,
 							);
+							if (take <= 0) continue;
 							allocations.push({
 								batch: batch.batch_no,
 								qty: take,
 							});
 							remaining_qty -= take;
 						}
+						logBatchFlow("Batch allocation prepared", {
+							item_code: new_item.item_code,
+							requested_qty: new_item.qty,
+							allocations,
+							remaining_qty,
+						});
 
 						// If we still have remainder but ran out of batches, add it to the last allocation
 						if (remaining_qty > 0) {
@@ -430,6 +477,14 @@ export function useItemAddition() {
 									allocations[allocations.length - 1];
 								if (lastAllocation) {
 									lastAllocation.qty += remaining_qty;
+									logBatchFlow(
+										"Insufficient batch availability, keeping remainder on last allocation",
+										{
+											item_code: new_item.item_code,
+											remainder: remaining_qty,
+											last_batch: lastAllocation.batch,
+										},
+									);
 								}
 							} else {
 								// No usable batches found? Just use standard logic
@@ -508,56 +563,56 @@ export function useItemAddition() {
 
 				// Re-check in case other async updates modified the cart meanwhile
 				if (!context.new_line) {
+					const mergeProbeItem = new_item || item;
 					mergeTarget = findMergeTarget(
 						context,
-						item,
+						mergeProbeItem,
 						requireBatchMatch,
 					);
 					index = mergeTarget ? mergeTarget.index : -1;
+					logBatchFlow("Re-check merge target", {
+						item_code: mergeProbeItem?.item_code,
+						batch_no: mergeProbeItem?.batch_no || "",
+						found_index: index,
+					});
 				}
 
 				if (index === -1 || context.new_line) {
 					if (context.invoiceStore) {
 						// Use batching
 						return new Promise((resolve) => {
-							// Check pending additions first
-							const pendingIndex = pendingItems.findIndex(
-								(pendingItem) => {
-									// Use same matching logic as findMergeTarget but for pending items
-									// Note: pendingItems contains item OBJECTS, not Vue proxies yet.
-									return (
-										pendingItem.item_code ===
-											new_item.item_code &&
-										pendingItem.uom === new_item.uom &&
-										pendingItem.rate === new_item.rate &&
+							const toQueue = [new_item, ...extra_items];
+							toQueue.forEach((line, lineIndex) => {
+								const pendingIndex = pendingItems.findIndex(
+									(pendingItem) =>
+										pendingItem.item_code === line.item_code &&
+										pendingItem.uom === line.uom &&
+										pendingItem.rate === line.rate &&
 										(pendingItem.batch_no || "") ===
-											(new_item.batch_no || "")
-									);
-								},
-							);
+											(line.batch_no || ""),
+								);
 
-							if (pendingIndex !== -1 && !context.new_line) {
-								// Merge with pending item
-								const pendingItem = pendingItems[pendingIndex];
-								if (context.isReturnInvoice) {
-									pendingItem.qty -= Math.abs(
-										new_item.qty || 1,
-									);
+								if (pendingIndex !== -1 && !context.new_line) {
+									const pendingItem = pendingItems[pendingIndex];
+									if (context.isReturnInvoice) {
+										pendingItem.qty -= Math.abs(line.qty || 1);
+									} else {
+										pendingItem.qty += line.qty || 1;
+									}
+									if (lineIndex === 0) {
+										const existingResolvers =
+											pendingResolvers[pendingIndex] || [];
+										existingResolvers.push(resolve);
+										pendingResolvers[pendingIndex] =
+											existingResolvers;
+									}
 								} else {
-									pendingItem.qty += new_item.qty || 1;
+									pendingItems.push(line);
+									pendingResolvers.push(
+										lineIndex === 0 ? [resolve] : [],
+									);
 								}
-
-								// Add this resolver to the existing item's resolver list
-								const existingResolvers =
-									pendingResolvers[pendingIndex] || [];
-								existingResolvers.push(resolve);
-								pendingResolvers[pendingIndex] =
-									existingResolvers;
-							} else {
-								// Add as new pending item
-								pendingItems.push(new_item);
-								pendingResolvers.push([resolve]); // Array of resolvers for this item
-							}
+							});
 
 							if (!flushScheduled) {
 								flushScheduled = true;
@@ -655,6 +710,30 @@ export function useItemAddition() {
 								});
 							}
 
+							if (extra_items.length > 0) {
+								extra_items.forEach((splitLine) => {
+									const pendingIndex = pendingItems.findIndex(
+										(pendingItem) =>
+											pendingItem.item_code === splitLine.item_code &&
+											pendingItem.uom === splitLine.uom &&
+											pendingItem.rate === splitLine.rate &&
+											(pendingItem.batch_no || "") ===
+												(splitLine.batch_no || ""),
+									);
+									if (pendingIndex !== -1 && !context.new_line) {
+										const pendingItem = pendingItems[pendingIndex];
+										if (context.isReturnInvoice) {
+											pendingItem.qty -= Math.abs(splitLine.qty || 1);
+										} else {
+											pendingItem.qty += splitLine.qty || 1;
+										}
+									} else {
+										pendingItems.push(splitLine);
+										pendingResolvers.push([]);
+									}
+								});
+							}
+
 							if (!flushScheduled) {
 								flushScheduled = true;
 								queueMicrotask(() =>
@@ -724,6 +803,9 @@ export function useItemAddition() {
 					// Trigger background flush
 					if (context.triggerBackgroundFlush)
 						context.triggerBackgroundFlush();
+					if (extra_items.length > 0) {
+						addSplitItemsDirectly(context, extra_items);
+					}
 				}
 			} else {
 				const cur_item = context.items[index];

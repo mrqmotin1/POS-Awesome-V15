@@ -93,6 +93,9 @@ export function useScanProcessor(context: ScanProcessorContext) {
 
 	const awaitingScanResult = ref(false);
 	const pendingScanCode = ref("");
+	const logScanFlow = (step: string, payload?: any) => {
+		console.debug(`[POS ScanFlow] ${step}`, payload || {});
+	};
 
 	const isNegativeStockEnabled = (item: any = null) => {
 		const allowNegativeSetting = parseBooleanSetting(
@@ -182,7 +185,13 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		priceFromBarcode: number | null = null,
 		scanAssignment: ScanAssignment = { serialNo: null, batchNo: null },
 	) => {
-		console.log("Adding scanned item to invoice:", item, scannedCode);
+		logScanFlow("Preparing scanned item add", {
+			scannedCode,
+			item_code: item?.item_code,
+			scanAssignment,
+			qtyFromBarcode,
+			priceFromBarcode,
+		});
 
 		// Clone the item to avoid mutating list data
 		const newItem = { ...item };
@@ -317,6 +326,12 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		if (scanAssignment.batchNo && newItem.has_batch_no) {
 			newItem.to_set_batch_no = scanAssignment.batchNo;
 		}
+		logScanFlow("Applied scan assignment", {
+			item_code: newItem.item_code,
+			to_set_serial_no: newItem.to_set_serial_no || null,
+			to_set_batch_no: newItem.to_set_batch_no || null,
+			qty: newItem.qty,
+		});
 
 		const requestedQtyRaw =
 			qtyFromBarcode !== null && !isNaN(qtyFromBarcode)
@@ -362,6 +377,12 @@ export function useScanProcessor(context: ScanProcessorContext) {
 			await itemAddition.addItem(newItem, {
 				suppressNegativeWarning: true,
 				skipNotification: true,
+			});
+			logScanFlow("Item added from scanner", {
+				item_code: newItem.item_code,
+				qty: requestedQty,
+				batch: newItem.to_set_batch_no || null,
+				serial: newItem.to_set_serial_no || null,
 			});
 			if (typeof scannerInput.playScanTone === "function") {
 				scannerInput.playScanTone("success");
@@ -415,6 +436,7 @@ export function useScanProcessor(context: ScanProcessorContext) {
 
 	const processScannedItem = async (scannedCode: string) => {
 		const mark = perfMarkStart("pos:scan-process");
+		logScanFlow("Start processing scan", { scannedCode });
 		pendingScanCode.value = scannedCode;
 		if (typeof scannerInput.ensureScaleBarcodeSettings === "function") {
 			await scannerInput.ensureScaleBarcodeSettings();
@@ -515,6 +537,13 @@ export function useScanProcessor(context: ScanProcessorContext) {
 				return barcodeMatch || item.item_code === searchCode;
 			});
 		}
+		logScanFlow("Parsed scan code", {
+			scannedCode,
+			searchCode,
+			qtyFromBarcode,
+			priceFromBarcode,
+			scaleParsed: Boolean(scaleResponse && scaleResponse.item_code),
+		});
 
 		if (!foundItem && qtyFromBarcode === null) {
 			const searchSerialNo = parseBooleanSetting(
@@ -564,7 +593,11 @@ export function useScanProcessor(context: ScanProcessorContext) {
 				serialNo: scanAssignment.serialNo || localAssignment.serialNo,
 				batchNo: scanAssignment.batchNo || localAssignment.batchNo,
 			};
-			console.log("Found item by processed code:", foundItem);
+			logScanFlow("Local item resolved", {
+				item_code: foundItem?.item_code,
+				scannedCode,
+				scanAssignment,
+			});
 			await addScannedItemToInvoice(
 				foundItem,
 				scannedCode,

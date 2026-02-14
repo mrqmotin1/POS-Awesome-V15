@@ -19,6 +19,15 @@
 				>
 					{{ __("Expired") }}
 				</v-chip>
+				<v-chip
+					v-if="item.has_batch_no && item.batch_no"
+					color="info"
+					size="x-small"
+					variant="tonal"
+					class="ml-1"
+				>
+					{{ __("Batch") }}: {{ item.batch_no }}
+				</v-chip>
 				<v-tooltip v-if="item.pricing_rule_badge" location="bottom">
 					<template #activator="{ props }">
 						<v-chip v-bind="props" color="primary" size="x-small" class="ml-1">
@@ -403,6 +412,7 @@ const memoDeps = computed(() => {
 		props.item.name_overridden,
 		props.item.pricing_rule_badge,
 		props.item.batch_no_is_expired,
+		props.item.batch_no,
 		props.item.posa_is_offer,
 		props.item.posa_offer_applied,
 		props.item.is_free_item,
