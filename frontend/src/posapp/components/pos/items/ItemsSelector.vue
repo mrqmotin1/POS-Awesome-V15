@@ -508,6 +508,7 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 			blockSaleBeyondAvailableQty.value,
 			!options.suppressNegativeWarning,
 			true,
+			isReturnInvoice.value,
 		);
 
 		if (isValid) {
@@ -526,6 +527,7 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 const scanProcessor = useScanProcessor({
 	items,
 	pos_profile,
+	isReturnInvoice,
 	active_price_list,
 	customer_price_list,
 	itemDetailFetcher,

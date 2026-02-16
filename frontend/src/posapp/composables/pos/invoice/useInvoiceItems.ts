@@ -1,4 +1,4 @@
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import type { Ref } from "vue";
 import { useInvoiceStore } from "../../../stores/invoiceStore";
 import { useToastStore } from "../../../stores/toastStore";
@@ -343,6 +343,32 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			delivery_charges_rate.value = 0;
 		}
 	};
+
+	// Keep delivery charge state mirrored in the central invoice store.
+	// Customer display publisher reads from invoiceStore.* values.
+	watch(
+		delivery_charges,
+		(next) => {
+			invoiceStore.setDeliveryCharges(next);
+		},
+		{ deep: true, immediate: true },
+	);
+
+	watch(
+		selected_delivery_charge,
+		(next) => {
+			invoiceStore.setSelectedDeliveryCharge(next?.name || "");
+		},
+		{ immediate: true },
+	);
+
+	watch(
+		delivery_charges_rate,
+		(next) => {
+			invoiceStore.setDeliveryChargesRate(next);
+		},
+		{ immediate: true },
+	);
 
 	return {
 		items_headers,
