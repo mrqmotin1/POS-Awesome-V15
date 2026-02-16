@@ -348,6 +348,31 @@ export default {
 			// Fallback
 			return { type: "A4", cols: 3, rows: 7 };
 		},
+		getScaleSettingsSnapshot() {
+			const settings = this.scaleBarcodeSettings || {};
+			return {
+				prefix: settings.prefix || "",
+				prefix_included_or_not: Number(settings.prefix_included_or_not) || 0,
+				no_of_prefix_characters: Number(settings.no_of_prefix_characters) || 0,
+				item_code_starting_digit: Number(settings.item_code_starting_digit) || 0,
+				item_code_total_digits: Number(settings.item_code_total_digits) || 0,
+				weight_starting_digit: Number(settings.weight_starting_digit) || 0,
+				weight_total_digits: Number(settings.weight_total_digits) || 0,
+				weight_decimals: Number(settings.weight_decimals) || 0,
+				price_included_in_barcode_or_not: Number(settings.price_included_in_barcode_or_not) || 0,
+				price_starting_digit: Number(settings.price_starting_digit) || 0,
+				price_total_digit: Number(settings.price_total_digit) || 0,
+				price_decimals: Number(settings.price_decimals) || 0,
+				configured: this.isScaleSettingsConfigured(),
+			};
+		},
+		logDebug(step, payload = {}) {
+			try {
+				console.debug("[POS BarcodePrinting]", step, payload);
+			} catch (error) {
+				console.log("[POS BarcodePrinting]", step);
+			}
+		},
 		normalizeLabelQty(value) {
 			const parsed = Number(value);
 			if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -471,7 +496,14 @@ export default {
 			return value.length >= requiredLen;
 		},
 		async ensureScaleBarcodeSettings(force = false) {
+			this.logDebug("ensureScaleBarcodeSettings:start", {
+				force,
+				loaded: this.scaleBarcodeSettingsLoaded,
+			});
 			if (!force && this.scaleBarcodeSettingsLoaded && this.scaleBarcodeSettings) {
+				this.logDebug("ensureScaleBarcodeSettings:cached", {
+					settings: this.getScaleSettingsSnapshot(),
+				});
 				return this.scaleBarcodeSettings;
 			}
 			try {
@@ -484,9 +516,15 @@ export default {
 				if (settings && typeof settings === "object") {
 					this.scaleBarcodeSettings = settings;
 				}
+				this.logDebug("ensureScaleBarcodeSettings:loaded", {
+					settings: this.getScaleSettingsSnapshot(),
+				});
 			} catch (error) {
 				console.warn("Failed to load scale barcode settings for printing", error);
 				this.scaleBarcodeSettings = null;
+				this.logDebug("ensureScaleBarcodeSettings:error", {
+					error: String(error?.message || error || ""),
+				});
 			} finally {
 				this.scaleBarcodeSettingsLoaded = true;
 			}
@@ -500,11 +538,26 @@ export default {
 			return this.isLikelyWeightUom(item.uom);
 		},
 		async generateScaleBarcodeForItem(item, grams, { silent = false } = {}) {
+			this.logDebug("generateScaleBarcodeForItem:start", {
+				item_code: item?.item_code,
+				uom: item?.uom,
+				input_grams: grams,
+				silent,
+			});
 			if (!item) return false;
 			const normalizedGrams = this.normalizeScaleGrams(grams);
-			if (!normalizedGrams) return false;
+			if (!normalizedGrams) {
+				this.logDebug("generateScaleBarcodeForItem:invalid-grams", {
+					item_code: item?.item_code,
+					input_grams: grams,
+				});
+				return false;
+			}
 
 			await this.ensureScaleBarcodeSettings();
+			this.logDebug("generateScaleBarcodeForItem:settings", {
+				settings: this.getScaleSettingsSnapshot(),
+			});
 			if (!this.isScaleSettingsConfigured()) {
 				item.scale_grams = normalizedGrams;
 				item._scale_qty = Number((normalizedGrams / 1000).toFixed(3));
@@ -516,10 +569,21 @@ export default {
 						color: "warning",
 					});
 				}
+				this.logDebug("generateScaleBarcodeForItem:fallback-no-settings", {
+					item_code: item?.item_code,
+					uom: item?.uom,
+					grams: normalizedGrams,
+					barcode: item?.barcode || "",
+				});
 				return true;
 			}
 
 			const templateBarcode = this.getScaleTemplateBarcode(item);
+			this.logDebug("generateScaleBarcodeForItem:template", {
+				item_code: item?.item_code,
+				uom: item?.uom,
+				template_barcode: templateBarcode || "",
+			});
 
 			try {
 				const res = await frappe.call({
@@ -533,6 +597,12 @@ export default {
 					},
 				});
 				const generated = res && res.message ? res.message : null;
+				this.logDebug("generateScaleBarcodeForItem:api-response", {
+					item_code: item?.item_code,
+					uom: item?.uom,
+					grams: normalizedGrams,
+					generated,
+				});
 				if (generated && generated.warning) {
 					item.scale_grams = normalizedGrams;
 					item._scale_qty = Number((normalizedGrams / 1000).toFixed(3));
@@ -544,6 +614,13 @@ export default {
 							color: "warning",
 						});
 					}
+					this.logDebug("generateScaleBarcodeForItem:fallback-warning", {
+						item_code: item?.item_code,
+						uom: item?.uom,
+						grams: normalizedGrams,
+						warning: generated.warning,
+						barcode: item?.barcode || "",
+					});
 					return true;
 				}
 				if (!generated || !generated.barcode) {
@@ -561,6 +638,13 @@ export default {
 				item._scale_qty = Number(generated.qty || normalizedGrams / 1000);
 				item.scale_grams = normalizedGrams;
 				item.barcode = String(generated.barcode);
+				this.logDebug("generateScaleBarcodeForItem:success", {
+					item_code: item?.item_code,
+					uom: item?.uom,
+					grams: normalizedGrams,
+					barcode: item?.barcode || "",
+					scale_qty: item?._scale_qty,
+				});
 				return true;
 			} catch (error) {
 				console.warn("Scale barcode generation failed", error);
@@ -572,10 +656,20 @@ export default {
 						color: "warning",
 					});
 				}
+				this.logDebug("generateScaleBarcodeForItem:error-fallback", {
+					item_code: item?.item_code,
+					uom: item?.uom,
+					grams: normalizedGrams,
+					error: String(error?.message || error || ""),
+					barcode: item?.barcode || "",
+				});
 				return true;
 			}
 		},
 		onPendingScaleGramsInput() {
+			this.logDebug("onPendingScaleGramsInput", {
+				pending_grams: this.pendingScaleGrams,
+			});
 			if (this.pendingScaleBarcodeTimer) {
 				clearTimeout(this.pendingScaleBarcodeTimer);
 			}
@@ -584,17 +678,39 @@ export default {
 			}, 250);
 		},
 		async syncPendingScaleBarcode(silent = false) {
+			this.logDebug("syncPendingScaleBarcode:start", {
+				silent,
+				has_pending_item: Boolean(this.pendingAddItem),
+				pending_grams: this.pendingScaleGrams,
+			});
 			if (!this.pendingAddItem || !this.shouldShowScaleGramsInput(this.pendingAddItem)) {
+				this.logDebug("syncPendingScaleBarcode:skip", {
+					reason: "no-pending-item-or-not-scale-uom",
+				});
 				return false;
 			}
 			const grams = this.normalizeScaleGrams(this.pendingScaleGrams);
 			if (!grams) {
+				this.logDebug("syncPendingScaleBarcode:invalid-grams", {
+					pending_grams: this.pendingScaleGrams,
+				});
 				return false;
 			}
 			this.pendingScaleGrams = grams;
-			return this.generateScaleBarcodeForItem(this.pendingAddItem, grams, { silent });
+			const result = await this.generateScaleBarcodeForItem(this.pendingAddItem, grams, { silent });
+			this.logDebug("syncPendingScaleBarcode:done", {
+				result,
+				grams,
+				barcode: this.pendingAddItem?.barcode || "",
+			});
+			return result;
 		},
 		async onItemScaleGramsChange(item) {
+			this.logDebug("onItemScaleGramsChange:start", {
+				item_code: item?.item_code,
+				uom: item?.uom,
+				scale_grams: item?.scale_grams,
+			});
 			if (!this.shouldShowScaleGramsInput(item)) return;
 			const grams = this.normalizeScaleGrams(item.scale_grams);
 			if (!grams) {
@@ -605,8 +721,18 @@ export default {
 				return;
 			}
 			await this.generateScaleBarcodeForItem(item, grams);
+			this.logDebug("onItemScaleGramsChange:done", {
+				item_code: item?.item_code,
+				uom: item?.uom,
+				scale_grams: item?.scale_grams,
+				barcode: item?.barcode || "",
+			});
 		},
 		closeAddItemDialog() {
+			this.logDebug("closeAddItemDialog", {
+				had_pending_item: Boolean(this.pendingAddItem),
+				pending_item_code: this.pendingAddItem?.item_code || "",
+			});
 			if (this.pendingScaleBarcodeTimer) {
 				clearTimeout(this.pendingScaleBarcodeTimer);
 				this.pendingScaleBarcodeTimer = null;
@@ -634,6 +760,11 @@ export default {
 		},
 		getPrintableItems({ notify = true } = {}) {
 			const itemsToPrint = this.items.filter((item) => String(item?.barcode || "").trim());
+			this.logDebug("getPrintableItems", {
+				notify,
+				total_items: this.items.length,
+				printable_items: itemsToPrint.length,
+			});
 			if (!notify) {
 				return itemsToPrint;
 			}
@@ -652,6 +783,12 @@ export default {
 			return itemsToPrint;
 		},
 		async onAddItem(item) {
+			this.logDebug("onAddItem:start", {
+				item_code: item?.item_code || "",
+				item_name: item?.item_name || "",
+				uom: item?.uom || item?.stock_uom || "",
+				barcode: item?.barcode || "",
+			});
 			if (!item) return;
 
 			// Resolve POS Profile
@@ -662,6 +799,9 @@ export default {
 						? this.itemsStore.posProfile
 						: {};
 			await this.ensureScaleBarcodeSettings();
+			this.logDebug("onAddItem:settings", {
+				settings: this.getScaleSettingsSnapshot(),
+			});
 
 			// 1. Try to find barcode in the passed item object
 			const scannedScaleBarcode = this.extractScaleScannedBarcode(item);
@@ -746,6 +886,10 @@ export default {
 					title: __("Item '{0}' has no barcode", [item.item_name]),
 					color: "warning",
 				});
+				this.logDebug("onAddItem:abort-no-barcode", {
+					item_code: item?.item_code || "",
+					uom: defaultUom,
+				});
 				return;
 			}
 
@@ -802,6 +946,14 @@ export default {
 			this.pendingScaleGrams =
 				initialScaleGrams || (isScaleBarcode && this.isLikelyWeightUom(defaultUom) ? 1000 : null);
 			this.addItemDialog = true;
+			this.logDebug("onAddItem:pending-created", {
+				item_code: this.pendingAddItem?.item_code || "",
+				uom: this.pendingAddItem?.uom || "",
+				is_scale: Boolean(this.pendingAddItem?._is_scale_barcode),
+				barcode: this.pendingAddItem?.barcode || "",
+				pending_scale_grams: this.pendingScaleGrams,
+				label_qty: this.addItemQty,
+			});
 
 			if (
 				this.pendingAddItem &&
@@ -810,8 +962,17 @@ export default {
 			) {
 				await this.syncPendingScaleBarcode(true);
 			}
+			this.logDebug("onAddItem:done", {
+				pending_barcode: this.pendingAddItem?.barcode || "",
+				pending_scale_grams: this.pendingScaleGrams,
+			});
 		},
 		async confirmAddItem() {
+			this.logDebug("confirmAddItem:start", {
+				has_pending_item: Boolean(this.pendingAddItem),
+				label_qty: this.addItemQty,
+				pending_scale_grams: this.pendingScaleGrams,
+			});
 			if (!this.pendingAddItem) return;
 
 			const item = this.pendingAddItem;
@@ -826,6 +987,11 @@ export default {
 				}
 				const generated = await this.generateScaleBarcodeForItem(item, grams);
 				if (!generated) {
+					this.logDebug("confirmAddItem:abort-scale-generate-failed", {
+						item_code: item?.item_code || "",
+						uom: item?.uom || "",
+						pending_scale_grams: this.pendingScaleGrams,
+					});
 					return;
 				}
 			}
@@ -842,14 +1008,32 @@ export default {
 			);
 			if (existingItem) {
 				existingItem.qty += qty;
+				this.logDebug("confirmAddItem:merged-existing", {
+					item_code: existingItem?.item_code || "",
+					uom: existingItem?.uom || "",
+					barcode: existingItem?.barcode || "",
+					new_qty: existingItem?.qty,
+				});
 			} else {
 				item.qty = qty;
 				this.items.unshift(item);
+				this.logDebug("confirmAddItem:added-new", {
+					item_code: item?.item_code || "",
+					uom: item?.uom || "",
+					barcode: item?.barcode || "",
+					qty: item?.qty,
+					is_scale: Boolean(item?._is_scale_barcode),
+					scale_grams: item?.scale_grams || null,
+				});
 			}
 
 			this.closeAddItemDialog();
 		},
 		async onPendingUomChange() {
+			this.logDebug("onPendingUomChange:start", {
+				pending_item_code: this.pendingAddItem?.item_code || "",
+				uom: this.pendingAddItem?.uom || "",
+			});
 			if (!this.pendingAddItem) return;
 			await this.onItemUomChange(this.pendingAddItem);
 			if (this.shouldShowScaleGramsInput(this.pendingAddItem)) {
@@ -859,8 +1043,20 @@ export default {
 				}
 				await this.syncPendingScaleBarcode(true);
 			}
+			this.logDebug("onPendingUomChange:done", {
+				pending_item_code: this.pendingAddItem?.item_code || "",
+				uom: this.pendingAddItem?.uom || "",
+				barcode: this.pendingAddItem?.barcode || "",
+				pending_scale_grams: this.pendingScaleGrams,
+			});
 		},
 		removeItem(item) {
+			this.logDebug("removeItem", {
+				item_code: item?.item_code || "",
+				uom: item?.uom || "",
+				barcode: item?.barcode || "",
+				row_id: item?._row_id,
+			});
 			if (item && item._row_id != null) {
 				this.items = this.items.filter((i) => i._row_id !== item._row_id);
 				return;
@@ -897,10 +1093,22 @@ export default {
 			return "";
 		},
 		async onItemUomChange(item) {
+			this.logDebug("onItemUomChange:start", {
+				item_code: item?.item_code || "",
+				uom: item?.uom || "",
+				barcode: item?.barcode || "",
+				scale_grams: item?.scale_grams || null,
+			});
 			if (this.shouldShowScaleGramsInput(item)) {
 				const grams = this.normalizeScaleGrams(item.scale_grams) || 1000;
 				item.scale_grams = grams;
 				await this.generateScaleBarcodeForItem(item, grams, { silent: true });
+				this.logDebug("onItemUomChange:scale-uom-updated", {
+					item_code: item?.item_code || "",
+					uom: item?.uom || "",
+					barcode: item?.barcode || "",
+					scale_grams: item?.scale_grams || null,
+				});
 				return;
 			}
 
@@ -912,6 +1120,11 @@ export default {
 			const nextBarcode = this.resolveBarcodeForUom(item, item.uom);
 			if (nextBarcode) {
 				item.barcode = nextBarcode;
+				this.logDebug("onItemUomChange:barcode-updated", {
+					item_code: item?.item_code || "",
+					uom: item?.uom || "",
+					barcode: item?.barcode || "",
+				});
 				return;
 			}
 
@@ -922,28 +1135,58 @@ export default {
 					color: "warning",
 				});
 			}
+			this.logDebug("onItemUomChange:done", {
+				item_code: item?.item_code || "",
+				uom: item?.uom || "",
+				barcode: item?.barcode || "",
+			});
 		},
 		clearAll() {
+			this.logDebug("clearAll", { count_before: this.items.length });
 			this.items = [];
 		},
 		incrementQty(item) {
 			item.qty++;
+			this.logDebug("incrementQty", {
+				item_code: item?.item_code || "",
+				uom: item?.uom || "",
+				barcode: item?.barcode || "",
+				qty: item?.qty,
+			});
 		},
 		decrementQty(item) {
 			if (item.qty > 1) {
 				item.qty--;
 			}
+			this.logDebug("decrementQty", {
+				item_code: item?.item_code || "",
+				uom: item?.uom || "",
+				barcode: item?.barcode || "",
+				qty: item?.qty,
+			});
 		},
 		getPrintWindowContent() {
 			const style = this.getPrintStyles();
 			const content = this.generatePrintContent(this.getPrintableItems({ notify: false }));
+			this.logDebug("getPrintWindowContent", {
+				style_length: style?.length || 0,
+				content_length: content?.length || 0,
+				settings: this.getScaleSettingsSnapshot(),
+			});
 			return { style, content };
 		},
 		printLabels() {
+			this.logDebug("printLabels:start", {
+				items_count: this.items.length,
+				settings: this.getScaleSettingsSnapshot(),
+			});
 			if (!this.items.length) return;
 
 			const itemsToPrint = this.getPrintableItems();
 			if (!itemsToPrint.length) {
+				this.logDebug("printLabels:abort-no-printable-items", {
+					items_count: this.items.length,
+				});
 				return;
 			}
 
@@ -958,6 +1201,11 @@ export default {
 
 			const style = this.getPrintStyles();
 			const content = this.generatePrintContent(itemsToPrint);
+			this.logDebug("printLabels:render", {
+				items_to_print: itemsToPrint.length,
+				style_length: style?.length || 0,
+				content_length: content?.length || 0,
+			});
 
 			printWindow.document.write(`
         <html>
@@ -983,12 +1231,24 @@ export default {
         </html>
       `);
 			printWindow.document.close();
+			this.logDebug("printLabels:window-ready", {
+				items_to_print: itemsToPrint.length,
+			});
 		},
 		downloadPdf() {
+			this.logDebug("downloadPdf:start", {
+				items_count: this.items.length,
+				settings: this.getScaleSettingsSnapshot(),
+			});
 			if (!this.items.length) return;
 
 			const itemsToPrint = this.getPrintableItems();
-			if (!itemsToPrint.length) return;
+			if (!itemsToPrint.length) {
+				this.logDebug("downloadPdf:abort-no-printable-items", {
+					items_count: this.items.length,
+				});
+				return;
+			}
 
 			const printWindow = window.open("", "_blank");
 			if (!printWindow) {
@@ -1018,6 +1278,12 @@ export default {
 				format: pdfFormat,
 				orientation: orientation,
 			};
+			this.logDebug("downloadPdf:render", {
+				items_to_print: itemsToPrint.length,
+				jsPdfOptions,
+				style_length: style?.length || 0,
+				content_length: content?.length || 0,
+			});
 
 			printWindow.document.write(`
         <html>
@@ -1059,9 +1325,13 @@ export default {
         </html>
       `);
 			printWindow.document.close();
+			this.logDebug("downloadPdf:window-ready", {
+				items_to_print: itemsToPrint.length,
+			});
 		},
 		getPrintStyles() {
 			const size = this.parseLabelSize();
+			this.logDebug("getPrintStyles", { size });
 			if (size.type === "A4") {
 				const { cols, rows } = size;
 				// Calculate approximate height based on A4 height (297mm) and margins
@@ -1163,6 +1433,9 @@ export default {
 			}
 		},
 		generatePrintContent(items) {
+			this.logDebug("generatePrintContent:start", {
+				items_count: Array.isArray(items) ? items.length : 0,
+			});
 			let html = "";
 			const size = this.parseLabelSize();
 			if (size.type === "A4") {
@@ -1220,6 +1493,10 @@ export default {
 			if (size.type === "A4") {
 				html += "</div>";
 			}
+			this.logDebug("generatePrintContent:done", {
+				items_count: Array.isArray(items) ? items.length : 0,
+				html_length: html.length,
+			});
 			return html;
 		},
 		formatCurrency(value) {
@@ -1229,6 +1506,11 @@ export default {
 			return value;
 		},
 		openQtyEdit(item) {
+			this.logDebug("openQtyEdit", {
+				item_code: item?.item_code || "",
+				row_id: item?._row_id,
+				current_qty: item?.qty,
+			});
 			// Reset other items editing state if any
 			this.items.forEach((i) => (i._editingQty = false));
 
@@ -1240,6 +1522,11 @@ export default {
 			});
 		},
 		closeQtyEdit(item) {
+			this.logDebug("closeQtyEdit:start", {
+				item_code: item?.item_code || "",
+				row_id: item?._row_id,
+				editing_value: this.editingQtyValue,
+			});
 			if (item._editingQty) {
 				if (this.editingQtyValue !== "" && this.editingQtyValue != null) {
 					item.qty = this.normalizeLabelQty(this.editingQtyValue);
@@ -1247,13 +1534,25 @@ export default {
 				item._editingQty = false;
 				this.editingQtyValue = "";
 			}
+			this.logDebug("closeQtyEdit:done", {
+				item_code: item?.item_code || "",
+				row_id: item?._row_id,
+				qty: item?.qty,
+			});
 		},
 	},
 	created() {
+		this.logDebug("created", {
+			settings_loaded: this.scaleBarcodeSettingsLoaded,
+		});
 		this.$watch(
 			() => this.uiStore.posProfile,
 			(profile) => {
 				if (profile) this.pos_profile = profile || {};
+				this.logDebug("posProfile:watch", {
+					profile_name: profile?.name || "",
+					currency: profile?.currency || "",
+				});
 			},
 			{ deep: true, immediate: true },
 		);
@@ -1265,6 +1564,10 @@ export default {
 		*/
 	},
 	beforeUnmount() {
+		this.logDebug("beforeUnmount", {
+			pending_item_code: this.pendingAddItem?.item_code || "",
+			items_count: this.items.length,
+		});
 		if (this.pendingScaleBarcodeTimer) {
 			clearTimeout(this.pendingScaleBarcodeTimer);
 			this.pendingScaleBarcodeTimer = null;
