@@ -118,6 +118,47 @@ def _get_required_barcode_length(metadata: Dict[str, Any]) -> int:
     return max(required_len, 0)
 
 
+def _find_item_scale_template(item_code: str, uom: Optional[str] = None) -> str:
+    """Find a scale barcode template from Item Barcode rows for the item."""
+
+    item_code_value = cstr(item_code or "").strip()
+    if not item_code_value:
+        return ""
+
+    rows = frappe.get_all(
+        "Item Barcode",
+        filters={"parent": item_code_value},
+        fields=["barcode", "posa_uom"],
+    )
+    if not rows:
+        return ""
+
+    requested_uom = cstr(uom or "").strip()
+    ordered_rows = rows
+    if requested_uom:
+        matched = [
+            row
+            for row in rows
+            if cstr(row.get("posa_uom") or "").strip() == requested_uom
+        ]
+        unmatched = [
+            row
+            for row in rows
+            if cstr(row.get("posa_uom") or "").strip() != requested_uom
+        ]
+        ordered_rows = matched + unmatched
+
+    for row in ordered_rows:
+        barcode = cstr(row.get("barcode") or "").strip()
+        if not barcode:
+            continue
+        parsed = _parse_scale_barcode_data(barcode)
+        if parsed and parsed.get("item_code"):
+            return barcode
+
+    return ""
+
+
 def _extract_numeric_segment(barcode: str, start: int, length: int, decimals: int = 0):
     """Extract a numeric value from ``barcode`` using 1-indexed ``start`` and ``length``."""
 
@@ -225,6 +266,7 @@ def parse_scale_barcode(barcode: str):
 def build_scale_barcode(
     barcode_template: Optional[str] = None,
     item_code: Optional[str] = None,
+    uom: Optional[str] = None,
     qty: Optional[float] = None,
     weight_grams: Optional[float] = None,
     price: Optional[float] = None,
@@ -245,8 +287,23 @@ def build_scale_barcode(
     if not (item_start and item_digits and weight_start and weight_digits):
         frappe.throw("Scale Barcode Settings are incomplete. Please configure item and weight segments.")
 
+    qty_value = None
+    if weight_grams is not None and cstr(weight_grams) != "":
+        qty_value = flt(weight_grams) / 1000
+    elif qty is not None and cstr(qty) != "":
+        qty_value = flt(qty)
+    else:
+        qty_value = 0
+
+    item_code_value = cstr(item_code or "").strip()
     template_value = cstr(barcode_template or "").strip()
     parsed_template = _parse_scale_barcode_data(template_value) if template_value else None
+    if not parsed_template:
+        lookup_template = _find_item_scale_template(item_code_value, uom=uom)
+        if lookup_template:
+            template_value = lookup_template
+            parsed_template = _parse_scale_barcode_data(template_value)
+
     required_len = _get_required_barcode_length(metadata)
     if template_value:
         chars = list(template_value)
@@ -264,29 +321,35 @@ def build_scale_barcode(
         if normalized_prefix:
             _replace_segment(chars, 0, normalized_prefix)
 
-    item_code_source = (
-        cstr((parsed_template or {}).get("item_code") or "").strip()
-        or cstr(item_code or "").strip()
-    )
+    item_code_source = cstr((parsed_template or {}).get("item_code") or "").strip()
     if not item_code_source and len(chars) >= (item_start - 1 + item_digits):
         item_code_source = "".join(chars[item_start - 1 : item_start - 1 + item_digits])
     if not item_code_source:
-        frappe.throw("Unable to determine item code segment for scale barcode generation.")
+        item_code_source = item_code_value
+    if not item_code_source:
+        return {
+            "barcode": template_value,
+            "item_code": item_code_value,
+            "qty": qty_value,
+            "price": None,
+            "settings": metadata,
+            "warning": "missing_item_code_segment",
+        }
 
     normalized_item_code = _normalize_numeric_code(item_code_source, item_digits)
     if not normalized_item_code:
-        frappe.throw("Scale barcode item code must contain numeric digits or use a valid template barcode.")
+        return {
+            "barcode": template_value,
+            "item_code": item_code_value or item_code_source,
+            "qty": qty_value,
+            "price": None,
+            "settings": metadata,
+            "warning": "missing_numeric_item_code",
+        }
     _replace_segment(chars, item_start - 1, normalized_item_code)
 
-    qty_value = None
-    if weight_grams is not None and cstr(weight_grams) != "":
-        qty_value = flt(weight_grams) / 1000
-    elif qty is not None and cstr(qty) != "":
-        qty_value = flt(qty)
-    elif parsed_template and parsed_template.get("qty") is not None:
+    if parsed_template and parsed_template.get("qty") is not None and weight_grams is None and qty is None:
         qty_value = flt(parsed_template.get("qty"))
-    else:
-        qty_value = 0
 
     qty_whole, qty_decimal = _encode_value_segments(qty_value, weight_digits, weight_decimals, "Weight")
     _replace_segment(chars, weight_start - 1, qty_whole + qty_decimal)

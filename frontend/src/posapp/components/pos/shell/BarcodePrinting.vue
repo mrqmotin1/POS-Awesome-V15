@@ -527,11 +527,25 @@ export default {
 					args: {
 						barcode_template: templateBarcode,
 						item_code: item.item_code,
+						uom: item.uom,
 						weight_grams: normalizedGrams,
 						price: this.includePrice ? item.price : null,
 					},
 				});
 				const generated = res && res.message ? res.message : null;
+				if (generated && generated.warning) {
+					item.scale_grams = normalizedGrams;
+					item._scale_qty = Number((normalizedGrams / 1000).toFixed(3));
+					if (!silent) {
+						this.toastStore.show({
+							title: __(
+								"Scale template barcode is missing for this item/UOM. Using item barcode only.",
+							),
+							color: "warning",
+						});
+					}
+					return true;
+				}
 				if (!generated || !generated.barcode) {
 					if (!silent) {
 						this.toastStore.show({
@@ -550,13 +564,15 @@ export default {
 				return true;
 			} catch (error) {
 				console.warn("Scale barcode generation failed", error);
+				item.scale_grams = normalizedGrams;
+				item._scale_qty = Number((normalizedGrams / 1000).toFixed(3));
 				if (!silent) {
 					this.toastStore.show({
-						title: __("Failed to generate scale barcode"),
-						color: "error",
+						title: __("Failed to generate scale barcode. Using item barcode only."),
+						color: "warning",
 					});
 				}
-				return false;
+				return true;
 			}
 		},
 		onPendingScaleGramsInput() {
