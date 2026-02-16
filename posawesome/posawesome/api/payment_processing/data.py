@@ -54,56 +54,6 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
         if page_length:
             page_length = min(page_length, MAX_OUTSTANDING_PAGE_LENGTH)
 
-        # Fast-path for POS Pay list view: fetch paginated Sales Invoices directly
-        # to avoid expensive full-ledger reconciliation queries on very large customers.
-        if page_length > 0:
-            filters = {
-                "customer": customer,
-                "company": company,
-                "docstatus": 1,
-                "outstanding_amount": (">", 0),
-            }
-            if pos_profile:
-                filters["pos_profile"] = pos_profile
-            if currency and not include_all_currencies:
-                filters["currency"] = currency
-
-            rows = frappe.get_list(
-                "Sales Invoice",
-                filters=filters,
-                fields=[
-                    "name",
-                    "customer_name",
-                    "posting_date",
-                    "due_date",
-                    "grand_total",
-                    "outstanding_amount",
-                    "currency",
-                    "pos_profile",
-                ],
-                order_by="posting_date desc, name desc",
-                limit_start=page_start,
-                limit_page_length=page_length,
-            )
-
-            return [
-                frappe._dict(
-                    {
-                        "voucher_no": row.get("name"),
-                        "voucher_type": "Sales Invoice",
-                        "outstanding_amount": flt(row.get("outstanding_amount")),
-                        "invoice_amount": flt(row.get("grand_total")),
-                        "due_date": row.get("due_date") or row.get("posting_date"),
-                        "posting_date": row.get("posting_date"),
-                        "currency": row.get("currency"),
-                        "pos_profile": row.get("pos_profile"),
-                        "customer": customer,
-                        "customer_name": row.get("customer_name"),
-                    }
-                )
-                for row in rows
-            ]
-
         party_account = get_party_account("Customer", customer, company)
         customer_name = frappe.get_cached_value("Customer", customer, "customer_name")
 
@@ -172,6 +122,9 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
             ),
             reverse=True,
         )
+
+        if page_length:
+            return normalized_rows[page_start: page_start + page_length]
 
         return normalized_rows
     except Exception as e:
