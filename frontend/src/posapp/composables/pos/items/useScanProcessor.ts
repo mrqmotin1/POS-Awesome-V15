@@ -16,6 +16,7 @@ declare const __: (_str: string, _args?: any[]) => string;
 export interface ScanProcessorContext {
 	items: Ref<any[]>;
 	pos_profile: Ref<any>;
+	isReturnInvoice?: Ref<boolean> | ComputedRef<boolean> | boolean;
 	active_price_list: Ref<string>;
 	customer_price_list: Ref<string | null>;
 	itemDetailFetcher: {
@@ -105,6 +106,12 @@ export function useScanProcessor(context: ScanProcessorContext) {
 			? parseBooleanSetting(item.allow_negative_stock)
 			: false;
 		return allowNegativeSetting || allowNegativeItem;
+	};
+
+	const isReturnMode = () => {
+		const value = context.isReturnInvoice;
+		if (typeof value === "boolean") return value;
+		return Boolean(value?.value);
 	};
 
 	const showScanError = (error: {
@@ -345,7 +352,7 @@ export function useScanProcessor(context: ScanProcessorContext) {
 					? newItem.actual_qty
 					: null;
 
-		if (availableQty !== null && availableQty < requestedQty) {
+		if (!isReturnMode() && availableQty !== null && availableQty < requestedQty) {
 			const negativeStockEnabled = isNegativeStockEnabled(newItem);
 			const exceedsAvailable = availableQty < requestedQty;
 			const shouldBlock =

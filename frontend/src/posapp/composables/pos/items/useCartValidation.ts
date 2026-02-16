@@ -22,6 +22,7 @@ export function useCartValidation() {
 		blockSaleBeyondAvailableQty = false,
 		_showNegativeStockWarning = true,
 		skipServerValidation = false,
+		isReturnInvoice = false,
 	) {
 		isValidating.value = true;
 		validationError.value = null;
@@ -43,7 +44,8 @@ export function useCartValidation() {
 
 			if (
 				item.actual_qty === 0 &&
-				posProfile?.posa_display_items_in_stock
+				posProfile?.posa_display_items_in_stock &&
+				!isReturnInvoice
 			) {
 				toastStore.show({
 					title: `No stock available for ${item.item_name}`,
@@ -54,7 +56,7 @@ export function useCartValidation() {
 
 			const isStockItem = parseBooleanSetting(item?.is_stock_item);
 
-			if (isStockItem) {
+			if (isStockItem && !isReturnInvoice) {
 				const allowNegativeStock =
 					!blockSaleBeyondAvailableQty &&
 					(parseBooleanSetting(stockSettings?.allow_negative_stock) ||
@@ -111,6 +113,7 @@ export function useCartValidation() {
 				eventBus,
 				blockSaleBeyondAvailableQty,
 				_showNegativeStockWarning,
+				isReturnInvoice,
 			);
 		} finally {
 			isValidating.value = false;
@@ -168,6 +171,7 @@ export function useCartValidation() {
 		eventBus: any,
 		blockSaleBeyondAvailableQty = false,
 		_showNegativeStockWarning = true,
+		isReturnInvoice = false,
 	) {
 		console.warn(
 			"Using fallback validation due to server validation failure",
@@ -175,7 +179,7 @@ export function useCartValidation() {
 
 		const isStockItem = parseBooleanSetting(item?.is_stock_item);
 
-		if (isStockItem) {
+		if (isStockItem && !isReturnInvoice) {
 			const allowNegativeStock =
 				!blockSaleBeyondAvailableQty &&
 				(parseBooleanSetting(stockSettings?.allow_negative_stock) ||
@@ -220,6 +224,7 @@ export function useCartValidation() {
 		eventBus: any,
 		blockSaleBeyondAvailableQty = false,
 		showNegativeStockWarning = true,
+		isReturnInvoice = false,
 	) {
 		const validItems: any[] = [];
 		const invalidItems: any[] = [];
@@ -233,6 +238,8 @@ export function useCartValidation() {
 				eventBus,
 				blockSaleBeyondAvailableQty,
 				showNegativeStockWarning,
+				false,
+				isReturnInvoice,
 			);
 
 			if (isValid) {

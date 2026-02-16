@@ -343,6 +343,7 @@ export function useItemAddition() {
 				) || parseBooleanSetting(item.allow_negative_stock);
 
 			if (
+				!context.isReturnInvoice &&
 				blockSale &&
 				item.is_stock_item &&
 				item.actual_qty <= 0 &&
@@ -367,7 +368,7 @@ export function useItemAddition() {
 				return;
 			}
 
-			if (blockSale && !allowNegativeStock) {
+			if (!context.isReturnInvoice && blockSale && !allowNegativeStock) {
 				const existingItem =
 					findMergeTarget(context, item, false)?.item ||
 					context.items.find(
