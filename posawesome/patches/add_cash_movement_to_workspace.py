@@ -60,6 +60,12 @@ def execute():
     if not frappe.db.table_exists("Workspace"):
         return
 
+    if not frappe.db.table_exists("DocType"):
+        return
+
+    if not frappe.db.exists("DocType", LINK_TO):
+        return
+
     if not frappe.db.exists("Workspace", WORKSPACE_NAME):
         return
 

@@ -75,6 +75,7 @@ doctype_js = {
 after_uninstall = "posawesome.uninstall.after_uninstall"
 after_migrate = [
     "posawesome.patches.add_pos_cash_movement_settings.execute",
+    "posawesome.patches.add_cash_movement_to_workspace.execute",
     "posawesome.patches.add_customer_display_settings.execute",
     "posawesome.patches.reorganize_pos_profile_sections.execute",
 ]
