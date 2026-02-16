@@ -368,9 +368,72 @@ export default {
 			if (!Number.isFinite(parsed) || parsed <= 0) return null;
 			return Math.round(parsed);
 		},
-		isKgUom(uom) {
-			const value = String(uom || "").trim().toLowerCase();
-			return value === "kg" || value === "kgs" || value === "kilogram" || value === "kilograms";
+		normalizeUomToken(uom) {
+			return String(uom || "")
+				.trim()
+				.toLowerCase()
+				.replace(/[\s._-]+/g, "");
+		},
+		isLikelyWeightUom(uom) {
+			const token = this.normalizeUomToken(uom);
+			if (!token) return false;
+			const directMatches = new Set([
+				"kg",
+				"kgs",
+				"kilogram",
+				"kilograms",
+				"kilogramme",
+				"kilogrammes",
+				"kilo",
+				"gram",
+				"grams",
+				"gm",
+				"gms",
+			]);
+			if (directMatches.has(token)) return true;
+			return token.includes("kilo") || token.includes("gram");
+		},
+		getBarcodeRowsForItem(item) {
+			return Array.isArray(item?.item_barcode) ? item.item_barcode.filter((row) => row?.barcode) : [];
+		},
+		getScaleTemplateBarcode(item) {
+			if (!item) return "";
+			const normalize = (value) => String(value || "").trim();
+			const currentUom = String(item.uom || "").trim();
+			const barcodeRows = this.getBarcodeRowsForItem(item);
+			const settingsReady = this.isScaleSettingsConfigured();
+
+			const byCurrentUom = currentUom
+				? barcodeRows.filter((row) => String(row?.posa_uom || row?.uom || "").trim() === currentUom)
+				: [];
+
+			const pickTemplate = (rows) =>
+				rows.find((row) => this.isPotentialScaleTemplate(row?.barcode))?.barcode || "";
+
+			if (settingsReady) {
+				const fromUom = pickTemplate(byCurrentUom);
+				if (fromUom) return normalize(fromUom);
+				const fromRows = pickTemplate(barcodeRows);
+				if (fromRows) return normalize(fromRows);
+				const known = [
+					item._scale_template_barcode,
+					item._scanned_scale_barcode,
+					item._scanned_barcode,
+					item.barcode,
+				]
+					.map(normalize)
+					.find((code) => code && this.isPotentialScaleTemplate(code));
+				return known || "";
+			}
+
+			const fallbackRow = byCurrentUom[0]?.barcode || barcodeRows[0]?.barcode;
+			return (
+				normalize(item._scale_template_barcode) ||
+				normalize(item._scanned_scale_barcode) ||
+				normalize(item._scanned_barcode) ||
+				normalize(fallbackRow) ||
+				normalize(item.barcode)
+			);
 		},
 		isScaleSettingsConfigured() {
 			const settings = this.scaleBarcodeSettings || {};
@@ -430,7 +493,11 @@ export default {
 			return this.scaleBarcodeSettings;
 		},
 		shouldShowScaleGramsInput(item) {
-			return Boolean(item && this.isKgUom(item.uom));
+			if (!item) return false;
+			if (item._is_scale_barcode || this.isScaleBarcodePayload(item)) return true;
+			const templateBarcode = this.getScaleTemplateBarcode(item);
+			if (templateBarcode && this.isPotentialScaleTemplate(templateBarcode)) return true;
+			return this.isLikelyWeightUom(item.uom);
 		},
 		async generateScaleBarcodeForItem(item, grams, { silent = false } = {}) {
 			if (!item) return false;
@@ -439,21 +506,20 @@ export default {
 
 			await this.ensureScaleBarcodeSettings();
 			if (!this.isScaleSettingsConfigured()) {
+				item.scale_grams = normalizedGrams;
+				item._scale_qty = Number((normalizedGrams / 1000).toFixed(3));
 				if (!silent) {
 					this.toastStore.show({
-						title: __("Scale barcode settings are not configured"),
+						title: __(
+							"Scale barcode settings are not configured. Using item barcode only.",
+						),
 						color: "warning",
 					});
 				}
-				return false;
+				return true;
 			}
 
-			const templateBarcode =
-				item._scale_template_barcode ||
-				item._scanned_scale_barcode ||
-				item._scanned_barcode ||
-				item.barcode ||
-				"";
+			const templateBarcode = this.getScaleTemplateBarcode(item);
 
 			try {
 				const res = await frappe.call({
@@ -672,9 +738,26 @@ export default {
 				defaultUom = itemUoms[0].uom;
 			}
 
+			const scaleTemplateFromRows = Array.isArray(itemBarcodes)
+				? (() => {
+						const currentUom = String(defaultUom || "").trim();
+						const scopedRows = currentUom
+							? itemBarcodes.filter(
+									(row) =>
+										String(row?.posa_uom || row?.uom || "").trim() === currentUom,
+								)
+							: itemBarcodes;
+						const matched =
+							scopedRows.find((row) => this.isPotentialScaleTemplate(row?.barcode)) ||
+							itemBarcodes.find((row) => this.isPotentialScaleTemplate(row?.barcode));
+						return String((matched && matched.barcode) || "").trim();
+					})()
+				: "";
+
 			const isScaleBarcode =
 				this.isScaleBarcodePayload(item) ||
-				this.isPotentialScaleTemplate(scannedScaleBarcode || barcode);
+				this.isLikelyWeightUom(defaultUom) ||
+				this.isPotentialScaleTemplate(scannedScaleBarcode || scaleTemplateFromRows || barcode);
 			const initialLabelQty = isScaleBarcode ? 1 : this.normalizeLabelQty(item.qty);
 			const initialScaleGrams = this.normalizeScaleGrams(
 				item.scale_grams ||
@@ -695,12 +778,13 @@ export default {
 				uom: defaultUom || "",
 				_is_scale_barcode: isScaleBarcode,
 				_scanned_barcode: scannedScaleBarcode,
-				_scale_template_barcode: scannedScaleBarcode || String(barcode || "").trim(),
+				_scale_template_barcode:
+					scannedScaleBarcode || scaleTemplateFromRows || String(barcode || "").trim(),
 				scale_grams: initialScaleGrams,
 			};
 			this.addItemQty = initialLabelQty;
 			this.pendingScaleGrams =
-				initialScaleGrams || (isScaleBarcode && this.isKgUom(defaultUom) ? 1000 : null);
+				initialScaleGrams || (isScaleBarcode && this.isLikelyWeightUom(defaultUom) ? 1000 : null);
 			this.addItemDialog = true;
 
 			if (

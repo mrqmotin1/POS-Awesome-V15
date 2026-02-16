@@ -3,22 +3,6 @@ from frappe.utils import cint, cstr, flt
 from typing import Any, Dict, Optional
 
 
-SCALE_BARCODE_SETTINGS_FIELDS = (
-    "prefix",
-    "prefix_included_or_not",
-    "no_of_prefix_characters",
-    "item_code_starting_digit",
-    "item_code_total_digits",
-    "weight_starting_digit",
-    "weight_total_digits",
-    "weight_decimals",
-    "price_included_in_barcode_or_not",
-    "price_starting_digit",
-    "price_total_digit",
-    "price_decimals",
-)
-
-
 def _get_scale_barcode_settings():
     """Return the Scale Barcode Settings single document if it exists."""
 
