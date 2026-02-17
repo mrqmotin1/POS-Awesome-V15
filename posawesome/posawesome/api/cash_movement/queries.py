@@ -35,7 +35,6 @@ def get_shift_movements(
             {"expense_account": ["like", like_query]},
             {"journal_entry": ["like", like_query]},
             {"user": ["like", like_query]},
-            {"posting_date": ["like", like_query]},
         ]
 
     return frappe.get_all(

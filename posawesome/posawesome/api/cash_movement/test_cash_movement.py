@@ -169,6 +169,7 @@ class TestCashMovementQueries(unittest.TestCase):
         _, kwargs = mock_get_all.call_args
         self.assertIn("or_filters", kwargs)
         self.assertTrue(kwargs["or_filters"])
+        self.assertFalse(any("posting_date" in row for row in kwargs["or_filters"]))
 
 
 if __name__ == "__main__":
