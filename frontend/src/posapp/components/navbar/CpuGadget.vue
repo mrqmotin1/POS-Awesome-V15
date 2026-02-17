@@ -97,8 +97,8 @@
 
 <script setup lang="ts">
 import { computed, inject } from "vue";
-import { useCpuLoad } from "../../composables/useCpuLoad";
-import { useServerCpu } from "../../composables/useServerCpu";
+import { useCpuLoad } from "../../composables/core/useCpuLoad";
+import { useServerCpu } from "../../composables/core/useServerCpu";
 
 const { cpuLag, history } = useCpuLoad(1000, 60);
 const __ = inject("__", (txt: string) => txt);
@@ -124,8 +124,9 @@ const serverUptime = ref<number | null>(null);
 watch(
 	serverHistory,
 	(hist) => {
-		if (hist.length && hist[hist.length - 1].uptime != null) {
-			serverUptime.value = hist[hist.length - 1].uptime;
+		const lastEntry = hist[hist.length - 1];
+		if (lastEntry && lastEntry.uptime != null) {
+			serverUptime.value = lastEntry.uptime;
 		}
 	},
 	{ immediate: true, deep: true },

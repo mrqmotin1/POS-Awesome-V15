@@ -5,7 +5,7 @@ const MAX_CACHE_ITEMS = 1000;
 
 const PRECACHE_URLS = [
 	"/app/posapp",
-	"/assets/posawesome/dist/js/posawesome.umd.js",
+	"/assets/posawesome/dist/js/posawesome.js",
 	"/assets/posawesome/dist/js/offline/index.js",
 	"/assets/posawesome/dist/js/posapp/workers/itemWorker.js",
 	"/assets/posawesome/dist/js/libs/dexie.min.js",
