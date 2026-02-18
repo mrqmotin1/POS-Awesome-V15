@@ -66,6 +66,7 @@ import {
 	getLastSyncTotals,
 } from "../offline/index.js";
 import { silentPrint, watchPrintWindow } from "./plugins/print.js";
+import { rawSilentPrint} from "./plugins/print.js";
 import {
 	setupNetworkListeners,
 	checkNetworkConnectivity,
@@ -358,15 +359,19 @@ export default {
 				"/printview?doctype=" +
 				encodeURIComponent(doctype) +
 				"&name=" +
-				this.lastInvoiceId +
+				this.lastInvoiceId.name +
 				"&trigger_print=1" +
 				"&format=" +
 				print_format +
 				"&no_letterhead=" +
 				letter_head;
 
-			const printOptions = { allowOfflineFallback: isOffline() };
-			if (this.posProfile.posa_silent_print) {
+			const printOptions = { allowOfflineFallback: isOffline() };			
+			if (this.posProfile.custom_enable_raw_silent_print) {
+				console.log("Using custom raw silent print for invoice:", this.lastInvoiceId.name);
+				rawSilentPrint(this.lastInvoiceId, print_format); 				
+			}
+			else if (this.posProfile.posa_silent_print) {
 				silentPrint(url, printOptions);
 			} else {
 				const printWindow = window.open(url, "Print");
