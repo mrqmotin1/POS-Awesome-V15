@@ -264,13 +264,19 @@ export function rawSilentPrint(doc, print_format) {
                         return;
                     }
                     // Create Config & Print
-                    const config = qz.configs.create(printerName);
-                    const data = [{
-                        type: 'raw',
-                        format: 'command',
-                        flavor: 'plain',
-                        data: rawContent
-                    }];
+                    const config = qz.configs.create(printerName, { forceRaw: true });
+                    // const data = [{
+                    //     type: 'raw',
+                    //     format: 'command',
+                    //     flavor: 'plain',
+                    //     data: rawContent
+                    // }];
+
+					var data = [ 
+						'\x10' + '\x14' + '\x01' + '\x00' + '\x05',             // Line break after top image
+						rawContent,
+									
+					];
 
                     await qz.print(config, data);              
 

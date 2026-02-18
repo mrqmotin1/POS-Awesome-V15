@@ -990,7 +990,7 @@ export default {
 					throw new Error("Invoice could not be saved before printing");
 				}
 
-				this.load_print_page(invoice_name);
+				this.load_print_page(invoice_doc,invoice_name);
 			} catch (error) {
 				console.error("Failed to print draft invoice:", error);
 				this.eventBus.emit("show_message", {

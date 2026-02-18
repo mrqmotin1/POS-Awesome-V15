@@ -1,4 +1,5 @@
 import { silentPrint } from "../../plugins/print.js";
+import { rawSilentPrint} from "../../plugins/print.js";
 import { isOffline } from "../../../offline/index.js";
 import { formatUtils } from "../../format.js";
 /* global __, frappe, flt */
@@ -1543,7 +1544,7 @@ export default {
 			item.posa_delivery_date = this.formatDateForDisplay(backend_date);
 		}
 	},
-	load_print_page(invoice_name) {
+	load_print_page(invoice_doc=null, invoice_name) {
 		const print_format = this.pos_profile.print_format_for_online || this.pos_profile.print_format;
 		const letter_head = this.pos_profile.letter_head || 0;
 		const doctype = this.pos_profile.create_pos_invoice_instead_of_sales_invoice
@@ -1560,10 +1561,15 @@ export default {
 			print_format +
 			"&no_letterhead=" +
 			letter_head;
-
-		if (this.pos_profile.posa_silent_print) {
+			console.log("Generated print URL:", invoice_name, print_format);
+		if(this.pos_profile.custom_enable_raw_silent_print) {
+				console.log("Using custom raw silent print for invoice:", this.invoice_name);
+				rawSilentPrint(invoice_doc, print_format); 				
+			}
+		else if (this.pos_profile.posa_silent_print) {
 			silentPrint(url, { allowOfflineFallback: isOffline() });
-		} else {
+		}
+		 else {
 			const printWindow = window.open(url, "Print");
 			printWindow.addEventListener(
 				"load",

@@ -176,7 +176,7 @@
 						<v-btn
 							block
 							color="primary"
-							theme="dark"
+							theme=""
 							prepend-icon="mdi-printer"
 							@click="handlePrintDraft"
 							class="summary-btn"

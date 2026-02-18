@@ -1685,7 +1685,7 @@ export default {
 				this.is_cashback = true;
 				this.is_credit_return = false;
 				this.sales_person = "";
-				this.eventBus.emit("set_last_invoice", this.invoice_doc.name);
+				this.eventBus.emit("set_last_invoice", this.invoice_doc);
 				this.eventBus.emit("show_message", {
 					title:
 						this.invoiceType === "Order" && this.pos_profile.posa_create_only_sales_order
