@@ -4,6 +4,7 @@ import { useUIStore } from "../../../stores/uiStore";
 import { useToastStore } from "../../../stores/toastStore";
 import { storeToRefs } from "pinia";
 import itemService from "../../../services/itemService";
+import { bus } from "../../../bus";
 
 // @ts-ignore
 const __ = window.__ || ((s) => s);
@@ -232,6 +233,7 @@ export function useInvoiceOffers() {
 				: [];
 			if (!sourceOffers.length) {
 				offerDebugLog("[useInvoiceOffers] No source offers available");
+				bus.emit("update_pos_offers", []);
 				updatePosOffers([]);
 				_cachedOfferResults.value.clear();
 				return;
@@ -298,6 +300,7 @@ export function useInvoiceOffers() {
 			const offers = sourceOffers
 				.map((offer: any) => cache.get(offer.name))
 				.filter((entry: any) => !!entry);
+			bus.emit("update_pos_offers", offers);
 			const effectiveOffers = offers.filter((offer: any) =>
 				shouldProcessOfferInAutoRefresh(offer),
 			);

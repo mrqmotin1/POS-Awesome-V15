@@ -339,15 +339,6 @@ export default {
 			},
 			{ deep: true, immediate: true },
 		);
-		this.$watch(
-			() => this.uiStore.offers,
-			(offers) => {
-				if (Array.isArray(offers)) {
-					this.updatePosOffers(offers);
-				}
-			},
-			{ deep: true, immediate: true },
-		);
 
 		/*
 		this.$nextTick(function () {
