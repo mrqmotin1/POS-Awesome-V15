@@ -1263,6 +1263,24 @@ export function useInvoiceOffers() {
 		return Math.min(max, Math.max(min, value));
 	};
 
+	const resolveOfferConversionFactor = (
+		item: any,
+		selectedUomData?: any,
+	) => {
+		const candidates = [
+			selectedUomData?.conversion_factor,
+			item?.conversion_factor,
+			item?.uom_conversion_factor,
+		];
+		for (const raw of candidates) {
+			const parsed = Math.max(parseFiniteNumber(raw, 0), 0);
+			if (parsed > 0) {
+				return parsed;
+			}
+		}
+		return 1;
+	};
+
 	const resolveOfferBasePrice = (item: any, conversionRate = 1) => {
 		const invalid = Number.NaN;
 		const candidates = [
@@ -1337,12 +1355,9 @@ export function useInvoiceOffers() {
 			(entry: any) =>
 				entry && String(entry.uom || "").trim() === String(selectedUom || ""),
 		);
-		const conversionFactor = Math.max(
-			parseFiniteNumber(
-				selectedUomData?.conversion_factor ?? new_item.conversion_factor,
-				1,
-			),
-			1,
+		const conversionFactor = resolveOfferConversionFactor(
+			new_item,
+			selectedUomData,
 		);
 		new_item.item_uoms = normalizedItemUoms;
 		new_item.conversion_factor = conversionFactor;
@@ -1353,7 +1368,7 @@ export function useInvoiceOffers() {
 		new_item.is_free_item = 1;
 		new_item.posa_row_id = makeid(20);
 
-		const conversionRate = 1; // Simplified for now, or get from context
+		const conversionRate = conversionFactor;
 		const offerDiscountType = String(offer?.discount_type || "").trim();
 		const basePrice = resolveOfferBasePrice(new_item, conversionRate);
 
@@ -1432,7 +1447,17 @@ export function useInvoiceOffers() {
 			item._manual_rate_set = true;
 			item._manual_rate_set_from_uom = false;
 
-			const conversionRate = 1; // Simplified
+			const normalizedItemUoms = Array.isArray(item.item_uoms)
+				? item.item_uoms
+				: [];
+			const selectedUom = item.uom ? String(item.uom).trim() : "";
+			const selectedUomData = normalizedItemUoms.find(
+				(entry: any) =>
+					entry &&
+					String(entry.uom || "").trim() === String(selectedUom || ""),
+			);
+			const conversionRate = resolveOfferConversionFactor(item, selectedUomData);
+			item.conversion_factor = conversionRate;
 			const offerDiscountType = String(offer?.discount_type || "").trim();
 			const basePrice = resolveOfferBasePrice(item, conversionRate);
 			item.base_price_list_rate = basePrice;

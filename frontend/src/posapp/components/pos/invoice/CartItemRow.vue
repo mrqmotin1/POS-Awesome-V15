@@ -33,7 +33,7 @@
 					color="success"
 					size="x-small"
 					variant="flat"
-					class="ml-1"
+					class="me-1"
 				>
 					{{ __("Offer Item") }}
 				</v-chip>

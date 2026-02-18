@@ -91,6 +91,10 @@ def get_offers(profile):
         offer["max_qty"] = flt(offer.get("max_qty") or 0)
         offer["min_amt"] = flt(offer.get("min_amt") or 0)
         offer["max_amt"] = flt(offer.get("max_amt") or 0)
+        if not cstr(offer.get("discount_type")).strip():
+            inferred_discount_type = _infer_discount_type_from_values(offer)
+            if inferred_discount_type:
+                offer["discount_type"] = inferred_discount_type
         offer = _normalize_discount_fields(offer)
 
     promotional_scheme_offers = _get_promotional_scheme_offers(pos_profile) or []
@@ -358,6 +362,16 @@ def _map_discount_type(rate_or_discount):
         "Discount Amount": "Discount Amount",
     }
     return mapping.get(rate_or_discount, "Discount Percentage")
+
+
+def _infer_discount_type_from_values(offer):
+    if flt(offer.get("rate")) > 0:
+        return "Rate"
+    if flt(offer.get("discount_amount")) > 0:
+        return "Discount Amount"
+    if flt(offer.get("discount_percentage")) > 0:
+        return "Discount Percentage"
+    return None
 
 
 def _normalize_discount_fields(offer):
