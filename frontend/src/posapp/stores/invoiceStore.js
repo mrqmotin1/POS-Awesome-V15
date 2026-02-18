@@ -5,6 +5,8 @@
 
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
+import { createCustomerDisplaySync } from "../utils/customerDisplaySync";
+const sync = createCustomerDisplaySync();
 
 const toNumber = (value) => {
 	if (value == null) {
@@ -168,6 +170,13 @@ export const useInvoiceStore = defineStore("invoice", () => {
 	watch(
 		items,
 		() => {
+			sync.send({
+				items: items.value,
+				net_total: grossTotal.value,
+				grand_total: grossTotal.value - discountTotal.value,
+				discount_amount: discountTotal.value,
+				totalQty: totalQty.value,
+			});
 			touch();
 		},
 		{ deep: true },

@@ -117,6 +117,25 @@
 					</div>
 				</v-list-item>
 
+				<v-list-item
+					@click="openCustomerDisplay"
+					class="menu-item-compact primary-action"
+				>
+					<template v-slot:prepend>
+						<div class="menu-icon-wrapper-compact primary-icon">
+							<v-icon color="white" size="16">mdi-monitor-eye</v-icon>
+						</div>
+					</template>
+					<div class="menu-content-compact">
+						<v-list-item-title class="menu-item-title-compact">{{
+							__("Open Customer Display")
+						}}</v-list-item-title>
+						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
+							__("Show cart on customer-facing screen")
+						}}</v-list-item-subtitle>
+					</div>
+				</v-list-item>
+
 				<v-list-item @click="$emit('sync-invoices')" class="menu-item-compact info-action">
 					<template v-slot:prepend>
 						<div class="menu-icon-wrapper-compact info-icon">
@@ -430,6 +449,12 @@ const FALLBACK_LANGUAGES = [
 ];
 
 import { isManagerMode, setManagerMode, isSessionUserManager } from "../../utils/useManagerMode.js";
+import { createRandomChannelId } from "../../utils/customerDisplaySync";
+import { buildCustomerDisplayUrl } from "../../utils/customerDisplaySync";
+
+const CUSTOMER_DISPLAY_WINDOW_NAME = "POS_CUSTOMER_DISPLAY";
+const CUSTOMER_DISPLAY_WINDOW_FEATURES =
+  "popup=yes,width=1024,height=768,resizable=yes,scrollbars=yes";
 
 export default {
 	name: "NavbarMenu",
@@ -707,6 +732,34 @@ export default {
 
 		__(text) {
 			return window.__ ? window.__(text) : text;
+		},
+		openCustomerDisplay() {
+			console.log("Opening customer display...");
+			const channelId = createRandomChannelId();
+			const url = buildCustomerDisplayUrl(channelId);
+			const displayWindow = window.open(
+				url,
+				CUSTOMER_DISPLAY_WINDOW_NAME,
+				CUSTOMER_DISPLAY_WINDOW_FEATURES,
+			);
+			if (!displayWindow) {
+				frappe?.show_alert?.(
+					{
+						message: __(
+							"Customer display was blocked. Please allow pop-ups for this site.",
+						),
+						indicator: "red",
+					},
+					6,
+				);
+				return null;
+			}			
+			try {
+				displayWindow.focus?.();
+			} catch (error) {
+				// Ignore focus errors when browser restricts window interactions.
+			}
+			return displayWindow;
 		},
 	},
 	emits: [

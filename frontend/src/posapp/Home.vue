@@ -42,6 +42,7 @@
 /* global frappe, $ */
 import Navbar from "./components/Navbar.vue";
 import POS from "./components/pos/Pos.vue";
+import Display from "./components/pos/CustomerDisplay.vue";
 import Payments from "./components/payments/Pay.vue";
 import AppLoadingOverlay from "./components/ui/LoadingOverlay.vue";
 import UpdatePrompt from "./components/ui/UpdatePrompt.vue";
@@ -79,7 +80,10 @@ import {
 } from "./composables/useNetwork.js";
 import { useRtl } from "./composables/useRtl.js";
 import { initManagerMode } from "./utils/useManagerMode.js";
-
+function getInitialPage() {
+	const params = new URLSearchParams(window.location.search);
+	return params.get("customer_display") === "1" ? "Display" : "POS";
+}
 export default {
 	setup() {
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
@@ -92,8 +96,10 @@ export default {
 		};
 	},
 	data: function () {
+		const params = new URLSearchParams(window.location.search);
+		const isCustomerDisplay = params.get("customer_display") === "1";
 		return {
-			page: "POS",
+			page: getInitialPage(),
 			// POS Profile data
 			posProfile: {},
 			pendingInvoices: 0,
@@ -154,6 +160,7 @@ export default {
 		Payments,
 		AppLoadingOverlay,
 		UpdatePrompt,
+		Display,
 	},
 	mounted() {
 		this.remove_frappe_nav();
