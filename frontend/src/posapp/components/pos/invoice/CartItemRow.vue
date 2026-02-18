@@ -28,6 +28,15 @@
 				>
 					{{ __("Batch") }}: {{ item.batch_no }}
 				</v-chip>
+				<v-chip
+					v-if="item.posa_is_offer || item.is_free_item"
+					color="success"
+					size="x-small"
+					variant="flat"
+					class="ml-1"
+				>
+					{{ __("Offer Item") }}
+				</v-chip>
 				<v-tooltip v-if="item.pricing_rule_badge" location="bottom">
 					<template #activator="{ props }">
 						<v-chip v-bind="props" color="primary" size="x-small" class="ml-1">
@@ -460,6 +469,8 @@ const disableRateEdit = computed(
 	() =>
 		!props.posProfile.posa_allow_user_to_edit_rate ||
 		!!props.item.posa_is_replace ||
+		!!props.item.posa_is_offer ||
+		!!props.item.is_free_item ||
 		!!props.item.posa_offer_applied,
 );
 

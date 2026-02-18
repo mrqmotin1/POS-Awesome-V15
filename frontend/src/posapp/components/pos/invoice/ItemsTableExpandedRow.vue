@@ -94,6 +94,8 @@
 								:disabled="
 									!pos_profile.posa_allow_user_to_edit_rate ||
 									!!item.posa_is_replace ||
+									!!item.posa_is_offer ||
+									!!item.is_free_item ||
 									!!item.posa_offer_applied
 								"
 								prepend-inner-icon="mdi-currency-usd"

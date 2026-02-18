@@ -301,6 +301,7 @@ export function useInvoiceOffers() {
 			const offers = sourceOffers
 				.map((offer: any) => cache.get(offer.name))
 				.filter((entry: any) => !!entry);
+			setItemGiveOffer(offers);
 			bus.emit("update_pos_offers", offers);
 			uiStore.setApplicableOffers(offers);
 			const effectiveOffers = offers.filter((offer: any) =>
@@ -364,7 +365,6 @@ export function useInvoiceOffers() {
 
 			_lastAppliedOffersDigest.value = currentOffersDigest;
 
-			setItemGiveOffer(effectiveOffers);
 			await updateInvoiceOffers(effectiveOffers);
 		} catch (error) {
 			console.error("Failed to process offers:", error);
@@ -1253,8 +1253,44 @@ export function useInvoiceOffers() {
 
 		const new_item = { ...item };
 		const givenQty = Math.max(parseFiniteNumber(offer?.given_qty, 0), 0);
+		const normalizedItemUoms = Array.isArray(new_item.item_uoms)
+			? [...new_item.item_uoms]
+			: [];
+		const stockUom = new_item.stock_uom ? String(new_item.stock_uom).trim() : "";
+		if (
+			stockUom &&
+			!normalizedItemUoms.some(
+				(entry: any) =>
+					entry && String(entry.uom || "").trim() === stockUom,
+			)
+		) {
+			normalizedItemUoms.push({ uom: stockUom, conversion_factor: 1 });
+		}
+		const selectedUom =
+			(new_item.uom ? String(new_item.uom).trim() : "") ||
+			stockUom ||
+			(normalizedItemUoms[0]?.uom
+				? String(normalizedItemUoms[0].uom).trim()
+				: "");
+		if (selectedUom) {
+			new_item.uom = selectedUom;
+		}
+		const selectedUomData = normalizedItemUoms.find(
+			(entry: any) =>
+				entry && String(entry.uom || "").trim() === String(selectedUom || ""),
+		);
+		const conversionFactor = Math.max(
+			parseFiniteNumber(
+				selectedUomData?.conversion_factor ?? new_item.conversion_factor,
+				1,
+			),
+			1,
+		);
+		new_item.item_uoms = normalizedItemUoms;
+		new_item.conversion_factor = conversionFactor;
 		new_item.qty = givenQty;
-		new_item.stock_qty = givenQty;
+		new_item.stock_qty = givenQty * conversionFactor;
+		new_item.base_qty = new_item.stock_qty;
 		new_item.posa_is_offer = 1;
 		new_item.is_free_item = 1;
 		new_item.posa_row_id = makeid(20);
@@ -1305,7 +1341,11 @@ export function useInvoiceOffers() {
 				: 0;
 		}
 
-		if (update_item_detail_fn) update_item_detail_fn(new_item);
+		if (update_item_detail_fn) {
+			update_item_detail_fn(new_item);
+		}
+		new_item._manual_rate_set = true;
+		new_item._manual_rate_set_from_uom = true;
 		return new_item;
 	};
 

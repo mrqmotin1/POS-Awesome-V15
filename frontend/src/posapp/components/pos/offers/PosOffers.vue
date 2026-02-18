@@ -28,7 +28,8 @@
 							:disabled="
 								(item.offer == 'Give Product' &&
 									!item.give_item &&
-									(!item.replace_cheapest_item || !item.replace_item)) ||
+									!item.replace_cheapest_item &&
+									!item.replace_item) ||
 								(item.offer == 'Grand Total' &&
 									discount_percentage_offer_name &&
 									discount_percentage_offer_name != item.name)
