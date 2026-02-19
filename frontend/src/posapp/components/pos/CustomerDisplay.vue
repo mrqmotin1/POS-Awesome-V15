@@ -177,13 +177,13 @@ const sync = createCustomerDisplaySync();
   }
 
   .display-table thead tr {
-    border: 1px solid #6b2b3c;
+    /* border: 1px solid #6b2b3c; */
   }
 
   .display-table th {
     position: sticky;
     top: 0;
-    background: #1f2f4a;
+    background: red;
     text-transform: uppercase;
     font-size: clamp(12px, 1vw, 14px);
     letter-spacing: 0.04em;
