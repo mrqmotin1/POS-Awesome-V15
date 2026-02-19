@@ -16,30 +16,33 @@
           </div>
 
           <div v-else class="display-table-wrap">
-            <table class="display-table">
-              <thead>
-                <tr>
-                  <th>{{ __("Item") }}</th>
-                  <th>{{ __("Qty") }}</th>
-                  <th>{{ __("Rate") }}</th>
-                  <th>{{ __("Amount") }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in cart.items" :key="row.item_code">
-                  <td>{{ row.item_name }}</td>
-                  <td>{{ row.qty }}</td>
-                  <td>{{ Number(row.rate || 0).toFixed(2) }}</td>
-                  <td>{{ Number(row.amount || 0).toFixed(2) }}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="display-table-scroll">
+              <table class="display-table">
+                <thead>
+                  <tr>
+                    <th>{{ __("SL") }}</th>
+                    <th>{{ __("Item") }}</th>
+                    <th>{{ __("Qty") }}</th>
+                    <th>{{ __("Rate") }}</th>
+                    <th>{{ __("Amount") }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, index) in cart.items" :key="row.item_code">
+                    <td>{{ index + 1 }}</td>
+                    <td>{{ row.item_name }}</td>
+                    <td>{{ row.qty }}</td>
+                    <td>{{ Number(row.rate || 0).toFixed(2) }}</td>
+                    <td>{{ Number(row.amount || 0).toFixed(2) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <footer class="display-footer">
+              <div class="display-total-label">{{ __("Total") }}</div>
+              <div class="display-total-value">{{ formatCurrency(totals.grand_total) }}</div>
+            </footer>
           </div>
-
-          <footer class="display-footer">
-            <div class="display-total-label">{{ __("Total") }}</div>
-            <div class="display-total-value">{{ formatCurrency(totals.grand_total) }}</div>
-          </footer>
         </v-col>
         <!-- <v-col xl="4" lg="4" md="4" sm="4" cols="12" class="pos dynamic-col">
         </v-col> -->
@@ -88,172 +91,155 @@ const sync = createCustomerDisplaySync();
 </script>
 
 <style scoped>
-    .customer-display { height: 100vh; display: flex; flex-direction: column; background: #fff; }
-    .cd-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #eee; }
-    .cd-title { font-size: 20px; font-weight: 700; }
-    .cd-total { font-size: 18px; }
-    .cd-total span { font-weight: 800; }
+  .customer-display { height: 100vh; display: flex; flex-direction: column; background: #fff; }
+  .cd-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #eee; }
+  .cd-title { font-size: 20px; font-weight: 700; }
+  .dynamic-container {
+      transition: all 0.3s ease;
+  }
+  .dynamic-main-row {
+      padding: 0;
+      margin: 0;
+  }
+  .dynamic-col {
+      padding: var(--dynamic-sm);
+      transition: padding 0.3s ease;
+      margin-top: var(--dynamic-sm);
+      /* Add top margin for better separation */
+  }
+  @media (max-width: 768px) {
+      .dynamic-container {
+          padding-top: calc(56px + var(--dynamic-md));
+          /* Consistent navbar height + medium spacing */
+      }
+      .dynamic-col {
+          padding: var(--dynamic-xs);
+          margin-top: var(--dynamic-xs);
+      }
+  }
 
-    .cd-body { flex: 1; overflow: auto; padding: 10px 18px; }
-    .cd-table { width: 100%; border-collapse: collapse; }
-    .cd-table th, .cd-table td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; text-align: left; }
-    .cd-table th.qty, .cd-table td.qty,
-    .cd-table th.price, .cd-table td.price,
-    .cd-table th.amount, .cd-table td.amount { text-align: right; width: 110px; }
-    .name { font-weight: 600; }
-    .meta { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-    .empty { text-align: center; padding: 20px; opacity: 0.7; }
+  .display-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 16px 20px;
+    backdrop-filter: blur(6px);
+  }
 
-    .cd-footer { border-top: 1px solid #eee; padding: 12px 18px; }
-    .line { display: flex; justify-content: space-between; padding: 6px 0; }
-    .grand { font-size: 18px; font-weight: 800; }
+  .display-title-block h1 {
+    margin: 0;
+    font-size: clamp(24px, 2.6vw, 38px);
+    font-weight: 800;
+  }
 
-    .dynamic-container {
-        /* add space for the navbar with better spacing */
-        /*padding-top: calc(25px + var(--dynamic-lg));*/
-        /* Navbar height (25px) + larger spacing */
-        transition: all 0.3s ease;
-    }
-    .dynamic-main-row {
-        padding: 0;
-        margin: 0;
-    }
-    .dynamic-col {
-        padding: var(--dynamic-sm);
-        transition: padding 0.3s ease;
-        margin-top: var(--dynamic-sm);
-        /* Add top margin for better separation */
-    }
-    @media (max-width: 768px) {
-        .dynamic-container {
-            padding-top: calc(56px + var(--dynamic-md));
-            /* Consistent navbar height + medium spacing */
-        }
-        .dynamic-col {
-            padding: var(--dynamic-xs);
-            margin-top: var(--dynamic-xs);
-        }
-    }
-    .customer-display-screen {
-	height: 100%;
-	display: grid;
-	grid-template-rows: auto 1fr auto;
-	gap: 12px;
-	color: #f9fafb;
-}
+  .display-subtitle {
+    margin: 4px 0 0;
+    color: #cbd5e1;
+    font-size: clamp(14px, 1.2vw, 18px);
+  }
 
-.display-header {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	background: rgba(17, 24, 39, 0.82);
-	border: 1px solid rgba(148, 163, 184, 0.22);
-	border-radius: 14px;
-	padding: 16px 20px;
-	backdrop-filter: blur(6px);
-}
+  .display-meta {
+    text-align: right;
+    color: #e2e8f0;
+    font-size: clamp(13px, 1.1vw, 16px);
+  }
 
-.display-title-block h1 {
-	margin: 0;
-	font-size: clamp(24px, 2.6vw, 38px);
-	font-weight: 800;
-}
+  .display-meta p {
+    margin: 0;
+  }
 
-.display-subtitle {
-	margin: 4px 0 0;
-	color: #cbd5e1;
-	font-size: clamp(14px, 1.2vw, 18px);
-}
+  .display-table-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* IMPORTANT */
+    max-height: calc(100vh - 140px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+  }
 
-.display-meta {
-	text-align: right;
-	color: #e2e8f0;
-	font-size: clamp(13px, 1.1vw, 16px);
-}
+  /* THIS is the scroll container */
+  .display-table-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0; /* IMPORTANT */
+  }
 
-.display-meta p {
-	margin: 0;
-}
+  .display-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
 
-.display-table-wrap {
-	overflow: auto;
-	border-radius: 14px;
-	border: 1px solid rgba(148, 163, 184, 0.2);
-	background: rgba(15, 23, 42, 0.78);
-}
+  .display-table th,
+  .display-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.17);
+    font-size: clamp(14px, 1.2vw, 20px);
+  }
 
-.display-table {
-	width: 100%;
-	border-collapse: collapse;
-}
+  .display-table thead tr {
+    border: 1px solid #6b2b3c;
+  }
 
-.display-table th,
-.display-table td {
-	padding: 14px 16px;
-	border-bottom: 1px solid rgba(148, 163, 184, 0.17);
-	font-size: clamp(14px, 1.2vw, 20px);
-}
+  .display-table th {
+    position: sticky;
+    top: 0;
+    background: #1f2f4a;
+    text-transform: uppercase;
+    font-size: clamp(12px, 1vw, 14px);
+    letter-spacing: 0.04em;
+    color: #e2e8f0;
+  }
 
-.display-table th {
-	position: sticky;
-	top: 0;
-	background: rgba(15, 23, 42, 0.62);
-	text-transform: uppercase;
-	font-size: clamp(12px, 1vw, 14px);
-	letter-spacing: 0.04em;
-  color: white;
-}
+  .display-table td:nth-child(3),
+  .display-table td:nth-child(4),
+  .display-table td:nth-child(5),
+  .display-table th:nth-child(3),
+  .display-table th:nth-child(4),
+  .display-table th:nth-child(5) {
+    text-align: right;
+  }
 
-.display-table td:nth-child(2),
-.display-table td:nth-child(3),
-.display-table td:nth-child(4),
-.display-table th:nth-child(2),
-.display-table th:nth-child(3),
-.display-table th:nth-child(4) {
-	text-align: right;
-}
+  .display-empty-state {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 28px;
+    border: 1px dashed rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.62);
+  }
 
-.display-empty-state {
-	display: grid;
-	place-items: center;
-	text-align: center;
-	border-radius: 14px;
-	padding: 28px;
-	border: 1px dashed rgba(148, 163, 184, 0.35);
-	background: rgba(15, 23, 42, 0.62);
-}
+  .display-empty-state h2 {
+    margin: 0 0 8px;
+    font-size: clamp(20px, 2vw, 30px);
+  }
 
-.display-empty-state h2 {
-	margin: 0 0 8px;
-	font-size: clamp(20px, 2vw, 30px);
-}
+  .display-empty-state p {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: clamp(14px, 1.1vw, 18px);
+  }
 
-.display-empty-state p {
-	margin: 0;
-	color: #cbd5e1;
-	font-size: clamp(14px, 1.1vw, 18px);
-}
+  .display-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #e3e3e3;
+    border: 1px solid #d0d0d0;
+    padding: 14px 20px;
+  }
 
-.display-footer {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	background: rgba(3, 105, 161, 0.25);
-	border: 1px solid rgba(56, 189, 248, 0.38);
-	border-radius: 14px;
-	padding: 14px 20px;
-}
+  .display-total-label {
+    font-size: clamp(16px, 1.6vw, 24px);
+    font-weight: 700;
+    color: #222;
+  }
 
-.display-total-label {
-	font-size: clamp(16px, 1.6vw, 24px);
-	font-weight: 700;
-}
-
-.display-total-value {
-	font-size: clamp(26px, 3vw, 44px);
-	font-weight: 900;
-	color: #fef08a;
-}
+  .display-total-value {
+    font-size: clamp(26px, 3vw, 44px);
+    font-weight: 900;
+    color: blue;
+  }
 
 
 </style>
