@@ -782,6 +782,40 @@ export default {
 			}
 			return itemsToPrint;
 		},
+		addOrMergePrintableItem(item, qty, logPrefix = "addOrMergePrintableItem") {
+			if (!item) return null;
+			const normalizedQty = this.normalizeLabelQty(qty);
+			const normalizedBarcode = String(item.barcode || "").trim();
+			const existingItem = this.items.find(
+				(i) =>
+					i.item_code === item.item_code &&
+					(i.uom || "") === (item.uom || "") &&
+					String(i.barcode || "").trim() === normalizedBarcode,
+			);
+
+			if (existingItem) {
+				existingItem.qty += normalizedQty;
+				this.logDebug(`${logPrefix}:merged-existing`, {
+					item_code: existingItem?.item_code || "",
+					uom: existingItem?.uom || "",
+					barcode: existingItem?.barcode || "",
+					new_qty: existingItem?.qty,
+				});
+				return existingItem;
+			}
+
+			const itemToAdd = { ...item, qty: normalizedQty };
+			this.items.unshift(itemToAdd);
+			this.logDebug(`${logPrefix}:added-new`, {
+				item_code: itemToAdd?.item_code || "",
+				uom: itemToAdd?.uom || "",
+				barcode: itemToAdd?.barcode || "",
+				qty: itemToAdd?.qty,
+				is_scale: Boolean(itemToAdd?._is_scale_barcode),
+				scale_grams: itemToAdd?.scale_grams || null,
+			});
+			return itemToAdd;
+		},
 		async onAddItem(item) {
 			this.logDebug("onAddItem:start", {
 				item_code: item?.item_code || "",
@@ -926,7 +960,7 @@ export default {
 						: null),
 			);
 
-			this.pendingAddItem = {
+			const preparedItem = {
 				_row_id: this.nextRowId++,
 				item_code: item.item_code,
 				item_name: item.item_name,
@@ -942,6 +976,23 @@ export default {
 					scannedScaleBarcode || scaleTemplateFromRows || String(barcode || "").trim(),
 				scale_grams: initialScaleGrams,
 			};
+
+			const shouldAutoAddScannedScale = Boolean(scannedScaleBarcode && isScaleBarcode);
+			if (shouldAutoAddScannedScale) {
+				if (this.addItemDialog) {
+					this.closeAddItemDialog();
+				}
+				this.addOrMergePrintableItem(preparedItem, initialLabelQty, "onAddItem:auto-scale");
+				this.logDebug("onAddItem:done-auto-scale", {
+					item_code: preparedItem?.item_code || "",
+					uom: preparedItem?.uom || "",
+					barcode: preparedItem?.barcode || "",
+					label_qty: initialLabelQty,
+				});
+				return;
+			}
+
+			this.pendingAddItem = preparedItem;
 			this.addItemQty = initialLabelQty;
 			this.pendingScaleGrams =
 				initialScaleGrams || (isScaleBarcode && this.isLikelyWeightUom(defaultUom) ? 1000 : null);
@@ -997,35 +1048,7 @@ export default {
 			}
 
 			const qty = this.normalizeLabelQty(this.addItemQty);
-			const normalizedBarcode = String(item.barcode || "").trim();
-
-			// Keep scale barcodes distinct by merging only when barcode is exactly the same.
-			const existingItem = this.items.find(
-				(i) =>
-					i.item_code === item.item_code &&
-					(i.uom || "") === (item.uom || "") &&
-					String(i.barcode || "").trim() === normalizedBarcode,
-			);
-			if (existingItem) {
-				existingItem.qty += qty;
-				this.logDebug("confirmAddItem:merged-existing", {
-					item_code: existingItem?.item_code || "",
-					uom: existingItem?.uom || "",
-					barcode: existingItem?.barcode || "",
-					new_qty: existingItem?.qty,
-				});
-			} else {
-				item.qty = qty;
-				this.items.unshift(item);
-				this.logDebug("confirmAddItem:added-new", {
-					item_code: item?.item_code || "",
-					uom: item?.uom || "",
-					barcode: item?.barcode || "",
-					qty: item?.qty,
-					is_scale: Boolean(item?._is_scale_barcode),
-					scale_grams: item?.scale_grams || null,
-				});
-			}
+			this.addOrMergePrintableItem(item, qty, "confirmAddItem");
 
 			this.closeAddItemDialog();
 		},

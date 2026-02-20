@@ -139,14 +139,36 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 
 	// --- Quality and Stock Validation ---
 
+	const resolveFloatPrecision = (precision: number | null | undefined) => {
+		if (Number.isInteger(precision) && Number(precision) >= 0) {
+			return Number(precision);
+		}
+
+		const profilePrecision = Number.parseInt(
+			String(pos_profile.value?.posa_decimal_precision ?? ""),
+			10,
+		);
+		if (Number.isInteger(profilePrecision) && profilePrecision >= 0) {
+			return profilePrecision;
+		}
+
+		const defaultPrecision = Number.parseInt(
+			String(frappe?.defaults?.get_default?.("float_precision") ?? ""),
+			10,
+		);
+		if (Number.isInteger(defaultPrecision) && defaultPrecision >= 0) {
+			return defaultPrecision;
+		}
+
+		return 2;
+	};
+
 	// @ts-ignore
-	const flt = (val, prec) => format.methods.flt(val, prec);
+	const flt = (val, prec) =>
+		format.methods.flt(val, resolveFloatPrecision(prec));
 	// @ts-ignore
 	const formatFloat = (val, prec) =>
-		format.methods.formatFloat(
-			val,
-			prec || pos_profile.value?.posa_decimal_precision || 2,
-		);
+		format.methods.formatFloat(val, resolveFloatPrecision(prec));
 
 	const shouldEnforceStockLimits = (item: any) => {
 		if (
@@ -174,11 +196,13 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		no_negative: boolean,
 		value: any,
 	) => {
+		const effectivePrecision = resolveFloatPrecision(precision);
+
 		// @ts-ignore
 		let parsedValue: any = format.methods.setFormatedFloat(
 			item,
 			field_name,
-			precision ?? undefined,
+			effectivePrecision,
 			no_negative,
 			value,
 		);
@@ -200,7 +224,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 				toastStore.show({
 					title: __(
 						"Maximum offer quantity is {0}. Quantity adjusted to allowed limit.",
-						[formatFloat(maxOfferQty, precision ?? undefined)],
+						[formatFloat(maxOfferQty, effectivePrecision)],
 					),
 					color: "error",
 				});
@@ -216,7 +240,8 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		if (
 			enforceStockLimits &&
 			item.max_qty !== undefined &&
-			flt(item[field_name], precision) > flt(item.max_qty, precision)
+			flt(item[field_name], effectivePrecision) >
+				flt(item.max_qty, effectivePrecision)
 		) {
 			const blockSale =
 				blockSaleBeyondAvailableQty.value || !allowNegativeStock;
@@ -226,7 +251,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 				toastStore.show({
 					title: __(
 						"Maximum available quantity is {0}. Quantity adjusted to match stock.",
-						[formatFloat(item.max_qty, precision)],
+						[formatFloat(item.max_qty, effectivePrecision)],
 					),
 					color: "error",
 				});

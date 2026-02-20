@@ -6,9 +6,95 @@ import {
 	_applyManualRateOverridesToDoc,
 } from "./item_updates"; // _normalizeReturnDocTotals needs extraction or location check
 import { load_invoice } from "./loader";
+import { parseBooleanSetting } from "../../../utils/stock";
 
 declare const __: (_text: string, _args?: any[]) => string;
 declare const frappe: any;
+
+const formatStockValidationErrors = (context: any, errors: any[]) => {
+	if (!Array.isArray(errors) || errors.length === 0) {
+		return "";
+	}
+
+	const settings = context?.stock_settings || {};
+	const profile = context?.pos_profile || {};
+	const type =
+		typeof context?.invoiceType === "string"
+			? context.invoiceType
+			: context?.invoiceType?.value;
+	const stockBlockedByProfile =
+		!["Order", "Quotation"].includes(type) &&
+		parseBooleanSetting(profile?.posa_block_sale_beyond_available_qty);
+	const blocking =
+		!parseBooleanSetting(settings?.allow_negative_stock) ||
+		stockBlockedByProfile;
+
+	const lines = errors
+		.map((entry) => {
+			const itemCode = entry?.item_code || __("Unknown Item");
+			const warehouse = entry?.warehouse || __("Unknown Warehouse");
+			const qty = Number.isFinite(Number(entry?.available_qty))
+				? Number(entry.available_qty)
+				: 0;
+			return `${itemCode} (${warehouse}) - ${qty}`;
+		})
+		.join("\n");
+
+	return blocking
+		? __("Insufficient stock:\n{0}", [lines])
+		: __("Stock is lower than requested:\n{0}", [lines]);
+};
+
+const extractServerErrorMessage = (context: any, error: any) => {
+	if (!error) {
+		return __("Error processing invoice");
+	}
+
+	const tryExtractStockErrors = (raw: any) => {
+		try {
+			const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+			if (parsed?.errors && Array.isArray(parsed.errors)) {
+				return formatStockValidationErrors(context, parsed.errors);
+			}
+			return null;
+		} catch {
+			return null;
+		}
+	};
+
+	if (error?._server_messages) {
+		try {
+			const parsedMessages = JSON.parse(error._server_messages);
+			if (Array.isArray(parsedMessages) && parsedMessages.length) {
+				for (const message of parsedMessages) {
+					const stockMessage = tryExtractStockErrors(message);
+					if (stockMessage) {
+						return stockMessage;
+					}
+
+					if (typeof message === "string" && message.trim()) {
+						return frappe?.utils?.strip_html
+							? frappe.utils.strip_html(message)
+							: message;
+					}
+				}
+			}
+		} catch {
+			/* no-op */
+		}
+	}
+
+	const fromMessage = tryExtractStockErrors(error?.message);
+	if (fromMessage) {
+		return fromMessage;
+	}
+
+	if (typeof error?.message === "string" && error.message.trim()) {
+		return error.message;
+	}
+
+	return __("Error processing invoice");
+};
 
 export async function update_invoice(context: any, doc: any) {
 	if (isOffline()) {
@@ -144,8 +230,9 @@ export async function process_invoice(context: any) {
 		return updated_doc;
 	} catch (error: any) {
 		console.error("Error in process_invoice:", error);
+		const errorMessage = extractServerErrorMessage(context, error);
 		context.toastStore.show({
-			title: __(error.message || "Error processing invoice"),
+			title: errorMessage,
 			color: "error",
 		});
 		return false;
@@ -153,8 +240,18 @@ export async function process_invoice(context: any) {
 }
 
 export async function process_invoice_from_order(context: any) {
-	const doc = await context.get_invoice_from_order_doc();
-	return update_invoice_from_order(context, doc);
+	try {
+		const doc = await context.get_invoice_from_order_doc();
+		return await update_invoice_from_order(context, doc);
+	} catch (error: any) {
+		console.error("Error in process_invoice_from_order:", error);
+		const errorMessage = extractServerErrorMessage(context, error);
+		context.toastStore.show({
+			title: errorMessage,
+			color: "error",
+		});
+		return false;
+	}
 }
 
 export async function apply_offers_and_reload(context: any) {
