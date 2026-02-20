@@ -291,6 +291,7 @@ const clearingSearch = ref(false);
 const isDragging = ref(false);
 const new_line = ref(false);
 const item_group = ref("");
+const current_invoice_type = ref("Invoice");
 const virtualScrollBuffer = ref(200);
 const localStorageAvailable = ref(true);
 
@@ -336,9 +337,14 @@ const isReturnInvoice = computed(() => {
 	return !!invoiceStore.invoiceDoc?.is_return;
 });
 
-const blockSaleBeyondAvailableQty = computed(() =>
-	parseBooleanSetting(pos_profile.value?.posa_block_sale_beyond_available_qty),
-);
+const blockSaleBeyondAvailableQty = computed(() => {
+	if (["Order", "Quotation"].includes(current_invoice_type.value)) {
+		return false;
+	}
+	return parseBooleanSetting(
+		pos_profile.value?.posa_block_sale_beyond_available_qty,
+	);
+});
 
 const { items, filteredItems, customer_price_list, loading, isBackgroundLoading } = itemsIntegration;
 
@@ -733,6 +739,7 @@ onMounted(async () => {
 		eventBus.on("update_customer_price_list", (priceList) => {
 			syncSelectorPriceList(priceList);
 		});
+		eventBus.on("update_invoice_type", handleInvoiceTypeUpdate);
 	}
 
 	// Watch UI Profile for initialization (Source of Truth)
@@ -802,6 +809,7 @@ onBeforeUnmount(() => {
 	if (eventBus) {
 		eventBus.off("update_currency");
 		eventBus.off("update_customer_price_list");
+		eventBus.off("update_invoice_type", handleInvoiceTypeUpdate);
 	}
 	window.removeEventListener("resize", checkItemContainerOverflow);
 });
@@ -896,6 +904,11 @@ const onScannerOpened = () => {
 };
 const onScannerClosed = () => {
 	scannerInput.cameraScannerActive.value = false;
+};
+
+const handleInvoiceTypeUpdate = (type: unknown) => {
+	const normalized = typeof type === "string" ? type : "";
+	current_invoice_type.value = normalized || "Invoice";
 };
 
 const getItemRowClass = (item) => ({
