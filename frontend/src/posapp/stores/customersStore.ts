@@ -18,6 +18,33 @@ import {
 } from "../../offline/index";
 
 const PAGE_SIZE = 1000;
+const CUSTOMER_SCOPE_STORAGE_KEY = "posa_customers_profile_scope";
+
+function getCustomerProfileScope(profile: POSProfile | null): string {
+	const profileName =
+		typeof profile?.name === "string" ? profile.name.trim() : "";
+	return profileName || "";
+}
+
+function getStoredCustomerScope(): string {
+	if (typeof localStorage === "undefined") {
+		return "";
+	}
+	const stored = localStorage.getItem(CUSTOMER_SCOPE_STORAGE_KEY);
+	return typeof stored === "string" ? stored : "";
+}
+
+function setStoredCustomerScope(scope: string): void {
+	if (typeof localStorage === "undefined") {
+		return;
+	}
+	if (scope) {
+		localStorage.setItem(CUSTOMER_SCOPE_STORAGE_KEY, scope);
+		return;
+	}
+	localStorage.removeItem(CUSTOMER_SCOPE_STORAGE_KEY);
+}
+
 function normalizeSearchTerm(term: string | null | undefined): string {
 	if (typeof term !== "string") {
 		return "";
@@ -111,6 +138,7 @@ export const useCustomersStore = defineStore("customers", () => {
 	const totalCustomerCount = ref(0);
 	const loadedCustomerCount = ref(0);
 	const posProfile = ref<POSProfile | null>(null);
+	const customerProfileScope = ref("");
 	const refreshToken = ref(0);
 	const isUpdateCustomerDialogOpen = ref(false);
 	const customerToUpdate = ref<Customer | null>(null);
@@ -168,6 +196,7 @@ export const useCustomersStore = defineStore("customers", () => {
 
 	function setPosProfile(profile: any) {
 		posProfile.value = normalizeProfile(profile);
+		customerProfileScope.value = getCustomerProfileScope(posProfile.value);
 	}
 
 	function setSelectedCustomer(name: string | null) {
@@ -180,6 +209,29 @@ export const useCustomersStore = defineStore("customers", () => {
 
 	function requestCustomerRefresh() {
 		refreshToken.value += 1;
+	}
+
+	async function ensureCustomerScopeIsolation() {
+		const currentScope =
+			customerProfileScope.value || getCustomerProfileScope(posProfile.value);
+		if (!currentScope) {
+			return;
+		}
+
+		const storedScope = getStoredCustomerScope();
+		if (storedScope === currentScope) {
+			return;
+		}
+
+		await clearCustomerStorage();
+		setCustomersLastSync(null);
+		setStoredCustomerScope(currentScope);
+		resetPagination();
+		customersLoaded.value = false;
+		loadProgress.value = 0;
+		totalCustomerCount.value = 0;
+		loadedCustomerCount.value = 0;
+		nextCustomerStart.value = null;
 	}
 
 	async function performSearch({ append = false } = {}) {
@@ -443,6 +495,7 @@ export const useCustomersStore = defineStore("customers", () => {
 			console.debug("Customer fetch skipped: POS Profile not ready");
 			return;
 		}
+		await ensureCustomerScopeIsolation();
 		const serializedProfile = getSerializedProfile(posProfile.value);
 		if (!serializedProfile) {
 			return;
