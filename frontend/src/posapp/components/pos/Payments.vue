@@ -889,19 +889,32 @@ watch(sales_person, (newVal) => {
 });
 
 watch(is_credit_sale, (newVal) => {
-	if (!invoice_doc.value) return;
-	if (newVal) {
-		invoice_doc.value.payments.forEach((payment) => {
-			if (payment.mode_of_payment.toLowerCase() === "cash") {
-				payment.amount = 0;
+	if (!invoice_doc.value || !Array.isArray(invoice_doc.value.payments)) return;
+
+	const doc = invoice_doc.value;
+	const conversionRate = doc.conversion_rate || 1;
+
+	// Always clear all payment methods first to prevent stale paid amounts.
+	doc.payments.forEach((payment) => {
+		payment.amount = 0;
+		if (payment.base_amount !== undefined) {
+			payment.base_amount = 0;
+		}
+	});
+
+	if (!newVal && doc.payments.length) {
+		const amount = flt(doc.rounded_total || doc.grand_total, currency_precision.value);
+		const defaultPayment =
+			doc.payments.find((payment) => payment.default === 1) ||
+			doc.payments.find((payment) => isCashLikePayment(payment)) ||
+			doc.payments[0];
+
+		if (defaultPayment) {
+			defaultPayment.amount = amount;
+			if (defaultPayment.base_amount !== undefined) {
+				defaultPayment.base_amount = flt(amount * conversionRate, currency_precision.value);
 			}
-		});
-	} else {
-		invoice_doc.value.payments.forEach((payment) => {
-			if (payment.mode_of_payment.toLowerCase() === "cash") {
-				payment.amount = invoice_doc.value.rounded_total || invoice_doc.value.grand_total;
-			}
-		});
+		}
 	}
 });
 
