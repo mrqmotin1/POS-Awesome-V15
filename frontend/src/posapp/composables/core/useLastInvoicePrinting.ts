@@ -1,20 +1,24 @@
 import { useUIStore } from "../../stores/uiStore";
+import {
+	appendDebugPrintParam,
+	isDebugPrintEnabled,
+	silentPrint,
+	watchPrintWindow,
+} from "../../plugins/print";
 
 declare const frappe: any;
 
 export function useLastInvoicePrinting() {
 	const uiStore = useUIStore();
 
-	function isDebugPrintEnabled() {
-		try {
-			if (typeof window === "undefined" || !window.location) {
-				return false;
-			}
-			const params = new URLSearchParams(window.location.search || "");
-			return params.get("debug_print") === "1";
-		} catch {
-			return false;
+	function parseBooleanSetting(value: unknown) {
+		if (value === undefined || value === null) return false;
+		if (typeof value === "string") {
+			const normalized = value.trim().toLowerCase();
+			return ["1", "true", "yes", "on"].includes(normalized);
 		}
+		if (typeof value === "number") return value === 1;
+		return Boolean(value);
 	}
 
 	function printLastInvoice() {
@@ -38,10 +42,15 @@ export function useLastInvoicePrinting() {
 			? "POS Invoice"
 			: "Sales Invoice";
 		const debugPrint = isDebugPrintEnabled();
+		const openInNewTab = parseBooleanSetting(
+			posProfile.posa_open_print_in_new_tab,
+		);
+		const useSilentPrint = parseBooleanSetting(posProfile.posa_silent_print);
+		const basePrintUrl = frappe.urllib.get_base_url() + "/printview";
 
-		const url =
-			frappe.urllib.get_base_url() +
-			"/printview?doctype=" +
+		let url =
+			basePrintUrl +
+			"?doctype=" +
 			encodeURIComponent(doctype) +
 			"&name=" +
 			encodeURIComponent(lastInvoiceId) +
@@ -49,22 +58,69 @@ export function useLastInvoicePrinting() {
 			"&format=" +
 			encodeURIComponent(pf || "Standard") +
 			"&no_letterhead=" +
-			(letter_head ? "0" : "1") +
-			"&letterhead=" +
-			encodeURIComponent(letter_head || "No Letterhead");
+			(letter_head ? "0" : "1");
+
+		if (letter_head) {
+			url += "&letterhead=" + encodeURIComponent(letter_head);
+		}
+
+		url = appendDebugPrintParam(url, debugPrint);
 
 		if (debugPrint) {
 			console.log("[POSA][Print] Opening URL:", url);
 		}
 
-		const printWindow = window.open(
-			url,
-			"Print Invoice",
-			"height=600,width=800",
-		);
-		if (!printWindow) {
-			console.warn("Popup blocked or failed to open print window");
+		const printOptions = {
+			triggerPrint: "1",
+			debugPrint,
+			debugInfo: {
+				printFormat: pf || "Standard",
+				templatePath: "online-printview",
+			},
+		};
+
+		if (openInNewTab) {
+			let newTabUrl =
+				basePrintUrl +
+				"?doctype=" +
+				encodeURIComponent(doctype) +
+				"&name=" +
+				encodeURIComponent(lastInvoiceId) +
+				"&trigger_print=0" +
+				"&format=" +
+				encodeURIComponent(pf || "Standard") +
+				"&no_letterhead=" +
+				(letter_head ? "0" : "1");
+
+			if (letter_head) {
+				newTabUrl += "&letterhead=" + encodeURIComponent(letter_head);
+			}
+
+			newTabUrl = appendDebugPrintParam(newTabUrl, debugPrint);
+			const printWindow = window.open(newTabUrl, "_blank");
+			if (printWindow) {
+				watchPrintWindow(printWindow, {
+					...printOptions,
+					triggerPrint: "0",
+					shouldPrint: false,
+					showSessionMessage: false,
+				});
+			}
+			return;
 		}
+
+		if (useSilentPrint) {
+			silentPrint(url, printOptions);
+			return;
+		}
+
+		const printWindow = window.open(url, "Print");
+		if (printWindow) {
+			watchPrintWindow(printWindow, printOptions);
+			return;
+		}
+
+		console.warn("Popup blocked or failed to open print window");
 	}
 
 	return {
