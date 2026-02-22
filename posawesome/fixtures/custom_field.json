@@ -5866,6 +5866,7 @@
 		"fieldtype": "Check",
 		"insert_after": "posa_allow_duplicate_customer_names",
 		"label": "Enable Silent Print",
+		"description": "Setup: Launch Chrome/Edge with --kiosk --kiosk-printing, set the default system printer, then open POS Awesome in the same browser profile. Use: Enable this option and keep 'Open Print in New Tab' disabled for direct printing.",
 		"default": "0",
 		"name": "POS Profile-posa_silent_print"
 	},
