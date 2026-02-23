@@ -147,6 +147,19 @@ def get_stock_availability(item_code, warehouse):
 
     return flt(rows[0].actual_qty) if rows else 0.0
 
+def get_valuation_rate(item_code, warehouse):
+    """Return valuation rate of an item in a specific warehouse."""
+
+    if not item_code or not warehouse:
+        return 0.0
+
+    rate = frappe.db.get_value(
+        "Bin",
+        {"item_code": item_code, "warehouse": warehouse},
+        "valuation_rate"
+    )
+
+    return flt(rate) if rate else 0.0
 
 @frappe.whitelist()
 def get_available_qty(items):
@@ -899,6 +912,7 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
     )
     if item.get("is_stock_item") and warehouse:
         res["actual_qty"] = get_stock_availability(item_code, warehouse)
+        res["valuation_rate"] = get_valuation_rate(item_code, warehouse)
     res["max_discount"] = max_discount
     res["batch_no_data"] = batch_no_data
     res["serial_no_data"] = serial_no_data

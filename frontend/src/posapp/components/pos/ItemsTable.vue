@@ -559,10 +559,10 @@
 											density="compact"
 											variant="outlined"
 											color="primary"
-											:label="frappe._('Buying Price Rate')"
+											:label="frappe._('Valuation Rate')"
 											class="pos-themed-input"
 											hide-details
-											:model-value="memoizedFormatCurrency(item.buying_price_rate ?? 0)"
+											:model-value="memoizedFormatCurrency(item.valuation_rate ?? 0)"
 											:disabled="true"
 											prepend-inner-icon="mdi-format-list-numbered"
 											:prefix="currencySymbol(pos_profile.currency)"

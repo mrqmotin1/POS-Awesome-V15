@@ -3680,6 +3680,7 @@ export default {
 
 		item.actual_qty = data.actual_qty;
 		item.available_qty = data.actual_qty;
+		item.valuation_rate = data.valuation_rate;
 
 		const hasCode = item && item.item_code !== undefined && item.item_code !== null;
 		const baseActualQty = Number(data.actual_qty);
