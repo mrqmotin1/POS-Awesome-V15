@@ -1564,7 +1564,7 @@ export default {
 			console.log("Generated print URL:", invoice_name, print_format);
 		if(this.pos_profile.custom_enable_raw_silent_print) {
 				console.log("Using custom raw silent print for invoice:", this.invoice_name);
-				rawSilentPrint(invoice_doc, print_format); 				
+				rawSilentPrint(invoice_doc, print_format, this.pos_profile); 				
 			}
 		else if (this.pos_profile.posa_silent_print) {
 			silentPrint(url, { allowOfflineFallback: isOffline() });

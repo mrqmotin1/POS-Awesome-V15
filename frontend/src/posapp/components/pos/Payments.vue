@@ -1837,7 +1837,7 @@ export default {
 			// === ADDED: Custom Raw Silent Print Check 
 			if (this.pos_profile.custom_enable_raw_silent_print) {
 				console.log("Using custom raw silent print for invoice:", this.invoice_doc.name);
-				rawSilentPrint(this.invoice_doc, print_format); 				
+				rawSilentPrint(this.invoice_doc, print_format, this.pos_profile); 				
 			}	 			
 			else if(this.pos_profile.posa_silent_print) {
 				silentPrint(url, printOptions);

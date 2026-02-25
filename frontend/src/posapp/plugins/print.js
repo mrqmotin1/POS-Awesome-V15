@@ -236,7 +236,7 @@ export function silentPrint(url, options = {}) {
 
 
 //for raw silent print using QZ Tray #################
-export function rawSilentPrint(doc, print_format) {
+export function rawSilentPrint(doc, print_format, counter) {
     // 1. Fetch the Raw Content from Server
     frappe.call({
         method: 'frappe.www.printview.get_html_and_style',
@@ -256,7 +256,8 @@ export function rawSilentPrint(doc, print_format) {
                         return;
                     }
                     // Get Printer
-                    const printerName = await QZ.getPosPrinter();
+					await QZ.init();
+                    const printerName = counter.custom_pos_printer;
                     console.log("Configured POS Printer:", printerName);
 
                     if (!printerName) {
