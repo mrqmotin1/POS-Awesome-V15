@@ -191,6 +191,8 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                 "customer_name",
                 "custom_pay_type",
                 "is_return",
+                "return_against",
+                "rounding_adjustment",
                 "custom_total_items_discount",
             ],
             order_by="posting_date desc",
@@ -205,34 +207,34 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
         # 2️⃣ Fetch ALL items in one query (IMPORTANT for performance)
         invoice_names = [inv["voucher_no"] for inv in outstanding_invoices]
 
-        items = frappe.get_all(
-			"Sales Invoice Item",
-			filters={
-				"parent": ["in", invoice_names],
-				"parenttype": "Sales Invoice",
-			},
-			fields=[
-				"parent as voucher_no",
-				"item_name",
-				"qty",
-				"rate",
-				"discount_amount",
-                "discount_percentage",
-				"net_amount",
-			],
-		)
+        # items = frappe.get_all(
+		# 	"Sales Invoice Item",
+		# 	filters={
+		# 		"parent": ["in", invoice_names],
+		# 		"parenttype": "Sales Invoice",
+		# 	},
+		# 	fields=[
+		# 		"parent as voucher_no",
+		# 		"item_name",
+		# 		"qty",
+		# 		"rate",
+		# 		"discount_amount",
+        #       "discount_percentage",
+		# 		"net_amount",
+		# 	],
+		# )
 
 		# 3️⃣ Group items by invoice
-        items_by_invoice = {}
-        for item in items:
-            items_by_invoice.setdefault(item["voucher_no"], []).append(item)
+        # items_by_invoice = {}
+        # for item in items:
+        #     items_by_invoice.setdefault(item["voucher_no"], []).append(item)
 
         filtered_invoices = []
         # Ensure all amounts are properly formatted
         for invoice in outstanding_invoices:
             #invoice.outstanding_amount = flt(invoice.outstanding_amount)
             #invoice.invoice_amount = flt(invoice.invoice_amount)
-            invoice["items"] = items_by_invoice.get(invoice["voucher_no"], [])
+            # invoice["items"] = items_by_invoice.get(invoice["voucher_no"], [])
             invoice["seller_name"] = user_map.get(invoice["owner"])
 
             outstanding = flt(invoice.outstanding_amount)
@@ -258,6 +260,69 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
         frappe.logger().error(f"Error in get_outstanding_invoices: {str(e)}")
         return []
 
+@frappe.whitelist()
+def get_invoice_items(invoice_names):
+    """
+    invoice_names: list or single invoice name
+    """
+
+    if isinstance(invoice_names, str):
+        invoice_names = frappe.parse_json(invoice_names)
+
+    items = frappe.get_all(
+        "Sales Invoice Item",
+        filters={
+            "parent": ["in", invoice_names],
+            "parenttype": "Sales Invoice",
+        },
+        fields=[
+            "parent as voucher_no",
+            "item_code",
+            "item_name",
+            "qty",
+            "rate",
+            "discount_amount",
+            "discount_percentage",
+            "net_amount",
+        ],
+        order_by="idx asc",
+        ignore_permissions=True
+    )
+
+    return items
+@frappe.whitelist()
+def get_returned_qty_map(invoice_no):
+
+    return_invoices = frappe.get_all(
+        "Sales Invoice",
+        filters={
+            "return_against": invoice_no,
+            "docstatus": 1
+        },
+        pluck="name",
+        ignore_permissions=True
+    )
+
+    if not return_invoices:
+        return {}
+
+    returned_items = frappe.get_all(
+        "Sales Invoice Item",
+        filters={
+            "parent": ["in", return_invoices]
+        },
+        fields=["item_code", "qty"],
+        ignore_permissions=True
+    )
+
+    returned_map = {}
+
+    for row in returned_items:
+        returned_map[row.item_code] = (
+            returned_map.get(row.item_code, 0) + abs(row.qty)
+        )
+
+    return returned_map
 
 @frappe.whitelist()
 def get_unallocated_payments(customer, company, currency, mode_of_payment=None):

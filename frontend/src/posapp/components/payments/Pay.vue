@@ -1281,7 +1281,7 @@ export default {
 			if (item) {
 				this.toggleInvoiceSelection(item);
 				// fetch items for this invoice
-				this.selected_invoice_items = item.items || [];
+				//this.selected_invoice_items = item.items || [];
 			} else {
 				console.warn("No item provided to selectSingleInvoice");	
 			}
@@ -1289,18 +1289,70 @@ export default {
 
 
 		// 👇 ADD IT HERE (same level)
-		fetchInvoiceItems(invoice_no) {
-			frappe.call({
-				method: "frappe.client.get",
-				args: {
-					doctype: "Sales Invoice",
-					name: invoice_no
-				}
-			}).then(r => {
-				this.selected_invoice_items = r.message?.items || [];
-			});
-			console.log("Items:", this.selected_invoice_items);
-		},
+		// fetchInvoiceItems(invoice_no) {
+		// 	frappe.call({
+		// 		method: "frappe.client.get",
+		// 		args: {
+		// 			doctype: "Sales Invoice",
+		// 			name: invoice_no
+		// 		}
+		// 	}).then(r => {
+		// 		this.selected_invoice_items = r.message?.items || [];
+		// 	});
+		// 	console.log("Items:", this.selected_invoice_items, invoice_no);
+		// },
+
+		async fetchInvoiceItems(invoice) {
+    // 1. Get the raw voucher number from the object
+    const invoice_no = invoice?.voucher_no;
+    if (!invoice_no) return;
+
+    try {
+        // 2. Fetch all items for this invoice
+        const itemsRes = await frappe.call({
+            method: "posawesome.posawesome.api.payment_entry.get_invoice_items",
+            args: { invoice_names: [invoice_no] }
+        });
+
+        let items = itemsRes.message || [];
+
+        // 3. AND logic: (is_return == 1 && return_against exists)
+        if (invoice.is_return == 1 && invoice.return_against) {
+            
+            const returnRes = await frappe.call({
+                method: "posawesome.posawesome.api.payment_entry.get_returned_qty_map",
+                args: { invoice_no: invoice.return_against }
+            });
+
+            const returned_map = returnRes.message || {};
+
+            this.selected_invoice_items = items.map(item => {
+                const returnedQty = Math.abs(returned_map[item.item_code] || 0);
+                const remainingQty = item.qty - returnedQty;
+
+                if (remainingQty > 0) {
+                    const unitRate = item.qty !== 0 ? (item.net_amount / item.qty) : 0;
+                    return {
+                        ...item,
+                        qty: remainingQty,
+                        net_amount: unitRate * remainingQty
+                    };
+                }
+                return null;
+            }).filter(i => i !== null);
+            
+        } else {
+            // Default: Standard Invoice or Standalone Return
+            this.selected_invoice_items = items;
+        }
+    } catch (error) {
+        console.error("Error fetching items:", error);
+        this.selected_invoice_items = [];
+    }
+},
+  
+
+				
 		isInvoiceSelected(item) {
 			return this.selected_invoices.length &&
 					this.selected_invoices[0].voucher_no === item.voucher_no;
@@ -1458,21 +1510,20 @@ export default {
 	},
 
 	watch: {
-		selected_invoices: {
-			handler(val) {
-				this.set_payment_methods();
-				// NEW: handle invoice items
-			if (val && val.length === 1) {
-				this.fetchInvoiceItems(val[0].voucher_no);
-			} else {
-				// clear when none or multiple selected
-				this.selected_invoice_items = [];
-			}
-			},
-			deep: true,
-			immediate: true,
-		},
-	},
+    selected_invoices: {
+        async handler(val) {
+            this.set_payment_methods();
+            if (val && val.length === 1) {
+                // Pass the voucher_no string to the method
+                await this.fetchInvoiceItems(val[0]);
+            } else {
+                this.selected_invoice_items = [];
+            }
+        },
+        deep: true,
+        immediate: true,
+    },
+},
 
 	created() {
 		this.syncPendingPayments();
