@@ -42,7 +42,10 @@
 						/>
 					</section>
 
-					<section v-if="is_cashback && invoice_doc" class="payment-section payment-section--methods">
+					<section
+						v-if="is_cashback && invoice_doc"
+						class="payment-section payment-section--methods"
+					>
 						<div class="payment-section__header">
 							<p class="payment-section__eyebrow">{{ __("Collection") }}</p>
 							<h3 class="payment-section__title">{{ __("Payment Methods") }}</h3>
@@ -67,7 +70,7 @@
 						/>
 					</section>
 
-					<section class="payment-section">
+					<section class="payment-section payment-section--adjustments">
 						<div class="payment-section__header">
 							<p class="payment-section__eyebrow">{{ __("Adjustments") }}</p>
 							<h3 class="payment-section__title">{{ __("Redemption and Totals") }}</h3>
@@ -96,7 +99,7 @@
 						/>
 					</section>
 
-					<section class="payment-section">
+					<section class="payment-section payment-section--order">
 						<div class="payment-section__header">
 							<p class="payment-section__eyebrow">{{ __("Order") }}</p>
 							<h3 class="payment-section__title">{{ __("Fulfillment Details") }}</h3>
@@ -138,7 +141,7 @@
 						/>
 					</section>
 
-					<section class="payment-section">
+					<section class="payment-section payment-section--settlement">
 						<div class="payment-section__header">
 							<p class="payment-section__eyebrow">{{ __("Settlement") }}</p>
 							<h3 class="payment-section__title">{{ __("Credit and Output") }}</h3>
@@ -1232,9 +1235,13 @@ onBeforeUnmount(() => {
 
 .payment-sections--dialog {
 	display: grid;
-	grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+	grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
 	gap: var(--pos-space-2);
 	align-items: start;
+	grid-template-areas:
+		"summary adjustments"
+		"methods adjustments"
+		"settlement order";
 }
 
 .payment-section {
@@ -1252,9 +1259,24 @@ onBeforeUnmount(() => {
 	gap: 10px;
 }
 
-.payment-sections--dialog .payment-section--summary,
+.payment-sections--dialog .payment-section--summary {
+	grid-area: summary;
+}
+
 .payment-sections--dialog .payment-section--methods {
-	grid-column: span 1;
+	grid-area: methods;
+}
+
+.payment-sections--dialog .payment-section--settlement {
+	grid-area: settlement;
+}
+
+.payment-sections--dialog .payment-section--adjustments {
+	grid-area: adjustments;
+}
+
+.payment-sections--dialog .payment-section--order {
+	grid-area: order;
 }
 
 .payment-section--summary {
