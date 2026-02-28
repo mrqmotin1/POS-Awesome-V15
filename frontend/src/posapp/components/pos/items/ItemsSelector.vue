@@ -238,7 +238,7 @@ const toastStore = useToastStore();
 const uiStore = useUIStore();
 const invoiceStore = useInvoiceStore();
 const { selectedCustomer } = storeToRefs(customersStore);
-const { posProfile: uiPosProfile } = storeToRefs(uiStore);
+const { posProfile: uiPosProfile, searchFocusTrigger, activeView } = storeToRefs(uiStore);
 
 const __ = (window as any).__;
 
@@ -270,7 +270,8 @@ const itemSync = useItemSync();
 const itemDisplay = useItemDisplay();
 const itemsLoader = useItemsLoader();
 const itemCurrencyUtils = useItemCurrency();
-const { startItemWorker, itemWorker } = useItemStorageSafety();
+const { startItemWorker, itemWorker, storageAvailable, markStorageUnavailable } =
+	useItemStorageSafety();
 const {
 	ensureBarcodeIndex,
 	resetBarcodeIndex,
@@ -335,6 +336,11 @@ const headerProps = reactive({
 
 // 3. Computed Properties
 const pos_profile = computed(() => (itemsIntegration.posProfile.value || {}) as any);
+const usesLimitSearch = computed(() =>
+	parseBooleanSetting(
+		pos_profile.value?.posa_use_limit_search ?? pos_profile.value?.pose_use_limit_search,
+	),
+);
 const { stockSettings: stock_settings_ref } = storeToRefs(uiStore);
 const stock_settings = computed(() => stock_settings_ref.value || {});
 const items_group = computed(() => itemsIntegration.items_group.value || []);
@@ -449,6 +455,14 @@ const itemsSelectorSearch = useItemsSelectorSearch({
 	getVM: () => vmInstance?.proxy,
 	scannerInput,
 	itemSelection,
+	getSearchInput: () => String(search_input.value || first_search.value || ""),
+	setSearchInput: (value) => {
+		search_input.value = value;
+		first_search.value = value;
+	},
+	isLimitSearchEnabled: () => usesLimitSearch.value,
+	runLimitSearch: (term) => itemsIntegration.searchItems(term),
+	clearHighlightedItem: () => itemSelection.clearHighlightedItem(),
 });
 const itemsSelectorSettings = useItemsSelectorSettings({ getVM: () => settingsContext, itemSync });
 const itemsSelectorFocus = useItemsSelectorFocus({
@@ -666,6 +680,45 @@ onMounted(async () => {
 		updateItemsDetails: (its, opts) => itemDetailFetcher.update_items_details(its, opts),
 	});
 
+	itemDetailFetcher.registerContext({
+		get pos_profile() {
+			return pos_profile.value;
+		},
+		get active_price_list() {
+			return active_price_list.value;
+		},
+		get items() {
+			return items.value;
+		},
+		get displayedItems() {
+			return displayedItems.value;
+		},
+		itemAvailability,
+		itemCurrencyUtils,
+		get usesLimitSearch() {
+			return parseBooleanSetting(
+				pos_profile.value?.posa_use_limit_search ?? pos_profile.value?.pose_use_limit_search,
+			);
+		},
+		get storageAvailable() {
+			return storageAvailable.value;
+		},
+		markStorageUnavailable,
+		applyCurrencyConversionToItem: (item) => {
+			itemCurrencyUtils.applyCurrencyConversionToItem(item, {
+				pos_profile: pos_profile.value,
+				price_list_currency:
+					item?.original_currency || item?.currency || pos_profile.value?.currency,
+				selected_currency: selected_currency.value || pos_profile.value?.currency,
+				exchange_rate: selected_exchange_rate.value,
+				conversion_rate: selected_conversion_rate.value,
+				currency_precision: pos_profile.value?.currency_precision || 2,
+				flt: (window as any).frappe?.utils?.flt,
+			});
+		},
+		forceUpdate: () => vmInstance?.proxy?.$forceUpdate?.(),
+	});
+
 	itemDisplay.registerContext({
 		get context() {
 			return props.context;
@@ -758,6 +811,7 @@ onMounted(async () => {
 			syncSelectorPriceList(priceList);
 		});
 		eventBus.on("update_invoice_type", handleInvoiceTypeUpdate);
+		eventBus.on("focus_item_search", requestItemSearchFocus);
 	}
 
 	// Watch UI Profile for initialization (Source of Truth)
@@ -828,6 +882,7 @@ onBeforeUnmount(() => {
 		eventBus.off("update_currency");
 		eventBus.off("update_customer_price_list");
 		eventBus.off("update_invoice_type", handleInvoiceTypeUpdate);
+		eventBus.off("focus_item_search", requestItemSearchFocus);
 	}
 	window.removeEventListener("resize", checkItemContainerOverflow);
 });
@@ -836,6 +891,16 @@ onBeforeUnmount(() => {
 watch(search_input, (val) => {
 	first_search.value = val;
 	itemSelection.clearHighlightedItem();
+});
+
+watch(searchFocusTrigger, () => {
+	requestItemSearchFocus();
+});
+
+watch(activeView, (view) => {
+	if (view === "items") {
+		requestItemSearchFocus();
+	}
 });
 
 watch(selectedCustomer, () => {
@@ -883,11 +948,24 @@ const onEnter = (e) => itemsSelectorSearch.onEnter(e);
 const handleSearchKeydown = (e) => itemsSelectorFocus.handleSearchKeydown(e);
 const handleSearchInput = (val) => {
 	search_input.value = val;
+	first_search.value = String(val ?? "");
 };
 const handleSearchPaste = (e) => itemsSelectorFocus.handleSearchPaste(e);
+const searchItems = (term) => itemsIntegration.searchItems(term);
+const get_items = (force = false) => itemsIntegration.get_items(force);
+const loadVisibleItems = (reset = false) => itemsLoader.loadVisibleItems(reset);
+const verifyServerItemCount = () => {};
+const requestItemSearchFocus = () => {
+	if (activeView.value !== "items") {
+		return;
+	}
+	nextTick(() => {
+		itemsSelectorFocus.focusItemSearch();
+	});
+};
 const handleItemSearchFocus = () => {
 	clearSearch();
-	itemsSelectorFocus.focusItemSearch();
+	requestItemSearchFocus();
 };
 const clearQty = () => {
 	qty.value = null as any;
@@ -983,6 +1061,12 @@ defineExpose({
 	handleSearchKeydown,
 	handleSearchInput,
 	handleSearchPaste,
+	searchItems,
+	get_items,
+	loadVisibleItems,
+	verifyServerItemCount,
+	usesLimitSearch,
+	storageAvailable,
 	handleItemSearchFocus,
 	clearQty,
 	startCameraScanning,

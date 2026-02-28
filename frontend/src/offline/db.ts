@@ -12,6 +12,8 @@ const BASE_SCHEMA = {
 	items: "&item_code,item_name,item_group,*barcodes,*name_keywords,*serials,*batches",
 	item_prices: "&[price_list+item_code],price_list,item_code",
 	customers: "&name,customer_name,mobile_no,email_id,tax_id",
+	pos_profiles: "&name",
+	opening_shifts: "&name,user,pos_profile",
 	local_stock: "&key",
 	coupons: "&key",
 	item_groups: "&key",
@@ -80,6 +82,7 @@ db.version(1).stores(BASE_SCHEMA);
 db.version(7).stores(BASE_SCHEMA);
 db.version(8).stores(BASE_SCHEMA);
 db.version(9).stores(BASE_SCHEMA);
+db.version(10).stores(BASE_SCHEMA);
 
 let persistWorker: Worker | null = null;
 if (typeof Worker !== "undefined") {

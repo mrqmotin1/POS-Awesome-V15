@@ -79,7 +79,7 @@ import {
 } from "../composables/core/useNetwork";
 import { useRtl } from "../composables/core/useRtl";
 import authService from "../services/authService.js";
-import { isCachedOpeningValidForCurrentUser } from "../utils/openingCache";
+import { getValidCachedOpeningForCurrentUser } from "../utils/openingCache";
 
 /**
  * Frappe Desk UI selectors to hide in POS view.
@@ -322,14 +322,12 @@ const initializeData = async () => {
 	await initPromise;
 	await memoryInitPromise;
 	checkDbHealth().catch(() => {});
-	// Load POS profile from cache or storage
-	const openingData = getOpeningStorage();
-	if (
-		openingData &&
-		openingData.pos_profile &&
-		isOffline() &&
-		isCachedOpeningValidForCurrentUser(openingData, frappe?.session?.user)
-	) {
+	// Offline-first bootstrap: hydrate register state from IndexedDB before server checks.
+	const openingData = getValidCachedOpeningForCurrentUser(
+		getOpeningStorage(),
+		frappe?.session?.user,
+	);
+	if (openingData) {
 		uiStore.setRegisterData(openingData);
 		if (navigator.onLine) {
 			await refreshTaxInclusiveSetting();

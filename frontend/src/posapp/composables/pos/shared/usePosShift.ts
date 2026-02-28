@@ -10,7 +10,7 @@ import {
 	setTaxTemplate,
 	isOffline,
 } from "../../../../offline/index";
-import { isCachedOpeningValidForCurrentUser } from "../../../utils/openingCache";
+import { getValidCachedOpeningForCurrentUser } from "../../../utils/openingCache";
 
 declare const frappe: any;
 
@@ -24,17 +24,39 @@ export function usePosShift(openDialog?: () => void) {
 	const pos_profile = ref<any>(null);
 	const pos_opening_shift = ref<any>(null);
 
+	function applyRegisterData(data: any) {
+		if (!data) {
+			return;
+		}
+		pos_profile.value = data.pos_profile;
+		pos_opening_shift.value = data.pos_opening_shift;
+		uiStore.setRegisterData(data);
+
+		try {
+			frappe.realtime.emit("pos_profile_registered");
+		} catch (e) {
+			console.warn("Realtime emit failed", e);
+		}
+	}
+
 	async function check_opening_entry() {
 		await initPromise;
 		await checkDbHealth();
+		const cachedOpening = getValidCachedOpeningForCurrentUser(
+			getOpeningStorage(),
+			frappe?.session?.user,
+		);
+		if (cachedOpening) {
+			applyRegisterData(cachedOpening);
+			console.info("LoadPosProfile (bootstrapped from cache)");
+		}
 		return frappe
 			.call("posawesome.posawesome.api.shifts.check_opening_shift", {
 				user: frappe.session.user,
 			})
 			.then((r: any) => {
 				if (r.message) {
-					pos_profile.value = r.message.pos_profile;
-					pos_opening_shift.value = r.message.pos_opening_shift;
+					applyRegisterData(r.message);
 					if (pos_profile.value.taxes_and_charges) {
 						frappe.call({
 							method: "frappe.client.get",
@@ -52,13 +74,6 @@ export function usePosShift(openDialog?: () => void) {
 							},
 						});
 					}
-					uiStore.setRegisterData(r.message);
-
-					try {
-						frappe.realtime.emit("pos_profile_registered");
-					} catch (e) {
-						console.warn("Realtime emit failed", e);
-					}
 					console.info("LoadPosProfile");
 					try {
 						setOpeningStorage(r.message);
@@ -73,20 +88,13 @@ export function usePosShift(openDialog?: () => void) {
 			})
 			.catch((err: unknown) => {
 				console.error("Error checking opening entry", err);
-				const data: any = getOpeningStorage();
-				if (
-					isOffline() &&
-					isCachedOpeningValidForCurrentUser(data, frappe?.session?.user)
-				) {
-					pos_profile.value = data.pos_profile;
-					pos_opening_shift.value = data.pos_opening_shift;
-					uiStore.setRegisterData(data);
-
-					try {
-						frappe.realtime.emit("pos_profile_registered");
-					} catch (e) {
-						console.warn("Realtime emit failed", e);
-					}
+				const data = cachedOpening ||
+					getValidCachedOpeningForCurrentUser(
+						getOpeningStorage(),
+						frappe?.session?.user,
+					);
+				if (data) {
+					applyRegisterData(data);
 					console.info("LoadPosProfile (cached)");
 					return;
 				}

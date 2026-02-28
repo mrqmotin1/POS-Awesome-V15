@@ -203,14 +203,14 @@ export const useItemsStore = defineStore("items", () => {
 		if (limitSearchEnabled.value) {
 			return false;
 		}
-		return Boolean(posProfile.value?.posa_local_storage);
+		return true;
 	};
 
 	const shouldPersistItems = () => {
 		if (limitSearchEnabled.value) {
 			return false;
 		}
-		return Boolean(posProfile.value?.posa_local_storage);
+		return true;
 	};
 
 	const getCacheScope = () => {
@@ -497,6 +497,33 @@ export const useItemsStore = defineStore("items", () => {
 				const cachedResult = await getCachedItems(cacheKey);
 				if (cachedResult) {
 					setItems(cachedResult);
+					itemsLoaded.value = true;
+					cachedPagination.value.enabled = false;
+					cachedPagination.value.offset = cachedResult.length;
+					cachedPagination.value.total = cachedResult.length;
+					cachedPagination.value.loading = false;
+					if (!searchValue && shouldPersistItems()) {
+						const storedCount = await getStoredItemsCountByScopeCompat(
+							getStorageScope(),
+						).catch(() => 0);
+						if (!storedCount && cachedResult.length) {
+							await persistItemsToStorage(
+								cachedResult,
+								true,
+								true,
+								getStorageScope(),
+								async () => {
+									await updateCachedPaginationFromStorage(
+										cachedResult.length,
+										totalItemCount,
+										posProfile.value,
+										shouldUseIndexedSearch(),
+										limitSearchEnabled.value,
+									);
+								},
+							);
+						}
+					}
 					performanceMetrics.value.cachedRequests++;
 					updatePerformanceMetrics(startTime);
 					return cachedResult;

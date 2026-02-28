@@ -8,14 +8,132 @@ type SearchDeps = {
 	getVM?: () => any;
 	scannerInput?: any;
 	itemSelection?: any;
+	getSearchInput?: () => string;
+	setSearchInput?: (_value: string) => void;
+	isLimitSearchEnabled?: () => boolean;
+	runLimitSearch?: (_term: string) => Promise<unknown> | unknown;
+	clearHighlightedItem?: () => void;
 };
 
 export const useItemsSelectorSearch = ({
 	getVM,
 	scannerInput,
 	itemSelection,
+	getSearchInput,
+	setSearchInput,
+	isLimitSearchEnabled,
+	runLimitSearch,
+	clearHighlightedItem,
 }: SearchDeps) => {
 	const getVm = (): any => (typeof getVM === "function" ? getVM() : null);
+
+	const resolveBooleanSetting = (value: unknown): boolean => {
+		if (typeof value === "string") {
+			const normalized = value.trim().toLowerCase();
+			return normalized === "1" || normalized === "true" || normalized === "yes";
+		}
+		if (typeof value === "number") {
+			return value === 1;
+		}
+		return Boolean(value);
+	};
+
+	const usesLimitSearch = (vm: any): boolean => {
+		if (typeof isLimitSearchEnabled === "function") {
+			return isLimitSearchEnabled();
+		}
+		if (!vm) return false;
+		if (typeof vm.usesLimitSearch === "boolean") {
+			return vm.usesLimitSearch;
+		}
+		if (vm.usesLimitSearch && typeof vm.usesLimitSearch.value === "boolean") {
+			return vm.usesLimitSearch.value;
+		}
+		return resolveBooleanSetting(
+			vm.pos_profile?.posa_use_limit_search ?? vm.pos_profile?.pose_use_limit_search,
+		);
+	};
+
+	const hasStorageAvailable = (vm: any): boolean => {
+		if (!vm) return false;
+		if (typeof vm.storageAvailable === "boolean") {
+			return vm.storageAvailable;
+		}
+		if (vm.storageAvailable && typeof vm.storageAvailable.value === "boolean") {
+			return vm.storageAvailable.value;
+		}
+		return false;
+	};
+
+	const getSearchExecutor = (vm: any) => {
+		if (!vm) return null;
+		if (typeof vm.searchItems === "function") {
+			return vm.searchItems.bind(vm);
+		}
+		if (typeof vm.itemsIntegration?.searchItems === "function") {
+			return vm.itemsIntegration.searchItems.bind(vm.itemsIntegration);
+		}
+		return null;
+	};
+
+	const getItemsLoader = (vm: any) => {
+		if (!vm) return null;
+		if (typeof vm.get_items === "function") {
+			return vm.get_items.bind(vm);
+		}
+		if (typeof vm.itemsIntegration?.get_items === "function") {
+			return vm.itemsIntegration.get_items.bind(vm.itemsIntegration);
+		}
+		return null;
+	};
+
+	const getVisibleItemsLoader = (vm: any) => {
+		if (!vm) return null;
+		if (typeof vm.loadVisibleItems === "function") {
+			return vm.loadVisibleItems.bind(vm);
+		}
+		if (typeof vm.itemsLoader?.loadVisibleItems === "function") {
+			return vm.itemsLoader.loadVisibleItems.bind(vm.itemsLoader);
+		}
+		return null;
+	};
+
+	const triggerEnterEvent = (vm: any) => {
+		if (!vm) return;
+		if (typeof vm.enter_event === "function") {
+			vm.enter_event();
+			return;
+		}
+		void enter_event();
+	};
+
+	const getCurrentSearchInput = (vm: any): string => {
+		if (typeof getSearchInput === "function") {
+			return String(getSearchInput() || "");
+		}
+		return typeof vm?.search_input === "string"
+			? vm.search_input
+			: vm?.first_search || "";
+	};
+
+	const syncSearchInput = (vm: any, value: string) => {
+		if (typeof setSearchInput === "function") {
+			setSearchInput(value);
+		}
+		if (vm) {
+			vm.search_input = value;
+		}
+	};
+
+	const clearHighlightedSelection = (vm: any) => {
+		if (typeof clearHighlightedItem === "function") {
+			clearHighlightedItem();
+			return;
+		}
+		if (typeof (itemSelection || vm?.itemSelection)?.clearHighlightedItem === "function") {
+			(itemSelection || vm.itemSelection).clearHighlightedItem();
+		}
+	};
 
 	const get_search = (first_search: string) => {
 		if (!first_search) return "";
@@ -163,11 +281,13 @@ export const useItemsSelectorSearch = ({
 			vm.cancelItemDetailsRequest();
 		}
 
-		// Determine the actual query string and trim whitespace
-		const trimmedQuery = (vm.first_search || "").trim();
+		// Prefer the visible input value so Enter uses the latest typed text.
+		const rawQuery = getCurrentSearchInput(vm);
+		const trimmedQuery = String(rawQuery || "").trim();
 
-		// Keep first_search in sync with the value we are about to search for
+		// Keep both search refs aligned with the value we are about to process.
 		vm.first_search = trimmedQuery;
+		syncSearchInput(vm, trimmedQuery);
 
 		// If the input is a numeric string 12 characters or longer, treat it as a barcode
 		if (/^\d{12,}$/.test(trimmedQuery)) {
@@ -195,25 +315,36 @@ export const useItemsSelectorSearch = ({
 
 		const fromScanner = vm.search_from_scanner;
 
-		if (vm.usesLimitSearch) {
-			const shouldForceServer =
-				!vm.pos_profile.posa_local_storage ||
-				!vm.storageAvailable ||
-				!isOffline();
-			await vm.get_items(shouldForceServer);
-		} else if (vm.pos_profile && vm.pos_profile.posa_local_storage) {
-			if (vm.storageAvailable) {
-				await vm.loadVisibleItems(true);
-				vm.enter_event();
+		if (usesLimitSearch(vm)) {
+			if (typeof runLimitSearch === "function") {
+				await runLimitSearch(trimmedQuery);
 			} else {
-				vm.get_items(true);
+				const searchItems = getSearchExecutor(vm);
+				if (searchItems) {
+					await searchItems(trimmedQuery);
+				} else {
+					const getItems = getItemsLoader(vm);
+					const shouldForceServer = !hasStorageAvailable(vm) || !isOffline();
+					if (getItems) {
+						await getItems(shouldForceServer);
+					}
+				}
 			}
+		} else if (hasStorageAvailable(vm)) {
+			const loadVisibleItems = getVisibleItemsLoader(vm);
+			if (loadVisibleItems) {
+				await loadVisibleItems(true);
+			}
+			triggerEnterEvent(vm);
 		} else {
 			// When local storage is disabled, always fetch items
 			// from the server so searches aren't limited to the
 			// initially loaded set.
-			await vm.get_items(true);
-			vm.enter_event();
+			const getItems = getItemsLoader(vm);
+			if (getItems) {
+				await getItems(true);
+			}
+			triggerEnterEvent(vm);
 
 			if (vm.displayedItems && vm.displayedItems.length > 0) {
 				setTimeout(() => {
@@ -245,6 +376,18 @@ export const useItemsSelectorSearch = ({
 	const onEnter = (event?: KeyboardEvent) => {
 		const vm = getVm();
 		if (!vm) return;
+
+		if (usesLimitSearch(vm)) {
+			if (event && typeof event.preventDefault === "function") {
+				event.preventDefault();
+			}
+			clearHighlightedSelection(vm);
+			if (search_onchange.cancel) {
+				search_onchange.cancel();
+			}
+			_performSearch();
+			return;
+		}
 
 		if ((itemSelection || vm.itemSelection).highlightedIndex >= 0) {
 			if (event && typeof event.preventDefault === "function") {
@@ -291,7 +434,7 @@ export const useItemsSelectorSearch = ({
 			});
 		};
 
-		if (vm.usesLimitSearch) {
+		if (usesLimitSearch(vm)) {
 			const preservedItems =
 				vm.clearLimitSearchResults({ preserveItems: true }) ||
 				vm.items ||
@@ -328,9 +471,15 @@ export const useItemsSelectorSearch = ({
 			return;
 		}
 
-		if (vm.pos_profile?.posa_local_storage && vm.storageAvailable) {
-			vm.loadVisibleItems(true);
-			if (!vm.isBackgroundLoading) {
+		if (hasStorageAvailable(vm)) {
+			const loadVisibleItems = getVisibleItemsLoader(vm);
+			if (loadVisibleItems) {
+				loadVisibleItems(true);
+			}
+			if (
+				!vm.isBackgroundLoading &&
+				typeof vm.verifyServerItemCount === "function"
+			) {
 				vm.verifyServerItemCount();
 			}
 			release();

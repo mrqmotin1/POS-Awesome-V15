@@ -12,6 +12,101 @@ const filterByScope = (collection: any, scope: unknown) => {
 	return collection.filter((it: any) => isMatchingScope(it, scope));
 };
 
+type ItemBarcodeEntry = {
+	barcode?: string | null;
+};
+
+type ItemSerialEntry = {
+	serial_no?: string | null;
+};
+
+type ItemBatchEntry = {
+	batch_no?: string | null;
+};
+
+type SearchableItem = Record<string, any> & {
+	item_name?: string | null;
+	item_barcode?: string | ItemBarcodeEntry[] | null;
+	barcodes?: unknown[];
+	name_keywords?: unknown[];
+	serial_no_data?: ItemSerialEntry[] | null;
+	serials?: unknown[];
+	batch_no_data?: ItemBatchEntry[] | null;
+	batches?: unknown[];
+};
+
+const deriveItemSearchFields = (item: SearchableItem | null | undefined) => {
+	const safeItem: SearchableItem = item || {};
+
+	const getBarcodes = (): string[] => {
+		if (Array.isArray(safeItem.item_barcode)) {
+			return safeItem.item_barcode
+				.map((barcodeEntry) => barcodeEntry?.barcode)
+				.filter((barcode): barcode is string => Boolean(barcode));
+		}
+		if (safeItem.item_barcode) {
+			return [String(safeItem.item_barcode)];
+		}
+		if (Array.isArray(safeItem.barcodes)) {
+			return safeItem.barcodes
+				.map((barcode) => String(barcode))
+				.filter(Boolean);
+		}
+		return [];
+	};
+
+	const getNameKeywords = (): string[] => {
+		if (safeItem.item_name) {
+			return String(safeItem.item_name)
+				.toLowerCase()
+				.split(/\s+/)
+				.filter(Boolean);
+		}
+		if (Array.isArray(safeItem.name_keywords)) {
+			return safeItem.name_keywords
+				.map((keyword) => String(keyword))
+				.filter(Boolean);
+		}
+		return [];
+	};
+
+	const getSerials = (): string[] => {
+		if (Array.isArray(safeItem.serial_no_data)) {
+			return safeItem.serial_no_data
+				.map((serialEntry) => serialEntry?.serial_no)
+				.filter((serial): serial is string => Boolean(serial));
+		}
+		if (Array.isArray(safeItem.serials)) {
+			return safeItem.serials
+				.map((serial) => String(serial))
+				.filter(Boolean);
+		}
+		return [];
+	};
+
+	const getBatches = (): string[] => {
+		if (Array.isArray(safeItem.batch_no_data)) {
+			return safeItem.batch_no_data
+				.map((batchEntry) => batchEntry?.batch_no)
+				.filter((batch): batch is string => Boolean(batch));
+		}
+		if (Array.isArray(safeItem.batches)) {
+			return safeItem.batches
+				.map((batch) => String(batch))
+				.filter(Boolean);
+		}
+		return [];
+	};
+
+	return {
+		...safeItem,
+		barcodes: getBarcodes(),
+		name_keywords: getNameKeywords(),
+		serials: getSerials(),
+		batches: getBatches(),
+	};
+};
+
 // --- Generic getters and setters for cached data ----------------------------
 /**
  * @deprecated Avoid unscoped reads. Prefer `getAllStoredItems(scope)` with an explicit scope.
@@ -127,13 +222,44 @@ export async function saveItems(items, scope = "") {
 	try {
 		await checkDbHealth();
 		if (!db.isOpen()) await db.open();
-		const scopedItems = Array.isArray(items)
-			? items.map((it) => ({
-					...it,
-					profile_scope: scope || it?.profile_scope || "",
-				}))
+		const CHUNK_SIZE = 1000;
+		const incomingItems = Array.isArray(items)
+			? items.filter((it) => it?.item_code)
 			: [];
-		await db.table("items").bulkPut(scopedItems);
+		if (!incomingItems.length) {
+			return;
+		}
+
+		const itemCodes = Array.from(new Set(incomingItems.map((it) => it.item_code).filter(Boolean)));
+		const existingRows: any[] = [];
+		for (let i = 0; i < itemCodes.length; i += CHUNK_SIZE) {
+			const codeChunk = itemCodes.slice(i, i + CHUNK_SIZE);
+			if (!codeChunk.length) {
+				continue;
+			}
+			const rows = await db.table("items").where("item_code").anyOf(codeChunk).toArray();
+			if (Array.isArray(rows) && rows.length) {
+				existingRows.push(...rows);
+			}
+		}
+		const existingByCode = new Map(
+			existingRows.map((row: any) => [row.item_code, row]),
+		);
+
+		for (let i = 0; i < incomingItems.length; i += CHUNK_SIZE) {
+			const itemChunk = incomingItems.slice(i, i + CHUNK_SIZE);
+			const scopedItems = itemChunk.map((it) => {
+				const existing = (existingByCode.get(it.item_code) ||
+					{}) as Record<string, any>;
+				return deriveItemSearchFields({
+					...existing,
+					...it,
+					profile_scope:
+						scope || it?.profile_scope || existing?.profile_scope || "",
+				});
+			});
+			await db.table("items").bulkPut(scopedItems);
+		}
 	} catch (e) {
 		console.error("Failed to save items", e);
 	}
@@ -372,10 +498,64 @@ export function getOpeningStorage() {
 	return memory.pos_opening_storage || null;
 }
 
+function cloneOpeningData(data: any) {
+	try {
+		return JSON.parse(JSON.stringify(data));
+	} catch (e) {
+		console.error("Failed to clone opening data", e);
+		return null;
+	}
+}
+
+async function persistOpeningEntities(data: any) {
+	if (!data) {
+		return;
+	}
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+
+		const profile = data?.pos_profile;
+		if (profile?.name) {
+			await db.table("pos_profiles").put(profile);
+		}
+
+		const openingShift = data?.pos_opening_shift;
+		if (openingShift?.name) {
+			await db.table("opening_shifts").put({
+				...openingShift,
+				pos_profile:
+					openingShift?.pos_profile || profile?.name || "",
+			});
+		}
+	} catch (e) {
+		console.error("Failed to persist opening entities", e);
+	}
+}
+
+async function clearPersistedOpeningShift(data: any) {
+	const openingShiftName = data?.pos_opening_shift?.name;
+	if (!openingShiftName) {
+		return;
+	}
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		await db.table("opening_shifts").delete(openingShiftName);
+	} catch (e) {
+		console.error("Failed to clear opening shift storage", e);
+	}
+}
+
 export function setOpeningStorage(data) {
 	try {
-		memory.pos_opening_storage = JSON.parse(JSON.stringify(data));
+		const cleanData = cloneOpeningData(data);
+		if (!cleanData) {
+			return;
+		}
+		memory.pos_opening_storage = cleanData;
 		persist("pos_opening_storage");
+		void persistOpeningEntities(cleanData);
 	} catch (e) {
 		console.error("Failed to set opening storage", e);
 	}
@@ -383,8 +563,10 @@ export function setOpeningStorage(data) {
 
 export function clearOpeningStorage() {
 	try {
+		const previousOpeningData = cloneOpeningData(memory.pos_opening_storage);
 		memory.pos_opening_storage = null;
 		persist("pos_opening_storage");
+		void clearPersistedOpeningShift(previousOpeningData);
 	} catch (e) {
 		console.error("Failed to clear opening storage", e);
 	}

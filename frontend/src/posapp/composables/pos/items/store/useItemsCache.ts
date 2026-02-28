@@ -23,10 +23,6 @@ export interface ItemStoreCache {
 		maxSize: number;
 		ttl: number;
 	};
-	session: {
-		enabled: boolean;
-		prefix: string;
-	};
 }
 
 export function useItemsCache() {
@@ -44,10 +40,6 @@ export function useItemsCache() {
 			itemDetails: new Map(),
 			maxSize: 500,
 			ttl: 5 * 60 * 1000, // 5 minutes
-		},
-		session: {
-			enabled: typeof sessionStorage !== "undefined",
-			prefix: "posa_items_",
 		},
 	});
 
@@ -97,16 +89,6 @@ export function useItemsCache() {
 		cache.value.memory.searchResults.clear();
 		cache.value.memory.priceListData.clear();
 		cache.value.memory.itemDetails.clear();
-
-		// Clear session cache
-		if (cache.value.session.enabled) {
-			const keys = Object.keys(sessionStorage);
-			keys.forEach((key) => {
-				if (key.startsWith(cache.value.session.prefix)) {
-					sessionStorage.removeItem(key);
-				}
-			});
-		}
 
 		// Clear persistent cache
 		await clearPriceListCache();
@@ -165,28 +147,6 @@ export function useItemsCache() {
 			return memCache.data;
 		}
 
-		// Check session cache
-		if (cache.value.session.enabled) {
-			try {
-				const sessionData = sessionStorage.getItem(
-					cache.value.session.prefix + cacheKey,
-				);
-				if (sessionData) {
-					const parsed = JSON.parse(sessionData);
-					if (
-						Date.now() - parsed.timestamp <
-						cache.value.memory.ttl
-					) {
-						// Update memory cache
-						cache.value.memory.searchResults.set(cacheKey, parsed);
-						return parsed.data;
-					}
-				}
-			} catch (e) {
-				console.warn("Session cache read failed:", e);
-			}
-		}
-
 		return null;
 	};
 
@@ -198,18 +158,6 @@ export function useItemsCache() {
 
 		// Store in memory cache
 		cache.value.memory.searchResults.set(cacheKey, cacheData);
-
-		// Store in session cache
-		if (cache.value.session.enabled) {
-			try {
-				sessionStorage.setItem(
-					cache.value.session.prefix + cacheKey,
-					JSON.stringify(cacheData),
-				);
-			} catch (e) {
-				console.warn("Session cache write failed:", e);
-			}
-		}
 
 		// Cleanup old cache entries
 		cleanupMemoryCache();
