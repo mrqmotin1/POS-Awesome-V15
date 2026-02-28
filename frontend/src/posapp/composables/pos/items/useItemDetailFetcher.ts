@@ -66,6 +66,12 @@ export function useItemDetailFetcher() {
 		Object.assign(ctx, context);
 	}
 
+	function getStorageScope() {
+		const profileName = ctx.pos_profile?.name || "no_profile";
+		const warehouse = ctx.pos_profile?.warehouse || "no_warehouse";
+		return `${profileName}_${warehouse}`;
+	}
+
 	function buildItemDetailsRequestKey(items: any[]) {
 		const itemCodes = Array.from(
 			new Set(
@@ -294,7 +300,7 @@ export function useItemDetailFetcher() {
 				!ctx.usesLimitSearch
 			) {
 				try {
-					await saveItemsBulk(details);
+					await saveItemsBulk(details, getStorageScope());
 				} catch (e: any) {
 					console.error("Failed to persist item details", e);
 					if (ctx.markStorageUnavailable)
@@ -574,7 +580,7 @@ export function useItemDetailFetcher() {
 					!ctx.usesLimitSearch
 				) {
 					try {
-						await saveItemsBulk(details);
+						await saveItemsBulk(details, getStorageScope());
 					} catch (e) {
 						console.error("Failed to persist item details", e);
 						if (ctx.markStorageUnavailable)

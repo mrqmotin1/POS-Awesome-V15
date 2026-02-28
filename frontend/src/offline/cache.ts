@@ -12,6 +12,42 @@ const filterByScope = (collection: any, scope: unknown) => {
 	return collection.filter((it: any) => isMatchingScope(it, scope));
 };
 
+const deriveItemSearchFields = (item: any) => {
+	const safeItem = item || {};
+	return {
+		...safeItem,
+		barcodes: Array.isArray(safeItem.item_barcode)
+			? safeItem.item_barcode.map((b: any) => b?.barcode).filter(Boolean)
+			: safeItem.item_barcode
+				? [String(safeItem.item_barcode)]
+				: Array.isArray(safeItem.barcodes)
+					? safeItem.barcodes.filter(Boolean)
+					: [],
+		name_keywords: safeItem.item_name
+			? String(safeItem.item_name)
+					.toLowerCase()
+					.split(/\s+/)
+					.filter(Boolean)
+			: Array.isArray(safeItem.name_keywords)
+				? safeItem.name_keywords.filter(Boolean)
+				: [],
+		serials: Array.isArray(safeItem.serial_no_data)
+			? safeItem.serial_no_data
+					.map((s: any) => s?.serial_no)
+					.filter(Boolean)
+			: Array.isArray(safeItem.serials)
+				? safeItem.serials.filter(Boolean)
+				: [],
+		batches: Array.isArray(safeItem.batch_no_data)
+			? safeItem.batch_no_data
+					.map((b: any) => b?.batch_no)
+					.filter(Boolean)
+			: Array.isArray(safeItem.batches)
+				? safeItem.batches.filter(Boolean)
+				: [],
+	};
+};
+
 // --- Generic getters and setters for cached data ----------------------------
 /**
  * @deprecated Avoid unscoped reads. Prefer `getAllStoredItems(scope)` with an explicit scope.
@@ -127,12 +163,32 @@ export async function saveItems(items, scope = "") {
 	try {
 		await checkDbHealth();
 		if (!db.isOpen()) await db.open();
-		const scopedItems = Array.isArray(items)
-			? items.map((it) => ({
-					...it,
-					profile_scope: scope || it?.profile_scope || "",
-				}))
+		const incomingItems = Array.isArray(items)
+			? items.filter((it) => it?.item_code)
 			: [];
+		if (!incomingItems.length) {
+			return;
+		}
+
+		const itemCodes = Array.from(
+			new Set(incomingItems.map((it) => it.item_code).filter(Boolean)),
+		);
+		const existingRows = itemCodes.length
+			? await db.table("items").where("item_code").anyOf(itemCodes).toArray()
+			: [];
+		const existingByCode = new Map(
+			existingRows.map((row: any) => [row.item_code, row]),
+		);
+
+		const scopedItems = incomingItems.map((it) => {
+			const existing = existingByCode.get(it.item_code) || {};
+			return deriveItemSearchFields({
+				...existing,
+				...it,
+				profile_scope:
+					scope || it?.profile_scope || existing?.profile_scope || "",
+			});
+		});
 		await db.table("items").bulkPut(scopedItems);
 	} catch (e) {
 		console.error("Failed to save items", e);
