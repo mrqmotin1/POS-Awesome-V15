@@ -7,7 +7,7 @@
 					block
 					size="large"
 					color="primary"
-					theme="dark"
+					variant="flat"
 					class="payment-submit-btn payment-footer-btn"
 					@click="$emit('submit')"
 					:loading="loading"
@@ -22,8 +22,8 @@
 					block
 					size="large"
 					color="success"
-					theme="dark"
-					class="payment-footer-btn"
+					variant="flat"
+					class="payment-submit-print-btn payment-footer-btn"
 					@click="$emit('submit-and-print')"
 					:loading="loading"
 					:disabled="loading || validatePayment"
@@ -36,9 +36,8 @@
 					block
 					size="large"
 					color="error"
-					theme="dark"
 					variant="flat"
-					class="mt-2 pa-1 payment-footer-btn"
+					class="mt-2 pa-1 payment-cancel-btn payment-footer-btn"
 					@click="$emit('cancel')"
 				>
 					{{ __("Cancel Payment") }}
@@ -72,27 +71,61 @@ const __ = window.__;
 }
 
 .payment-footer-btn {
+	--v-theme-overlay-multiplier: 0 !important;
 	transition:
-		filter 0.18s ease,
 		box-shadow 0.18s ease,
+		background-color 0.18s ease,
 		transform 0.18s ease !important;
+	color: #ffffff !important;
+}
+
+.payment-submit-btn {
+	background-color: rgb(var(--v-theme-primary)) !important;
+}
+
+.payment-submit-print-btn {
+	background-color: rgb(var(--v-theme-success)) !important;
+}
+
+.payment-cancel-btn {
+	background-color: rgb(var(--v-theme-error)) !important;
 }
 
 .payment-footer-btn:hover,
 .payment-footer-btn:focus,
 .payment-footer-btn:focus-visible,
 .payment-footer-btn:active {
-	filter: brightness(0.94);
 	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18) !important;
 	transform: translateY(-1px);
+}
+
+.payment-submit-btn:hover,
+.payment-submit-btn:focus,
+.payment-submit-btn:focus-visible,
+.payment-submit-btn:active {
+	background-color: rgba(var(--v-theme-primary), 0.9) !important;
+}
+
+.payment-submit-print-btn:hover,
+.payment-submit-print-btn:focus,
+.payment-submit-print-btn:focus-visible,
+.payment-submit-print-btn:active {
+	background-color: rgba(var(--v-theme-success), 0.9) !important;
+}
+
+.payment-cancel-btn:hover,
+.payment-cancel-btn:focus,
+.payment-cancel-btn:focus-visible,
+.payment-cancel-btn:active {
+	background-color: rgba(var(--v-theme-error), 0.9) !important;
 }
 
 .payment-footer-btn:active {
 	transform: translateY(0);
 }
 
-.payment-footer-btn :deep(.v-btn__overlay),
-.payment-footer-btn :deep(.v-btn__underlay) {
+:deep(.payment-footer-btn .v-btn__overlay),
+:deep(.payment-footer-btn .v-btn__underlay) {
 	opacity: 0 !important;
 	background: transparent !important;
 }

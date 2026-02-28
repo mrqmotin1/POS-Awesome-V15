@@ -176,39 +176,61 @@ const __ = window.__;
 }
 
 .payment-method-action-btn {
+	--v-theme-overlay-multiplier: 0 !important;
 	min-height: 44px;
 	border-radius: var(--pos-radius-sm);
 	font-weight: 700;
 	text-transform: none;
 	letter-spacing: 0.01em;
 	transition:
-		filter 0.18s ease,
 		box-shadow 0.18s ease,
+		background-color 0.18s ease,
 		transform 0.18s ease !important;
+	background-color: rgb(var(--v-theme-primary)) !important;
+	color: #ffffff !important;
 }
 
 .payment-method-action-btn:hover,
 .payment-method-action-btn:focus,
 .payment-method-action-btn:focus-visible,
 .payment-method-action-btn:active {
-	filter: brightness(0.94);
 	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18) !important;
 	transform: translateY(-1px);
+	background-color: rgba(var(--v-theme-primary), 0.9) !important;
 }
 
 .payment-method-action-btn:active {
 	transform: translateY(0);
 }
 
-.payment-method-action-btn :deep(.v-btn__overlay),
-.payment-method-action-btn :deep(.v-btn__underlay) {
+:deep(.payment-method-action-btn .v-btn__overlay),
+:deep(.payment-method-action-btn .v-btn__underlay) {
 	opacity: 0 !important;
 	background: transparent !important;
 }
 
 .payment-method-action-btn--success {
-	background: rgb(var(--v-theme-success));
-	color: #ffffff;
+	background: rgb(var(--v-theme-success)) !important;
+	color: #ffffff !important;
+}
+
+.payment-method-action-btn--success:hover,
+.payment-method-action-btn--success:focus,
+.payment-method-action-btn--success:focus-visible,
+.payment-method-action-btn--success:active {
+	background-color: rgba(var(--v-theme-success), 0.9) !important;
+}
+
+.payment-method-action-btn--secondary {
+	background: rgba(var(--v-theme-success), 0.14) !important;
+	color: rgb(var(--v-theme-success)) !important;
+}
+
+.payment-method-action-btn--secondary:hover,
+.payment-method-action-btn--secondary:focus,
+.payment-method-action-btn--secondary:focus-visible,
+.payment-method-action-btn--secondary:active {
+	background-color: rgba(var(--v-theme-success), 0.2) !important;
 }
 
 .payment-denominations {
