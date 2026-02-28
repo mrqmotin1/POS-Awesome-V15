@@ -1,10 +1,18 @@
 <template>
 	<v-row justify="center">
-		<v-dialog v-model="draftsDialog" max-width="900px">
+		<v-dialog
+			v-model="draftsDialog"
+			max-width="900px"
+			:theme="$theme.isDark ? 'dark' : 'light'"
+		>
 			<!-- <template v-slot:activator="{ on, attrs }">
         <v-btn color="primary" theme="dark" v-bind="attrs" v-on="on">Open Dialog</v-btn>
       </template>-->
-			<v-card variant="flat" class="pos-themed-card">
+			<v-card
+				variant="flat"
+				:theme="$theme.isDark ? 'dark' : 'light'"
+				class="pos-themed-card drafts-dialog-card"
+			>
 				<v-card-title>
 					<span class="text-h5 text-primary">{{ __("Load Sales Invoice") }}</span>
 				</v-card-title>
@@ -19,7 +27,7 @@
 									:headers="headers"
 									:items="draftsData"
 									item-value="name"
-									class="elevation-1"
+									class="elevation-1 drafts-dialog-table"
 									:theme="$theme.isDark ? 'dark' : 'light'"
 									show-select
 									v-model="selected"
@@ -160,3 +168,23 @@ export default {
 	},
 };
 </script>
+
+<style scoped>
+.drafts-dialog-card {
+	background: var(--pos-surface-raised) !important;
+	color: var(--pos-text-primary) !important;
+}
+
+.drafts-dialog-table {
+	background: var(--pos-surface) !important;
+	color: var(--pos-text-primary) !important;
+}
+
+.drafts-dialog-card :deep(.v-card-title),
+.drafts-dialog-card :deep(.v-card-subtitle),
+.drafts-dialog-card :deep(.v-card-text),
+.drafts-dialog-card :deep(.v-card-actions) {
+	background: transparent !important;
+	color: var(--pos-text-primary) !important;
+}
+</style>
