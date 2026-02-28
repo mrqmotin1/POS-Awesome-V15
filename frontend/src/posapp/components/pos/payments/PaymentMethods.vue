@@ -181,6 +181,29 @@ const __ = window.__;
 	font-weight: 700;
 	text-transform: none;
 	letter-spacing: 0.01em;
+	transition:
+		filter 0.18s ease,
+		box-shadow 0.18s ease,
+		transform 0.18s ease !important;
+}
+
+.payment-method-btn:hover,
+.payment-method-btn:focus,
+.payment-method-btn:focus-visible,
+.payment-method-btn:active {
+	filter: brightness(0.94);
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18) !important;
+	transform: translateY(-1px);
+}
+
+.payment-method-btn:active {
+	transform: translateY(0);
+}
+
+.payment-method-btn :deep(.v-btn__overlay),
+.payment-method-btn :deep(.v-btn__underlay) {
+	opacity: 0 !important;
+	background: transparent !important;
 }
 
 .payment-method-btn--success {
