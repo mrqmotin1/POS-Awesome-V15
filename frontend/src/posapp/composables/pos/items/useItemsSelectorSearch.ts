@@ -17,6 +17,80 @@ export const useItemsSelectorSearch = ({
 }: SearchDeps) => {
 	const getVm = (): any => (typeof getVM === "function" ? getVM() : null);
 
+	const resolveBooleanSetting = (value: unknown): boolean => {
+		if (typeof value === "string") {
+			const normalized = value.trim().toLowerCase();
+			return normalized === "1" || normalized === "true" || normalized === "yes";
+		}
+		if (typeof value === "number") {
+			return value === 1;
+		}
+		return Boolean(value);
+	};
+
+	const usesLimitSearch = (vm: any): boolean => {
+		if (!vm) return false;
+		if (typeof vm.usesLimitSearch === "boolean") {
+			return vm.usesLimitSearch;
+		}
+		return resolveBooleanSetting(
+			vm.pos_profile?.posa_use_limit_search ?? vm.pos_profile?.pose_use_limit_search,
+		);
+	};
+
+	const hasStorageAvailable = (vm: any): boolean => {
+		if (!vm) return false;
+		if (typeof vm.storageAvailable === "boolean") {
+			return vm.storageAvailable;
+		}
+		if (vm.storageAvailable && typeof vm.storageAvailable.value === "boolean") {
+			return vm.storageAvailable.value;
+		}
+		return false;
+	};
+
+	const getSearchExecutor = (vm: any) => {
+		if (!vm) return null;
+		if (typeof vm.searchItems === "function") {
+			return vm.searchItems.bind(vm);
+		}
+		if (typeof vm.itemsIntegration?.searchItems === "function") {
+			return vm.itemsIntegration.searchItems.bind(vm.itemsIntegration);
+		}
+		return null;
+	};
+
+	const getItemsLoader = (vm: any) => {
+		if (!vm) return null;
+		if (typeof vm.get_items === "function") {
+			return vm.get_items.bind(vm);
+		}
+		if (typeof vm.itemsIntegration?.get_items === "function") {
+			return vm.itemsIntegration.get_items.bind(vm.itemsIntegration);
+		}
+		return null;
+	};
+
+	const getVisibleItemsLoader = (vm: any) => {
+		if (!vm) return null;
+		if (typeof vm.loadVisibleItems === "function") {
+			return vm.loadVisibleItems.bind(vm);
+		}
+		if (typeof vm.itemsLoader?.loadVisibleItems === "function") {
+			return vm.itemsLoader.loadVisibleItems.bind(vm.itemsLoader);
+		}
+		return null;
+	};
+
+	const triggerEnterEvent = (vm: any) => {
+		if (!vm) return;
+		if (typeof vm.enter_event === "function") {
+			vm.enter_event();
+			return;
+		}
+		void enter_event();
+	};
+
 	const get_search = (first_search: string) => {
 		if (!first_search) return "";
 		const prefix = scannerInput.getScaleBarcodePrefix();
@@ -195,18 +269,32 @@ export const useItemsSelectorSearch = ({
 
 		const fromScanner = vm.search_from_scanner;
 
-		if (vm.usesLimitSearch) {
-			const shouldForceServer = !vm.storageAvailable || !isOffline();
-			await vm.get_items(shouldForceServer);
-		} else if (vm.storageAvailable) {
-			await vm.loadVisibleItems(true);
-			vm.enter_event();
+		if (usesLimitSearch(vm)) {
+			const searchItems = getSearchExecutor(vm);
+			if (searchItems) {
+				await searchItems(trimmedQuery);
+			} else {
+				const getItems = getItemsLoader(vm);
+				const shouldForceServer = !hasStorageAvailable(vm) || !isOffline();
+				if (getItems) {
+					await getItems(shouldForceServer);
+				}
+			}
+		} else if (hasStorageAvailable(vm)) {
+			const loadVisibleItems = getVisibleItemsLoader(vm);
+			if (loadVisibleItems) {
+				await loadVisibleItems(true);
+			}
+			triggerEnterEvent(vm);
 		} else {
 			// When local storage is disabled, always fetch items
 			// from the server so searches aren't limited to the
 			// initially loaded set.
-			await vm.get_items(true);
-			vm.enter_event();
+			const getItems = getItemsLoader(vm);
+			if (getItems) {
+				await getItems(true);
+			}
+			triggerEnterEvent(vm);
 
 			if (vm.displayedItems && vm.displayedItems.length > 0) {
 				setTimeout(() => {
@@ -284,7 +372,7 @@ export const useItemsSelectorSearch = ({
 			});
 		};
 
-		if (vm.usesLimitSearch) {
+		if (usesLimitSearch(vm)) {
 			const preservedItems =
 				vm.clearLimitSearchResults({ preserveItems: true }) ||
 				vm.items ||
@@ -321,9 +409,15 @@ export const useItemsSelectorSearch = ({
 			return;
 		}
 
-		if (vm.storageAvailable) {
-			vm.loadVisibleItems(true);
-			if (!vm.isBackgroundLoading) {
+		if (hasStorageAvailable(vm)) {
+			const loadVisibleItems = getVisibleItemsLoader(vm);
+			if (loadVisibleItems) {
+				loadVisibleItems(true);
+			}
+			if (
+				!vm.isBackgroundLoading &&
+				typeof vm.verifyServerItemCount === "function"
+			) {
 				vm.verifyServerItemCount();
 			}
 			release();
