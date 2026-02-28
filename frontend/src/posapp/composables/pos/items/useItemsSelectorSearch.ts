@@ -33,6 +33,9 @@ export const useItemsSelectorSearch = ({
 		if (typeof vm.usesLimitSearch === "boolean") {
 			return vm.usesLimitSearch;
 		}
+		if (vm.usesLimitSearch && typeof vm.usesLimitSearch.value === "boolean") {
+			return vm.usesLimitSearch.value;
+		}
 		return resolveBooleanSetting(
 			vm.pos_profile?.posa_use_limit_search ?? vm.pos_profile?.pose_use_limit_search,
 		);

@@ -336,6 +336,11 @@ const headerProps = reactive({
 
 // 3. Computed Properties
 const pos_profile = computed(() => (itemsIntegration.posProfile.value || {}) as any);
+const usesLimitSearch = computed(() =>
+	parseBooleanSetting(
+		pos_profile.value?.posa_use_limit_search ?? pos_profile.value?.pose_use_limit_search,
+	),
+);
 const { stockSettings: stock_settings_ref } = storeToRefs(uiStore);
 const stock_settings = computed(() => stock_settings_ref.value || {});
 const items_group = computed(() => itemsIntegration.items_group.value || []);
@@ -935,8 +940,13 @@ const onEnter = (e) => itemsSelectorSearch.onEnter(e);
 const handleSearchKeydown = (e) => itemsSelectorFocus.handleSearchKeydown(e);
 const handleSearchInput = (val) => {
 	search_input.value = val;
+	first_search.value = String(val ?? "");
 };
 const handleSearchPaste = (e) => itemsSelectorFocus.handleSearchPaste(e);
+const searchItems = (term) => itemsIntegration.searchItems(term);
+const get_items = (force = false) => itemsIntegration.get_items(force);
+const loadVisibleItems = (reset = false) => itemsLoader.loadVisibleItems(reset);
+const verifyServerItemCount = () => {};
 const requestItemSearchFocus = () => {
 	if (activeView.value !== "items") {
 		return;
@@ -1043,6 +1053,12 @@ defineExpose({
 	handleSearchKeydown,
 	handleSearchInput,
 	handleSearchPaste,
+	searchItems,
+	get_items,
+	loadVisibleItems,
+	verifyServerItemCount,
+	usesLimitSearch,
+	storageAvailable,
 	handleItemSearchFocus,
 	clearQty,
 	startCameraScanning,
