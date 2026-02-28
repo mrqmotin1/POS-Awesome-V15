@@ -181,7 +181,8 @@ export async function saveItems(items, scope = "") {
 		);
 
 		const scopedItems = incomingItems.map((it) => {
-			const existing = existingByCode.get(it.item_code) || {};
+			const existing = (existingByCode.get(it.item_code) ||
+				{}) as Record<string, any>;
 			return deriveItemSearchFields({
 				...existing,
 				...it,
