@@ -1414,9 +1414,9 @@ onBeforeUnmount(() => {
 .submit-btn:focus,
 .submit-btn:focus-visible,
 .submit-btn:active {
-	background-color: rgb(var(--v-theme-primary)) !important;
+	filter: brightness(0.94);
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18) !important;
 	color: rgb(var(--v-theme-on-primary)) !important;
-	box-shadow: none;
 }
 
 .submit-btn:focus-visible {
@@ -1441,9 +1441,9 @@ onBeforeUnmount(() => {
 .payment-method-btn:focus,
 .payment-method-btn:focus-visible,
 .payment-method-btn:active {
-	background-color: rgb(var(--v-theme-primary)) !important;
+	filter: brightness(0.94);
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18) !important;
 	color: rgb(var(--v-theme-on-primary)) !important;
-	box-shadow: none;
 }
 
 .payment-method-btn::before,
