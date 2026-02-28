@@ -36,7 +36,7 @@
 						class="payment-method-btn"
 						@click="$emit('set-full-amount', payment)"
 					>
-						{{ __("Use Remaining") }}
+						{{ payment.mode_of_payment }}
 					</v-btn>
 				</v-col>
 
