@@ -8,6 +8,7 @@
 			>
 				<v-switch
 					:model-value="isWriteOffChange"
+					color="primary"
 					flat
 					:label="$frappe._('Write Off Difference Amount')"
 					class="my-0 pa-1"
@@ -17,6 +18,7 @@
 			<v-col cols="6" v-if="posProfile.posa_allow_credit_sale && !invoiceDoc.is_return">
 				<v-switch
 					:model-value="isCreditSale"
+					color="primary"
 					:label="$frappe._('Credit Sale?')"
 					@update:model-value="$emit('update:isCreditSale', $event)"
 				></v-switch>
@@ -24,6 +26,7 @@
 			<v-col cols="6" v-if="invoiceDoc.is_return && posProfile.use_cashback">
 				<v-switch
 					:model-value="isCashback"
+					color="primary"
 					flat
 					:label="$frappe._('Cashback?')"
 					class="my-0 pa-1"
@@ -33,6 +36,7 @@
 			<v-col cols="6" v-if="invoiceDoc.is_return">
 				<v-switch
 					:model-value="isCreditReturn"
+					color="primary"
 					flat
 					:label="$frappe._('Credit Return?')"
 					class="my-0 pa-1"
@@ -79,6 +83,7 @@
 			<v-col cols="6" v-if="!invoiceDoc.is_return && posProfile.use_customer_credit">
 				<v-switch
 					:model-value="redeemCustomerCredit"
+					color="primary"
 					flat
 					:label="$frappe._('Use Customer Credit')"
 					class="my-0 pa-1"
@@ -166,5 +171,14 @@ const handleRedeemCustomerCreditUpdate = (val) => {
 <style scoped>
 .pos-themed-input :deep(.v-field__input) {
 	font-weight: 500;
+}
+
+:deep(.v-selection-control) {
+	--v-selection-control-color: rgb(var(--v-theme-primary));
+	--v-selection-control-disabled-color: rgba(var(--v-theme-on-surface), 0.38);
+}
+
+:deep(.v-switch .v-label) {
+	color: var(--pos-text-primary);
 }
 </style>
