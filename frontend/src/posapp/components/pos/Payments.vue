@@ -97,12 +97,11 @@
 							:currencySymbol="currencySymbol"
 							:formatCurrency="formatCurrency"
 						/>
-					</section>
-
-					<section class="payment-section payment-section--order">
-						<div class="payment-section__header">
+						<div class="payment-section__subsection">
 							<p class="payment-section__eyebrow">{{ __("Order") }}</p>
-							<h3 class="payment-section__title">{{ __("Fulfillment Details") }}</h3>
+							<h3 class="payment-section__title payment-section__title--subsection">
+								{{ __("Fulfillment Details") }}
+							</h3>
 						</div>
 						<PaymentAdditionalInfo
 							:invoice-doc="invoice_doc"
@@ -1248,7 +1247,7 @@ onBeforeUnmount(() => {
 	grid-template-areas:
 		"summary adjustments"
 		"methods adjustments"
-		"settlement order"
+		"settlement adjustments"
 		"settlement meta";
 }
 
@@ -1283,10 +1282,6 @@ onBeforeUnmount(() => {
 	grid-area: adjustments;
 }
 
-.payment-sections--dialog .payment-section--order {
-	grid-area: order;
-}
-
 .payment-sections--dialog .payment-section--meta {
 	grid-area: meta;
 }
@@ -1305,6 +1300,14 @@ onBeforeUnmount(() => {
 	gap: var(--pos-space-1);
 }
 
+.payment-section__subsection {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding-top: var(--pos-space-1);
+	border-top: 1px solid var(--pos-border-light);
+}
+
 .payment-section__eyebrow {
 	margin: 0;
 	font-size: 0.72rem;
@@ -1320,6 +1323,10 @@ onBeforeUnmount(() => {
 	font-weight: 700;
 	line-height: 1.2;
 	color: var(--pos-text-primary);
+}
+
+.payment-section__title--subsection {
+	font-size: 0.92rem;
 }
 
 :deep(.payment-section .v-divider) {
