@@ -3,6 +3,15 @@
 		<div class="payment-options-layout">
 			<div class="payment-options-toggles">
 				<v-row class="pa-1" align="start" no-gutters>
+					<v-col cols="12" v-if="posProfile.posa_allow_credit_sale && !invoiceDoc.is_return">
+						<v-switch
+							:model-value="isCreditSale"
+							color="primary"
+							:label="$frappe._('Credit Sale?')"
+							class="my-0 pa-1"
+							@update:model-value="$emit('update:isCreditSale', $event)"
+						></v-switch>
+					</v-col>
 					<v-col
 						cols="12"
 						v-if="posProfile.posa_allow_write_off_change && diffPayment > 0 && !invoiceDoc.is_return"
@@ -14,15 +23,6 @@
 							:label="$frappe._('Write Off Difference Amount')"
 							class="my-0 pa-1"
 							@update:model-value="$emit('update:isWriteOffChange', $event)"
-						></v-switch>
-					</v-col>
-					<v-col cols="12" v-if="posProfile.posa_allow_credit_sale && !invoiceDoc.is_return">
-						<v-switch
-							:model-value="isCreditSale"
-							color="primary"
-							:label="$frappe._('Credit Sale?')"
-							class="my-0 pa-1"
-							@update:model-value="$emit('update:isCreditSale', $event)"
 						></v-switch>
 					</v-col>
 					<v-col cols="12" v-if="invoiceDoc.is_return && posProfile.use_cashback">
