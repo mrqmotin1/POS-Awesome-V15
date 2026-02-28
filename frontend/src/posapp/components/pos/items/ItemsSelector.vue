@@ -936,7 +936,19 @@ const { rtlClasses } = rtl;
 
 // Proxy functions for template
 const esc_event = () => clearSearch();
-const onEnter = (e) => itemsSelectorSearch.onEnter(e);
+const onEnter = async (e) => {
+	if (usesLimitSearch.value) {
+		if (e && typeof e.preventDefault === "function") {
+			e.preventDefault();
+		}
+		const term = String(first_search.value || search_input.value || "").trim();
+		first_search.value = term;
+		search_input.value = term;
+		await itemsIntegration.searchItems(term);
+		return;
+	}
+	return itemsSelectorSearch.onEnter(e);
+};
 const handleSearchKeydown = (e) => itemsSelectorFocus.handleSearchKeydown(e);
 const handleSearchInput = (val) => {
 	search_input.value = val;
