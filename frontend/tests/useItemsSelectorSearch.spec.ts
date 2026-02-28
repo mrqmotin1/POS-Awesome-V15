@@ -13,6 +13,7 @@ const createScannerInput = () => ({
 describe("useItemsSelectorSearch", () => {
 	it("uses the nested integration search path for limit search enter actions", async () => {
 		const searchItems = vi.fn().mockResolvedValue([]);
+		const selectHighlightedItem = vi.fn();
 		const vm = {
 			first_search: "abc",
 			search: "",
@@ -20,8 +21,8 @@ describe("useItemsSelectorSearch", () => {
 			isBackgroundLoading: false,
 			pos_profile: { posa_use_limit_search: 1 },
 			itemSelection: {
-				highlightedIndex: -1,
-				selectHighlightedItem: vi.fn(),
+				highlightedIndex: 0,
+				selectHighlightedItem,
 			},
 			itemsIntegration: {
 				searchItems,
@@ -38,5 +39,39 @@ describe("useItemsSelectorSearch", () => {
 
 		expect(searchItems).toHaveBeenCalledWith("abc");
 		expect(vm.search).toBe("abc");
+		expect(selectHighlightedItem).not.toHaveBeenCalled();
+	});
+
+	it("prioritizes search over highlighted selection when enter is pressed in limit search mode", async () => {
+		const searchItems = vi.fn().mockResolvedValue([]);
+		const selectHighlightedItem = vi.fn();
+		const preventDefault = vi.fn();
+		const vm = {
+			first_search: "abcd",
+			search: "",
+			search_from_scanner: false,
+			isBackgroundLoading: false,
+			pos_profile: { posa_use_limit_search: 1 },
+			itemSelection: {
+				highlightedIndex: 0,
+				selectHighlightedItem,
+			},
+			itemsIntegration: {
+				searchItems,
+			},
+		};
+
+		const api = useItemsSelectorSearch({
+			getVM: () => vm,
+			scannerInput: createScannerInput(),
+			itemSelection: vm.itemSelection,
+		});
+
+		api.onEnter({ preventDefault } as unknown as KeyboardEvent);
+		await Promise.resolve();
+
+		expect(preventDefault).toHaveBeenCalled();
+		expect(searchItems).toHaveBeenCalledWith("abcd");
+		expect(selectHighlightedItem).not.toHaveBeenCalled();
 	});
 });

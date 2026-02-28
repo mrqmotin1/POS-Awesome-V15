@@ -330,6 +330,14 @@ export const useItemsSelectorSearch = ({
 		const vm = getVm();
 		if (!vm) return;
 
+		if (usesLimitSearch(vm)) {
+			if (event && typeof event.preventDefault === "function") {
+				event.preventDefault();
+			}
+			_performSearch();
+			return;
+		}
+
 		if ((itemSelection || vm.itemSelection).highlightedIndex >= 0) {
 			if (event && typeof event.preventDefault === "function") {
 				event.preventDefault();
