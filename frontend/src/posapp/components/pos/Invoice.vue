@@ -1065,6 +1065,7 @@ export default {
 
 .invoice-status-alert {
 	border-radius: 14px;
+	flex: 0 0 auto;
 }
 
 .invoice-sections {
@@ -1074,12 +1075,14 @@ export default {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: hidden;
+	align-items: stretch;
 }
 
 .invoice-meta-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: var(--dynamic-sm);
+	flex: 0 0 auto;
 }
 
 .invoice-section-card {
@@ -1088,6 +1091,8 @@ export default {
 	border-radius: var(--pos-radius-md, 18px);
 	box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
 	overflow: hidden;
+	flex: 0 0 auto;
+	min-height: fit-content;
 }
 
 .invoice-items-card {
@@ -1096,6 +1101,7 @@ export default {
 	flex-direction: column;
 	flex: 1 1 auto;
 	min-height: 0;
+	overflow: hidden;
 }
 
 /* Responsive breakpoints */
