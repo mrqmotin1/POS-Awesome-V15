@@ -1147,9 +1147,21 @@ export default {
 
 /* Responsive breakpoints */
 @media (max-width: 768px) {
+	.invoice-shell {
+		gap: var(--dynamic-xs);
+	}
+
+	.invoice-main-card {
+		height: auto !important;
+		max-height: none !important;
+		resize: none !important;
+		overflow: visible !important;
+	}
+
 	.dynamic-padding {
 		/* Smaller uniform padding on tablets */
 		padding: var(--dynamic-xs);
+		overflow: visible;
 	}
 
 	.dynamic-padding .v-row {
@@ -1164,12 +1176,22 @@ export default {
 		grid-template-columns: 1fr;
 	}
 
+	.invoice-sections {
+		overflow: visible;
+	}
+
+	.invoice-items-card {
+		flex: 0 0 auto;
+		min-height: 320px;
+	}
+
 	.items-table-wrapper {
 		/* Adjust for smaller padding on tablets */
 		margin-left: calc(-1 * var(--dynamic-xs));
 		margin-right: calc(-1 * var(--dynamic-xs));
 		width: calc(100% + 2 * var(--dynamic-xs));
 		max-width: calc(100% + 2 * var(--dynamic-xs));
+		min-height: 280px;
 	}
 
 	.item-search-field {
@@ -1178,6 +1200,10 @@ export default {
 }
 
 @media (max-width: 480px) {
+	.invoice-main-card {
+		margin-top: var(--dynamic-xs) !important;
+	}
+
 	.dynamic-padding {
 		padding: var(--dynamic-xs);
 	}
@@ -1200,6 +1226,7 @@ export default {
 		margin-right: calc(-1 * var(--dynamic-xs));
 		width: calc(100% + 2 * var(--dynamic-xs));
 		max-width: calc(100% + 2 * var(--dynamic-xs));
+		min-height: 240px;
 	}
 
 	.item-search-field {

@@ -379,6 +379,20 @@ async function handleOpenCustomerDisplay() {
 }
 
 @media (max-width: 768px) {
+	.sticky-summary-card {
+		position: static;
+		bottom: auto;
+		box-shadow: none;
+	}
+
+	.invoice-summary-actions {
+		position: static;
+	}
+
+	.cards {
+		padding: 10px 12px !important;
+	}
+
 	.summary-field {
 		font-size: 0.875rem;
 	}
