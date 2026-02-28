@@ -16,6 +16,7 @@ describe("useItemsSelectorSearch", () => {
 		const selectHighlightedItem = vi.fn();
 		const vm = {
 			first_search: "abc",
+			search_input: "abc",
 			search: "",
 			search_from_scanner: false,
 			isBackgroundLoading: false,
@@ -48,6 +49,7 @@ describe("useItemsSelectorSearch", () => {
 		const preventDefault = vi.fn();
 		const vm = {
 			first_search: "abcd",
+			search_input: "abcd",
 			search: "",
 			search_from_scanner: false,
 			isBackgroundLoading: false,

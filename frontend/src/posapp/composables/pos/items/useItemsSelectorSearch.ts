@@ -240,11 +240,14 @@ export const useItemsSelectorSearch = ({
 			vm.cancelItemDetailsRequest();
 		}
 
-		// Determine the actual query string and trim whitespace
-		const trimmedQuery = (vm.first_search || "").trim();
+		// Prefer the visible input value so Enter uses the latest typed text.
+		const rawQuery =
+			typeof vm.search_input === "string" ? vm.search_input : vm.first_search || "";
+		const trimmedQuery = String(rawQuery || "").trim();
 
-		// Keep first_search in sync with the value we are about to search for
+		// Keep both search refs aligned with the value we are about to process.
 		vm.first_search = trimmedQuery;
+		vm.search_input = trimmedQuery;
 
 		// If the input is a numeric string 12 characters or longer, treat it as a barcode
 		if (/^\d{12,}$/.test(trimmedQuery)) {
@@ -333,6 +336,12 @@ export const useItemsSelectorSearch = ({
 		if (usesLimitSearch(vm)) {
 			if (event && typeof event.preventDefault === "function") {
 				event.preventDefault();
+			}
+			if (typeof (itemSelection || vm.itemSelection).clearHighlightedItem === "function") {
+				(itemSelection || vm.itemSelection).clearHighlightedItem();
+			}
+			if (search_onchange.cancel) {
+				search_onchange.cancel();
 			}
 			_performSearch();
 			return;
