@@ -274,6 +274,7 @@ const useBasicConstraints = ref(false);
 
 // OpenCV controls
 const openCVEnabled = ref(true);
+const openCVReady = ref(false);
 const openCVLoading = ref(false);
 const isProcessing = ref(false);
 const frameSkipCounter = ref(0);
@@ -362,8 +363,49 @@ const opencvTrackFunction = (detectedCodes, ctx) => {
 };
 
 const trackFunctionOptions = computed(() => {
-	return openCVEnabled.value ? opencvTrackFunction : null;
+	return openCVEnabled.value && openCVReady.value ? opencvTrackFunction : null;
 });
+
+const initializeOpenCV = async ({ showAlertOnFailure = false } = {}) => {
+	if (!openCVEnabled.value || openCVReady.value || openCVLoading.value) {
+		return openCVReady.value;
+	}
+
+	openCVLoading.value = true;
+	try {
+		const isReady = await opencvProcessor.ensureInitialized();
+		openCVReady.value = Boolean(isReady);
+		if (!isReady) {
+			openCVEnabled.value = false;
+			if (showAlertOnFailure && typeof frappe !== "undefined" && frappe.show_alert) {
+				frappe.show_alert(
+					{
+						message: __("OpenCV image processing unavailable on this device"),
+						indicator: "orange",
+					},
+					3,
+				);
+			}
+		}
+		return openCVReady.value;
+	} catch (error) {
+		console.warn("OpenCV initialization failed:", error);
+		openCVEnabled.value = false;
+		openCVReady.value = false;
+		if (showAlertOnFailure && typeof frappe !== "undefined" && frappe.show_alert) {
+			frappe.show_alert(
+				{
+					message: __("OpenCV image processing unavailable on this device"),
+					indicator: "orange",
+				},
+				3,
+			);
+		}
+		return false;
+	} finally {
+		openCVLoading.value = false;
+	}
+};
 
 // Methods
 const listCameras = async () => {
@@ -398,6 +440,9 @@ const startScanning = async () => {
 	await nextTick();
 	await listCameras();
 	isScanning.value = true;
+	if (openCVEnabled.value && !openCVReady.value) {
+		void initializeOpenCV();
+	}
 };
 
 const onCameraReady = (capabilities = {}) => {
@@ -550,6 +595,7 @@ const tryFallbackCamera = async () => {
 		}
 		useBasicConstraints.value = true;
 		openCVEnabled.value = false; // reduce processing for weak devices
+		openCVReady.value = false;
 		isScanning.value = false;
 		await nextTick();
 		if (!scannerDialog.value) return;
@@ -598,32 +644,25 @@ const switchCamera = async () => {
 };
 
 const toggleOpenCVProcessing = async () => {
-	openCVLoading.value = true;
-	openCVEnabled.value = !openCVEnabled.value;
+	const nextEnabledState = !openCVEnabled.value;
+	openCVEnabled.value = nextEnabledState;
 
-	if (openCVEnabled.value) {
-		try {
-			const isReady = await opencvProcessor.ensureInitialized();
-			if (!isReady) {
-				openCVEnabled.value = false;
-			} else {
-				console.log("OpenCV processing enabled");
-			}
-		} catch (error) {
-			console.error("Failed to initialize OpenCV:", error);
-			openCVEnabled.value = false;
+	if (nextEnabledState) {
+		const isReady = await initializeOpenCV({ showAlertOnFailure: true });
+		if (isReady) {
+			console.log("OpenCV processing enabled");
 		}
+	} else {
+		openCVReady.value = false;
 	}
-
-	openCVLoading.value = false;
 
 	if (typeof frappe !== "undefined" && frappe.show_alert) {
 		frappe.show_alert(
 			{
-				message: openCVEnabled.value
+				message: openCVEnabled.value && openCVReady.value
 					? __("OpenCV image processing enabled - Enhanced barcode detection")
 					: __("OpenCV processing disabled"),
-				indicator: openCVEnabled.value ? "green" : "blue",
+				indicator: openCVEnabled.value && openCVReady.value ? "green" : "blue",
 			},
 			3,
 		);
@@ -674,19 +713,6 @@ onMounted(async () => {
 	if (typeof document !== "undefined") {
 		document.addEventListener("keydown", handleEscKey);
 	}
-	// Initialize OpenCV
-	try {
-		const isReady = await opencvProcessor.ensureInitialized();
-		if (isReady) {
-			console.log("OpenCV initialized in CameraScanner component");
-		} else {
-			openCVEnabled.value = false;
-			console.warn("OpenCV initialization unavailable in CameraScanner component");
-		}
-	} catch (error) {
-		console.warn("OpenCV initialization failed:", error);
-		openCVEnabled.value = false;
-	}
 });
 
 onBeforeUnmount(async () => {
@@ -695,6 +721,7 @@ onBeforeUnmount(async () => {
 	}
 	stopScanning();
 	try {
+		openCVReady.value = false;
 		await opencvProcessor.destroy();
 		console.log("OpenCV Web Worker cleaned up successfully");
 	} catch (error) {

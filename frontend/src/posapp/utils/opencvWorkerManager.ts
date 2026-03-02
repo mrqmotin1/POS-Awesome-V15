@@ -31,6 +31,7 @@ export interface ProcessOptions {
 interface OpenCVWorkerManagerOptions {
 	createWorker?: () => Worker;
 	messageTimeoutMs?: number;
+	initTimeoutMs?: number;
 	logger?: Pick<Console, "log" | "warn" | "error">;
 }
 
@@ -46,6 +47,7 @@ export class OpenCVWorkerManager {
 	private timedOutMessageIds: Set<number> = new Set();
 	private readonly createWorker: () => Worker;
 	private readonly messageTimeoutMs: number;
+	private readonly initTimeoutMs: number;
 	private readonly logger: Pick<Console, "log" | "warn" | "error">;
 
 	constructor(options: OpenCVWorkerManagerOptions = {}) {
@@ -54,6 +56,7 @@ export class OpenCVWorkerManager {
 			(() =>
 				new Worker("/assets/posawesome/dist/js/posapp/workers/opencvWorker.js"));
 		this.messageTimeoutMs = options.messageTimeoutMs ?? 10000;
+		this.initTimeoutMs = options.initTimeoutMs ?? 45000;
 		this.logger = options.logger ?? console;
 	}
 
@@ -197,7 +200,7 @@ export class OpenCVWorkerManager {
 				this.timedOutMessageIds.add(id);
 				this._resetAfterTimeout(type);
 				reject(new Error(`Worker message timeout for ${type}`));
-			}, this.messageTimeoutMs);
+			}, this._getMessageTimeoutMs(type));
 
 			this.pendingMessages.set(id, { resolve, reject, timeout });
 
@@ -241,6 +244,10 @@ export class OpenCVWorkerManager {
 			reject(error);
 		}
 		this.pendingMessages.clear();
+	}
+
+	private _getMessageTimeoutMs(type: string): number {
+		return type === "INIT" ? this.initTimeoutMs : this.messageTimeoutMs;
 	}
 
 	private _resetAfterTimeout(type: string): void {

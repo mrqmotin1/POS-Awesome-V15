@@ -58,6 +58,7 @@ describe("OpenCVWorkerManager", () => {
 					return worker as unknown as Worker;
 				},
 				messageTimeoutMs: 5,
+				initTimeoutMs: 5,
 				logger,
 			});
 
