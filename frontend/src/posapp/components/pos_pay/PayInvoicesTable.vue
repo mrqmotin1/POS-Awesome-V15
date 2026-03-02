@@ -32,9 +32,10 @@
 					clearable
 					class="pos-themed-input"
 					v-model="internalPosProfileSearch"
-					:items="posProfilesList"
-					item-value="name"
-					label="Select POS Profile"
+					:items="normalizedPosProfiles"
+					item-title="label"
+					item-value="value"
+					label="Filter Invoices by POS Profile"
 				></v-select>
 			</v-col>
 			<v-col> </v-col>
@@ -188,6 +189,23 @@ const internalCurrencyFilter = computed({
 	get: () => props.currencyFilter,
 	set: (val) => emit("update:currencyFilter", val),
 });
+
+const normalizedPosProfiles = computed(() =>
+	(props.posProfilesList || [])
+		.map((profile) => {
+			if (typeof profile === "string") {
+				return { label: profile, value: profile };
+			}
+
+			const name = typeof profile?.name === "string" ? profile.name.trim() : "";
+			if (!name) {
+				return null;
+			}
+
+			return { label: name, value: name };
+		})
+		.filter(Boolean),
+);
 
 const invoiceRowProps = ({ item }) => {
 	if (!props.itemClass) {
