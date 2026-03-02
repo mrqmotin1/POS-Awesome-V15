@@ -48,6 +48,14 @@
 			</v-card-text>
 			<v-card-actions class="update-actions">
 				<v-spacer></v-spacer>
+				<v-btn
+					variant="flat"
+					color="primary"
+					:loading="updateStore.reloading"
+					@click="reloadNow"
+				>
+					{{ __("Reload Now") }}
+				</v-btn>
 				<v-btn variant="elevated" color="primary" @click="dismiss">
 					{{ __("Dismiss") }}
 				</v-btn>
@@ -88,6 +96,10 @@ const commits = computed(() => updateStore.formattedAvailableCommits);
 function dismiss() {
 	updateStore.dismissUpdate();
 	visible.value = false;
+}
+
+function reloadNow() {
+	updateStore.reloadNow();
 }
 </script>
 

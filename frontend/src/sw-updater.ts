@@ -44,7 +44,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 		reloadScheduled = true;
 		updateStore.reloading = true;
 		updateStore.resetSnooze();
-		requestVersionFromController();
+		void requestVersionFromController();
 	});
 
 	async function ensureActiveVersion() {
@@ -54,26 +54,52 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 
 		if (!hasRequestedInitialVersion) {
 			hasRequestedInitialVersion = true;
-			requestVersionFromController();
+			await requestVersionFromController();
 		}
 	}
 
-	function requestVersionFromController() {
+	async function postMessageToController(
+		message: Record<string, unknown>,
+		timeoutMs = 4000,
+	) {
 		const controller = navigator.serviceWorker.controller;
-		if (!controller) return;
+		if (!controller) return null;
 
-		const channel = new MessageChannel();
-		channel.port1.onmessage = (event) => {
-			const payload: any = event.data || {};
-			if (payload.type === "SW_VERSION_INFO") {
-				handleActiveVersion(payload.version, payload.timestamp);
+		return new Promise((resolve) => {
+			const channel = new MessageChannel();
+			const timeout = window.setTimeout(() => resolve(null), timeoutMs);
+			channel.port1.onmessage = (event) => {
+				window.clearTimeout(timeout);
+				resolve(event.data || null);
+			};
+			try {
+				controller.postMessage(message, [channel.port2]);
+			} catch (err) {
+				window.clearTimeout(timeout);
+				console.warn("Failed to post message to service worker", err);
+				resolve(null);
 			}
-		};
-		try {
-			controller.postMessage({ type: "CHECK_VERSION" }, [channel.port2]);
-		} catch (err) {
-			console.warn("Failed to request SW version", err);
+		});
+	}
+
+	async function requestVersionFromController() {
+		const payload: any = await postMessageToController({
+			type: "CHECK_VERSION",
+		});
+		if (payload?.type === "SW_VERSION_INFO") {
+			handleActiveVersion(payload.version, payload.timestamp);
 		}
+		return payload;
+	}
+
+	async function refreshControllerCacheVersion() {
+		const payload: any = await postMessageToController({
+			type: "REFRESH_CACHE_VERSION",
+		});
+		if (payload?.type === "SW_VERSION_INFO") {
+			handleActiveVersion(payload.version, payload.timestamp);
+		}
+		return payload;
 	}
 
 	async function checkWaitingWorker(registration: ServiceWorkerRegistration) {
@@ -185,6 +211,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 
 	async function triggerServiceWorkerUpdate() {
 		try {
+			reloadScheduled = true;
+			updateStore.reloading = true;
+			updateStore.resetSnooze();
 			const registration =
 				await navigator.serviceWorker.getRegistration(
 					SERVICE_WORKER_SCOPE,
@@ -198,8 +227,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 				return;
 			}
 			if (registration.installing) {
-				registration.installing.addEventListener("statechange", () => {
-					if (registration.installing?.state === "installed") {
+				const installingWorker = registration.installing;
+				installingWorker.addEventListener("statechange", () => {
+					if (installingWorker.state === "installed") {
 						registration.waiting?.postMessage({
 							type: "SKIP_WAITING",
 						});
@@ -208,7 +238,20 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 				return;
 			}
 			await registration.update();
-			if (!registration.waiting) {
+			const waitingWorker = registration.waiting as ServiceWorker | null;
+			if (waitingWorker) {
+				waitingWorker.postMessage({ type: "SKIP_WAITING" });
+				return;
+			}
+
+			const refreshedPayload = await refreshControllerCacheVersion();
+			if (refreshedPayload?.type === "SW_VERSION_INFO") {
+				return;
+			}
+
+			const currentPayload = await requestVersionFromController();
+			if (!currentPayload) {
+				reloadScheduled = false;
 				updateStore.reloading = false;
 			}
 		} catch (err) {

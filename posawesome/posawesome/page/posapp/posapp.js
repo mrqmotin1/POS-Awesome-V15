@@ -7,6 +7,7 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 	});
 	const pageRef = (wrapper && wrapper.page) || page;
 	const BOOT_RETRY_KEY = "posa_boot_retry_once";
+	const BOOT_CACHE_RECOVERY_KEY = "posa_boot_cache_recovery_once";
 	const detectBootFailureCode = (error) => {
 		const message =
 			(error && error.message ? String(error.message) : String(error || ""))
@@ -28,6 +29,76 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		}
 		return "posa_boot_unknown";
 	};
+	const isAssetRecoveryFailure = (failureCode) =>
+		failureCode === "posa_boot_timeout" ||
+		failureCode === "posa_bundle_load_failed";
+
+	const clearBootstrapState = () => {
+		try {
+			window.sessionStorage.removeItem(BOOT_RETRY_KEY);
+			window.sessionStorage.removeItem(BOOT_CACHE_RECOVERY_KEY);
+		} catch (err) {
+			console.warn("Unable to clear boot recovery state", err);
+		}
+	};
+
+	const performAssetRecovery = async () => {
+		try {
+			if (
+				typeof navigator !== "undefined" &&
+				navigator.serviceWorker &&
+				typeof navigator.serviceWorker.getRegistrations === "function"
+			) {
+				const registrations = await navigator.serviceWorker.getRegistrations();
+				await Promise.all(
+					registrations.map(async (registration) => {
+						try {
+							registration.active?.postMessage({
+								type: "CLIENT_FORCE_UNREGISTER",
+							});
+						} catch (messageErr) {
+							console.warn("Failed to notify active service worker", messageErr);
+						}
+						try {
+							registration.waiting?.postMessage({
+								type: "CLIENT_FORCE_UNREGISTER",
+							});
+						} catch (messageErr) {
+							console.warn("Failed to notify waiting service worker", messageErr);
+						}
+						try {
+							registration.installing?.postMessage({
+								type: "CLIENT_FORCE_UNREGISTER",
+							});
+						} catch (messageErr) {
+							console.warn("Failed to notify installing service worker", messageErr);
+						}
+						await registration.unregister();
+					}),
+				);
+			}
+		} catch (err) {
+			console.warn("POS App recovery failed during service worker cleanup", err);
+		}
+
+		try {
+			if (typeof caches !== "undefined") {
+				const cacheKeys = await caches.keys();
+				await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+			}
+		} catch (err) {
+			console.warn("POS App recovery failed during Cache API cleanup", err);
+		}
+
+		try {
+			window.localStorage.removeItem("posawesome_version");
+			window.localStorage.removeItem("posawesome_update_dismissed");
+			window.localStorage.removeItem("posawesome_update_last_check");
+			window.sessionStorage.removeItem("posawesome_update_snooze_until");
+		} catch (err) {
+			console.warn("POS App recovery failed during storage cleanup", err);
+		}
+	};
 
 	const waitForPosApp = (timeoutMs = 15000) => {
 		return new Promise((resolve, reject) => {
@@ -47,7 +118,7 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		});
 	};
 
-	const handleBootstrapFailure = (error) => {
+	const handleBootstrapFailure = async (error) => {
 		const failureCode = detectBootFailureCode(error);
 		const failureDetail =
 			error && error.message ? String(error.message) : String(error || "");
@@ -64,6 +135,13 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		} catch (err) {
 			console.warn("Unable to read boot retry state", err);
 		}
+		let alreadyRecovered = false;
+		try {
+			alreadyRecovered =
+				window.sessionStorage.getItem(BOOT_CACHE_RECOVERY_KEY) === "1";
+		} catch (err) {
+			console.warn("Unable to read boot recovery state", err);
+		}
 
 		if (!alreadyRetried) {
 			try {
@@ -75,17 +153,24 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 			return;
 		}
 
-		try {
-			window.sessionStorage.removeItem(BOOT_RETRY_KEY);
-		} catch (err) {
-			console.warn("Unable to clear boot retry state", err);
+		if (isAssetRecoveryFailure(failureCode) && !alreadyRecovered) {
+			try {
+				window.sessionStorage.setItem(BOOT_CACHE_RECOVERY_KEY, "1");
+			} catch (err) {
+				console.warn("Unable to persist boot recovery state", err);
+			}
+			await performAssetRecovery();
+			window.location.replace(`/app/posapp?_posa_asset_recovery=${Date.now()}`);
+			return;
 		}
+
+		clearBootstrapState();
 
 		frappe.msgprint({
 			title: "POS Awesome",
 			indicator: "red",
 			message:
-				`POS app failed to start (${failureCode}). Please clear browser cache or refresh assets, then reload /app/posapp.`,
+				`POS app failed to start (${failureCode}). Automatic cache recovery was attempted. If the problem persists, reload /app/posapp or use the in-app cache clear shortcut.`,
 		});
 	};
 
@@ -100,15 +185,11 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 
 		await waitForPosApp();
 	} catch (error) {
-		handleBootstrapFailure(error);
+		await handleBootstrapFailure(error);
 		return;
 	}
 
-	try {
-		window.sessionStorage.removeItem(BOOT_RETRY_KEY);
-	} catch (err) {
-		console.warn("Unable to clear boot retry state", err);
-	}
+	clearBootstrapState();
 
 	if (!pageRef.$PosApp) {
 		pageRef.$PosApp = new frappe.PosApp.posapp(pageRef);

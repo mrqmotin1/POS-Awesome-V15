@@ -227,9 +227,6 @@ onMounted(() => {
 	if (BUILD_VERSION) {
 		updateStore.setCurrentVersion(BUILD_VERSION);
 	}
-	updateStore.setReloadAction(() => {
-		window.location.reload();
-	});
 	updateStore.checkForUpdates(true);
 	updateInterval = setInterval(
 		() => updateStore.checkForUpdates(),
