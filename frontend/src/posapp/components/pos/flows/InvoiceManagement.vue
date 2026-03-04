@@ -775,10 +775,10 @@ export default {
 	}),
 	computed: {
 		currentInvoiceDoctype() { return this.posProfile?.create_pos_invoice_instead_of_sales_invoice ? "POS Invoice" : "Sales Invoice"; },
-		filteredUnpaidInvoices() { return this.filterCollection(this.unpaidInvoices, this.partialSearch, this.partialStatus, this.partialDateFrom, this.partialDateTo); },
-		filteredHistoryInvoices() { return this.filterCollection(this.historyInvoices.filter((d) => !d.is_return), this.historySearch, this.historyStatus, this.historyDateFrom, this.historyDateTo); },
-		filteredDraftInvoices() { return this.filterCollection(this.draftInvoices, this.draftSearch, "All", this.draftDateFrom, this.draftDateTo); },
-		filteredReturnInvoices() { return this.filterCollection(this.historyInvoices.filter((d) => d.is_return), this.returnSearch, "All", this.returnDateFrom, this.returnDateTo); },
+		filteredUnpaidInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.unpaidInvoices, this.partialSearch, this.partialStatus, this.partialDateFrom, this.partialDateTo)); },
+		filteredHistoryInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.historyInvoices.filter((d) => !d.is_return), this.historySearch, this.historyStatus, this.historyDateFrom, this.historyDateTo)); },
+		filteredDraftInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.draftInvoices, this.draftSearch, "All", this.draftDateFrom, this.draftDateTo)); },
+		filteredReturnInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.historyInvoices.filter((d) => d.is_return), this.returnSearch, "All", this.returnDateFrom, this.returnDateTo)); },
 		filteredUnpaidSummary() {
 			return this.filteredUnpaidInvoices.reduce((accumulator, invoice) => {
 				accumulator.count += 1;
@@ -834,6 +834,23 @@ export default {
 				if (status && status !== "All" && String(item.status || "") !== status) return false;
 				return this.inRange(item.posting_date, this.normalizeDate(fromDate), this.normalizeDate(toDate));
 			});
+		},
+		sortInvoicesByLatest(items) {
+			return [...items].sort((left, right) => this.invoiceSortValue(right) - this.invoiceSortValue(left));
+		},
+		invoiceSortValue(invoice) {
+			const postingDate = this.normalizeDate(invoice?.posting_date) || "0000-00-00";
+			const postingTime = String(invoice?.posting_time || "00:00:00").split(".")[0].padEnd(8, "0");
+			const modified = String(invoice?.modified || "");
+			const createdAt = String(invoice?.created_at || "");
+			const composed = `${postingDate}T${postingTime}`;
+			const timestamp = Date.parse(composed);
+			if (!Number.isNaN(timestamp)) return timestamp;
+			const createdTimestamp = Date.parse(createdAt);
+			if (!Number.isNaN(createdTimestamp)) return createdTimestamp;
+			const modifiedTimestamp = Date.parse(modified);
+			if (!Number.isNaN(modifiedTimestamp)) return modifiedTimestamp;
+			return 0;
 		},
 		formatDateForDisplay(date) {
 			if (!date) return "";
@@ -905,7 +922,7 @@ export default {
 						doctype: this.currentInvoiceDoctype,
 						filters: { pos_profile: this.posProfile.name, docstatus: 1, is_return: 0, outstanding_amount: [">", 0] },
 						fields: ["name", "customer", "customer_name", "posting_date", "posting_time", "due_date", "grand_total", "paid_amount", "outstanding_amount", "status", "currency"],
-						order_by: "modified desc",
+						order_by: "posting_date desc, posting_time desc, modified desc",
 						limit_page_length: 200,
 					},
 				});
@@ -927,7 +944,7 @@ export default {
 						doctype: this.currentInvoiceDoctype,
 						filters: { pos_profile: this.posProfile.name, docstatus: 1 },
 						fields: ["name", "customer", "customer_name", "posting_date", "posting_time", "grand_total", "paid_amount", "change_amount", "outstanding_amount", "status", "is_return", "return_against", "currency"],
-						order_by: "modified desc",
+						order_by: "posting_date desc, posting_time desc, modified desc",
 						limit_page_length: 300,
 					},
 				});
