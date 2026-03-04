@@ -16,6 +16,26 @@
 						</div>
 					</div>
 					<div class="d-flex align-center ga-2">
+						<div class="view-toggle-group">
+							<v-btn
+								:variant="viewMode === 'card' ? 'flat' : 'text'"
+								:color="viewMode === 'card' ? 'primary' : undefined"
+								size="small"
+								prepend-icon="mdi-view-grid-outline"
+								@click="viewMode = 'card'"
+							>
+								{{ __("Cards") }}
+							</v-btn>
+							<v-btn
+								:variant="viewMode === 'list' ? 'flat' : 'text'"
+								:color="viewMode === 'list' ? 'primary' : undefined"
+								size="small"
+								prepend-icon="mdi-format-list-bulleted"
+								@click="viewMode = 'list'"
+							>
+								{{ __("List") }}
+							</v-btn>
+						</div>
 						<v-btn
 							color="primary"
 							variant="text"
@@ -144,6 +164,28 @@
 									{{ __("Try changing the date range or status filter.") }}
 								</div>
 							</div>
+
+							<v-data-table
+								v-else-if="viewMode === 'list'"
+								:headers="historyHeaders"
+								:items="filteredHistoryInvoices"
+								item-value="name"
+								class="elevation-1"
+								:items-per-page="10"
+							>
+								<template #item.posting_date="{ item }">{{ formatDateTime(item.posting_date, item.posting_time) }}</template>
+								<template #item.grand_total="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.grand_total) }}</template>
+								<template #item.paid_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.paid_amount || 0) }}</template>
+								<template #item.outstanding_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.outstanding_amount || 0) }}</template>
+								<template #item.status="{ item }"><v-chip size="small" :color="statusColor(item.status)" variant="tonal">{{ __(item.status || "Draft") }}</v-chip></template>
+								<template #item.actions="{ item }">
+									<div class="d-flex justify-end ga-1">
+										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" @click="viewInvoice(item)" />
+										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" @click="printInvoice(item)" />
+										<v-btn v-if="posProfile?.posa_allow_return == 1" icon="mdi-backup-restore" variant="text" size="small" color="warning" :title="__('Create Return')" @click="createReturn(item)" />
+									</div>
+								</template>
+							</v-data-table>
 
 							<div v-else class="invoice-record-grid invoice-record-grid--history">
 								<v-card
@@ -312,6 +354,29 @@
 								<div class="empty-state__subtitle">{{ __("All visible invoices are fully settled.") }}</div>
 							</div>
 
+							<v-data-table
+								v-else-if="viewMode === 'list'"
+								:headers="partialHeaders"
+								:items="filteredUnpaidInvoices"
+								item-value="name"
+								class="elevation-1"
+								:items-per-page="10"
+							>
+								<template #item.posting_date="{ item }">{{ formatDateTime(item.posting_date, item.posting_time) }}</template>
+								<template #item.due_date="{ item }">{{ formatDateForDisplay(item.due_date) || "-" }}</template>
+								<template #item.grand_total="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.grand_total) }}</template>
+								<template #item.paid_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.paid_amount || 0) }}</template>
+								<template #item.outstanding_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.outstanding_amount || 0) }}</template>
+								<template #item.status="{ item }"><v-chip size="small" :color="statusColor(item.status)" variant="tonal">{{ __(item.status || "Unpaid") }}</v-chip></template>
+								<template #item.actions="{ item }">
+									<div class="d-flex justify-end ga-1">
+										<v-btn icon="mdi-cash-plus" variant="text" size="small" color="warning" :disabled="isOffline()" :title="__('Add Payment')" @click="openAddPayment(item)" />
+										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" @click="viewInvoice(item)" />
+										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" @click="printInvoice(item)" />
+									</div>
+								</template>
+							</v-data-table>
+
 							<div v-else class="invoice-record-grid invoice-record-grid--unpaid">
 								<v-card
 									v-for="invoice in filteredUnpaidInvoices"
@@ -419,7 +484,19 @@
 									:label="__('To Date')"
 								/>
 							</div>
-							<v-data-table :headers="draftHeaders" :items="filteredDraftInvoices" :loading="loading && activeTab === 'drafts'" item-value="name" class="elevation-1" :items-per-page="10">
+
+							<div v-if="loading && activeTab === 'drafts'" class="tab-loader">
+								<v-progress-circular indeterminate color="secondary" size="28" width="3" />
+								<span>{{ __("Loading drafts...") }}</span>
+							</div>
+
+							<div v-else-if="!filteredDraftInvoices.length" class="empty-state">
+								<v-icon size="42" color="secondary">mdi-file-document-edit-outline</v-icon>
+								<div class="empty-state__title">{{ __("No drafts found") }}</div>
+								<div class="empty-state__subtitle">{{ __("Saved draft invoices will appear here.") }}</div>
+							</div>
+
+							<v-data-table v-else-if="viewMode === 'list'" :headers="draftHeaders" :items="filteredDraftInvoices" item-value="name" class="elevation-1" :items-per-page="10">
 								<template #item.posting_date="{ item }">{{ formatDateTime(item.posting_date, item.posting_time) }}</template>
 								<template #item.grand_total="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.grand_total) }}</template>
 								<template #item.actions="{ item }">
@@ -429,6 +506,51 @@
 									</div>
 								</template>
 							</v-data-table>
+
+							<div v-else class="invoice-record-grid invoice-record-grid--drafts">
+								<v-card
+									v-for="invoice in filteredDraftInvoices"
+									:key="invoice.name"
+									class="invoice-record-card invoice-record-card--draft"
+									variant="flat"
+								>
+									<div class="invoice-record-card__hero invoice-record-card__hero--draft">
+										<div>
+											<div class="invoice-record-card__title-row">
+												<div class="invoice-record-card__title">{{ invoice.name }}</div>
+												<v-chip size="small" color="secondary" variant="flat">{{ __("Draft") }}</v-chip>
+											</div>
+											<div class="invoice-record-card__subtitle">
+												{{ invoice.customer_name || invoice.customer || __("Walk-in Customer") }}
+											</div>
+										</div>
+										<div class="invoice-record-card__amount-block">
+											<div class="invoice-record-card__amount-label">{{ __("Total") }}</div>
+											<div class="invoice-record-card__amount">
+												{{ currencySymbol(invoice.currency) }} {{ formatCurrency(invoice.grand_total) }}
+											</div>
+										</div>
+									</div>
+
+									<div class="invoice-record-card__content">
+										<div class="meta-pair-grid">
+											<div class="meta-pair">
+												<div class="meta-pair__label">{{ __("Posting") }}</div>
+												<div class="meta-pair__value">{{ formatDateTime(invoice.posting_date, invoice.posting_time) }}</div>
+											</div>
+											<div class="meta-pair">
+												<div class="meta-pair__label">{{ __("Items") }}</div>
+												<div class="meta-pair__value">{{ draftItemCount(invoice) }}</div>
+											</div>
+										</div>
+									</div>
+
+									<div class="invoice-record-card__actions">
+										<v-btn prepend-icon="mdi-folder-open-outline" size="small" variant="flat" color="primary" @click="loadDraft(invoice)">{{ __("Load Draft") }}</v-btn>
+										<v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" :title="__('Delete Draft')" @click="deleteDraft(invoice)" />
+									</div>
+								</v-card>
+							</div>
 						</v-window-item>
 
 						<v-window-item value="returns">
@@ -462,7 +584,19 @@
 									:label="__('To Date')"
 								/>
 							</div>
-							<v-data-table :headers="returnHeaders" :items="filteredReturnInvoices" :loading="loading && activeTab === 'returns'" item-value="name" class="elevation-1" :items-per-page="10">
+
+							<div v-if="loading && activeTab === 'returns'" class="tab-loader">
+								<v-progress-circular indeterminate color="error" size="28" width="3" />
+								<span>{{ __("Loading return invoices...") }}</span>
+							</div>
+
+							<div v-else-if="!filteredReturnInvoices.length" class="empty-state">
+								<v-icon size="42" color="error">mdi-backup-restore</v-icon>
+								<div class="empty-state__title">{{ __("No return invoices found") }}</div>
+								<div class="empty-state__subtitle">{{ __("Completed returns will appear here.") }}</div>
+							</div>
+
+							<v-data-table v-else-if="viewMode === 'list'" :headers="returnHeaders" :items="filteredReturnInvoices" item-value="name" class="elevation-1" :items-per-page="10">
 								<template #item.posting_date="{ item }">{{ formatDateTime(item.posting_date, item.posting_time) }}</template>
 								<template #item.grand_total="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.grand_total) }}</template>
 								<template #item.return_against="{ item }">{{ item.return_against || "-" }}</template>
@@ -473,6 +607,51 @@
 									</div>
 								</template>
 							</v-data-table>
+
+							<div v-else class="invoice-record-grid invoice-record-grid--returns">
+								<v-card
+									v-for="invoice in filteredReturnInvoices"
+									:key="invoice.name"
+									class="invoice-record-card invoice-record-card--error"
+									variant="flat"
+								>
+									<div class="invoice-record-card__hero invoice-record-card__hero--return">
+										<div>
+											<div class="invoice-record-card__title-row">
+												<div class="invoice-record-card__title">{{ invoice.name }}</div>
+												<v-chip size="small" color="error" variant="flat">{{ __("Return") }}</v-chip>
+											</div>
+											<div class="invoice-record-card__subtitle">
+												{{ invoice.customer_name || invoice.customer || __("Walk-in Customer") }}
+											</div>
+										</div>
+										<div class="invoice-record-card__amount-block">
+											<div class="invoice-record-card__amount-label">{{ __("Total") }}</div>
+											<div class="invoice-record-card__amount">
+												{{ currencySymbol(invoice.currency) }} {{ formatCurrency(invoice.grand_total) }}
+											</div>
+										</div>
+									</div>
+
+									<div class="invoice-record-card__content">
+										<div class="meta-pair-grid">
+											<div class="meta-pair">
+												<div class="meta-pair__label">{{ __("Posting") }}</div>
+												<div class="meta-pair__value">{{ formatDateTime(invoice.posting_date, invoice.posting_time) }}</div>
+											</div>
+											<div class="meta-pair">
+												<div class="meta-pair__label">{{ __("Against") }}</div>
+												<div class="meta-pair__value">{{ invoice.return_against || "-" }}</div>
+											</div>
+										</div>
+									</div>
+
+									<div class="invoice-record-card__actions">
+										<v-btn icon="mdi-eye-outline" size="small" variant="text" :title="__('View Details')" @click="viewInvoice(invoice)" />
+										<v-btn icon="mdi-printer-outline" size="small" variant="text" :title="__('Print')" @click="printInvoice(invoice)" />
+									</div>
+								</v-card>
+							</div>
 						</v-window-item>
 					</v-window>
 				</v-card-text>
@@ -550,6 +729,7 @@ export default {
 	},
 	data: () => ({
 		activeTab: "history",
+		viewMode: "card",
 		loading: false,
 		partialSearch: "",
 		partialStatus: "All",
@@ -572,6 +752,8 @@ export default {
 		selectedInvoiceDetail: null,
 		partialStatusItems: ["All", "Partly Paid", "Unpaid", "Overdue"],
 		historyStatusItems: ["All", "Paid", "Partly Paid", "Unpaid", "Overdue", "Credit Note Issued"],
+		partialHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Due Date"), key: "due_date" }, { title: __("Status"), key: "status" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Paid"), key: "paid_amount", align: "end" }, { title: __("Outstanding"), key: "outstanding_amount", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
+		historyHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Status"), key: "status" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Collected"), key: "paid_amount", align: "end" }, { title: __("Outstanding"), key: "outstanding_amount", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
 		draftHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
 		returnHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Against"), key: "return_against" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
 		detailHeaders: [{ title: __("Item"), key: "item_name" }, { title: __("Code"), key: "item_code" }, { title: __("Qty"), key: "qty", align: "end" }, { title: __("Rate"), key: "rate", align: "end" }, { title: __("Amount"), key: "amount", align: "end" }],
@@ -685,6 +867,11 @@ export default {
 			const grandTotal = Number(invoice?.grand_total || 0);
 			if (!grandTotal) return 0;
 			return Math.max(0, Math.min(100, (Number(invoice?.paid_amount || 0) / grandTotal) * 100));
+		},
+		draftItemCount(invoice) {
+			if (Array.isArray(invoice?.items)) return invoice.items.length;
+			if (Number.isFinite(Number(invoice?.items_count))) return Number(invoice.items_count);
+			return 0;
 		},
 		async refreshAll() { await Promise.all([this.loadUnpaidInvoices(), this.loadHistory(), this.loadDrafts()]); },
 		async refreshActiveTab() {
@@ -901,6 +1088,15 @@ export default {
 
 .invoice-tabs-shell { padding: 0 8px 8px; }
 
+.view-toggle-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px;
+	border-radius: 12px;
+	background: rgba(148, 163, 184, 0.08);
+}
+
 .invoice-tabs {
 	background: rgba(148, 163, 184, 0.08);
 	border-radius: 16px;
@@ -908,6 +1104,10 @@ export default {
 }
 
 .invoice-management-card--dark .invoice-tabs {
+	background: rgba(15, 23, 42, 0.46);
+}
+
+.invoice-management-card--dark .view-toggle-group {
 	background: rgba(15, 23, 42, 0.46);
 }
 
@@ -1040,6 +1240,8 @@ export default {
 
 .invoice-record-grid--history { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .invoice-record-grid--unpaid { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+.invoice-record-grid--drafts { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.invoice-record-grid--returns { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 
 .invoice-record-card {
 	border-radius: 22px;
@@ -1061,6 +1263,8 @@ export default {
 }
 
 .invoice-record-card__hero--warm { background: linear-gradient(135deg, rgba(255, 247, 237, 0.98), rgba(255, 237, 213, 0.9)); }
+.invoice-record-card__hero--draft { background: linear-gradient(135deg, rgba(245, 243, 255, 0.98), rgba(233, 213, 255, 0.9)); }
+.invoice-record-card__hero--return { background: linear-gradient(135deg, rgba(254, 242, 242, 0.98), rgba(254, 202, 202, 0.9)); }
 
 .invoice-record-card__title-row {
 	display: flex;
@@ -1123,6 +1327,14 @@ export default {
 
 .invoice-management-card--dark .invoice-record-card__hero--warm {
 	background: linear-gradient(135deg, rgba(67, 20, 7, 0.96), rgba(120, 53, 15, 0.52));
+}
+
+.invoice-management-card--dark .invoice-record-card__hero--draft {
+	background: linear-gradient(135deg, rgba(76, 29, 149, 0.96), rgba(88, 28, 135, 0.44));
+}
+
+.invoice-management-card--dark .invoice-record-card__hero--return {
+	background: linear-gradient(135deg, rgba(127, 29, 29, 0.96), rgba(153, 27, 27, 0.42));
 }
 
 .invoice-management-card--dark .invoice-record-card--success .invoice-record-card__hero {
