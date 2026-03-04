@@ -137,11 +137,18 @@
 									<div class="summary-tile__meta">{{ __("Before any return workflow") }}</div>
 								</div>
 								<div class="summary-tile summary-tile--success">
-									<div class="summary-tile__label">{{ __("Collected") }}</div>
+									<div class="summary-tile__label">{{ __("Tendered") }}</div>
 									<div class="summary-tile__value">
 										{{ currencySymbol(posProfile?.currency) }} {{ formatCurrency(historyTotals.paid) }}
 									</div>
-									<div class="summary-tile__meta">{{ __("Paid directly on invoices") }}</div>
+									<div class="summary-tile__meta">{{ __("Amount received from customer") }}</div>
+								</div>
+								<div class="summary-tile summary-tile--danger">
+									<div class="summary-tile__label">{{ __("Change Return") }}</div>
+									<div class="summary-tile__value">
+										{{ currencySymbol(posProfile?.currency) }} {{ formatCurrency(historyTotals.change_return) }}
+									</div>
+									<div class="summary-tile__meta">{{ __("Cash returned after payment") }}</div>
 								</div>
 								<div class="summary-tile summary-tile--warning">
 									<div class="summary-tile__label">{{ __("Outstanding") }}</div>
@@ -176,6 +183,7 @@
 								<template #item.posting_date="{ item }">{{ formatDateTime(item.posting_date, item.posting_time) }}</template>
 								<template #item.grand_total="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.grand_total) }}</template>
 								<template #item.paid_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.paid_amount || 0) }}</template>
+								<template #item.change_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.change_amount || 0) }}</template>
 								<template #item.outstanding_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.outstanding_amount || 0) }}</template>
 								<template #item.status="{ item }"><v-chip size="small" :color="statusColor(item.status)" variant="tonal">{{ __(item.status || "Draft") }}</v-chip></template>
 								<template #item.actions="{ item }">
@@ -221,9 +229,15 @@
 												<div class="meta-pair__value">{{ formatDateTime(invoice.posting_date, invoice.posting_time) }}</div>
 											</div>
 											<div class="meta-pair">
-												<div class="meta-pair__label">{{ __("Collected") }}</div>
+												<div class="meta-pair__label">{{ __("Tendered") }}</div>
 												<div class="meta-pair__value meta-pair__value--success">
 													{{ currencySymbol(invoice.currency) }} {{ formatCurrency(invoice.paid_amount || 0) }}
+												</div>
+											</div>
+											<div class="meta-pair">
+												<div class="meta-pair__label">{{ __("Change Return") }}</div>
+												<div class="meta-pair__value meta-pair__value--warning">
+													{{ currencySymbol(invoice.currency) }} {{ formatCurrency(invoice.change_amount || 0) }}
 												</div>
 											</div>
 											<div class="meta-pair">
@@ -753,7 +767,7 @@ export default {
 		partialStatusItems: ["All", "Partly Paid", "Unpaid", "Overdue"],
 		historyStatusItems: ["All", "Paid", "Partly Paid", "Unpaid", "Overdue", "Credit Note Issued"],
 		partialHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Due Date"), key: "due_date" }, { title: __("Status"), key: "status" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Paid"), key: "paid_amount", align: "end" }, { title: __("Outstanding"), key: "outstanding_amount", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
-		historyHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Status"), key: "status" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Collected"), key: "paid_amount", align: "end" }, { title: __("Outstanding"), key: "outstanding_amount", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
+		historyHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Status"), key: "status" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Tendered"), key: "paid_amount", align: "end" }, { title: __("Change Return"), key: "change_amount", align: "end" }, { title: __("Outstanding"), key: "outstanding_amount", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
 		draftHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
 		returnHeaders: [{ title: __("Invoice"), key: "name" }, { title: __("Customer"), key: "customer_name" }, { title: __("Posting"), key: "posting_date" }, { title: __("Against"), key: "return_against" }, { title: __("Total"), key: "grand_total", align: "end" }, { title: __("Actions"), key: "actions", align: "end", sortable: false }],
 		detailHeaders: [{ title: __("Item"), key: "item_name" }, { title: __("Code"), key: "item_code" }, { title: __("Qty"), key: "qty", align: "end" }, { title: __("Rate"), key: "rate", align: "end" }, { title: __("Amount"), key: "amount", align: "end" }],
@@ -778,9 +792,10 @@ export default {
 			return this.filteredHistoryInvoices.reduce((accumulator, invoice) => {
 				accumulator.gross += Number(invoice.grand_total || 0);
 				accumulator.paid += Number(invoice.paid_amount || 0);
+				accumulator.change_return += Number(invoice.change_amount || 0);
 				accumulator.outstanding += Number(invoice.outstanding_amount || 0);
 				return accumulator;
-			}, { gross: 0, paid: 0, outstanding: 0 });
+			}, { gross: 0, paid: 0, change_return: 0, outstanding: 0 });
 		},
 		unpaidStatusCounts() {
 			return this.unpaidInvoices.reduce((accumulator, invoice) => {
@@ -911,7 +926,7 @@ export default {
 					args: {
 						doctype: this.currentInvoiceDoctype,
 						filters: { pos_profile: this.posProfile.name, docstatus: 1 },
-						fields: ["name", "customer", "customer_name", "posting_date", "posting_time", "grand_total", "paid_amount", "outstanding_amount", "status", "is_return", "return_against", "currency"],
+						fields: ["name", "customer", "customer_name", "posting_date", "posting_time", "grand_total", "paid_amount", "change_amount", "outstanding_amount", "status", "is_return", "return_against", "currency"],
 						order_by: "modified desc",
 						limit_page_length: 300,
 					},
