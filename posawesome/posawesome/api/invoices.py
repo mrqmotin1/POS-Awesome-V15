@@ -45,8 +45,15 @@ from posawesome.posawesome.api.invoice_processing.data import (
 from posawesome.posawesome.api.utils import log_perf_event
 
 @frappe.whitelist()
-def get_draft_invoices(pos_opening_shift, doctype="Sales Invoice"):
+def get_draft_invoices(pos_opening_shift, doctype="Sales Invoice", limit_page_length=0):
     started_at = time.perf_counter()
+    try:
+        limit_page_length = int(limit_page_length or 0)
+    except (TypeError, ValueError):
+        limit_page_length = 0
+    if limit_page_length < 0:
+        limit_page_length = 0
+
     filters = {
         "posa_pos_opening_shift": pos_opening_shift,
         "docstatus": 0,
@@ -66,7 +73,7 @@ def get_draft_invoices(pos_opening_shift, doctype="Sales Invoice"):
             "grand_total",
             "currency",
         ],
-        limit_page_length=0,
+        limit_page_length=limit_page_length,
         order_by="modified desc",
     )
     for invoice in invoices_list:

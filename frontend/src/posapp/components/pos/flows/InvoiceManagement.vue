@@ -728,6 +728,8 @@ import { appendDebugPrintParam, isDebugPrintEnabled, silentPrint, watchPrintWind
 import { printDocumentViaQz } from "../../../services/qzTray";
 import { isOffline } from "../../../../offline/index";
 
+const INVOICE_HISTORY_TAB_LIMIT = 100;
+
 export default {
 	mixins: [format],
 	setup() {
@@ -923,7 +925,7 @@ export default {
 						filters: { pos_profile: this.posProfile.name, docstatus: 1, is_return: 0, outstanding_amount: [">", 0] },
 						fields: ["name", "customer", "customer_name", "posting_date", "posting_time", "due_date", "grand_total", "paid_amount", "outstanding_amount", "status", "currency"],
 						order_by: "posting_date desc, posting_time desc, modified desc",
-						limit_page_length: 200,
+						limit_page_length: INVOICE_HISTORY_TAB_LIMIT,
 					},
 				});
 				this.unpaidInvoices = Array.isArray(message) ? message.map((entry) => ({ ...entry, doctype: this.currentInvoiceDoctype })) : [];
@@ -945,7 +947,7 @@ export default {
 						filters: { pos_profile: this.posProfile.name, docstatus: 1 },
 						fields: ["name", "customer", "customer_name", "posting_date", "posting_time", "grand_total", "paid_amount", "change_amount", "outstanding_amount", "status", "is_return", "return_against", "currency"],
 						order_by: "posting_date desc, posting_time desc, modified desc",
-						limit_page_length: 300,
+						limit_page_length: INVOICE_HISTORY_TAB_LIMIT,
 					},
 				});
 				this.historyInvoices = Array.isArray(message) ? message.map((entry) => ({ ...entry, doctype: this.currentInvoiceDoctype })) : [];
@@ -960,7 +962,14 @@ export default {
 			if (!this.posOpeningShift?.name) return void (this.draftInvoices = []);
 			this.loading = true;
 			try {
-				const { message } = await frappe.call({ method: "posawesome.posawesome.api.invoices.get_draft_invoices", args: { pos_opening_shift: this.posOpeningShift.name, doctype: this.currentInvoiceDoctype } });
+				const { message } = await frappe.call({
+					method: "posawesome.posawesome.api.invoices.get_draft_invoices",
+					args: {
+						pos_opening_shift: this.posOpeningShift.name,
+						doctype: this.currentInvoiceDoctype,
+						limit_page_length: INVOICE_HISTORY_TAB_LIMIT,
+					},
+				});
 				this.draftInvoices = Array.isArray(message) ? message.map((entry) => ({ ...entry, doctype: entry.doctype || this.currentInvoiceDoctype })) : [];
 			} catch (error) {
 				console.error("Error loading draft invoices:", error);
