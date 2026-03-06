@@ -24,10 +24,6 @@ export function useItemSync() {
 				priceListOverride?: string | null;
 			},
 		) => Promise<void>;
-		refreshAllItemDetailsInBatches: (
-			_batchSize?: number,
-			_options?: { priceListOverride?: string | null },
-		) => Promise<void>;
 	};
 	type EventBus = { emit: (_event: string, _payload?: unknown) => void };
 	type ItemSyncContext = {
@@ -235,20 +231,8 @@ export function useItemSync() {
 				}
 			}
 
-			if (ctx.itemDetailFetcher) {
-				// Refresh cached quantities/prices for all items so non-visible items stay in sync.
-				await ctx.itemDetailFetcher.refreshAllItemDetailsInBatches(
-					ctx.itemsPageLimit || 100,
-					{ priceListOverride: backgroundPriceList },
-				);
-
-				const displayed = ctx.getDisplayedItems();
-				if (displayed && displayed.length > 0) {
-					await ctx.itemDetailFetcher.update_items_details(displayed, {
-						priceListOverride: backgroundPriceList,
-					});
-				}
-			}
+			// Delta-only background sync: avoid full catalog refresh.
+			// Detailed refresh is applied only to changed items above.
 
 			const syncedAt = new Date().toISOString();
 			last_background_sync_time.value = syncedAt;

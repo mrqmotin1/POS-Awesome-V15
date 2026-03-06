@@ -24,9 +24,11 @@ describe("useItemSync", () => {
 	it("uses latest context values from getters when running background sync", async () => {
 		const sync = useItemSync();
 		let currentProfile: any = null;
-		const refreshModifiedItems = vi.fn(async () => ({ items: [] }));
+		const changedItem = { item_code: "ITEM-1" } as any;
+		const refreshModifiedItems = vi.fn(async () => ({
+			items: [changedItem],
+		}));
 		const updateItemsDetails = vi.fn(async () => {});
-		const refreshAllItemDetailsInBatches = vi.fn(async () => {});
 
 		sync.registerContext({
 			get pos_profile() {
@@ -42,7 +44,6 @@ describe("useItemSync", () => {
 			refreshModifiedItems,
 			itemDetailFetcher: {
 				update_items_details: updateItemsDetails,
-				refreshAllItemDetailsInBatches,
 			},
 			getItems: () => [{ item_code: "ITEM-1" }],
 			getDisplayedItems: () => [{ item_code: "ITEM-1" }],
@@ -53,12 +54,12 @@ describe("useItemSync", () => {
 		await sync.performBackgroundSync({ source: "test" });
 
 		expect(refreshModifiedItems).toHaveBeenCalledWith("STANDARD-PL");
-		expect(refreshAllItemDetailsInBatches).toHaveBeenCalledWith(100, {
-			priceListOverride: "STANDARD-PL",
-		});
 		expect(updateItemsDetails).toHaveBeenCalledWith(
-			[{ item_code: "ITEM-1" }],
-			{ priceListOverride: "STANDARD-PL" },
+			[changedItem],
+			{
+				forceRefresh: true,
+				priceListOverride: "STANDARD-PL",
+			},
 		);
 		expect(setItemsLastSync).toHaveBeenCalledTimes(1);
 		expect(sync.last_background_sync_time.value).toBeTruthy();
