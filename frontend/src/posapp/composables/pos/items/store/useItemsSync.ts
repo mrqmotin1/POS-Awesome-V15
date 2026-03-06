@@ -186,6 +186,25 @@ export function useItemsSync() {
 			const fetchedItems = (await itemService.getItems(args)) || [];
 			const size = JSON.stringify(fetchedItems).length;
 			let resolvedItems: Item[] = [];
+			console.info("[POSA][TEMP][BG_SYNC] modified-items response", {
+				priceList: activePriceList,
+				modifiedAfter: lastSync,
+				count: fetchedItems.length,
+				payloadBytes: size,
+			});
+			if (fetchedItems.length > 0) {
+				console.log(
+					"[POSA][TEMP][BG_SYNC] modified-items details",
+					fetchedItems.map((item) => ({
+						item_code: item.item_code,
+						modified: item.modified,
+						actual_qty: item.actual_qty,
+						rate: item.rate,
+						price_list_rate: item.price_list_rate,
+						currency: item.currency,
+					})),
+				);
+			}
 
 			if (fetchedItems.length > 0) {
 				updateItemsInPlace(fetchedItems);

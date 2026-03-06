@@ -36,7 +36,11 @@ export function useItemSync() {
 		background_sync_interval: number;
 		usesLimitSearch: boolean;
 		itemsPageLimit: number;
-		refreshModifiedItems: null | (() => Promise<{ items?: SyncItem[] }>);
+		refreshModifiedItems:
+			| null
+			| ((
+					_priceListOverride?: string | null,
+			  ) => Promise<{ items?: SyncItem[] }>);
 		backgroundSyncItems: null | ((_args?: unknown) => unknown);
 		get_items: null | ((_force?: boolean) => Promise<unknown>);
 		search_onchange:
@@ -201,10 +205,15 @@ export function useItemSync() {
 
 			if (ctx.refreshModifiedItems) {
 				const { items: updatedItems } =
-					await ctx.refreshModifiedItems();
+					await ctx.refreshModifiedItems(backgroundPriceList);
 				modifiedCount = Array.isArray(updatedItems)
 					? updatedItems.length
 					: 0;
+				console.info("[POSA][TEMP][BG_SYNC] background sync step", {
+					source,
+					priceList: backgroundPriceList,
+					modifiedCount,
+				});
 				console.debug(`${BG_SYNC_LOG} modified items fetched`, {
 					source,
 					modifiedCount,

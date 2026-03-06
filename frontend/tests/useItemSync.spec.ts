@@ -52,7 +52,7 @@ describe("useItemSync", () => {
 
 		await sync.performBackgroundSync({ source: "test" });
 
-		expect(refreshModifiedItems).toHaveBeenCalledTimes(1);
+		expect(refreshModifiedItems).toHaveBeenCalledWith("STANDARD-PL");
 		expect(refreshAllItemDetailsInBatches).toHaveBeenCalledWith(100, {
 			priceListOverride: "STANDARD-PL",
 		});

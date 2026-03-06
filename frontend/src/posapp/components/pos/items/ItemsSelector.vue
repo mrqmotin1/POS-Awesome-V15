@@ -382,6 +382,9 @@ const blockSaleBeyondAvailableQty = computed(() => {
 const deferStockValidationToPayment = computed(() =>
 	["Order", "Quotation"].includes(current_invoice_type.value),
 );
+const forceCustomerPriceList = computed(() =>
+	parseBooleanSetting(pos_profile.value?.posa_force_price_from_customer_price_list),
+);
 
 const { items, filteredItems, customer_price_list, loading, isBackgroundLoading } = itemsIntegration;
 
@@ -822,14 +825,24 @@ onMounted(async () => {
 				? items_per_page.value
 				: itemsPerPage.value;
 		},
-		getBackgroundSyncPriceList: () =>
-			pos_profile.value?.selling_price_list ||
-			itemsIntegration.active_price_list.value ||
-			null,
-		refreshModifiedItems: () =>
-			itemsIntegration.refreshModifiedItems(
-				pos_profile.value?.selling_price_list || null,
-			),
+		getBackgroundSyncPriceList: () => {
+			const customerPriceList =
+				typeof customer_price_list.value === "string"
+					? customer_price_list.value.trim()
+					: "";
+			const profilePriceList =
+				typeof pos_profile.value?.selling_price_list === "string"
+					? pos_profile.value.selling_price_list.trim()
+					: "";
+
+			if (forceCustomerPriceList.value && customerPriceList) {
+				return customerPriceList;
+			}
+
+			return profilePriceList || customerPriceList || null;
+		},
+		refreshModifiedItems: (priceListOverride) =>
+			itemsIntegration.refreshModifiedItems(priceListOverride),
 		backgroundSyncItems: (args) => itemsIntegration.backgroundSyncItems(args),
 		get_items: (force) => itemsIntegration.get_items(force),
 		search_onchange: (value, fromScanner) =>

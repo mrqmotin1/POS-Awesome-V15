@@ -193,6 +193,22 @@ export function useItemDetailFetcher() {
 		try {
 			const r = await itemDetailsRequestCache.promise;
 			const msg = (r && r.message) || [];
+			console.info("[POSA][TEMP][BG_SYNC] item-details response", {
+				priceList: effectivePriceList,
+				count: Array.isArray(msg) ? msg.length : 0,
+			});
+			if (Array.isArray(msg) && msg.length > 0) {
+				console.log(
+					"[POSA][TEMP][BG_SYNC] item-details payload",
+					msg.map((item: any) => ({
+						item_code: item.item_code,
+						actual_qty: item.actual_qty,
+						rate: item.rate,
+						price_list_rate: item.price_list_rate,
+						currency: item.currency,
+					})),
+				);
+			}
 			if (itemDetailsRequestCache.key === key) {
 				itemDetailsRequestCache.result = msg;
 			}
