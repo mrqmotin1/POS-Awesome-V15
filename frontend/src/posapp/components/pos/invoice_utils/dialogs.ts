@@ -217,6 +217,91 @@ export function close_payments(context: any) {
 	context.eventBus.emit("show_payment", "false");
 }
 
-export function change_price_list_rate(context: any, item: any) {
-	context.eventBus.emit("change_price_list_rate", item);
+export function change_price_list_rate(
+	context: any,
+	item: any,
+) {
+	if (!item) return;
+
+	const parseRate = (value: unknown) => {
+		if (value === null || value === undefined) return null;
+		const normalized = String(value).replace(/,/g, "").trim();
+		if (!normalized) return null;
+		const parsed = Number(normalized);
+		if (!Number.isFinite(parsed)) return null;
+		const rounded = context.flt
+			? context.flt(parsed, context.currency_precision)
+			: parsed;
+		return rounded >= 0 ? rounded : null;
+	};
+
+	const applyRate = (nextRate: number) => {
+		const priceCurrency =
+			context.selected_currency ||
+			context.price_list_currency ||
+			context.pos_profile?.currency;
+		if (context._applyPriceListRate) {
+			context._applyPriceListRate(item, nextRate, priceCurrency);
+		} else {
+			item.price_list_rate = nextRate;
+			item.base_price_list_rate = context._toBaseCurrency
+				? context._toBaseCurrency(nextRate)
+				: nextRate;
+		}
+
+		// Treat manual price-list change as an explicit rate override.
+		item.rate = nextRate;
+		item.base_rate = context._toBaseCurrency
+			? context._toBaseCurrency(nextRate)
+			: nextRate;
+		item.discount_amount = 0;
+		item.base_discount_amount = 0;
+		item.discount_percentage = 0;
+		item._manual_rate_set = true;
+		item._manual_rate_set_from_uom = false;
+		item.amount = context.flt
+			? context.flt((item.qty || 0) * item.rate, context.currency_precision)
+			: (item.qty || 0) * item.rate;
+		item.base_amount = context._toBaseCurrency
+			? context._toBaseCurrency(item.amount)
+			: item.amount;
+
+		if (typeof context.calc_stock_qty === "function") {
+			context.calc_stock_qty(item, item.qty);
+		}
+		if (typeof context.schedulePricingRuleApplication === "function") {
+			context.schedulePricingRuleApplication(true);
+		}
+		if (typeof context.forceUpdate === "function") {
+			context.forceUpdate();
+		}
+	};
+
+	const currentRate = parseRate(item.price_list_rate ?? item.rate ?? 0) ?? 0;
+	const promptFn =
+		typeof window !== "undefined" &&
+		typeof window.prompt === "function"
+			? window.prompt.bind(window)
+			: null;
+	if (!promptFn) {
+		return;
+	}
+	const prompted = promptFn(
+		__("Enter new price list rate"),
+		String(currentRate),
+	);
+	if (prompted === null) {
+		return;
+	}
+	const nextRate = parseRate(prompted);
+
+	if (nextRate === null) {
+		context.toastStore?.show?.({
+			title: __("Invalid rate"),
+			color: "error",
+		});
+		return;
+	}
+
+	applyRate(nextRate);
 }
