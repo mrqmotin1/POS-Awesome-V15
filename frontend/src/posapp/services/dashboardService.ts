@@ -118,6 +118,30 @@ export interface ReorderSuggestionRow {
 	estimated_purchase_value?: number;
 }
 
+export interface PaymentMethodSummaryRow {
+	mode_of_payment: string;
+	mode_type?: string;
+	category?: "cash" | "card_online" | "other" | string;
+	amount: number;
+	invoice_count?: number;
+	share_pct?: number;
+}
+
+export interface PaymentCategorySummaryRow {
+	category?: "cash" | "card_online" | "other" | string;
+	label?: string;
+	amount: number;
+	invoice_count?: number;
+	share_pct?: number;
+}
+
+export interface PaymentDaySummaryRow {
+	date?: string;
+	invoice_count?: number;
+	paid_amount?: number;
+	pending_amount?: number;
+}
+
 export interface DashboardResponse {
 	enabled: boolean;
 	profile?: string;
@@ -175,6 +199,28 @@ export interface DashboardResponse {
 			category?: "cash" | "card_online" | "other" | string;
 			amount: number;
 		}>;
+	};
+	payment_method_report?: {
+		period?: {
+			from?: string;
+			to?: string;
+		};
+		totals?: {
+			invoice_count?: number;
+			split_invoice_count?: number;
+			pending_invoice_count?: number;
+			partial_invoice_count?: number;
+			unpaid_invoice_count?: number;
+			pending_amount?: number;
+			paid_amount?: number;
+			collected_amount?: number;
+			cash_amount?: number;
+			card_online_amount?: number;
+			other_amount?: number;
+		};
+		method_wise?: PaymentMethodSummaryRow[];
+		category_wise?: PaymentCategorySummaryRow[];
+		day_wise?: PaymentDaySummaryRow[];
 	};
 	sales_trend?: {
 		period?: {
@@ -370,6 +416,7 @@ export interface DashboardRequest {
 	inventory_status_limit?: number;
 	stock_movement_limit?: number;
 	reorder_suggestion_limit?: number;
+	payment_report_limit?: number;
 	supplier_limit?: number;
 	low_stock_limit?: number;
 }

@@ -97,6 +97,115 @@
 					<v-col cols="12">
 						<v-card class="dashboard-card" elevation="2">
 							<div class="dashboard-card__header">
+								<h2 class="text-subtitle-1 font-weight-bold mb-0">{{ __("Payment Method Report") }}</h2>
+								<div class="dashboard-chip-row">
+									<v-chip size="small" color="info" variant="tonal">
+										{{ paymentReportRangeLabel }}
+									</v-chip>
+									<v-chip size="small" color="success" variant="tonal">
+										{{ __("Collected") }}: {{ formatMoney(Number(paymentReportTotals.collected_amount || 0)) }}
+									</v-chip>
+									<v-chip size="small" color="warning" variant="tonal">
+										{{ __("Pending") }}: {{ formatMoney(Number(paymentReportTotals.pending_amount || 0)) }}
+									</v-chip>
+									<v-chip size="small" color="primary" variant="tonal">
+										{{ __("Split Invoices") }}: {{ formatQuantity(Number(paymentReportTotals.split_invoice_count || 0)) }}
+									</v-chip>
+								</div>
+							</div>
+
+							<div class="summary-grid">
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Invoices") }}</div>
+									<div class="summary-metric__value">{{ formatQuantity(Number(paymentReportTotals.invoice_count || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Pending Invoices") }}</div>
+									<div class="summary-metric__value summary-metric__value--danger">
+										{{ formatQuantity(Number(paymentReportTotals.pending_invoice_count || 0)) }}
+									</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Partial") }}</div>
+									<div class="summary-metric__value">
+										{{ formatQuantity(Number(paymentReportTotals.partial_invoice_count || 0)) }}
+									</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Unpaid") }}</div>
+									<div class="summary-metric__value summary-metric__value--danger">
+										{{ formatQuantity(Number(paymentReportTotals.unpaid_invoice_count || 0)) }}
+									</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Cash") }}</div>
+									<div class="summary-metric__value">
+										{{ formatMoney(Number(paymentReportTotals.cash_amount || 0)) }}
+									</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Card / Online") }}</div>
+									<div class="summary-metric__value">
+										{{ formatMoney(Number(paymentReportTotals.card_online_amount || 0)) }}
+									</div>
+								</div>
+							</div>
+
+							<div class="trend-grid trend-grid--two">
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Method-wise Collections") }}</div>
+									<div v-if="paymentMethodRows.length" class="list-stack trend-list">
+										<div v-for="row in paymentMethodRows" :key="`pay-method-${row.mode_of_payment}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ row.mode_of_payment }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(row.amount || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Category") }}: {{ row.category || "-" }} .
+												{{ __("Invoices") }}: {{ formatQuantity(Number(row.invoice_count || 0)) }} .
+												{{ __("Share") }}: {{ formatPercent(row.share_pct, 1) }}
+											</div>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No payment collection data found.") }}</div>
+								</div>
+
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Last 14 Days (Paid vs Pending)") }}</div>
+									<div v-if="paymentDayRows.length" class="list-stack trend-list">
+										<div v-for="row in paymentDayRows" :key="`pay-day-${row.date}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ formatDate(row.date) }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(row.paid_amount || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Pending") }}: {{ formatMoney(Number(row.pending_amount || 0)) }} .
+												{{ __("Invoices") }}: {{ formatQuantity(Number(row.invoice_count || 0)) }}
+											</div>
+											<v-progress-linear
+												:model-value="
+													trendProgress(
+														Number(row.paid_amount || 0) + Number(row.pending_amount || 0),
+														paymentDayMax,
+													)
+												"
+												color="info"
+												height="5"
+												rounded
+											/>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No day-wise payment data found.") }}</div>
+								</div>
+							</div>
+						</v-card>
+					</v-col>
+				</v-row>
+
+				<v-row v-show="activeDashboardTab === 'sales'" class="dashboard-grid mb-2">
+					<v-col cols="12">
+						<v-card class="dashboard-card" elevation="2">
+							<div class="dashboard-card__header">
 								<h2 class="text-subtitle-1 font-weight-bold mb-0">{{ __("Daily Sales Summary / X-Z") }}</h2>
 								<div class="dashboard-chip-row">
 									<v-chip size="small" color="info" variant="tonal">
@@ -951,6 +1060,8 @@ import {
 	type FastMovingItem,
 	type InventoryStatusRow,
 	type ItemSalesRow,
+	type PaymentDaySummaryRow,
+	type PaymentMethodSummaryRow,
 	type ReorderSuggestionRow,
 	type StockMovementDayRow,
 	type StockMovementRecentRow,
@@ -985,6 +1096,7 @@ const categoryReportLimit = ref(12);
 const inventoryStatusLimit = ref(20);
 const stockMovementLimit = ref(20);
 const reorderSuggestionLimit = ref(25);
+const paymentReportLimit = ref(20);
 let fastMovingSearchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 const createEmptyDashboard = (): DashboardResponse => ({
@@ -1019,6 +1131,25 @@ const createEmptyDashboard = (): DashboardResponse => ({
 		average_invoice_value: 0,
 		has_closing_snapshot: false,
 		payment_methods: [],
+	},
+	payment_method_report: {
+		period: {},
+		totals: {
+			invoice_count: 0,
+			split_invoice_count: 0,
+			pending_invoice_count: 0,
+			partial_invoice_count: 0,
+			unpaid_invoice_count: 0,
+			pending_amount: 0,
+			paid_amount: 0,
+			collected_amount: 0,
+			cash_amount: 0,
+			card_online_amount: 0,
+			other_amount: 0,
+		},
+		method_wise: [],
+		category_wise: [],
+		day_wise: [],
 	},
 	sales_trend: {
 		period: {},
@@ -1329,6 +1460,34 @@ const dailySummaryMetrics = computed(() => {
 			valueClass: variance > 0 ? "summary-metric__value--success" : variance < 0 ? "summary-metric__value--danger" : "",
 		},
 	];
+});
+
+const paymentReport = computed(() => dashboardData.value.payment_method_report || {});
+const paymentReportTotals = computed(() => paymentReport.value.totals || {});
+const paymentReportRangeLabel = computed(() => {
+	const from = paymentReport.value.period?.from || dashboardData.value.date_context?.month_start;
+	const to = paymentReport.value.period?.to || dashboardData.value.date_context?.today;
+	if (!from || !to) {
+		return __("Current Month");
+	}
+	return `${formatDate(from)} - ${formatDate(to)}`;
+});
+const paymentMethodRows = computed<PaymentMethodSummaryRow[]>(() =>
+	[...(paymentReport.value.method_wise || [])]
+		.sort((a, b) => Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0)))
+		.slice(0, Number(paymentReportLimit.value || 20)),
+);
+const paymentDayRows = computed<PaymentDaySummaryRow[]>(() =>
+	[...(paymentReport.value.day_wise || [])]
+		.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")))
+		.slice(-14),
+);
+const paymentDayMax = computed(() => {
+	const maxValue = paymentDayRows.value.reduce((max, row) => {
+		const value = Math.abs(Number(row.paid_amount || 0)) + Math.abs(Number(row.pending_amount || 0));
+		return Math.max(max, value);
+	}, 0);
+	return maxValue > 0 ? maxValue : 1;
 });
 
 const salesTrend = computed(() => dashboardData.value.sales_trend || {});
@@ -1979,6 +2138,10 @@ function mergeDashboardPayload(payload?: Partial<DashboardResponse>): DashboardR
 			...(base.daily_sales_summary || {}),
 			...(payload?.daily_sales_summary || {}),
 		},
+		payment_method_report: {
+			...(base.payment_method_report || {}),
+			...(payload?.payment_method_report || {}),
+		},
 		sales_trend: {
 			...(base.sales_trend || {}),
 			...(payload?.sales_trend || {}),
@@ -2036,6 +2199,7 @@ function logDashboardResponse(response: DashboardResponse) {
 	console.info("selected_profiles", response.selected_profiles || []);
 	console.info("available_profiles_count", response.available_profiles?.length || 0);
 	console.info("profit_method", response.sales_overview?.profit_method || null);
+	console.info("payment_method_count", response.payment_method_report?.method_wise?.length || 0);
 	console.info("item_sales_count", response.item_sales_report?.items?.length || 0);
 	console.info("category_report_count", response.category_brand_variant_report?.category_wise?.length || 0);
 	console.info("inventory_status_total_items", response.inventory_status_report?.summary?.total_items || 0);
@@ -2068,6 +2232,7 @@ async function loadDashboard() {
 			inventory_status_limit: inventoryStatusLimit.value,
 			stock_movement_limit: stockMovementLimit.value,
 			reorder_suggestion_limit: reorderSuggestionLimit.value,
+			payment_report_limit: paymentReportLimit.value,
 			fast_moving_page: fastMovingPage.value,
 			fast_moving_page_size: fastMovingPageSize.value,
 			fast_moving_search: fastMovingSearch.value || undefined,

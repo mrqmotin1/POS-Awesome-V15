@@ -417,6 +417,26 @@ def _classify_payment_mode(mode_name: str, mode_type: str, cash_modes: set[str])
     return "other"
 
 
+def _get_cash_modes(profile_names: list[str]) -> set[str]:
+    cash_modes: set[str] = {"Cash"}
+    if not profile_names:
+        return cash_modes
+    if not frappe.db.has_column("POS Profile", "posa_cash_mode_of_payment"):
+        return cash_modes
+
+    configured_cash_modes = frappe.get_all(
+        "POS Profile",
+        filters={"name": ["in", profile_names]},
+        pluck="posa_cash_mode_of_payment",
+    )
+    cash_modes.update(
+        cstr(mode_name).strip()
+        for mode_name in configured_cash_modes
+        if cstr(mode_name).strip()
+    )
+    return cash_modes
+
+
 def _collect_daily_sales_summary(
     profile_names: list[str],
     company: str,
@@ -451,19 +471,7 @@ def _collect_daily_sales_summary(
         return summary
 
     profile_filter, profile_filter_params = _build_in_filter("inv.pos_profile", profile_names)
-    cash_modes: set[str] = {"Cash"}
-
-    if frappe.db.has_column("POS Profile", "posa_cash_mode_of_payment"):
-        configured_cash_modes = frappe.get_all(
-            "POS Profile",
-            filters={"name": ["in", profile_names]},
-            pluck="posa_cash_mode_of_payment",
-        )
-        cash_modes.update(
-            cstr(mode_name).strip()
-            for mode_name in configured_cash_modes
-            if cstr(mode_name).strip()
-        )
+    cash_modes = _get_cash_modes(profile_names)
 
     payment_totals: dict[str, float] = defaultdict(float)
     opening_by_mode: dict[str, float] = defaultdict(float)
@@ -730,6 +738,266 @@ def _collect_daily_sales_summary(
         flt(summary["net_sales"] / invoice_count) if invoice_count > 0 else 0.0
     )
     return summary
+
+
+def _collect_payment_method_report(
+    profile_names: list[str],
+    company: str,
+    date_from: str,
+    date_to: str,
+    limit: int = 20,
+) -> dict[str, Any]:
+    report: dict[str, Any] = {
+        "period": {"from": date_from, "to": date_to},
+        "totals": {
+            "invoice_count": 0,
+            "split_invoice_count": 0,
+            "pending_invoice_count": 0,
+            "partial_invoice_count": 0,
+            "unpaid_invoice_count": 0,
+            "pending_amount": 0.0,
+            "paid_amount": 0.0,
+            "collected_amount": 0.0,
+            "cash_amount": 0.0,
+            "card_online_amount": 0.0,
+            "other_amount": 0.0,
+        },
+        "method_wise": [],
+        "category_wise": [],
+        "day_wise": [],
+    }
+    if not profile_names:
+        return report
+
+    profile_filter, profile_filter_params = _build_in_filter("inv.pos_profile", profile_names)
+    cash_modes = _get_cash_modes(profile_names)
+    mode_names: set[str] = set(cash_modes)
+    payment_totals: dict[str, float] = defaultdict(float)
+    payment_invoice_counts: dict[str, int] = defaultdict(int)
+    day_buckets: dict[str, dict[str, Any]] = {}
+    totals = report["totals"]
+
+    for parent_doctype, _child_doctype in _iter_invoice_sources():
+        is_return_expression = (
+            "ifnull(inv.is_return, 0)" if frappe.db.has_column(parent_doctype, "is_return") else "0"
+        )
+        paid_field = _pick_first_column(parent_doctype, ["base_paid_amount", "paid_amount"])
+        outstanding_field = _pick_first_column(parent_doctype, ["base_outstanding_amount", "outstanding_amount"])
+        grand_total_field = _pick_first_column(parent_doctype, ["base_grand_total", "grand_total"])
+
+        paid_expression = f"coalesce(inv.{paid_field}, 0)" if paid_field else "0"
+        if outstanding_field:
+            outstanding_expression = f"coalesce(inv.{outstanding_field}, 0)"
+        elif grand_total_field:
+            outstanding_expression = (
+                f"greatest(coalesce(inv.{grand_total_field}, 0) - ({paid_expression}), 0)"
+            )
+        else:
+            outstanding_expression = "0"
+
+        non_return_pending = (
+            f"case when {is_return_expression} = 1 then 0 else greatest({outstanding_expression}, 0) end"
+        )
+        non_return_paid = (
+            f"case when {is_return_expression} = 1 then 0 else greatest({paid_expression}, 0) end"
+        )
+
+        invoice_status_rows = frappe.db.sql(
+            f"""
+            select
+                count(inv.name) as invoice_count,
+                sum(case when {non_return_pending} > 0.00001 then 1 else 0 end) as pending_invoice_count,
+                sum(
+                    case
+                        when {non_return_pending} > 0.00001 and {non_return_paid} > 0.00001 then 1
+                        else 0
+                    end
+                ) as partial_invoice_count,
+                sum(
+                    case
+                        when {non_return_pending} > 0.00001 and {non_return_paid} <= 0.00001 then 1
+                        else 0
+                    end
+                ) as unpaid_invoice_count,
+                sum({non_return_pending}) as pending_amount,
+                sum({non_return_paid}) as paid_amount
+            from `tab{parent_doctype}` inv
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        status_row = invoice_status_rows[0] if invoice_status_rows else {}
+        totals["invoice_count"] += cint(status_row.get("invoice_count"))
+        totals["pending_invoice_count"] += cint(status_row.get("pending_invoice_count"))
+        totals["partial_invoice_count"] += cint(status_row.get("partial_invoice_count"))
+        totals["unpaid_invoice_count"] += cint(status_row.get("unpaid_invoice_count"))
+        totals["pending_amount"] += flt(status_row.get("pending_amount"))
+        totals["paid_amount"] += flt(status_row.get("paid_amount"))
+
+        day_rows = frappe.db.sql(
+            f"""
+            select
+                inv.posting_date as posting_date,
+                count(inv.name) as invoice_count,
+                sum({non_return_paid}) as paid_amount,
+                sum({non_return_pending}) as pending_amount
+            from `tab{parent_doctype}` inv
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by inv.posting_date
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        for day_row in day_rows:
+            day_key = cstr(day_row.get("posting_date")).strip()
+            if not day_key:
+                continue
+            day_entry = day_buckets.setdefault(
+                day_key,
+                {
+                    "date": day_key,
+                    "invoice_count": 0,
+                    "paid_amount": 0.0,
+                    "pending_amount": 0.0,
+                },
+            )
+            day_entry["invoice_count"] += cint(day_row.get("invoice_count"))
+            day_entry["paid_amount"] += flt(day_row.get("paid_amount"))
+            day_entry["pending_amount"] += flt(day_row.get("pending_amount"))
+
+        payment_child_doctype = _resolve_payment_child_doctype(parent_doctype)
+        if not payment_child_doctype or not frappe.db.has_column(payment_child_doctype, "mode_of_payment"):
+            continue
+
+        payment_amount_field = _pick_first_column(payment_child_doctype, ["base_amount", "amount"])
+        if not payment_amount_field:
+            continue
+
+        payment_rows = frappe.db.sql(
+            f"""
+            select
+                pay.mode_of_payment as mode_of_payment,
+                sum(
+                    case
+                        when {is_return_expression} = 1 then -abs(coalesce(pay.{payment_amount_field}, 0))
+                        else coalesce(pay.{payment_amount_field}, 0)
+                    end
+                ) as collected_amount,
+                count(distinct pay.parent) as invoice_count
+            from `tab{payment_child_doctype}` pay
+            inner join `tab{parent_doctype}` inv on inv.name = pay.parent
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by pay.mode_of_payment
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        for pay_row in payment_rows:
+            mode_name = cstr(pay_row.get("mode_of_payment")).strip()
+            if not mode_name:
+                continue
+            mode_names.add(mode_name)
+            payment_totals[mode_name] += flt(pay_row.get("collected_amount"))
+            payment_invoice_counts[mode_name] += cint(pay_row.get("invoice_count"))
+
+        split_rows = frappe.db.sql(
+            f"""
+            select count(*) as split_invoice_count
+            from (
+                select pay.parent
+                from `tab{payment_child_doctype}` pay
+                inner join `tab{parent_doctype}` inv on inv.name = pay.parent
+                where inv.docstatus = 1
+                  and inv.company = %s
+                  and inv.posting_date between %s and %s
+                  {profile_filter}
+                  {_extra_parent_filter(parent_doctype, "inv")}
+                group by pay.parent
+                having count(distinct pay.mode_of_payment) > 1
+            ) split_inv
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        totals["split_invoice_count"] += cint((split_rows[0] or {}).get("split_invoice_count"))
+
+    mode_type_map = _get_mode_type_map(sorted(mode_names))
+    total_collected = 0.0
+    category_totals: dict[str, dict[str, Any]] = {
+        "cash": {"category": "cash", "label": _("Cash"), "amount": 0.0, "invoice_count": 0},
+        "card_online": {
+            "category": "card_online",
+            "label": _("Card / Online"),
+            "amount": 0.0,
+            "invoice_count": 0,
+        },
+        "other": {"category": "other", "label": _("Other"), "amount": 0.0, "invoice_count": 0},
+    }
+    method_rows: list[dict[str, Any]] = []
+    for mode_name in sorted(payment_totals.keys(), key=lambda name: abs(flt(payment_totals.get(name))), reverse=True):
+        amount = flt(payment_totals.get(mode_name))
+        invoice_count = cint(payment_invoice_counts.get(mode_name))
+        category = _classify_payment_mode(mode_name, mode_type_map.get(mode_name, ""), cash_modes)
+        category_entry = category_totals[category]
+        category_entry["amount"] = flt(category_entry["amount"]) + amount
+        category_entry["invoice_count"] = cint(category_entry["invoice_count"]) + invoice_count
+        total_collected += amount
+        method_rows.append(
+            {
+                "mode_of_payment": mode_name,
+                "mode_type": mode_type_map.get(mode_name, ""),
+                "category": category,
+                "amount": amount,
+                "invoice_count": invoice_count,
+            }
+        )
+
+    totals["collected_amount"] = flt(total_collected)
+    totals["cash_amount"] = flt(category_totals["cash"]["amount"])
+    totals["card_online_amount"] = flt(category_totals["card_online"]["amount"])
+    totals["other_amount"] = flt(category_totals["other"]["amount"])
+
+    method_rows = method_rows[: _coerce_limit(limit, default=20, minimum=1, maximum=200)]
+    for row in method_rows:
+        row["share_pct"] = (
+            flt((flt(row.get("amount")) / total_collected) * 100)
+            if abs(total_collected) > 0.00001
+            else 0.0
+        )
+
+    category_rows: list[dict[str, Any]] = []
+    for category in ("cash", "card_online", "other"):
+        row = category_totals[category]
+        amount = flt(row.get("amount"))
+        category_rows.append(
+            {
+                "category": row.get("category"),
+                "label": row.get("label"),
+                "amount": amount,
+                "invoice_count": cint(row.get("invoice_count")),
+                "share_pct": flt((amount / total_collected) * 100)
+                if abs(total_collected) > 0.00001
+                else 0.0,
+            }
+        )
+
+    report["method_wise"] = method_rows
+    report["category_wise"] = category_rows
+    report["day_wise"] = sorted(day_buckets.values(), key=lambda row: cstr(row.get("date")))
+    return report
 
 
 def _pct_change(current: float, previous: float) -> float | None:
@@ -2261,6 +2529,7 @@ def get_dashboard_data(
     inventory_status_limit: int = 20,
     stock_movement_limit: int = 50,
     reorder_suggestion_limit: int = 25,
+    payment_report_limit: int = 20,
     supplier_limit: int = 8,
     low_stock_limit: int = 20,
 ):
@@ -2304,6 +2573,7 @@ def get_dashboard_data(
     inventory_status_limit = _coerce_limit(inventory_status_limit, default=20, minimum=1, maximum=100)
     stock_movement_limit = _coerce_limit(stock_movement_limit, default=50, minimum=1, maximum=200)
     reorder_suggestion_limit = _coerce_limit(reorder_suggestion_limit, default=25, minimum=1, maximum=200)
+    payment_report_limit = _coerce_limit(payment_report_limit, default=20, minimum=1, maximum=200)
 
     company = cstr(current_profile_doc.get("company")).strip()
     company_profiles = _get_company_profiles(company)
@@ -2457,6 +2727,25 @@ def get_dashboard_data(
             "has_closing_snapshot": False,
             "payment_methods": [],
         },
+        "payment_method_report": {
+            "period": {"from": str(month_start), "to": str(today)},
+            "totals": {
+                "invoice_count": 0,
+                "split_invoice_count": 0,
+                "pending_invoice_count": 0,
+                "partial_invoice_count": 0,
+                "unpaid_invoice_count": 0,
+                "pending_amount": 0.0,
+                "paid_amount": 0.0,
+                "collected_amount": 0.0,
+                "cash_amount": 0.0,
+                "card_online_amount": 0.0,
+                "other_amount": 0.0,
+            },
+            "method_wise": [],
+            "category_wise": [],
+            "day_wise": [],
+        },
         "sales_trend": {
             "period": {
                 "day_from": str(month_start),
@@ -2605,6 +2894,13 @@ def get_dashboard_data(
         profile_names=selected_profile_names,
         company=company,
         date_value=str(today),
+    )
+    payload["payment_method_report"] = _collect_payment_method_report(
+        profile_names=selected_profile_names,
+        company=company,
+        date_from=str(month_start),
+        date_to=str(today),
+        limit=payment_report_limit,
     )
     payload["sales_trend"] = _collect_sales_trend(
         profile_names=selected_profile_names,
