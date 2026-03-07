@@ -129,6 +129,7 @@ import posLogo from "./pos/pos.png";
 import { forceClearAllCache } from "../../offline/index";
 import { clearAllCaches } from "../../utils/clearAllCaches";
 import { isOffline } from "../../offline/index";
+import { parseBooleanSetting } from "../utils/stock";
 import { useRtl } from "../composables/core/useRtl";
 
 const ServerUsageGadget = defineAsyncComponent(() => import("./navbar/ServerUsageGadget.vue"));
@@ -315,6 +316,13 @@ export default {
 		},
 		updateNavigationItems() {
 			const items = [...this.baseItems];
+			if (this.isDashboardEnabled()) {
+				items.splice(1, 0, {
+					text: "Awesome Dashboard",
+					icon: "mdi-view-dashboard-outline",
+					to: "/dashboard",
+				});
+			}
 			if (this.posProfile?.posa_enable_cash_movement) {
 				items.push({
 					text: "Cash Movement",
@@ -323,6 +331,13 @@ export default {
 				});
 			}
 			this.items = items;
+		},
+		isDashboardEnabled() {
+			const value = this.posProfile?.posa_enable_awesome_dashboard;
+			if (value === undefined || value === null || value === "") {
+				return true;
+			}
+			return parseBooleanSetting(value);
 		},
 
 		initializeNavbar() {
