@@ -254,43 +254,6 @@ export async function process_invoice_from_order(context: any) {
 	}
 }
 
-export async function apply_offers_and_reload(context: any) {
-	try {
-		if (!Array.isArray(context.items) || context.items.length === 0) {
-			context.toastStore.show({
-				title: __("Select items to apply offers"),
-				color: "warning",
-			});
-			return;
-		}
-
-		if (typeof context.handelOffers === "function") {
-			await context.handelOffers();
-			await new Promise((resolve) => setTimeout(resolve, 300));
-		}
-
-		const updated = await process_invoice(context);
-		if (!updated) {
-			return;
-		}
-
-		if (!isOffline() && updated.name) {
-			await reload_current_invoice_from_backend(context);
-		}
-
-		context.toastStore.show({
-			title: __("Offers applied and invoice refreshed"),
-			color: "success",
-		});
-	} catch (error) {
-		console.error("Error in apply_offers_and_reload:", error);
-		context.toastStore.show({
-			title: __("Failed to apply offers"),
-			color: "error",
-		});
-	}
-}
-
 export async function reload_current_invoice_from_backend(context: any) {
 	try {
 		if (isOffline()) {

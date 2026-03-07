@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { bulkPut, toArray, anyOf } = vi.hoisted(() => {
+const { bulkPut, put, toArray, anyOf } = vi.hoisted(() => {
 	const bulkPut = vi.fn();
+	const put = vi.fn();
 	const toArray = vi.fn();
 	const anyOf = vi.fn(() => ({ toArray }));
-	return { bulkPut, toArray, anyOf };
+	return { bulkPut, put, toArray, anyOf };
 });
 
 vi.mock("../src/offline/db", () => {
@@ -13,6 +14,7 @@ vi.mock("../src/offline/db", () => {
 			anyOf,
 		})),
 		bulkPut,
+		put,
 	};
 
 	return {
@@ -23,9 +25,9 @@ vi.mock("../src/offline/db", () => {
 			isOpen: vi.fn(() => true),
 			open: vi.fn().mockResolvedValue(undefined),
 			table: vi.fn((name: string) => {
-				if (name === "items") {
-					return itemsTable;
-				}
+		if (name === "items") {
+			return itemsTable;
+		}
 				return {
 					get: vi.fn(),
 					put: vi.fn(),
@@ -47,6 +49,7 @@ import { saveItems } from "../src/offline/cache";
 describe("offline cache item persistence", () => {
 	beforeEach(() => {
 		bulkPut.mockReset();
+		put.mockReset();
 		toArray.mockReset();
 		anyOf.mockClear();
 	});
@@ -98,5 +101,29 @@ describe("offline cache item persistence", () => {
 				name_keywords: ["barcode", "item"],
 			}),
 		]);
+	});
+
+	it("falls back to row-by-row writes when bulkPut throws DataCloneError", async () => {
+		toArray.mockResolvedValue([]);
+		const cloneError = new Error("Could not be cloned");
+		cloneError.name = "DataCloneError";
+		bulkPut.mockRejectedValueOnce(cloneError);
+
+		await saveItems([
+			{
+				item_code: "ITEM-3",
+				item_name: "Fallback Item",
+				item_barcode: [{ barcode: "11111" }],
+			},
+		]);
+
+		expect(bulkPut).toHaveBeenCalledTimes(1);
+		expect(put).toHaveBeenCalledTimes(1);
+		expect(put).toHaveBeenCalledWith(
+			expect.objectContaining({
+				item_code: "ITEM-3",
+				name_keywords: ["fallback", "item"],
+			}),
+		);
 	});
 });

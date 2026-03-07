@@ -169,21 +169,22 @@ export function useItemsSync() {
 		if (!lastSync) return { size: 0, count: 0, items: [] };
 
 		try {
-			const args: any = {
-				pos_profile: JSON.stringify(posProfile),
-				price_list: activePriceList,
-				item_group: "",
-				search_value: "",
-				customer: customer,
-				include_image: 0,
-				item_groups:
-					posProfile?.item_groups?.map((g: any) => g.item_group) ||
-					[],
-				modified_after: lastSync,
-				limit: 500,
-			};
+			// @ts-ignore
+			const response = await frappe.call({
+				method: "posawesome.posawesome.api.items.get_delta_items",
+				args: {
+					pos_profile: JSON.stringify(posProfile),
+					price_list: activePriceList,
+					customer,
+					modified_after: lastSync,
+					limit: 500,
+				},
+				freeze: false,
+			});
 
-			const fetchedItems = (await itemService.getItems(args)) || [];
+			const fetchedItems = Array.isArray(response?.message)
+				? response.message
+				: [];
 			const size = JSON.stringify(fetchedItems).length;
 			let resolvedItems: Item[] = [];
 

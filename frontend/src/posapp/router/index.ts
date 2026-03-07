@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { start, stop } from "../composables/core/useLoading";
+import { recoverFromChunkLoadError } from "../utils/chunkLoadRecovery";
 
 const routes = [
 	{ path: "/", redirect: "/pos" },
@@ -18,6 +19,11 @@ const routes = [
 		path: "/payments",
 		component: () => import("../components/pos/shell/PayView.vue"),
 		meta: { title: "Payments", layout: "default" },
+	},
+	{
+		path: "/dashboard",
+		component: () => import("@/posapp/components/reports/Reports.vue"),
+		meta: { title: "Awesome Dashboard", layout: "default" },
 	},
 	{
 		path: "/reports",
@@ -68,8 +74,9 @@ const createPosAppRouter = () => {
 		window.scrollTo(0, 0);
 	});
 
-	router.onError(() => {
+	router.onError((error) => {
 		stop("route");
+		void recoverFromChunkLoadError(error, "router");
 	});
 
 	return { router, history };

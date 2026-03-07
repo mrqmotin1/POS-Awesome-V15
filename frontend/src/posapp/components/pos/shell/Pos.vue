@@ -5,6 +5,7 @@
 		:style="[responsiveStyles, rtlStyles]"
 	>
 		<Drafts></Drafts>
+		<InvoiceManagement></InvoiceManagement>
 		<SalesOrders></SalesOrders>
 		<Returns></Returns>
 		<NewAddress></NewAddress>
@@ -19,6 +20,7 @@
 		<v-dialog
 			v-if="usePaymentDialog"
 			v-model="paymentDialogOpen"
+			:retain-focus="false"
 			width="96vw"
 			max-width="1480"
 			scrim="rgba(15, 23, 42, 0.55)"
@@ -121,6 +123,7 @@ import Payments from "../Payments.vue";
 import PosOffers from "../offers/PosOffers.vue";
 import PosCoupons from "../offers/PosCoupons.vue";
 import Drafts from "../flows/Drafts.vue";
+import InvoiceManagement from "../flows/InvoiceManagement.vue";
 import SalesOrders from "../flows/SalesOrders.vue";
 import NewAddress from "../customer/NewAddress.vue";
 import Variants from "../items/Variants.vue";
@@ -265,6 +268,7 @@ export default {
 		OpeningDialog,
 		Payments,
 		Drafts,
+		InvoiceManagement,
 
 		Returns,
 		PosOffers,

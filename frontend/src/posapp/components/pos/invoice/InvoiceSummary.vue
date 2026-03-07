@@ -125,18 +125,18 @@
 					:selectOrderLoading="selectOrderLoading"
 					:selectPurchaseOrderLoading="selectPurchaseOrderLoading"
 					:cancelLoading="cancelLoading"
+					:invoiceManagementLoading="invoiceManagementLoading"
 					:returnsLoading="returnsLoading"
 					:printLoading="printLoading"
-					:applyOffersLoading="applyOffersLoading"
 					:paymentLoading="paymentLoading"
 					:customerDisplayLoading="customerDisplayLoading"
 					@save-and-clear="handleSaveAndClear"
 					@load-drafts="handleLoadDrafts"
 					@select-order="handleSelectOrder"
 					@cancel-sale="handleCancelSale"
+					@open-invoice-management="handleOpenInvoiceManagement"
 					@open-returns="handleOpenReturns"
 					@print-draft="handlePrintDraft"
-					@apply-offers="handleApplyOffers"
 					@show-payment="handleShowPayment"
 					@open-customer-display="handleOpenCustomerDisplay"
 				/>
@@ -178,9 +178,9 @@ const emit = defineEmits([
 	"load-drafts",
 	"select-order",
 	"cancel-sale",
+	"open-invoice-management",
 	"open-returns",
 	"print-draft",
-	"apply-offers",
 	"show-payment",
 	"open-customer-display",
 ]);
@@ -189,9 +189,9 @@ const saveLoading = ref(false);
 const loadDraftsLoading = ref(false);
 const selectOrderLoading = ref(false);
 const cancelLoading = ref(false);
+const invoiceManagementLoading = ref(false);
 const returnsLoading = ref(false);
 const printLoading = ref(false);
-const applyOffersLoading = ref(false);
 const paymentLoading = ref(false);
 const customerDisplayLoading = ref(false);
 const isEditingAdditionalDiscount = ref(false);
@@ -304,6 +304,15 @@ async function handleCancelSale() {
 	}
 }
 
+async function handleOpenInvoiceManagement() {
+	invoiceManagementLoading.value = true;
+	try {
+		await emit("open-invoice-management");
+	} finally {
+		invoiceManagementLoading.value = false;
+	}
+}
+
 async function handleOpenReturns() {
 	returnsLoading.value = true;
 	try {
@@ -319,15 +328,6 @@ async function handlePrintDraft() {
 		await emit("print-draft");
 	} finally {
 		printLoading.value = false;
-	}
-}
-
-async function handleApplyOffers() {
-	applyOffersLoading.value = true;
-	try {
-		await emit("apply-offers");
-	} finally {
-		applyOffersLoading.value = false;
 	}
 }
 

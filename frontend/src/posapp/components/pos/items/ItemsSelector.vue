@@ -271,7 +271,11 @@ const itemsIntegration = useItemsIntegration({
 	debounceDelay: 300,
 });
 
-const { showOnlyBarcodeItems: showOnlyBarcodeItemsRef, filterAndPaginate } = useItemSearch();
+const {
+	showOnlyBarcodeItems: showOnlyBarcodeItemsRef,
+	filterAndPaginate,
+	fetchServerItemsTimestamp,
+} = useItemSearch();
 
 const scannerInput = useScannerInput();
 const itemAvailability = useItemAvailability();
@@ -377,6 +381,9 @@ const blockSaleBeyondAvailableQty = computed(() => {
 
 const deferStockValidationToPayment = computed(() =>
 	["Order", "Quotation"].includes(current_invoice_type.value),
+);
+const forceCustomerPriceList = computed(() =>
+	parseBooleanSetting(pos_profile.value?.posa_force_price_from_customer_price_list),
 );
 
 const { items, filteredItems, customer_price_list, loading, isBackgroundLoading } = itemsIntegration;
@@ -810,9 +817,40 @@ onMounted(async () => {
 		get background_sync_interval() {
 			return background_sync_interval.value;
 		},
-		refreshModifiedItems: () => itemsIntegration.refreshModifiedItems(),
+		get usesLimitSearch() {
+			return usesLimitSearch.value;
+		},
+		get itemsPageLimit() {
+			return enable_custom_items_per_page.value
+				? items_per_page.value
+				: itemsPerPage.value;
+		},
+		getBackgroundSyncPriceList: () => {
+			const customerPriceList =
+				typeof customer_price_list.value === "string"
+					? customer_price_list.value.trim()
+					: "";
+			const profilePriceList =
+				typeof pos_profile.value?.selling_price_list === "string"
+					? pos_profile.value.selling_price_list.trim()
+					: "";
+
+			if (forceCustomerPriceList.value && customerPriceList) {
+				return customerPriceList;
+			}
+
+			return profilePriceList || customerPriceList || null;
+		},
+		refreshModifiedItems: (priceListOverride) =>
+			itemsIntegration.refreshModifiedItems(priceListOverride),
 		backgroundSyncItems: (args) => itemsIntegration.backgroundSyncItems(args),
 		get_items: (force) => itemsIntegration.get_items(force),
+		search_onchange: (value, fromScanner) =>
+			itemsIntegration.search_onchange(value, fromScanner),
+		fetchServerItemsTimestamp,
+		eventBus,
+		getItems: () => items.value,
+		getDisplayedItems: () => displayedItems.value,
 		itemDetailFetcher,
 	});
 
@@ -877,9 +915,9 @@ onMounted(async () => {
 
 					isInitialized.value = true;
 					startItemWorker();
+					itemsSelectorSettings.loadItemSettings();
 					itemDetailFetcher.update_cur_items_details();
 					itemSync.startBackgroundSyncScheduler();
-					itemsSelectorSettings.loadItemSettings();
 				} catch (err: any) {
 					console.error("ItemsSelector: Initialization failed", err);
 					initError.value = err.message || err;

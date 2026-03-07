@@ -25,6 +25,7 @@ type ItemBatchEntry = {
 };
 
 type SearchableItem = Record<string, any> & {
+	item_code?: string | null;
 	item_name?: string | null;
 	item_barcode?: string | ItemBarcodeEntry[] | null;
 	barcodes?: unknown[];
@@ -105,6 +106,34 @@ const deriveItemSearchFields = (item: SearchableItem | null | undefined) => {
 		serials: getSerials(),
 		batches: getBatches(),
 	};
+};
+
+const toCloneSafeValue = <T>(input: T): T | null => {
+	try {
+		const seen = new WeakSet<object>();
+		const serialized = JSON.stringify(input, (_key, value) => {
+			if (typeof value === "function" || typeof value === "symbol") {
+				return undefined;
+			}
+			if (typeof value === "bigint") {
+				return String(value);
+			}
+			if (value && typeof value === "object") {
+				const obj = value as object;
+				if (seen.has(obj)) {
+					return undefined;
+				}
+				seen.add(obj);
+			}
+			return value;
+		});
+		if (serialized === undefined) {
+			return null;
+		}
+		return JSON.parse(serialized) as T;
+	} catch {
+		return null;
+	}
 };
 
 // --- Generic getters and setters for cached data ----------------------------
@@ -224,7 +253,10 @@ export async function saveItems(items, scope = "") {
 		if (!db.isOpen()) await db.open();
 		const CHUNK_SIZE = 1000;
 		const incomingItems = Array.isArray(items)
-			? items.filter((it) => it?.item_code)
+			? items
+					.filter((it) => it?.item_code)
+					.map((it) => toCloneSafeValue<Record<string, any>>(it))
+					.filter((it): it is Record<string, any> => !!it?.item_code)
 			: [];
 		if (!incomingItems.length) {
 			return;
@@ -248,17 +280,49 @@ export async function saveItems(items, scope = "") {
 
 		for (let i = 0; i < incomingItems.length; i += CHUNK_SIZE) {
 			const itemChunk = incomingItems.slice(i, i + CHUNK_SIZE);
-			const scopedItems = itemChunk.map((it) => {
-				const existing = (existingByCode.get(it.item_code) ||
-					{}) as Record<string, any>;
-				return deriveItemSearchFields({
-					...existing,
-					...it,
-					profile_scope:
-						scope || it?.profile_scope || existing?.profile_scope || "",
-				});
-			});
-			await db.table("items").bulkPut(scopedItems);
+			type DerivedItem = ReturnType<typeof deriveItemSearchFields>;
+			const scopedItems = itemChunk
+				.map((it) => {
+					const existing = (existingByCode.get(it.item_code) ||
+						{}) as Record<string, any>;
+					const merged = {
+						...existing,
+						...it,
+						profile_scope:
+							scope ||
+							it?.profile_scope ||
+							existing?.profile_scope ||
+							"",
+					};
+					const cloneSafeMerged =
+						toCloneSafeValue<SearchableItem>(merged);
+					if (!cloneSafeMerged?.item_code) {
+						return null;
+					}
+					return deriveItemSearchFields(cloneSafeMerged);
+				})
+				.filter((row): row is DerivedItem => !!row);
+			if (!scopedItems.length) {
+				continue;
+			}
+			try {
+				await db.table("items").bulkPut(scopedItems);
+			} catch (bulkError) {
+				console.warn(
+					"bulkPut failed for items chunk; retrying one-by-one",
+					bulkError,
+				);
+				for (const row of scopedItems) {
+					try {
+						await db.table("items").put(row);
+					} catch (rowError) {
+						console.error("Failed to save item row", {
+							item_code: row?.item_code,
+							rowError,
+						});
+					}
+				}
+			}
 		}
 	} catch (e) {
 		console.error("Failed to save items", e);

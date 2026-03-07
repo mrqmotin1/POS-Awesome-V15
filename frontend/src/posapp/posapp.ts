@@ -25,6 +25,11 @@ import {
 	installGlobalErrorHandlers,
 	isBenignGlobalError,
 } from "./utils/errorReporting";
+import {
+	clearChunkRecoveryState,
+	isDynamicImportFailure,
+	recoverFromChunkLoadError,
+} from "./utils/chunkLoadRecovery";
 import "../sw-updater"; // Initialize service worker auto-updater
 import App from "./App.vue";
 // @ts-ignore
@@ -81,6 +86,11 @@ frappe.PosApp.posapp = class {
 			_instance: any,
 			info: string,
 		) => {
+			if (isDynamicImportFailure(err)) {
+				void recoverFromChunkLoadError(err, "vue-error-handler");
+				return;
+			}
+
 			if (!isBenignGlobalError(err)) {
 				console.error("Global Error:", err, info);
 				const toastStore = useToastStore();
@@ -95,6 +105,7 @@ frappe.PosApp.posapp = class {
 		installGlobalErrorHandlers(this.app);
 
 		this.app.mount(this.$el[0]);
+		clearChunkRecoveryState();
 
 		// Initialize socket listeners
 		const socketStore = useSocketStore();

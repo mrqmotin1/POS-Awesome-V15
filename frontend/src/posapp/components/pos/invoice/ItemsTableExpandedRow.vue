@@ -154,9 +154,9 @@
 								hide-details
 								:model-value="formatCurrency(item.price_list_rate ?? 0)"
 								:disabled="!pos_profile.posa_allow_price_list_rate_change"
+								readonly
 								prepend-inner-icon="mdi-format-list-numbered"
 								:prefix="currencySymbol(pos_profile.currency)"
-								@change="changePriceListRate(item)"
 							></v-text-field>
 						</div>
 						<div class="posa-form-field">

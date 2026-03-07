@@ -99,6 +99,12 @@ export function useItemsIntegration(options: IntegrationOptions = {}) {
 		return await itemsStore.refreshItems();
 	};
 
+	const refreshModifiedItems = async (
+		priceListOverride: string | null = null,
+	) => {
+		return await itemsStore.refreshModifiedItems(priceListOverride);
+	};
+
 	const get_items_groups = async () => {
 		if (!posProfile.value) {
 			return itemGroups.value;
@@ -295,7 +301,7 @@ export function useItemsIntegration(options: IntegrationOptions = {}) {
 		appendCachedItemsPage: itemsStore.appendCachedItemsPage,
 		resetCachedItemsForGroup: itemsStore.resetCachedItemsForGroup,
 		backgroundSyncItems: itemsStore.backgroundSyncItems,
-		refreshModifiedItems: itemsStore.refreshModifiedItems,
+		refreshModifiedItems,
 		getItemByCode: itemsStore.getItemByCode,
 		getItemByBarcode: itemsStore.getItemByBarcode,
 		addScannedItem: itemsStore.addScannedItem,

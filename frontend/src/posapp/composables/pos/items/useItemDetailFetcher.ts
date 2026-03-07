@@ -63,7 +63,14 @@ export function useItemDetailFetcher() {
 	};
 
 	function registerContext(context: any) {
-		Object.assign(ctx, context);
+		if (!context || typeof context !== "object") {
+			return;
+		}
+
+		Object.defineProperties(
+			ctx,
+			Object.getOwnPropertyDescriptors(context),
+		);
 	}
 
 	function getStorageScope() {
@@ -72,7 +79,15 @@ export function useItemDetailFetcher() {
 		return `${profileName}_${warehouse}`;
 	}
 
-	function buildItemDetailsRequestKey(items: any[]) {
+	function buildItemDetailsRequestKey(
+		items: any[],
+		priceListOverride: string | null = null,
+	) {
+		const effectivePriceList =
+			typeof priceListOverride === "string" &&
+			priceListOverride.trim().length
+				? priceListOverride.trim()
+				: ctx.active_price_list || "";
 		const itemCodes = Array.from(
 			new Set(
 				items
@@ -88,7 +103,7 @@ export function useItemDetailFetcher() {
 
 		return [
 			ctx.pos_profile?.name || "",
-			ctx.active_price_list || "",
+			effectivePriceList,
 			itemCodes.join(","),
 		].join(":");
 	}
@@ -103,7 +118,12 @@ export function useItemDetailFetcher() {
 		itemDetailsRequestCache.result = null;
 	}
 
-	async function fetchItemDetails(items: any[]) {
+	async function fetchItemDetails(
+		items: any[],
+		priceListOverride: string | null = null,
+		options: { bypassRequestCache?: boolean } = {},
+	) {
+		const { bypassRequestCache = false } = options;
 		if (!items || items.length === 0) {
 			return [];
 		}
@@ -113,9 +133,15 @@ export function useItemDetailFetcher() {
 			return [];
 		}
 
-		const key = buildItemDetailsRequestKey(items);
+		const effectivePriceList =
+			typeof priceListOverride === "string" &&
+			priceListOverride.trim().length
+				? priceListOverride.trim()
+				: ctx.active_price_list || "";
+		const key = buildItemDetailsRequestKey(items, effectivePriceList);
 
 		if (
+			!bypassRequestCache &&
 			itemDetailsRequestCache.key === key &&
 			itemDetailsRequestCache.result
 		) {
@@ -123,6 +149,7 @@ export function useItemDetailFetcher() {
 		}
 
 		if (
+			!bypassRequestCache &&
 			itemDetailsRequestCache.key === key &&
 			itemDetailsRequestCache.promise
 		) {
@@ -146,7 +173,7 @@ export function useItemDetailFetcher() {
 			args: {
 				pos_profile: JSON.stringify(ctx.pos_profile),
 				items_data: JSON.stringify(items),
-				price_list: ctx.active_price_list,
+				price_list: effectivePriceList,
 			},
 			freeze: false,
 			signal: abortController.value.signal,
@@ -232,10 +259,12 @@ export function useItemDetailFetcher() {
 						if (force || price) {
 							upd.rate = price;
 							upd.price_list_rate = price;
+							upd.original_rate = price;
 						}
 					}
 					if (det.currency) {
 						upd.currency = det.currency;
+						upd.original_currency = det.currency;
 					}
 					updates.push({ item, upd });
 				}
@@ -270,10 +299,12 @@ export function useItemDetailFetcher() {
 						if (force || price) {
 							upd.rate = price;
 							upd.price_list_rate = price;
+							upd.original_rate = price;
 						}
 					}
 					if (updItem.currency) {
 						upd.currency = updItem.currency;
+						upd.original_currency = updItem.currency;
 					}
 					if (updItem.batch_no_data) {
 						upd.batch_no_data = updItem.batch_no_data;
@@ -315,9 +346,14 @@ export function useItemDetailFetcher() {
 
 	async function update_items_details(
 		items: any[],
-		options: { forceRefresh?: boolean } = {},
+		options: { forceRefresh?: boolean; priceListOverride?: string | null } = {},
 	) {
-		const { forceRefresh = false } = options;
+		const { forceRefresh = false, priceListOverride = null } = options;
+		const effectivePriceList =
+			typeof priceListOverride === "string" &&
+			priceListOverride.trim().length
+				? priceListOverride.trim()
+				: ctx.active_price_list || "";
 
 		if (!items || !items.length) return;
 
@@ -336,7 +372,7 @@ export function useItemDetailFetcher() {
 		const baseRecords = new Map<string, number>();
 		const cacheResult = await getCachedItemDetails(
 			ctx.pos_profile?.name,
-			ctx.active_price_list,
+			effectivePriceList,
 			itemCodes,
 			forceRefresh ? 0 : undefined,
 		);
@@ -367,10 +403,12 @@ export function useItemDetailFetcher() {
 					if (force || price) {
 						item.rate = price;
 						item.price_list_rate = price;
+						item.original_rate = price;
 					}
 				}
 				if (det.currency) {
 					item.currency = det.currency;
+					item.original_currency = det.currency;
 				}
 
 				if (ctx.itemAvailability) {
@@ -464,7 +502,11 @@ export function useItemDetailFetcher() {
 		}
 
 		try {
-			const details = await fetchItemDetails(itemsToFetch);
+			const details = await fetchItemDetails(
+				itemsToFetch,
+				effectivePriceList,
+				{ bypassRequestCache: forceRefresh },
+			);
 			if (details && details.length) {
 				itemDetailsRetryCount.value = 0;
 				let qtyChanged = false;
@@ -507,8 +549,18 @@ export function useItemDetailFetcher() {
 									updated_item.price_list_rate !== undefined
 										? updated_item.price_list_rate
 										: item.price_list_rate,
+								original_rate:
+									updated_item.price_list_rate !== undefined
+										? updated_item.price_list_rate
+										: updated_item.rate !== undefined
+											? updated_item.rate
+											: item.original_rate,
 								currency:
 									updated_item.currency || item.currency,
+								original_currency:
+									updated_item.currency ||
+									item.original_currency ||
+									item.currency,
 							},
 						});
 
@@ -568,7 +620,7 @@ export function useItemDetailFetcher() {
 				updateLocalStockCache(details);
 				saveItemDetailsCache(
 					ctx.pos_profile?.name,
-					ctx.active_price_list,
+					effectivePriceList,
 					details,
 				);
 
@@ -685,7 +737,10 @@ export function useItemDetailFetcher() {
 		}
 	}
 
-	async function refreshAllItemDetailsInBatches(batchSize = 100) {
+	async function refreshAllItemDetailsInBatches(
+		batchSize = 100,
+		options: { priceListOverride?: string | null } = {},
+	) {
 		if (background_sync_details_in_flight.value) return;
 		if (!Array.isArray(ctx.items) || ctx.items.length === 0) return;
 
@@ -695,7 +750,10 @@ export function useItemDetailFetcher() {
 				const chunk = ctx.items.slice(start, start + batchSize);
 				if (chunk.length === 0) break;
 
-				await update_items_details(chunk, { forceRefresh: true });
+				await update_items_details(chunk, {
+					forceRefresh: true,
+					priceListOverride: options.priceListOverride,
+				});
 				await scheduleFrame();
 			}
 		} catch (error: any) {

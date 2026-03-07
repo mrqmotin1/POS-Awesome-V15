@@ -1,4 +1,8 @@
 import type { App } from "vue";
+import {
+	isDynamicImportFailure,
+	recoverFromChunkLoadError,
+} from "./chunkLoadRecovery";
 
 type ErrorKind = "window_error" | "unhandled_rejection" | "vue_error";
 
@@ -200,6 +204,11 @@ export function installGlobalErrorHandlers(app: App) {
 
 	window.addEventListener("unhandledrejection", (event) => {
 		const reason = event.reason;
+		if (isDynamicImportFailure(reason)) {
+			event.preventDefault();
+			void recoverFromChunkLoadError(reason, "unhandled-rejection");
+			return;
+		}
 		reportGlobalError("unhandled_rejection", {
 			message: getErrorMessage(reason),
 			stack: getErrorStack(reason),

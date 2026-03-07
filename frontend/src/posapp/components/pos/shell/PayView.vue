@@ -168,6 +168,7 @@ export default {
 		const toastStore = useToastStore();
 		const { rtlStyles, rtlClasses } = useRtl();
 		const { selectedCustomer, refreshToken } = storeToRefs(customersStore);
+		const { paymentRouteTarget } = storeToRefs(uiStore);
 
 		// Core Data & State
 		const dialog = ref(false);
@@ -609,6 +610,29 @@ export default {
 			return get_outstanding_invoices(pos_profile_search.value || null);
 		}
 
+		function applyPaymentRouteTarget() {
+			const target = paymentRouteTarget.value;
+			if (!target?.invoiceName || !Array.isArray(outstanding_invoices.value)) {
+				return;
+			}
+
+			const matchedInvoice = outstanding_invoices.value.find(
+				(invoice) => invoice?.voucher_no === target.invoiceName,
+			);
+			if (!matchedInvoice) {
+				return;
+			}
+
+			clearSelections();
+			selected_invoices.value = [matchedInvoice];
+			currency_filter.value =
+				matchedInvoice.party_account_currency ||
+				matchedInvoice.currency ||
+				pos_profile.value.currency ||
+				"ALL";
+			uiStore.clearPaymentRouteTarget();
+		}
+
 		const submit = () => processPayment({ printAfter: false });
 		const submit_and_print = () => processPayment({ printAfter: true });
 
@@ -691,6 +715,9 @@ export default {
 
 		watch(invoiceTotalCurrency, fetchExchangeRate, { immediate: true });
 		watch(companyCurrency, fetchExchangeRate, { immediate: true });
+		watch([paymentRouteTarget, outstanding_invoices], () => {
+			applyPaymentRouteTarget();
+		});
 
 		return {
 			dialog,
@@ -769,6 +796,7 @@ export default {
 			rtlStyles,
 			rtlClasses,
 			customersStore,
+			paymentRouteTarget,
 		};
 	},
 };

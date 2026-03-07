@@ -19,9 +19,11 @@ export function useItemSync() {
 	type ItemDetailFetcher = {
 		update_items_details: (
 			_items: SyncItem[],
-			_options?: { forceRefresh?: boolean },
+			_options?: {
+				forceRefresh?: boolean;
+				priceListOverride?: string | null;
+			},
 		) => Promise<void>;
-		refreshAllItemDetailsInBatches: (_batchSize?: number) => Promise<void>;
 	};
 	type EventBus = { emit: (_event: string, _payload?: unknown) => void };
 	type ItemSyncContext = {
@@ -30,7 +32,11 @@ export function useItemSync() {
 		background_sync_interval: number;
 		usesLimitSearch: boolean;
 		itemsPageLimit: number;
-		refreshModifiedItems: null | (() => Promise<{ items?: SyncItem[] }>);
+		refreshModifiedItems:
+			| null
+			| ((
+					_priceListOverride?: string | null,
+			  ) => Promise<{ items?: SyncItem[] }>);
 		backgroundSyncItems: null | ((_args?: unknown) => unknown);
 		get_items: null | ((_force?: boolean) => Promise<unknown>);
 		search_onchange:
@@ -39,6 +45,7 @@ export function useItemSync() {
 		itemDetailFetcher: ItemDetailFetcher | null;
 		eventBus: EventBus | null;
 		fetchServerItemsTimestamp: null | (() => Promise<string | null>);
+		getBackgroundSyncPriceList: null | (() => string | null);
 		getItems: () => SyncItem[];
 		getDisplayedItems: () => SyncItem[];
 		onBackgroundLoadFinished?: () => void;
@@ -68,13 +75,21 @@ export function useItemSync() {
 		itemDetailFetcher: null,
 		eventBus: null,
 		fetchServerItemsTimestamp: null,
+		getBackgroundSyncPriceList: null,
 		// Data references
 		getItems: () => [],
 		getDisplayedItems: () => [],
 	};
 
 	function registerContext(context: Partial<ItemSyncContext>) {
-		Object.assign(ctx, context);
+		if (!context || typeof context !== "object") {
+			return;
+		}
+
+		Object.defineProperties(
+			ctx,
+			Object.getOwnPropertyDescriptors(context),
+		);
 	}
 
 	function startBackgroundSyncScheduler() {
@@ -177,16 +192,21 @@ export function useItemSync() {
 		const startedAt = Date.now();
 		let modifiedCount = 0;
 		try {
-			console.debug(`${BG_SYNC_LOG} started`, { source });
+			console.info(`${BG_SYNC_LOG} started`, { source });
 			await ensureBackgroundSyncBaseline();
+			const syncCursorBefore = getItemsLastSync();
+			const backgroundPriceList =
+				typeof ctx.getBackgroundSyncPriceList === "function"
+					? ctx.getBackgroundSyncPriceList()
+					: null;
 
 			if (ctx.refreshModifiedItems) {
 				const { items: updatedItems } =
-					await ctx.refreshModifiedItems();
+					await ctx.refreshModifiedItems(backgroundPriceList);
 				modifiedCount = Array.isArray(updatedItems)
 					? updatedItems.length
 					: 0;
-				console.debug(`${BG_SYNC_LOG} modified items fetched`, {
+				console.info(`${BG_SYNC_LOG} modified items fetched`, {
 					source,
 					modifiedCount,
 				});
@@ -195,7 +215,10 @@ export function useItemSync() {
 					if (ctx.itemDetailFetcher) {
 						await ctx.itemDetailFetcher.update_items_details(
 							updatedItems,
-							{ forceRefresh: true },
+							{
+								forceRefresh: true,
+								priceListOverride: backgroundPriceList,
+							},
 						);
 					}
 					if (ctx.eventBus) {
@@ -204,26 +227,26 @@ export function useItemSync() {
 				}
 			}
 
-			if (ctx.itemDetailFetcher) {
-				// Refresh cached quantities/prices for all items so non-visible items stay in sync.
-				await ctx.itemDetailFetcher.refreshAllItemDetailsInBatches(
-					ctx.itemsPageLimit || 100,
-				);
+			// Delta-only background sync: avoid full catalog refresh.
+			// Detailed refresh is applied only to changed items above.
 
-				const displayed = ctx.getDisplayedItems();
-				if (displayed && displayed.length > 0) {
-					await ctx.itemDetailFetcher.update_items_details(displayed);
+			const completedAt = new Date().toISOString();
+			let deltaCursor = getItemsLastSync();
+			if (!deltaCursor || deltaCursor === syncCursorBefore) {
+				let serverTimestamp: string | null = null;
+				if (ctx.fetchServerItemsTimestamp) {
+					serverTimestamp = await ctx.fetchServerItemsTimestamp();
 				}
+				deltaCursor = serverTimestamp || completedAt;
+				setItemsLastSync(deltaCursor);
 			}
-
-			const syncedAt = new Date().toISOString();
-			last_background_sync_time.value = syncedAt;
-			setItemsLastSync(syncedAt);
-			console.debug(`${BG_SYNC_LOG} completed`, {
+			last_background_sync_time.value = completedAt;
+			console.info(`${BG_SYNC_LOG} completed`, {
 				source,
 				modifiedCount,
 				durationMs: Date.now() - startedAt,
-				syncedAt,
+				syncedAt: completedAt,
+				deltaCursor,
 			});
 		} catch (error) {
 			console.error(`${BG_SYNC_LOG} failed`, { source, error });

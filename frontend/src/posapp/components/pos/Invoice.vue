@@ -216,6 +216,14 @@
 			@confirm="resolvePaymentConfirmation(true)"
 			@cancel="resolvePaymentConfirmation(false)"
 		/>
+		<PriceListRateDialog
+			v-model="price_list_rate_dialog_open"
+			:initial-rate="price_list_rate_dialog_initial_rate"
+			:item-label="price_list_rate_dialog_item_label"
+			:currency-symbol="currencySymbol(selected_currency || pos_profile?.currency)"
+			@submit="handlePriceListRateDialogSubmit"
+			@cancel="handlePriceListRateDialogCancel"
+		/>
 
 		<!-- Payment Section -->
 		<InvoiceSummary
@@ -238,10 +246,11 @@
 			@update_discount_umount="update_discount_umount"
 			@save-and-clear="save_and_clear_invoice"
 			@load-drafts="get_draft_invoices"
+			@select-order="get_draft_orders"
 			@cancel-sale="cancel_dialog = true"
+			@open-invoice-management="open_invoice_management"
 			@open-returns="open_returns"
 			@print-draft="print_draft_invoice"
-			@apply-offers="apply_offers_and_reload"
 			@show-payment="handleShowPaymentRequest"
 			@open-customer-display="handleOpenCustomerDisplayRequest"
 		/>
@@ -260,6 +269,7 @@ import ItemsTable from "./invoice/ItemsTable.vue";
 import InvoiceItemsActionToolbar from "./invoice/InvoiceItemsActionToolbar.vue";
 import PackedItemsDialog from "./invoice/PackedItemsDialog.vue";
 import PaymentConfirmationDialog from "./payments/PaymentConfirmationDialog.vue";
+import PriceListRateDialog from "./invoice/PriceListRateDialog.vue";
 import invoiceItemMethods from "./invoice/invoiceItemMethods";
 import invoiceComputed from "./invoice/invoiceComputed";
 import invoiceWatchers from "./invoice/invoiceWatchers";
@@ -368,6 +378,10 @@ export default {
 			return_discount_base_total: 0,
 			return_discount_base_amount: 0,
 			_busHandlers: {},
+			price_list_rate_dialog_open: false,
+			price_list_rate_dialog_initial_rate: "",
+			price_list_rate_dialog_item_label: "",
+			price_list_rate_dialog_resolver: null,
 		};
 	},
 
@@ -382,6 +396,7 @@ export default {
 		InvoiceItemsActionToolbar,
 		PackedItemsDialog,
 		PaymentConfirmationDialog,
+		PriceListRateDialog,
 	},
 	computed: {
 		items: {
@@ -825,6 +840,40 @@ export default {
 				this.eventBus.emit("open_customer_display");
 			}
 		},
+		promptPriceListRate(initialRate, item) {
+			if (typeof this.price_list_rate_dialog_resolver === "function") {
+				this.price_list_rate_dialog_resolver(null);
+			}
+
+			this.price_list_rate_dialog_initial_rate =
+				initialRate == null ? "" : String(initialRate);
+			this.price_list_rate_dialog_item_label = String(
+				item?.item_name || item?.item_code || "",
+			);
+			this.price_list_rate_dialog_open = true;
+
+			return new Promise((resolve) => {
+				this.price_list_rate_dialog_resolver = resolve;
+			});
+		},
+		handlePriceListRateDialogCancel() {
+			if (typeof this.price_list_rate_dialog_resolver === "function") {
+				this.price_list_rate_dialog_resolver(null);
+			}
+			this.price_list_rate_dialog_open = false;
+			this.price_list_rate_dialog_initial_rate = "";
+			this.price_list_rate_dialog_item_label = "";
+			this.price_list_rate_dialog_resolver = null;
+		},
+		handlePriceListRateDialogSubmit(value) {
+			if (typeof this.price_list_rate_dialog_resolver === "function") {
+				this.price_list_rate_dialog_resolver(value);
+			}
+			this.price_list_rate_dialog_open = false;
+			this.price_list_rate_dialog_initial_rate = "";
+			this.price_list_rate_dialog_item_label = "";
+			this.price_list_rate_dialog_resolver = null;
+		},
 	},
 
 	mounted() {
@@ -926,6 +975,11 @@ export default {
 		});
 	},
 	beforeUnmount() {
+		if (typeof this.price_list_rate_dialog_resolver === "function") {
+			this.price_list_rate_dialog_resolver(null);
+			this.price_list_rate_dialog_resolver = null;
+		}
+
 		if (typeof this.stockUnsubscribe === "function") {
 			this.stockUnsubscribe();
 			this.stockUnsubscribe = null;
