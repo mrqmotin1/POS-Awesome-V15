@@ -259,6 +259,29 @@ export interface BranchTopItemsByLocationRow {
 	items?: BranchLocationTopItem[];
 }
 
+export interface TaxChargeHeadRow {
+	label?: string;
+	category?: "tax" | "service_charge" | "fee" | "other_charge" | string;
+	amount?: number;
+	invoice_count?: number;
+	share_pct?: number;
+}
+
+export interface TaxChargesDayRow {
+	date?: string;
+	invoice_count?: number;
+	return_invoice_count?: number;
+	taxable_amount?: number;
+	invoice_total?: number;
+	tax_amount?: number;
+	service_charge_amount?: number;
+	fee_amount?: number;
+	other_charge_amount?: number;
+	round_off_amount?: number;
+	invoice_adjustment_amount?: number;
+	total_charge_amount?: number;
+}
+
 export interface DashboardResponse {
 	enabled: boolean;
 	profile?: string;
@@ -435,6 +458,32 @@ export interface DashboardResponse {
 		};
 		location_wise?: BranchLocationRow[];
 		top_items_by_location?: BranchTopItemsByLocationRow[];
+	};
+	tax_charges_report?: {
+		period?: {
+			from?: string;
+			to?: string;
+		};
+		totals?: {
+			invoice_count?: number;
+			return_invoice_count?: number;
+			taxable_amount?: number;
+			invoice_total?: number;
+			tax_amount?: number;
+			service_charge_amount?: number;
+			fee_amount?: number;
+			other_charge_amount?: number;
+			round_off_amount?: number;
+			invoice_adjustment_amount?: number;
+			total_charge_amount?: number;
+		};
+		tax_heads?: TaxChargeHeadRow[];
+		charge_heads?: TaxChargeHeadRow[];
+		day_wise?: TaxChargesDayRow[];
+		highlights?: {
+			top_tax_head?: TaxChargeHeadRow | null;
+			top_charge_head?: TaxChargeHeadRow | null;
+		};
 	};
 	sales_trend?: {
 		period?: {
@@ -636,6 +685,7 @@ export interface DashboardRequest {
 	staff_report_limit?: number;
 	profitability_report_limit?: number;
 	branch_report_limit?: number;
+	tax_report_limit?: number;
 	supplier_limit?: number;
 	low_stock_limit?: number;
 }

@@ -873,6 +873,134 @@
 					</v-col>
 				</v-row>
 
+				<v-row v-show="activeDashboardTab === 'finance'" class="dashboard-grid mb-2">
+					<v-col cols="12">
+						<v-card class="dashboard-card" elevation="2">
+							<div class="dashboard-card__header">
+								<h2 class="text-subtitle-1 font-weight-bold mb-0">{{ __("Tax / Charges Report") }}</h2>
+								<div class="dashboard-chip-row">
+									<v-chip size="small" color="info" variant="tonal">
+										{{ taxChargesRangeLabel }}
+									</v-chip>
+									<v-chip size="small" color="primary" variant="tonal">
+										{{ __("Top Tax Head") }}: {{ topTaxHeadLabel }}
+									</v-chip>
+									<v-chip size="small" color="warning" variant="tonal">
+										{{ __("Top Charge Head") }}: {{ topChargeHeadLabel }}
+									</v-chip>
+								</div>
+							</div>
+
+							<div class="summary-grid">
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Invoices") }}</div>
+									<div class="summary-metric__value">{{ formatQuantity(Number(taxChargesTotals.invoice_count || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Returns") }}</div>
+									<div class="summary-metric__value">{{ formatQuantity(Number(taxChargesTotals.return_invoice_count || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Taxable Amount") }}</div>
+									<div class="summary-metric__value">{{ formatMoney(Number(taxChargesTotals.taxable_amount || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Tax") }}</div>
+									<div class="summary-metric__value">{{ formatMoney(Number(taxChargesTotals.tax_amount || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Service Charges") }}</div>
+									<div class="summary-metric__value">{{ formatMoney(Number(taxChargesTotals.service_charge_amount || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Fees") }}</div>
+									<div class="summary-metric__value">{{ formatMoney(Number(taxChargesTotals.fee_amount || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Round Off") }}</div>
+									<div class="summary-metric__value">{{ formatMoney(Number(taxChargesTotals.round_off_amount || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Invoice Adjustments") }}</div>
+									<div class="summary-metric__value">{{ formatMoney(Number(taxChargesTotals.invoice_adjustment_amount || 0)) }}</div>
+								</div>
+								<div class="summary-metric">
+									<div class="summary-metric__label">{{ __("Total Charges") }}</div>
+									<div class="summary-metric__value">{{ formatMoney(Number(taxChargesTotals.total_charge_amount || 0)) }}</div>
+								</div>
+							</div>
+
+							<div class="trend-grid">
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Tax Heads") }}</div>
+									<div v-if="taxHeadRows.length" class="list-stack trend-list">
+										<div v-for="row in taxHeadRows" :key="`tax-head-${row.label}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ row.label || "-" }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(row.amount || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Invoices") }}: {{ formatQuantity(Number(row.invoice_count || 0)) }} .
+												{{ __("Share") }}: {{ formatPercent(row.share_pct, 1) }}
+											</div>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No tax head breakdown found.") }}</div>
+								</div>
+
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Charge Heads") }}</div>
+									<div v-if="chargeHeadRows.length" class="list-stack trend-list">
+										<div v-for="row in chargeHeadRows" :key="`charge-head-${row.label}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ row.label || "-" }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(row.amount || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Category") }}: {{ row.category || "-" }} .
+												{{ __("Invoices") }}: {{ formatQuantity(Number(row.invoice_count || 0)) }} .
+												{{ __("Share") }}: {{ formatPercent(row.share_pct, 1) }}
+											</div>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No charge head breakdown found.") }}</div>
+								</div>
+
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Last 14 Days Tax/Charges") }}</div>
+									<div v-if="taxChargesDayRows.length" class="list-stack trend-list">
+										<div v-for="row in taxChargesDayRows" :key="`tax-day-${row.date}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ formatDate(row.date) }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(row.total_charge_amount || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Tax") }}: {{ formatMoney(Number(row.tax_amount || 0)) }} .
+												{{ __("Charges") }}:
+												{{
+													formatMoney(
+														Number(row.service_charge_amount || 0) +
+															Number(row.fee_amount || 0) +
+															Number(row.other_charge_amount || 0),
+													)
+												}} .
+												{{ __("Invoices") }}: {{ formatQuantity(Number(row.invoice_count || 0)) }}
+											</div>
+											<v-progress-linear
+												:model-value="trendProgress(Number(row.total_charge_amount || 0), taxDayMax)"
+												color="warning"
+												height="5"
+												rounded
+											/>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No day-wise tax/charges trend found.") }}</div>
+								</div>
+							</div>
+						</v-card>
+					</v-col>
+				</v-row>
+
 				<v-row v-show="activeDashboardTab === 'branches'" class="dashboard-grid mb-2">
 					<v-col cols="12">
 						<v-card class="dashboard-card" elevation="2">
@@ -1682,6 +1810,8 @@ import {
 	type StaffPerformanceRow,
 	type StockMovementDayRow,
 	type StockMovementRecentRow,
+	type TaxChargeHeadRow,
+	type TaxChargesDayRow,
 	type LowStockItem,
 	type SupplierSummaryRow,
 } from "@/posapp/services/dashboardService";
@@ -1721,6 +1851,7 @@ const customerReportLimit = ref(20);
 const staffReportLimit = ref(20);
 const profitabilityReportLimit = ref(20);
 const branchReportLimit = ref(20);
+const taxReportLimit = ref(20);
 let fastMovingSearchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 const createEmptyDashboard = (): DashboardResponse => ({
@@ -1856,6 +1987,29 @@ const createEmptyDashboard = (): DashboardResponse => ({
 		},
 		location_wise: [],
 		top_items_by_location: [],
+	},
+	tax_charges_report: {
+		period: {},
+		totals: {
+			invoice_count: 0,
+			return_invoice_count: 0,
+			taxable_amount: 0,
+			invoice_total: 0,
+			tax_amount: 0,
+			service_charge_amount: 0,
+			fee_amount: 0,
+			other_charge_amount: 0,
+			round_off_amount: 0,
+			invoice_adjustment_amount: 0,
+			total_charge_amount: 0,
+		},
+		tax_heads: [],
+		charge_heads: [],
+		day_wise: [],
+		highlights: {
+			top_tax_head: null,
+			top_charge_head: null,
+		},
 	},
 	sales_trend: {
 		period: {},
@@ -2358,6 +2512,54 @@ const lowestMarginItemLabel = computed(() => {
 		return __("N/A");
 	}
 	return `${name} . ${formatPercent(row.gross_margin_pct, 1)}`;
+});
+
+const taxChargesReport = computed(() => dashboardData.value.tax_charges_report || {});
+const taxChargesTotals = computed(() => taxChargesReport.value.totals || {});
+const taxChargesHighlights = computed(() => taxChargesReport.value.highlights || {});
+const taxChargesRangeLabel = computed(() => {
+	const from = taxChargesReport.value.period?.from || dashboardData.value.date_context?.month_start;
+	const to = taxChargesReport.value.period?.to || dashboardData.value.date_context?.today;
+	if (!from || !to) {
+		return __("Current Month");
+	}
+	return `${formatDate(from)} - ${formatDate(to)}`;
+});
+const taxHeadRows = computed<TaxChargeHeadRow[]>(() =>
+	[...(taxChargesReport.value.tax_heads || [])]
+		.sort((a, b) => Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0)))
+		.slice(0, Number(taxReportLimit.value || 20)),
+);
+const chargeHeadRows = computed<TaxChargeHeadRow[]>(() =>
+	[...(taxChargesReport.value.charge_heads || [])]
+		.sort((a, b) => Math.abs(Number(b.amount || 0)) - Math.abs(Number(a.amount || 0)))
+		.slice(0, Number(taxReportLimit.value || 20)),
+);
+const taxChargesDayRows = computed<TaxChargesDayRow[]>(() =>
+	[...(taxChargesReport.value.day_wise || [])]
+		.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")))
+		.slice(-14),
+);
+const taxDayMax = computed(() => {
+	const maxValue = taxChargesDayRows.value.reduce(
+		(max, row) => Math.max(max, Math.abs(Number(row.total_charge_amount || 0))),
+		0,
+	);
+	return maxValue > 0 ? maxValue : 1;
+});
+const topTaxHeadLabel = computed(() => {
+	const row = taxChargesHighlights.value.top_tax_head;
+	if (!row?.label) {
+		return __("N/A");
+	}
+	return `${row.label} . ${formatMoney(Number(row.amount || 0))}`;
+});
+const topChargeHeadLabel = computed(() => {
+	const row = taxChargesHighlights.value.top_charge_head;
+	if (!row?.label) {
+		return __("N/A");
+	}
+	return `${row.label} . ${formatMoney(Number(row.amount || 0))}`;
 });
 
 const branchReport = computed(() => dashboardData.value.branch_location_report || {});
@@ -3091,6 +3293,10 @@ function mergeDashboardPayload(payload?: Partial<DashboardResponse>): DashboardR
 			...(base.branch_location_report || {}),
 			...(payload?.branch_location_report || {}),
 		},
+		tax_charges_report: {
+			...(base.tax_charges_report || {}),
+			...(payload?.tax_charges_report || {}),
+		},
 		sales_trend: {
 			...(base.sales_trend || {}),
 			...(payload?.sales_trend || {}),
@@ -3154,6 +3360,7 @@ function logDashboardResponse(response: DashboardResponse) {
 	console.info("staff_cashier_count", response.staff_performance_report?.cashier_wise?.length || 0);
 	console.info("profit_item_count", response.profitability_report?.item_wise?.length || 0);
 	console.info("branch_count", response.branch_location_report?.location_wise?.length || 0);
+	console.info("tax_head_count", response.tax_charges_report?.tax_heads?.length || 0);
 	console.info("item_sales_count", response.item_sales_report?.items?.length || 0);
 	console.info("category_report_count", response.category_brand_variant_report?.category_wise?.length || 0);
 	console.info("inventory_status_total_items", response.inventory_status_report?.summary?.total_items || 0);
@@ -3192,6 +3399,7 @@ async function loadDashboard() {
 			staff_report_limit: staffReportLimit.value,
 			profitability_report_limit: profitabilityReportLimit.value,
 			branch_report_limit: branchReportLimit.value,
+			tax_report_limit: taxReportLimit.value,
 			fast_moving_page: fastMovingPage.value,
 			fast_moving_page_size: fastMovingPageSize.value,
 			fast_moving_search: fastMovingSearch.value || undefined,

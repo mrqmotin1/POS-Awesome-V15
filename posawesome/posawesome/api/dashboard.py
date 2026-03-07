@@ -380,6 +380,49 @@ def _resolve_payment_child_doctype(parent_doctype: str) -> str | None:
     return None
 
 
+def _resolve_taxes_child_doctype(parent_doctype: str) -> str | None:
+    try:
+        meta = frappe.get_meta(parent_doctype)
+    except Exception:
+        return None
+
+    for field in meta.get("fields", []):
+        if field.fieldtype == "Table" and field.fieldname == "taxes" and field.options:
+            if frappe.db.exists("DocType", field.options):
+                return field.options
+
+    for field in meta.get("fields", []):
+        if field.fieldtype != "Table" or not field.options:
+            continue
+        if "tax" in cstr(field.options).lower() and frappe.db.exists("DocType", field.options):
+            return field.options
+
+    return None
+
+
+def _classify_tax_charge_bucket(account_head: str, description: str, charge_type: str) -> str:
+    normalized = " ".join(
+        [
+            cstr(account_head).strip().lower(),
+            cstr(description).strip().lower(),
+            cstr(charge_type).strip().lower(),
+        ]
+    )
+
+    if any(token in normalized for token in ("service charge", "service", "delivery", "handling", "packing")):
+        return "service_charge"
+    if any(token in normalized for token in ("fee", "levy", "surcharge", "cess", "commission")):
+        return "fee"
+    if any(
+        token in normalized
+        for token in ("tax", "gst", "vat", "sst", "hst", "tds", "withholding", "excise")
+    ):
+        return "tax"
+    if any(token in normalized for token in ("on net total", "on previous row", "on item quantity")):
+        return "tax"
+    return "other_charge"
+
+
 def _get_mode_type_map(mode_names: list[str]) -> dict[str, str]:
     cleaned = sorted({cstr(name).strip() for name in mode_names if cstr(name).strip()})
     if not cleaned:
@@ -2492,6 +2535,394 @@ def _collect_branch_location_report(
     return report
 
 
+def _collect_tax_charges_report(
+    profile_names: list[str],
+    company: str,
+    date_from: str,
+    date_to: str,
+    limit: int = 20,
+) -> dict[str, Any]:
+    report: dict[str, Any] = {
+        "period": {"from": date_from, "to": date_to},
+        "totals": {
+            "invoice_count": 0,
+            "return_invoice_count": 0,
+            "taxable_amount": 0.0,
+            "invoice_total": 0.0,
+            "tax_amount": 0.0,
+            "service_charge_amount": 0.0,
+            "fee_amount": 0.0,
+            "other_charge_amount": 0.0,
+            "round_off_amount": 0.0,
+            "invoice_adjustment_amount": 0.0,
+            "total_charge_amount": 0.0,
+        },
+        "tax_heads": [],
+        "charge_heads": [],
+        "day_wise": [],
+        "highlights": {
+            "top_tax_head": None,
+            "top_charge_head": None,
+        },
+    }
+    if not profile_names:
+        return report
+
+    profile_filter, profile_filter_params = _build_in_filter("inv.pos_profile", profile_names)
+    row_limit = _coerce_limit(limit, default=20, minimum=1, maximum=200)
+    totals = report["totals"]
+
+    day_buckets: dict[str, dict[str, Any]] = {}
+    tax_head_buckets: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"label": "", "amount": 0.0, "invoice_count": 0}
+    )
+    charge_head_buckets: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"label": "", "category": "", "amount": 0.0, "invoice_count": 0}
+    )
+    has_tax_breakdown = False
+
+    for parent_doctype, _child_doctype in _iter_invoice_sources():
+        grand_total_field = _pick_first_column(parent_doctype, ["base_grand_total", "grand_total"])
+        net_total_field = _pick_first_column(parent_doctype, ["base_net_total", "net_total"])
+        tax_total_field = _pick_first_column(parent_doctype, ["base_total_taxes_and_charges", "total_taxes_and_charges"])
+        round_off_field = _pick_first_column(parent_doctype, ["base_rounding_adjustment", "rounding_adjustment"])
+        adjustment_field = _pick_first_column(
+            parent_doctype,
+            [
+                "base_additional_discount_amount",
+                "additional_discount_amount",
+                "base_discount_amount",
+                "discount_amount",
+            ],
+        )
+        is_return_expression = (
+            "ifnull(inv.is_return, 0)" if frappe.db.has_column(parent_doctype, "is_return") else "0"
+        )
+
+        grand_total_expression = f"coalesce(inv.{grand_total_field}, 0)" if grand_total_field else "0"
+        net_total_expression = f"coalesce(inv.{net_total_field}, 0)" if net_total_field else "0"
+        tax_total_expression = f"coalesce(inv.{tax_total_field}, 0)" if tax_total_field else "0"
+        round_off_expression = f"coalesce(inv.{round_off_field}, 0)" if round_off_field else "0"
+        adjustment_expression = f"coalesce(inv.{adjustment_field}, 0)" if adjustment_field else "0"
+
+        signed_grand_total = (
+            f"case when {is_return_expression} = 1 then -abs({grand_total_expression}) else abs({grand_total_expression}) end"
+        )
+        signed_net_total = (
+            f"case when {is_return_expression} = 1 then -abs({net_total_expression}) else abs({net_total_expression}) end"
+        )
+        signed_tax_total = (
+            f"case when {is_return_expression} = 1 then -abs({tax_total_expression}) else abs({tax_total_expression}) end"
+        )
+        signed_adjustment = (
+            f"case when {is_return_expression} = 1 then -abs({adjustment_expression}) else abs({adjustment_expression}) end"
+        )
+        signed_round_off = (
+            f"case when {is_return_expression} = 1 then -abs({round_off_expression}) else {round_off_expression} end"
+        )
+
+        totals_rows = frappe.db.sql(
+            f"""
+            select
+                sum(case when {is_return_expression} = 1 then 0 else 1 end) as invoice_count,
+                sum(case when {is_return_expression} = 1 then 1 else 0 end) as return_invoice_count,
+                sum({signed_net_total}) as taxable_amount,
+                sum({signed_grand_total}) as invoice_total,
+                sum({signed_tax_total}) as tax_amount,
+                sum({signed_round_off}) as round_off_amount,
+                sum({signed_adjustment}) as invoice_adjustment_amount
+            from `tab{parent_doctype}` inv
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        totals_row = totals_rows[0] if totals_rows else {}
+        totals["invoice_count"] += cint(totals_row.get("invoice_count"))
+        totals["return_invoice_count"] += cint(totals_row.get("return_invoice_count"))
+        totals["taxable_amount"] += flt(totals_row.get("taxable_amount"))
+        totals["invoice_total"] += flt(totals_row.get("invoice_total"))
+        totals["tax_amount"] += flt(totals_row.get("tax_amount"))
+        totals["round_off_amount"] += flt(totals_row.get("round_off_amount"))
+        totals["invoice_adjustment_amount"] += flt(totals_row.get("invoice_adjustment_amount"))
+
+        day_rows = frappe.db.sql(
+            f"""
+            select
+                inv.posting_date as posting_date,
+                sum(case when {is_return_expression} = 1 then 0 else 1 end) as invoice_count,
+                sum(case when {is_return_expression} = 1 then 1 else 0 end) as return_invoice_count,
+                sum({signed_net_total}) as taxable_amount,
+                sum({signed_grand_total}) as invoice_total,
+                sum({signed_tax_total}) as tax_amount,
+                sum({signed_round_off}) as round_off_amount,
+                sum({signed_adjustment}) as invoice_adjustment_amount
+            from `tab{parent_doctype}` inv
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by inv.posting_date
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        for day_row in day_rows:
+            day_key = cstr(day_row.get("posting_date")).strip()
+            if not day_key:
+                continue
+            day_entry = day_buckets.setdefault(
+                day_key,
+                {
+                    "date": day_key,
+                    "invoice_count": 0,
+                    "return_invoice_count": 0,
+                    "taxable_amount": 0.0,
+                    "invoice_total": 0.0,
+                    "tax_amount": 0.0,
+                    "service_charge_amount": 0.0,
+                    "fee_amount": 0.0,
+                    "other_charge_amount": 0.0,
+                    "round_off_amount": 0.0,
+                    "invoice_adjustment_amount": 0.0,
+                    "total_charge_amount": 0.0,
+                },
+            )
+            day_entry["invoice_count"] += cint(day_row.get("invoice_count"))
+            day_entry["return_invoice_count"] += cint(day_row.get("return_invoice_count"))
+            day_entry["taxable_amount"] += flt(day_row.get("taxable_amount"))
+            day_entry["invoice_total"] += flt(day_row.get("invoice_total"))
+            day_entry["tax_amount"] += flt(day_row.get("tax_amount"))
+            day_entry["round_off_amount"] += flt(day_row.get("round_off_amount"))
+            day_entry["invoice_adjustment_amount"] += flt(day_row.get("invoice_adjustment_amount"))
+
+        taxes_child_doctype = _resolve_taxes_child_doctype(parent_doctype)
+        if not taxes_child_doctype:
+            continue
+        if not frappe.db.has_column(taxes_child_doctype, "parent"):
+            continue
+
+        tax_amount_field = _pick_first_column(
+            taxes_child_doctype,
+            [
+                "base_tax_amount_after_discount_amount",
+                "tax_amount_after_discount_amount",
+                "base_tax_amount",
+                "tax_amount",
+                "base_total",
+                "total",
+            ],
+        )
+        if not tax_amount_field:
+            continue
+
+        account_head_expression = (
+            "coalesce(tax.account_head, '')"
+            if frappe.db.has_column(taxes_child_doctype, "account_head")
+            else "''"
+        )
+        description_expression = (
+            "coalesce(tax.description, '')"
+            if frappe.db.has_column(taxes_child_doctype, "description")
+            else "''"
+        )
+        charge_type_expression = (
+            "coalesce(tax.charge_type, '')"
+            if frappe.db.has_column(taxes_child_doctype, "charge_type")
+            else "''"
+        )
+        signed_tax_line = (
+            f"case when {is_return_expression} = 1 then -abs(coalesce(tax.{tax_amount_field}, 0)) "
+            f"else coalesce(tax.{tax_amount_field}, 0) end"
+        )
+
+        head_rows = frappe.db.sql(
+            f"""
+            select
+                {account_head_expression} as account_head,
+                {description_expression} as description,
+                {charge_type_expression} as charge_type,
+                sum({signed_tax_line}) as amount,
+                count(distinct tax.parent) as invoice_count
+            from `tab{taxes_child_doctype}` tax
+            inner join `tab{parent_doctype}` inv on inv.name = tax.parent
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by {account_head_expression}, {description_expression}, {charge_type_expression}
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        for head_row in head_rows:
+            account_head = cstr(head_row.get("account_head")).strip()
+            description = cstr(head_row.get("description")).strip()
+            charge_type = cstr(head_row.get("charge_type")).strip()
+            amount = flt(head_row.get("amount"))
+            if abs(amount) <= 0.00001:
+                continue
+            has_tax_breakdown = True
+            bucket_type = _classify_tax_charge_bucket(account_head, description, charge_type)
+            label = account_head or description or charge_type or _("Unlabeled Charge")
+            invoice_count = cint(head_row.get("invoice_count"))
+
+            if bucket_type == "tax":
+                tax_head = tax_head_buckets[label]
+                tax_head["label"] = label
+                tax_head["amount"] += amount
+                tax_head["invoice_count"] += invoice_count
+            else:
+                charge_head = charge_head_buckets[label]
+                charge_head["label"] = label
+                charge_head["category"] = bucket_type
+                charge_head["amount"] += amount
+                charge_head["invoice_count"] += invoice_count
+                if bucket_type == "service_charge":
+                    totals["service_charge_amount"] += amount
+                elif bucket_type == "fee":
+                    totals["fee_amount"] += amount
+                else:
+                    totals["other_charge_amount"] += amount
+
+        day_head_rows = frappe.db.sql(
+            f"""
+            select
+                inv.posting_date as posting_date,
+                {account_head_expression} as account_head,
+                {description_expression} as description,
+                {charge_type_expression} as charge_type,
+                sum({signed_tax_line}) as amount
+            from `tab{taxes_child_doctype}` tax
+            inner join `tab{parent_doctype}` inv on inv.name = tax.parent
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by inv.posting_date, {account_head_expression}, {description_expression}, {charge_type_expression}
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+        for day_head in day_head_rows:
+            day_key = cstr(day_head.get("posting_date")).strip()
+            if not day_key:
+                continue
+            amount = flt(day_head.get("amount"))
+            if abs(amount) <= 0.00001:
+                continue
+            day_entry = day_buckets.setdefault(
+                day_key,
+                {
+                    "date": day_key,
+                    "invoice_count": 0,
+                    "return_invoice_count": 0,
+                    "taxable_amount": 0.0,
+                    "invoice_total": 0.0,
+                    "tax_amount": 0.0,
+                    "service_charge_amount": 0.0,
+                    "fee_amount": 0.0,
+                    "other_charge_amount": 0.0,
+                    "round_off_amount": 0.0,
+                    "invoice_adjustment_amount": 0.0,
+                    "total_charge_amount": 0.0,
+                },
+            )
+            bucket_type = _classify_tax_charge_bucket(
+                cstr(day_head.get("account_head")).strip(),
+                cstr(day_head.get("description")).strip(),
+                cstr(day_head.get("charge_type")).strip(),
+            )
+            if bucket_type == "service_charge":
+                day_entry["service_charge_amount"] += amount
+            elif bucket_type == "fee":
+                day_entry["fee_amount"] += amount
+            elif bucket_type == "other_charge":
+                day_entry["other_charge_amount"] += amount
+
+    if has_tax_breakdown:
+        totals["tax_amount"] = flt(sum(flt(row.get("amount")) for row in tax_head_buckets.values()))
+
+    total_tax_base = flt(totals.get("tax_amount"))
+    tax_heads = sorted(
+        [
+            {
+                "label": row.get("label"),
+                "amount": flt(row.get("amount")),
+                "invoice_count": cint(row.get("invoice_count")),
+                "share_pct": flt((flt(row.get("amount")) / total_tax_base) * 100)
+                if abs(total_tax_base) > 0.00001
+                else 0.0,
+            }
+            for row in tax_head_buckets.values()
+            if abs(flt(row.get("amount"))) > 0.00001
+        ],
+        key=lambda row: abs(flt(row.get("amount"))),
+        reverse=True,
+    )
+
+    charge_base = flt(
+        flt(totals.get("service_charge_amount"))
+        + flt(totals.get("fee_amount"))
+        + flt(totals.get("other_charge_amount"))
+    )
+    charge_heads = sorted(
+        [
+            {
+                "label": row.get("label"),
+                "category": row.get("category"),
+                "amount": flt(row.get("amount")),
+                "invoice_count": cint(row.get("invoice_count")),
+                "share_pct": flt((flt(row.get("amount")) / charge_base) * 100)
+                if abs(charge_base) > 0.00001
+                else 0.0,
+            }
+            for row in charge_head_buckets.values()
+            if abs(flt(row.get("amount"))) > 0.00001
+        ],
+        key=lambda row: abs(flt(row.get("amount"))),
+        reverse=True,
+    )
+
+    for day_entry in day_buckets.values():
+        if has_tax_breakdown:
+            day_entry["tax_amount"] = flt(day_entry.get("tax_amount"))
+        day_entry["total_charge_amount"] = flt(
+            flt(day_entry.get("tax_amount"))
+            + flt(day_entry.get("service_charge_amount"))
+            + flt(day_entry.get("fee_amount"))
+            + flt(day_entry.get("other_charge_amount"))
+            + flt(day_entry.get("round_off_amount"))
+            + flt(day_entry.get("invoice_adjustment_amount"))
+        )
+
+    totals["total_charge_amount"] = flt(
+        flt(totals.get("tax_amount"))
+        + flt(totals.get("service_charge_amount"))
+        + flt(totals.get("fee_amount"))
+        + flt(totals.get("other_charge_amount"))
+        + flt(totals.get("round_off_amount"))
+        + flt(totals.get("invoice_adjustment_amount"))
+    )
+
+    day_rows = sorted(day_buckets.values(), key=lambda row: cstr(row.get("date")))
+    report["tax_heads"] = tax_heads[:row_limit]
+    report["charge_heads"] = charge_heads[:row_limit]
+    report["day_wise"] = day_rows
+    report["highlights"] = {
+        "top_tax_head": tax_heads[0] if tax_heads else None,
+        "top_charge_head": charge_heads[0] if charge_heads else None,
+    }
+    return report
+
+
 def _pct_change(current: float, previous: float) -> float | None:
     current_value = flt(current)
     previous_value = flt(previous)
@@ -4027,6 +4458,7 @@ def get_dashboard_data(
     staff_report_limit: int = 20,
     profitability_report_limit: int = 20,
     branch_report_limit: int = 20,
+    tax_report_limit: int = 20,
     supplier_limit: int = 8,
     low_stock_limit: int = 20,
 ):
@@ -4078,6 +4510,7 @@ def get_dashboard_data(
         profitability_report_limit, default=20, minimum=1, maximum=200
     )
     branch_report_limit = _coerce_limit(branch_report_limit, default=20, minimum=1, maximum=200)
+    tax_report_limit = _coerce_limit(tax_report_limit, default=20, minimum=1, maximum=200)
 
     company = cstr(current_profile_doc.get("company")).strip()
     company_profiles = _get_company_profiles(company)
@@ -4332,6 +4765,29 @@ def get_dashboard_data(
             "location_wise": [],
             "top_items_by_location": [],
         },
+        "tax_charges_report": {
+            "period": {"from": str(month_start), "to": str(today)},
+            "totals": {
+                "invoice_count": 0,
+                "return_invoice_count": 0,
+                "taxable_amount": 0.0,
+                "invoice_total": 0.0,
+                "tax_amount": 0.0,
+                "service_charge_amount": 0.0,
+                "fee_amount": 0.0,
+                "other_charge_amount": 0.0,
+                "round_off_amount": 0.0,
+                "invoice_adjustment_amount": 0.0,
+                "total_charge_amount": 0.0,
+            },
+            "tax_heads": [],
+            "charge_heads": [],
+            "day_wise": [],
+            "highlights": {
+                "top_tax_head": None,
+                "top_charge_head": None,
+            },
+        },
         "sales_trend": {
             "period": {
                 "day_from": str(month_start),
@@ -4523,6 +4979,13 @@ def get_dashboard_data(
         date_to=str(today),
         threshold=threshold,
         limit=branch_report_limit,
+    )
+    payload["tax_charges_report"] = _collect_tax_charges_report(
+        profile_names=selected_profile_names,
+        company=company,
+        date_from=str(month_start),
+        date_to=str(today),
+        limit=tax_report_limit,
     )
     payload["sales_trend"] = _collect_sales_trend(
         profile_names=selected_profile_names,
