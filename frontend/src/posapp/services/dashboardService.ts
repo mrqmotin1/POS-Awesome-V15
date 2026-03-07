@@ -90,6 +90,59 @@ export interface DashboardResponse {
 			amount: number;
 		}>;
 	};
+	sales_trend?: {
+		period?: {
+			day_from?: string;
+			day_to?: string;
+			week_from?: string;
+			month_from?: string;
+			to?: string;
+		};
+		day_wise?: Array<{
+			date?: string;
+			label?: string;
+			sales: number;
+			invoice_count?: number;
+		}>;
+		week_wise?: Array<{
+			year_week?: number;
+			label?: string;
+			week_start?: string;
+			week_end?: string;
+			sales: number;
+			invoice_count?: number;
+		}>;
+		month_wise?: Array<{
+			month?: string;
+			label?: string;
+			month_start?: string;
+			month_end?: string;
+			sales: number;
+			invoice_count?: number;
+		}>;
+		hourly?: Array<{
+			hour: number;
+			label?: string;
+			sales: number;
+			invoice_count?: number;
+		}>;
+		highlights?: {
+			best_day?: {
+				date?: string;
+				sales?: number;
+				invoice_count?: number;
+			} | null;
+			best_hour?: {
+				hour?: number;
+				label?: string;
+				sales?: number;
+				invoice_count?: number;
+			} | null;
+			day_growth_pct?: number | null;
+			week_growth_pct?: number | null;
+			month_growth_pct?: number | null;
+		};
+	};
 	inventory_insights: {
 		fast_moving_items: FastMovingItem[];
 		fast_moving_period?: {

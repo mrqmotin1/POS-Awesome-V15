@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from math import ceil
 from collections import defaultdict
 from typing import Any
@@ -731,6 +732,271 @@ def _collect_daily_sales_summary(
     return summary
 
 
+def _pct_change(current: float, previous: float) -> float | None:
+    current_value = flt(current)
+    previous_value = flt(previous)
+    if abs(previous_value) < 0.00001:
+        return 0.0 if abs(current_value) < 0.00001 else None
+    return flt(((current_value - previous_value) / abs(previous_value)) * 100)
+
+
+def _collect_sales_trend(
+    profile_names: list[str],
+    company: str,
+    today,
+    month_start,
+) -> dict[str, Any]:
+    week_window_start = today - timedelta(days=55)
+    month_window_start = getdate(add_months(today, -5)).replace(day=1)
+
+    trend: dict[str, Any] = {
+        "period": {
+            "day_from": str(month_start),
+            "day_to": str(today),
+            "week_from": str(week_window_start),
+            "month_from": str(month_window_start),
+            "to": str(today),
+        },
+        "day_wise": [],
+        "week_wise": [],
+        "month_wise": [],
+        "hourly": [],
+        "highlights": {
+            "best_day": None,
+            "best_hour": None,
+            "day_growth_pct": None,
+            "week_growth_pct": None,
+            "month_growth_pct": None,
+        },
+    }
+    if not profile_names:
+        return trend
+
+    profile_filter, profile_filter_params = _build_in_filter("inv.pos_profile", profile_names)
+
+    day_buckets: dict[str, dict[str, Any]] = {}
+    week_buckets: dict[str, dict[str, Any]] = {}
+    month_buckets: dict[str, dict[str, Any]] = {}
+    hourly_buckets: dict[int, dict[str, Any]] = {
+        hour: {"hour": hour, "label": f"{hour:02d}:00", "sales": 0.0, "invoice_count": 0}
+        for hour in range(24)
+    }
+
+    for parent_doctype, _child_doctype in _iter_invoice_sources():
+        amount_field = _pick_first_column(parent_doctype, ["base_grand_total", "grand_total"])
+        if not amount_field:
+            continue
+        amount_expression = f"coalesce(inv.{amount_field}, 0)"
+
+        day_rows = frappe.db.sql(
+            f"""
+            select
+                inv.posting_date as posting_date,
+                sum({amount_expression}) as sales_amount,
+                count(inv.name) as invoice_count
+            from `tab{parent_doctype}` inv
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by inv.posting_date
+            """,
+            (company, str(month_start), str(today), *profile_filter_params),
+            as_dict=True,
+        )
+        for row in day_rows:
+            bucket = cstr(row.get("posting_date")).strip()
+            if not bucket:
+                continue
+            entry = day_buckets.setdefault(
+                bucket,
+                {"date": bucket, "label": bucket, "sales": 0.0, "invoice_count": 0},
+            )
+            entry["sales"] += flt(row.get("sales_amount"))
+            entry["invoice_count"] += cint(row.get("invoice_count"))
+
+        week_rows = frappe.db.sql(
+            f"""
+            select
+                yearweek(inv.posting_date, 1) as year_week,
+                min(inv.posting_date) as week_start,
+                max(inv.posting_date) as week_end,
+                sum({amount_expression}) as sales_amount,
+                count(inv.name) as invoice_count
+            from `tab{parent_doctype}` inv
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by yearweek(inv.posting_date, 1)
+            """,
+            (company, str(week_window_start), str(today), *profile_filter_params),
+            as_dict=True,
+        )
+        for row in week_rows:
+            year_week = cint(row.get("year_week"))
+            week_key = cstr(year_week).strip() or cstr(row.get("week_start")).strip()
+            week_number = year_week % 100 if year_week else 0
+            week_year = year_week // 100 if year_week else 0
+            label = f"{week_year}-W{week_number:02d}" if year_week else week_key
+            entry = week_buckets.setdefault(
+                week_key,
+                {
+                    "year_week": year_week,
+                    "label": label,
+                    "week_start": cstr(row.get("week_start")).strip(),
+                    "week_end": cstr(row.get("week_end")).strip(),
+                    "sales": 0.0,
+                    "invoice_count": 0,
+                },
+            )
+            entry["sales"] += flt(row.get("sales_amount"))
+            entry["invoice_count"] += cint(row.get("invoice_count"))
+
+            start_candidate = cstr(row.get("week_start")).strip()
+            end_candidate = cstr(row.get("week_end")).strip()
+            if start_candidate and (
+                not entry.get("week_start") or start_candidate < cstr(entry.get("week_start"))
+            ):
+                entry["week_start"] = start_candidate
+            if end_candidate and (
+                not entry.get("week_end") or end_candidate > cstr(entry.get("week_end"))
+            ):
+                entry["week_end"] = end_candidate
+
+        month_rows = frappe.db.sql(
+            f"""
+            select
+                date_format(inv.posting_date, '%Y-%m') as month_label,
+                min(inv.posting_date) as month_start,
+                max(inv.posting_date) as month_end,
+                sum({amount_expression}) as sales_amount,
+                count(inv.name) as invoice_count
+            from `tab{parent_doctype}` inv
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by date_format(inv.posting_date, '%Y-%m')
+            """,
+            (company, str(month_window_start), str(today), *profile_filter_params),
+            as_dict=True,
+        )
+        for row in month_rows:
+            month_key = cstr(row.get("month_label")).strip()
+            if not month_key:
+                continue
+            entry = month_buckets.setdefault(
+                month_key,
+                {
+                    "month": month_key,
+                    "label": month_key,
+                    "month_start": cstr(row.get("month_start")).strip(),
+                    "month_end": cstr(row.get("month_end")).strip(),
+                    "sales": 0.0,
+                    "invoice_count": 0,
+                },
+            )
+            entry["sales"] += flt(row.get("sales_amount"))
+            entry["invoice_count"] += cint(row.get("invoice_count"))
+
+            start_candidate = cstr(row.get("month_start")).strip()
+            end_candidate = cstr(row.get("month_end")).strip()
+            if start_candidate and (
+                not entry.get("month_start") or start_candidate < cstr(entry.get("month_start"))
+            ):
+                entry["month_start"] = start_candidate
+            if end_candidate and (
+                not entry.get("month_end") or end_candidate > cstr(entry.get("month_end"))
+            ):
+                entry["month_end"] = end_candidate
+
+        hour_expression = None
+        if frappe.db.has_column(parent_doctype, "posting_time"):
+            hour_expression = "hour(inv.posting_time)"
+        elif frappe.db.has_column(parent_doctype, "creation"):
+            hour_expression = "hour(inv.creation)"
+
+        if hour_expression:
+            hour_rows = frappe.db.sql(
+                f"""
+                select
+                    {hour_expression} as hour_of_day,
+                    sum({amount_expression}) as sales_amount,
+                    count(inv.name) as invoice_count
+                from `tab{parent_doctype}` inv
+                where inv.docstatus = 1
+                  and inv.company = %s
+                  and inv.posting_date = %s
+                  {profile_filter}
+                  {_extra_parent_filter(parent_doctype, "inv")}
+                group by {hour_expression}
+                """,
+                (company, str(today), *profile_filter_params),
+                as_dict=True,
+            )
+            for row in hour_rows:
+                hour = cint(row.get("hour_of_day"))
+                if hour < 0 or hour > 23:
+                    continue
+                hourly_buckets[hour]["sales"] += flt(row.get("sales_amount"))
+                hourly_buckets[hour]["invoice_count"] += cint(row.get("invoice_count"))
+
+    day_points = sorted(day_buckets.values(), key=lambda row: cstr(row.get("date")))
+    week_points = sorted(week_buckets.values(), key=lambda row: cstr(row.get("week_start")))
+    month_points = sorted(month_buckets.values(), key=lambda row: cstr(row.get("month")))
+    hourly_points = [hourly_buckets[hour] for hour in range(24)]
+
+    trend["day_wise"] = day_points
+    trend["week_wise"] = week_points
+    trend["month_wise"] = month_points
+    trend["hourly"] = hourly_points
+
+    day_map = {cstr(row.get("date")): flt(row.get("sales")) for row in day_points}
+    today_key = str(today)
+    yesterday_key = str(today - timedelta(days=1))
+    trend["highlights"]["day_growth_pct"] = _pct_change(day_map.get(today_key, 0.0), day_map.get(yesterday_key, 0.0))
+
+    if len(week_points) >= 2:
+        trend["highlights"]["week_growth_pct"] = _pct_change(
+            flt(week_points[-1].get("sales")),
+            flt(week_points[-2].get("sales")),
+        )
+    elif len(week_points) == 1:
+        trend["highlights"]["week_growth_pct"] = _pct_change(flt(week_points[-1].get("sales")), 0.0)
+
+    if len(month_points) >= 2:
+        trend["highlights"]["month_growth_pct"] = _pct_change(
+            flt(month_points[-1].get("sales")),
+            flt(month_points[-2].get("sales")),
+        )
+    elif len(month_points) == 1:
+        trend["highlights"]["month_growth_pct"] = _pct_change(flt(month_points[-1].get("sales")), 0.0)
+
+    if day_points:
+        best_day = max(day_points, key=lambda row: flt(row.get("sales")))
+        trend["highlights"]["best_day"] = {
+            "date": best_day.get("date"),
+            "sales": flt(best_day.get("sales")),
+            "invoice_count": cint(best_day.get("invoice_count")),
+        }
+
+    non_zero_hours = [row for row in hourly_points if abs(flt(row.get("sales"))) > 0.00001]
+    if non_zero_hours:
+        best_hour = max(non_zero_hours, key=lambda row: flt(row.get("sales")))
+        trend["highlights"]["best_hour"] = {
+            "hour": cint(best_hour.get("hour")),
+            "label": best_hour.get("label"),
+            "sales": flt(best_hour.get("sales")),
+            "invoice_count": cint(best_hour.get("invoice_count")),
+        }
+
+    return trend
+
+
 def _collect_fast_moving_items(
     profile_names: list[str],
     company: str,
@@ -1101,6 +1367,26 @@ def get_dashboard_data(
             "has_closing_snapshot": False,
             "payment_methods": [],
         },
+        "sales_trend": {
+            "period": {
+                "day_from": str(month_start),
+                "day_to": str(today),
+                "week_from": str(today - timedelta(days=55)),
+                "month_from": str(getdate(add_months(today, -5)).replace(day=1)),
+                "to": str(today),
+            },
+            "day_wise": [],
+            "week_wise": [],
+            "month_wise": [],
+            "hourly": [],
+            "highlights": {
+                "best_day": None,
+                "best_hour": None,
+                "day_growth_pct": None,
+                "week_growth_pct": None,
+                "month_growth_pct": None,
+            },
+        },
         "inventory_insights": {
             "fast_moving_items": [],
             "fast_moving_period": {
@@ -1158,6 +1444,12 @@ def get_dashboard_data(
         profile_names=selected_profile_names,
         company=company,
         date_value=str(today),
+    )
+    payload["sales_trend"] = _collect_sales_trend(
+        profile_names=selected_profile_names,
+        company=company,
+        today=today,
+        month_start=month_start,
     )
 
     fast_moving_items, fast_moving_total_count = _collect_fast_moving_items(

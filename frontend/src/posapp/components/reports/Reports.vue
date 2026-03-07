@@ -132,6 +132,126 @@
 					</v-col>
 				</v-row>
 
+				<v-row class="dashboard-grid mb-2">
+					<v-col cols="12">
+						<v-card class="dashboard-card" elevation="2">
+							<div class="dashboard-card__header">
+								<h2 class="text-subtitle-1 font-weight-bold mb-0">{{ __("Sales Trend Report") }}</h2>
+								<div class="dashboard-chip-row">
+									<v-chip size="small" color="info" variant="tonal">
+										{{ salesTrendRangeLabel }}
+									</v-chip>
+									<v-chip size="small" color="primary" variant="tonal">
+										{{ __("Best Day") }}: {{ bestDayLabel }}
+									</v-chip>
+									<v-chip size="small" color="primary" variant="tonal">
+										{{ __("Peak Hour") }}: {{ bestHourLabel }}
+									</v-chip>
+									<v-chip
+										v-for="chip in trendGrowthChips"
+										:key="chip.key"
+										size="small"
+										:color="chip.color"
+										variant="tonal"
+									>
+										{{ chip.label }}: {{ chip.value }}
+									</v-chip>
+								</div>
+							</div>
+
+							<div class="trend-grid">
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Day-wise (MTD)") }}</div>
+									<div v-if="salesTrendDayPoints.length" class="list-stack trend-list">
+										<div v-for="point in salesTrendDayPoints" :key="`day-${point.date}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ formatDate(point.date) }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(point.sales || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Invoices") }}: {{ formatQuantity(Number(point.invoice_count || 0)) }}
+											</div>
+											<v-progress-linear
+												:model-value="trendProgress(Number(point.sales || 0), salesTrendDayMax)"
+												color="primary"
+												height="5"
+												rounded
+											/>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No day-wise sales trend found.") }}</div>
+								</div>
+
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Week-wise") }}</div>
+									<div v-if="salesTrendWeekPoints.length" class="list-stack trend-list">
+										<div v-for="point in salesTrendWeekPoints" :key="`week-${point.label}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ point.label || "-" }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(point.sales || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ formatDate(point.week_start) }} - {{ formatDate(point.week_end) }}
+											</div>
+											<v-progress-linear
+												:model-value="trendProgress(Number(point.sales || 0), salesTrendWeekMax)"
+												color="info"
+												height="5"
+												rounded
+											/>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No week-wise sales trend found.") }}</div>
+								</div>
+
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Month-wise") }}</div>
+									<div v-if="salesTrendMonthPoints.length" class="list-stack trend-list">
+										<div v-for="point in salesTrendMonthPoints" :key="`month-${point.month}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ point.label || point.month || "-" }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(point.sales || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Invoices") }}: {{ formatQuantity(Number(point.invoice_count || 0)) }}
+											</div>
+											<v-progress-linear
+												:model-value="trendProgress(Number(point.sales || 0), salesTrendMonthMax)"
+												color="success"
+												height="5"
+												rounded
+											/>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No month-wise sales trend found.") }}</div>
+								</div>
+
+								<div class="trend-panel">
+									<div class="summary-metric__label">{{ __("Hourly (Today)") }}</div>
+									<div v-if="salesTrendHourPoints.length" class="list-stack trend-list">
+										<div v-for="point in salesTrendHourPoints" :key="`hour-${point.hour}`" class="insight-row">
+											<div class="insight-row__top">
+												<div class="insight-row__title">{{ point.label || "-" }}</div>
+												<div class="insight-row__value">{{ formatMoney(Number(point.sales || 0)) }}</div>
+											</div>
+											<div class="insight-row__meta">
+												{{ __("Invoices") }}: {{ formatQuantity(Number(point.invoice_count || 0)) }}
+											</div>
+											<v-progress-linear
+												:model-value="trendProgress(Number(point.sales || 0), salesTrendHourMax)"
+												color="warning"
+												height="5"
+												rounded
+											/>
+										</div>
+									</div>
+									<div v-else class="empty-state">{{ __("No hourly sales trend found for today.") }}</div>
+								</div>
+							</div>
+						</v-card>
+					</v-col>
+				</v-row>
+
 				<v-row class="dashboard-grid">
 					<v-col cols="12" lg="6">
 						<v-card class="dashboard-card" elevation="2">
@@ -392,6 +512,20 @@ const createEmptyDashboard = (): DashboardResponse => ({
 		has_closing_snapshot: false,
 		payment_methods: [],
 	},
+	sales_trend: {
+		period: {},
+		day_wise: [],
+		week_wise: [],
+		month_wise: [],
+		hourly: [],
+		highlights: {
+			best_day: null,
+			best_hour: null,
+			day_growth_pct: null,
+			week_growth_pct: null,
+			month_growth_pct: null,
+		},
+	},
 	inventory_insights: {
 		fast_moving_items: [],
 		fast_moving_period: {
@@ -618,6 +752,107 @@ const dailySummaryMetrics = computed(() => {
 	];
 });
 
+const salesTrend = computed(() => dashboardData.value.sales_trend || {});
+const salesTrendDayPoints = computed(() =>
+	[...(salesTrend.value.day_wise || [])]
+		.sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")))
+		.slice(-14),
+);
+const salesTrendWeekPoints = computed(() =>
+	[...(salesTrend.value.week_wise || [])]
+		.sort((a, b) => String(a.week_start || "").localeCompare(String(b.week_start || "")))
+		.slice(-8),
+);
+const salesTrendMonthPoints = computed(() =>
+	[...(salesTrend.value.month_wise || [])]
+		.sort((a, b) => String(a.month || "").localeCompare(String(b.month || "")))
+		.slice(-6),
+);
+const salesTrendHourPoints = computed(() =>
+	[...(salesTrend.value.hourly || [])]
+		.filter((row) => Math.abs(Number(row.sales || 0)) > 0.00001)
+		.sort((a, b) => Number(b.sales || 0) - Number(a.sales || 0))
+		.slice(0, 8),
+);
+const salesTrendRangeLabel = computed(() => {
+	const from = salesTrend.value.period?.day_from;
+	const to = salesTrend.value.period?.day_to;
+	if (!from || !to) {
+		return __("Current Month");
+	}
+	return `${formatDate(from)} - ${formatDate(to)}`;
+});
+const trendHighlights = computed(() => salesTrend.value.highlights || {});
+const bestDayLabel = computed(() => {
+	const bestDay = trendHighlights.value.best_day;
+	if (!bestDay?.date) {
+		return __("N/A");
+	}
+	return `${formatDate(bestDay.date)} . ${formatMoney(Number(bestDay.sales || 0))}`;
+});
+const bestHourLabel = computed(() => {
+	const bestHour = trendHighlights.value.best_hour;
+	if (!bestHour) {
+		return __("N/A");
+	}
+	const label =
+		bestHour.label || `${String(Number(bestHour.hour || 0)).padStart(2, "0")}:00`;
+	return `${label} . ${formatMoney(Number(bestHour.sales || 0))}`;
+});
+const trendGrowthChips = computed(() => {
+	const dayGrowth = trendHighlights.value.day_growth_pct;
+	const weekGrowth = trendHighlights.value.week_growth_pct;
+	const monthGrowth = trendHighlights.value.month_growth_pct;
+	return [
+		{
+			key: "day_growth",
+			label: __("Day Δ"),
+			value: formatTrendPct(trendHighlights.value.day_growth_pct),
+			color: trendGrowthColor(dayGrowth),
+		},
+		{
+			key: "week_growth",
+			label: __("Week Δ"),
+			value: formatTrendPct(trendHighlights.value.week_growth_pct),
+			color: trendGrowthColor(weekGrowth),
+		},
+		{
+			key: "month_growth",
+			label: __("Month Δ"),
+			value: formatTrendPct(trendHighlights.value.month_growth_pct),
+			color: trendGrowthColor(monthGrowth),
+		},
+	];
+});
+const salesTrendDayMax = computed(() => {
+	const maxValue = salesTrendDayPoints.value.reduce(
+		(max, row) => Math.max(max, Math.abs(Number(row.sales || 0))),
+		0,
+	);
+	return maxValue > 0 ? maxValue : 1;
+});
+const salesTrendWeekMax = computed(() => {
+	const maxValue = salesTrendWeekPoints.value.reduce(
+		(max, row) => Math.max(max, Math.abs(Number(row.sales || 0))),
+		0,
+	);
+	return maxValue > 0 ? maxValue : 1;
+});
+const salesTrendMonthMax = computed(() => {
+	const maxValue = salesTrendMonthPoints.value.reduce(
+		(max, row) => Math.max(max, Math.abs(Number(row.sales || 0))),
+		0,
+	);
+	return maxValue > 0 ? maxValue : 1;
+});
+const salesTrendHourMax = computed(() => {
+	const maxValue = salesTrendHourPoints.value.reduce(
+		(max, row) => Math.max(max, Math.abs(Number(row.sales || 0))),
+		0,
+	);
+	return maxValue > 0 ? maxValue : 1;
+});
+
 const fastMovingItems = computed<FastMovingItem[]>(
 	() => dashboardData.value.inventory_insights.fast_moving_items || [],
 );
@@ -783,6 +1018,32 @@ function paymentCategoryColor(category?: string) {
 	return "secondary";
 }
 
+function trendProgress(value: number, maxValue: number) {
+	return Math.min(100, (Math.abs(Number(value || 0)) / Math.max(1, Number(maxValue || 1))) * 100);
+}
+
+function formatTrendPct(value?: number | null) {
+	if (value === null || value === undefined || Number.isNaN(Number(value))) {
+		return __("N/A");
+	}
+	const numeric = Number(value);
+	const prefix = numeric > 0 ? "+" : "";
+	return `${prefix}${numeric.toFixed(1)}%`;
+}
+
+function trendGrowthColor(value?: number | null) {
+	if (value === null || value === undefined || Number.isNaN(Number(value))) {
+		return "secondary";
+	}
+	if (Number(value) > 0) {
+		return "success";
+	}
+	if (Number(value) < 0) {
+		return "error";
+	}
+	return "warning";
+}
+
 function mergeDashboardPayload(payload?: Partial<DashboardResponse>): DashboardResponse {
 	const base = createEmptyDashboard();
 	return {
@@ -795,6 +1056,10 @@ function mergeDashboardPayload(payload?: Partial<DashboardResponse>): DashboardR
 		daily_sales_summary: {
 			...(base.daily_sales_summary || {}),
 			...(payload?.daily_sales_summary || {}),
+		},
+		sales_trend: {
+			...(base.sales_trend || {}),
+			...(payload?.sales_trend || {}),
 		},
 		inventory_insights: {
 			...base.inventory_insights,
@@ -1095,6 +1360,23 @@ onMounted(() => {
 	gap: 10px;
 }
 
+.trend-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.trend-panel {
+	border: 1px solid var(--pos-border);
+	border-radius: 10px;
+	padding: 10px;
+	background: var(--pos-card-bg);
+}
+
+.trend-list {
+	max-height: 280px;
+}
+
 .summary-metric {
 	border: 1px solid var(--pos-border);
 	border-radius: 10px;
@@ -1234,6 +1516,10 @@ onMounted(() => {
 }
 
 @media (max-width: 960px) {
+	.trend-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
 	.list-stack {
 		max-height: none;
 	}
@@ -1248,6 +1534,10 @@ onMounted(() => {
 }
 
 @media (max-width: 600px) {
+	.trend-grid {
+		grid-template-columns: 1fr;
+	}
+
 	.dashboard-filter {
 		min-width: 150px;
 		max-width: 180px;
