@@ -869,7 +869,7 @@ def _collect_sales_trend(
         month_rows = frappe.db.sql(
             f"""
             select
-                date_format(inv.posting_date, '%Y-%m') as month_label,
+                date_format(inv.posting_date, '%%Y-%%m') as month_label,
                 min(inv.posting_date) as month_start,
                 max(inv.posting_date) as month_end,
                 sum({amount_expression}) as sales_amount,
@@ -880,7 +880,7 @@ def _collect_sales_trend(
               and inv.posting_date between %s and %s
               {profile_filter}
               {_extra_parent_filter(parent_doctype, "inv")}
-            group by date_format(inv.posting_date, '%Y-%m')
+            group by date_format(inv.posting_date, '%%Y-%%m')
             """,
             (company, str(month_window_start), str(today), *profile_filter_params),
             as_dict=True,
@@ -995,6 +995,197 @@ def _collect_sales_trend(
         }
 
     return trend
+
+
+def _collect_item_sales_report(
+    profile_names: list[str],
+    company: str,
+    date_from: str,
+    date_to: str,
+    limit: int = 20,
+) -> dict[str, Any]:
+    report: dict[str, Any] = {
+        "period": {"from": date_from, "to": date_to},
+        "items": [],
+        "highlights": {
+            "best_seller": None,
+            "top_margin_item": None,
+            "top_discount_item": None,
+        },
+    }
+    if not profile_names:
+        return report
+
+    profile_filter, profile_filter_params = _build_in_filter("inv.pos_profile", profile_names)
+    grouped_items: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {
+            "item_code": "",
+            "item_name": "",
+            "stock_uom": "",
+            "sold_qty": 0.0,
+            "sales_amount": 0.0,
+            "discount_amount": 0.0,
+            "estimated_cost": 0.0,
+            "total_lines": 0,
+            "discounted_lines": 0,
+        }
+    )
+
+    for parent_doctype, child_doctype in _iter_invoice_sources():
+        qty_field = _pick_first_column(child_doctype, ["stock_qty", "qty"])
+        if not qty_field:
+            continue
+
+        amount_field = _pick_first_column(child_doctype, ["base_net_amount", "net_amount", "amount"])
+        discount_field = _pick_first_column(child_doctype, ["base_discount_amount", "discount_amount"])
+        cost_field = _pick_first_column(child_doctype, ["incoming_rate", "valuation_rate"])
+        name_field = _pick_first_column(child_doctype, ["item_name"])
+        uom_field = _pick_first_column(child_doctype, ["stock_uom", "uom"])
+
+        is_return_expression = (
+            "ifnull(inv.is_return, 0)" if frappe.db.has_column(parent_doctype, "is_return") else "0"
+        )
+
+        qty_base_expression = f"coalesce(item.{qty_field}, 0)"
+        amount_base_expression = f"coalesce(item.{amount_field}, 0)" if amount_field else "0"
+        discount_base_expression = f"coalesce(item.{discount_field}, 0)" if discount_field else "0"
+        cost_rate_expression = f"coalesce(item.{cost_field}, 0)" if cost_field else "0"
+
+        qty_expression = (
+            f"case when {is_return_expression} = 1 then -abs({qty_base_expression}) "
+            f"else abs({qty_base_expression}) end"
+        )
+        amount_expression = (
+            f"case when {is_return_expression} = 1 then -abs({amount_base_expression}) "
+            f"else abs({amount_base_expression}) end"
+        )
+        discount_expression = (
+            f"case when {is_return_expression} = 1 then -abs({discount_base_expression}) "
+            f"else abs({discount_base_expression}) end"
+        )
+        discounted_line_expression = (
+            f"case when abs({discount_base_expression}) > 0.00001 then 1 else 0 end"
+        )
+        item_name_expression = (
+            f"coalesce(item.{name_field}, item.item_code)" if name_field else "item.item_code"
+        )
+        stock_uom_expression = f"coalesce(item.{uom_field}, '')" if uom_field else "''"
+
+        rows = frappe.db.sql(
+            f"""
+            select
+                item.item_code as item_code,
+                max({item_name_expression}) as item_name,
+                max({stock_uom_expression}) as stock_uom,
+                sum({qty_expression}) as sold_qty,
+                sum({amount_expression}) as sales_amount,
+                sum({discount_expression}) as discount_amount,
+                sum(({qty_expression}) * ({cost_rate_expression})) as estimated_cost,
+                count(item.name) as total_lines,
+                sum({discounted_line_expression}) as discounted_lines
+            from `tab{child_doctype}` item
+            inner join `tab{parent_doctype}` inv on inv.name = item.parent
+            where inv.docstatus = 1
+              and inv.company = %s
+              and inv.posting_date between %s and %s
+              {profile_filter}
+              {_extra_parent_filter(parent_doctype, "inv")}
+            group by item.item_code
+            """,
+            (company, date_from, date_to, *profile_filter_params),
+            as_dict=True,
+        )
+
+        for row in rows:
+            item_code = cstr(row.get("item_code")).strip()
+            if not item_code:
+                continue
+
+            current = grouped_items[item_code]
+            current["item_code"] = item_code
+            current["item_name"] = cstr(row.get("item_name") or current.get("item_name") or item_code)
+            current["stock_uom"] = cstr(row.get("stock_uom") or current.get("stock_uom") or "")
+            current["sold_qty"] = flt(current.get("sold_qty")) + flt(row.get("sold_qty"))
+            current["sales_amount"] = flt(current.get("sales_amount")) + flt(row.get("sales_amount"))
+            current["discount_amount"] = flt(current.get("discount_amount")) + flt(row.get("discount_amount"))
+            current["estimated_cost"] = flt(current.get("estimated_cost")) + flt(row.get("estimated_cost"))
+            current["total_lines"] = cint(current.get("total_lines")) + cint(row.get("total_lines"))
+            current["discounted_lines"] = cint(current.get("discounted_lines")) + cint(
+                row.get("discounted_lines")
+            )
+
+    items: list[dict[str, Any]] = []
+    for row in grouped_items.values():
+        sold_qty = flt(row.get("sold_qty"))
+        sales_amount = flt(row.get("sales_amount"))
+        estimated_cost = flt(row.get("estimated_cost"))
+        discount_amount = flt(row.get("discount_amount"))
+        total_lines = max(0, cint(row.get("total_lines")))
+        discounted_lines = max(0, min(total_lines, cint(row.get("discounted_lines"))))
+
+        if abs(sold_qty) < 0.00001 and abs(sales_amount) < 0.00001:
+            continue
+
+        estimated_margin = flt(sales_amount - estimated_cost)
+        margin_pct = (
+            flt((estimated_margin / sales_amount) * 100) if abs(sales_amount) > 0.00001 else None
+        )
+        discount_frequency_pct = (
+            flt((discounted_lines / total_lines) * 100) if total_lines > 0 else 0.0
+        )
+
+        items.append(
+            {
+                "item_code": cstr(row.get("item_code")),
+                "item_name": cstr(row.get("item_name") or row.get("item_code")),
+                "stock_uom": cstr(row.get("stock_uom")),
+                "sold_qty": sold_qty,
+                "sales_amount": sales_amount,
+                "discount_amount": discount_amount,
+                "estimated_cost": estimated_cost,
+                "estimated_margin": estimated_margin,
+                "estimated_margin_pct": margin_pct,
+                "total_lines": total_lines,
+                "discounted_lines": discounted_lines,
+                "discount_frequency_pct": discount_frequency_pct,
+            }
+        )
+
+    items.sort(
+        key=lambda row: (flt(row.get("sales_amount")), flt(row.get("sold_qty"))),
+        reverse=True,
+    )
+    report["items"] = items[: _coerce_limit(limit, default=20, minimum=1, maximum=100)]
+
+    if items:
+        best_seller = max(
+            items,
+            key=lambda row: (flt(row.get("sold_qty")), flt(row.get("sales_amount"))),
+        )
+        top_margin_item = max(items, key=lambda row: flt(row.get("estimated_margin")))
+        top_discount_item = max(items, key=lambda row: abs(flt(row.get("discount_amount"))))
+        report["highlights"] = {
+            "best_seller": {
+                "item_code": best_seller.get("item_code"),
+                "item_name": best_seller.get("item_name"),
+                "sold_qty": flt(best_seller.get("sold_qty")),
+                "sales_amount": flt(best_seller.get("sales_amount")),
+            },
+            "top_margin_item": {
+                "item_code": top_margin_item.get("item_code"),
+                "item_name": top_margin_item.get("item_name"),
+                "estimated_margin": flt(top_margin_item.get("estimated_margin")),
+                "estimated_margin_pct": top_margin_item.get("estimated_margin_pct"),
+            },
+            "top_discount_item": {
+                "item_code": top_discount_item.get("item_code"),
+                "item_name": top_discount_item.get("item_name"),
+                "discount_amount": flt(top_discount_item.get("discount_amount")),
+                "discount_frequency_pct": flt(top_discount_item.get("discount_frequency_pct")),
+            },
+        }
+
+    return report
 
 
 def _collect_fast_moving_items(
@@ -1176,6 +1367,7 @@ def get_dashboard_data(
     fast_moving_page: int = 1,
     fast_moving_page_size=None,
     fast_moving_search=None,
+    item_sales_limit: int = 20,
     supplier_limit: int = 8,
     low_stock_limit: int = 20,
 ):
@@ -1214,6 +1406,7 @@ def get_dashboard_data(
     fast_moving_search = cstr(fast_moving_search).strip()
     supplier_limit = _coerce_limit(supplier_limit, default=8, minimum=1, maximum=25)
     low_stock_limit = _coerce_limit(low_stock_limit, default=20, minimum=1, maximum=100)
+    item_sales_limit = _coerce_limit(item_sales_limit, default=20, minimum=1, maximum=100)
 
     company = cstr(current_profile_doc.get("company")).strip()
     company_profiles = _get_company_profiles(company)
@@ -1387,6 +1580,15 @@ def get_dashboard_data(
                 "month_growth_pct": None,
             },
         },
+        "item_sales_report": {
+            "period": {"from": str(month_start), "to": str(today)},
+            "items": [],
+            "highlights": {
+                "best_seller": None,
+                "top_margin_item": None,
+                "top_discount_item": None,
+            },
+        },
         "inventory_insights": {
             "fast_moving_items": [],
             "fast_moving_period": {
@@ -1450,6 +1652,13 @@ def get_dashboard_data(
         company=company,
         today=today,
         month_start=month_start,
+    )
+    payload["item_sales_report"] = _collect_item_sales_report(
+        profile_names=selected_profile_names,
+        company=company,
+        date_from=str(month_start),
+        date_to=str(today),
+        limit=item_sales_limit,
     )
 
     fast_moving_items, fast_moving_total_count = _collect_fast_moving_items(

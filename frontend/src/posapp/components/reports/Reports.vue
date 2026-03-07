@@ -252,6 +252,60 @@
 					</v-col>
 				</v-row>
 
+				<v-row class="dashboard-grid mb-2">
+					<v-col cols="12">
+						<v-card class="dashboard-card" elevation="2">
+							<div class="dashboard-card__header">
+								<h2 class="text-subtitle-1 font-weight-bold mb-0">{{ __("Item / Product Sales Report") }}</h2>
+								<div class="dashboard-chip-row">
+									<v-chip size="small" color="info" variant="tonal">
+										{{ itemSalesRangeLabel }}
+									</v-chip>
+									<v-chip size="small" color="primary" variant="tonal">
+										{{ __("Best Seller") }}: {{ itemSalesBestSellerLabel }}
+									</v-chip>
+									<v-chip size="small" color="success" variant="tonal">
+										{{ __("Top Margin") }}: {{ itemSalesTopMarginLabel }}
+									</v-chip>
+									<v-chip size="small" color="warning" variant="tonal">
+										{{ __("Top Discount") }}: {{ itemSalesTopDiscountLabel }}
+									</v-chip>
+								</div>
+							</div>
+
+							<div v-if="itemSalesItems.length" class="list-stack">
+								<div v-for="item in itemSalesItems" :key="`item-sales-${item.item_code}`" class="insight-row">
+									<div class="insight-row__top">
+										<div class="insight-row__title">
+											{{ item.item_name || item.item_code }}
+										</div>
+										<div class="insight-row__value">
+											{{ formatMoney(Number(item.sales_amount || 0)) }}
+										</div>
+									</div>
+									<div class="insight-row__meta">
+										{{ item.item_code }} .
+										{{ __("Qty") }}: {{ formatQuantity(Number(item.sold_qty || 0)) }} {{ item.stock_uom || "" }}
+									</div>
+									<div class="insight-row__meta">
+										{{ __("Margin") }}: {{ formatMoney(Number(item.estimated_margin || 0)) }}
+										({{ formatPercent(item.estimated_margin_pct, 1) }}) .
+										{{ __("Discount") }}: {{ formatMoney(Number(item.discount_amount || 0)) }}
+										({{ formatPercent(item.discount_frequency_pct, 1) }})
+									</div>
+									<v-progress-linear
+										:model-value="trendProgress(Number(item.sales_amount || 0), itemSalesMaxSales)"
+										color="primary"
+										height="5"
+										rounded
+									/>
+								</div>
+							</div>
+							<div v-else class="empty-state">{{ __("No item sales data found for this period.") }}</div>
+						</v-card>
+					</v-col>
+				</v-row>
+
 				<v-row class="dashboard-grid">
 					<v-col cols="12" lg="6">
 						<v-card class="dashboard-card" elevation="2">
@@ -452,6 +506,7 @@ import {
 	fetchDashboardData,
 	type DashboardResponse,
 	type FastMovingItem,
+	type ItemSalesRow,
 	type LowStockItem,
 	type SupplierSummaryRow,
 } from "@/posapp/services/dashboardService";
@@ -477,6 +532,7 @@ const fastMovingSearchInput = ref("");
 const lowStockSearch = ref("");
 const lowStockWarehouseFilter = ref("");
 const supplierSearch = ref("");
+const itemSalesLimit = ref(20);
 let fastMovingSearchDebounce: ReturnType<typeof setTimeout> | null = null;
 
 const createEmptyDashboard = (): DashboardResponse => ({
@@ -524,6 +580,15 @@ const createEmptyDashboard = (): DashboardResponse => ({
 			day_growth_pct: null,
 			week_growth_pct: null,
 			month_growth_pct: null,
+		},
+	},
+	item_sales_report: {
+		period: {},
+		items: [],
+		highlights: {
+			best_seller: null,
+			top_margin_item: null,
+			top_discount_item: null,
 		},
 	},
 	inventory_insights: {
@@ -853,6 +918,62 @@ const salesTrendHourMax = computed(() => {
 	return maxValue > 0 ? maxValue : 1;
 });
 
+const itemSalesReport = computed(() => dashboardData.value.item_sales_report || {});
+const itemSalesItems = computed<ItemSalesRow[]>(() =>
+	[...(itemSalesReport.value.items || [])]
+		.sort((a, b) => Number(b.sales_amount || 0) - Number(a.sales_amount || 0))
+		.slice(0, Number(itemSalesLimit.value || 20)),
+);
+const itemSalesHighlights = computed(() => itemSalesReport.value.highlights || {});
+const itemSalesRangeLabel = computed(() => {
+	const from = itemSalesReport.value.period?.from || dashboardData.value.date_context?.month_start;
+	const to = itemSalesReport.value.period?.to || dashboardData.value.date_context?.today;
+	if (!from || !to) {
+		return __("Current Month");
+	}
+	return `${formatDate(from)} - ${formatDate(to)}`;
+});
+const itemSalesBestSellerLabel = computed(() => {
+	const row = itemSalesHighlights.value.best_seller;
+	if (!row) {
+		return __("N/A");
+	}
+	const name = String(row.item_name || row.item_code || "").trim();
+	if (!name) {
+		return __("N/A");
+	}
+	return `${name} . ${formatQuantity(Number(row.sold_qty || 0))}`;
+});
+const itemSalesTopMarginLabel = computed(() => {
+	const row = itemSalesHighlights.value.top_margin_item;
+	if (!row) {
+		return __("N/A");
+	}
+	const name = String(row.item_name || row.item_code || "").trim();
+	if (!name) {
+		return __("N/A");
+	}
+	return `${name} . ${formatMoney(Number(row.estimated_margin || 0))}`;
+});
+const itemSalesTopDiscountLabel = computed(() => {
+	const row = itemSalesHighlights.value.top_discount_item;
+	if (!row) {
+		return __("N/A");
+	}
+	const name = String(row.item_name || row.item_code || "").trim();
+	if (!name) {
+		return __("N/A");
+	}
+	return `${name} . ${formatMoney(Number(row.discount_amount || 0))}`;
+});
+const itemSalesMaxSales = computed(() => {
+	const maxValue = itemSalesItems.value.reduce(
+		(max, row) => Math.max(max, Math.abs(Number(row.sales_amount || 0))),
+		0,
+	);
+	return maxValue > 0 ? maxValue : 1;
+});
+
 const fastMovingItems = computed<FastMovingItem[]>(
 	() => dashboardData.value.inventory_insights.fast_moving_items || [],
 );
@@ -1000,6 +1121,13 @@ function formatDate(value?: string) {
 	return parsed.toLocaleDateString();
 }
 
+function formatPercent(value?: number | null, precision = 1) {
+	if (value === null || value === undefined || Number.isNaN(Number(value))) {
+		return __("N/A");
+	}
+	return `${Number(value).toFixed(precision)}%`;
+}
+
 function progressFromQuantity(quantity: number) {
 	return Math.min(100, (Number(quantity || 0) / maxFastMovingQty.value) * 100);
 }
@@ -1061,6 +1189,10 @@ function mergeDashboardPayload(payload?: Partial<DashboardResponse>): DashboardR
 			...(base.sales_trend || {}),
 			...(payload?.sales_trend || {}),
 		},
+		item_sales_report: {
+			...(base.item_sales_report || {}),
+			...(payload?.item_sales_report || {}),
+		},
 		inventory_insights: {
 			...base.inventory_insights,
 			...(payload?.inventory_insights || {}),
@@ -1094,6 +1226,7 @@ function logDashboardResponse(response: DashboardResponse) {
 	console.info("selected_profiles", response.selected_profiles || []);
 	console.info("available_profiles_count", response.available_profiles?.length || 0);
 	console.info("profit_method", response.sales_overview?.profit_method || null);
+	console.info("item_sales_count", response.item_sales_report?.items?.length || 0);
 	console.info("fast_moving_pagination", response.inventory_insights?.fast_moving_pagination || null);
 	console.groupEnd();
 }
@@ -1116,6 +1249,7 @@ async function loadDashboard() {
 			profile_filter:
 				dashboardScope.value === "specific" ? selectedProfileFilter.value || undefined : undefined,
 			low_stock_threshold: configuredLowStockThreshold.value,
+			item_sales_limit: itemSalesLimit.value,
 			fast_moving_page: fastMovingPage.value,
 			fast_moving_page_size: fastMovingPageSize.value,
 			fast_moving_search: fastMovingSearch.value || undefined,

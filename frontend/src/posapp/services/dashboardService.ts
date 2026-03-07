@@ -32,6 +32,21 @@ export interface SupplierSummaryRow {
 	last_purchase_date?: string;
 }
 
+export interface ItemSalesRow {
+	item_code: string;
+	item_name?: string;
+	stock_uom?: string;
+	sold_qty: number;
+	sales_amount: number;
+	discount_amount?: number;
+	estimated_cost?: number;
+	estimated_margin?: number;
+	estimated_margin_pct?: number | null;
+	total_lines?: number;
+	discounted_lines?: number;
+	discount_frequency_pct?: number;
+}
+
 export interface DashboardResponse {
 	enabled: boolean;
 	profile?: string;
@@ -143,6 +158,33 @@ export interface DashboardResponse {
 			month_growth_pct?: number | null;
 		};
 	};
+	item_sales_report?: {
+		period?: {
+			from?: string;
+			to?: string;
+		};
+		items?: ItemSalesRow[];
+		highlights?: {
+			best_seller?: {
+				item_code?: string;
+				item_name?: string;
+				sold_qty?: number;
+				sales_amount?: number;
+			} | null;
+			top_margin_item?: {
+				item_code?: string;
+				item_name?: string;
+				estimated_margin?: number;
+				estimated_margin_pct?: number | null;
+			} | null;
+			top_discount_item?: {
+				item_code?: string;
+				item_name?: string;
+				discount_amount?: number;
+				discount_frequency_pct?: number;
+			} | null;
+		};
+	};
 	inventory_insights: {
 		fast_moving_items: FastMovingItem[];
 		fast_moving_period?: {
@@ -178,6 +220,7 @@ export interface DashboardRequest {
 	fast_moving_page?: number;
 	fast_moving_page_size?: number;
 	fast_moving_search?: string | null;
+	item_sales_limit?: number;
 	supplier_limit?: number;
 	low_stock_limit?: number;
 }
