@@ -1977,8 +1977,13 @@
 
 								<div class="summary-metric__label mt-2">{{ __("Detailed Supplier Breakdown") }}</div>
 								<div v-for="supplier in filteredSupplierSummary" :key="supplier.supplier" class="supplier-row">
-									<div class="supplier-row__name">
-										{{ supplier.supplier_name || supplier.supplier }}
+									<div class="supplier-row__headline">
+										<div class="supplier-row__name">
+											{{ supplier.supplier_name || supplier.supplier }}
+										</div>
+										<div class="supplier-row__amount">
+											{{ formatMoney(Number(supplier.purchase_amount || 0)) }}
+										</div>
 									</div>
 									<div class="supplier-row__meta">
 										{{ __("Invoices") }}: {{ formatQuantity(Number(supplier.purchase_count || 0)) }} .
@@ -1989,9 +1994,6 @@
 										{{ __("Paid") }}: {{ formatMoney(Number(supplier.paid_amount || 0)) }} .
 										{{ __("Pending") }}: {{ formatMoney(Number(supplier.pending_amount || 0)) }} .
 										{{ __("Pending Ratio") }}: {{ formatPercent(supplier.pending_ratio_pct, 1) }}
-									</div>
-									<div class="supplier-row__amount">
-										{{ formatMoney(Number(supplier.purchase_amount || 0)) }}
 									</div>
 								</div>
 							</div>
@@ -4212,29 +4214,42 @@ onMounted(() => {
 	border: 1px solid var(--pos-border);
 	border-radius: 10px;
 	padding: 10px;
-	display: grid;
-	grid-template-columns: 1fr auto;
-	gap: 6px 10px;
-	align-items: center;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 	background: var(--pos-card-bg);
+}
+
+.supplier-row__headline {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+	direction: ltr;
 }
 
 .supplier-row__name {
 	font-weight: 600;
 	color: var(--pos-text-primary);
+	flex: 1 1 auto;
+	min-width: 0;
+	text-align: left;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 .supplier-row__meta {
 	font-size: 0.78rem;
 	color: var(--pos-text-secondary);
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 .supplier-row__amount {
 	font-weight: 700;
 	color: var(--pos-text-primary);
-	grid-row: 1 / span 2;
-	justify-self: end;
-	align-self: center;
+	white-space: nowrap;
+	text-align: right;
 }
 
 .empty-state {
@@ -4300,12 +4315,11 @@ onMounted(() => {
 	}
 
 	.supplier-row {
-		grid-template-columns: 1fr;
+		gap: 8px;
 	}
 
 	.supplier-row__amount {
-		grid-row: auto;
-		justify-self: start;
+		text-align: right;
 	}
 }
 </style>
