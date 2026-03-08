@@ -2448,13 +2448,13 @@ const profileFilterItems = computed(() =>
 const canRenderDashboard = computed(() => isDashboardEnabledOnServer.value);
 const disabledReasonText = computed(() => {
 	const reason = dashboardData.value.disabled_reason;
-	if (reason === "global_disabled") {
-		return __("Awesome Dashboard is disabled in POS Settings.");
+	if (reason === "profile_disabled") {
+		return __("Awesome Dashboard is disabled for the selected POS Profile.");
 	}
 	if (reason === "no_profiles_in_scope") {
 		return __("No profiles found for selected scope. Falling back to current profile failed.");
 	}
-	return __("Awesome Dashboard is disabled in global settings or for the selected scope.");
+	return __("Awesome Dashboard is unavailable for the selected scope.");
 });
 const selectedProfilesCount = computed(
 	() => Number(dashboardData.value.selected_profiles?.length || 0),

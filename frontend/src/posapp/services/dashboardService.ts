@@ -347,7 +347,7 @@ export interface DashboardResponse {
 	global_enabled?: boolean;
 	allow_all_profiles?: boolean;
 	profile_scope_enabled?: boolean;
-	disabled_reason?: "global_disabled" | "no_profiles_in_scope" | string;
+	disabled_reason?: "profile_disabled" | "no_profiles_in_scope" | string;
 	selected_profiles?: string[];
 	available_profiles?: Array<{
 		name: string;

@@ -20,6 +20,8 @@ INVOICE_SOURCES: tuple[tuple[str, str], ...] = (
 SCOPE_ALL = "all"
 SCOPE_CURRENT = "current"
 SCOPE_SPECIFIC = "specific"
+DEFAULT_DASHBOARD_SCOPE = SCOPE_ALL
+DEFAULT_LOW_STOCK_THRESHOLD = 10
 
 DASHBOARD_MANAGER_ROLES = {
     "System Manager",
@@ -142,36 +144,6 @@ def _is_dashboard_enabled(profile_doc: dict[str, Any]) -> bool:
 
     value = profile_doc.get("posa_enable_awesome_dashboard")
     return _to_bool_setting(value, True)
-
-
-def _safe_pos_settings_value(fieldname: str, default: Any = None):
-    if not frappe.db.exists("DocType", "POS Settings"):
-        return default
-    if not frappe.db.has_column("POS Settings", fieldname):
-        return default
-    value = frappe.db.get_single_value("POS Settings", fieldname)
-    return default if value in (None, "") else value
-
-
-def _get_global_dashboard_settings() -> dict[str, Any]:
-    enabled_raw = _safe_pos_settings_value("posa_enable_awesome_dashboard_global", 1)
-    default_scope_raw = cstr(
-        _safe_pos_settings_value("posa_dashboard_default_scope", "All Profiles")
-    ).strip()
-    low_stock_threshold_raw = _safe_pos_settings_value(
-        "posa_dashboard_low_stock_alert_threshold", 10
-    )
-
-    if default_scope_raw.lower().startswith("current"):
-        default_scope = SCOPE_CURRENT
-    else:
-        default_scope = SCOPE_ALL
-
-    return {
-        "enabled": bool(cint(enabled_raw)),
-        "default_scope": default_scope,
-        "low_stock_threshold": _coerce_threshold(low_stock_threshold_raw, 10),
-    }
 
 
 def _user_can_view_all_profiles(user: str) -> bool:
@@ -4657,15 +4629,15 @@ def get_dashboard_data(
     current_profile_name = cstr(current_profile_doc.get("name")).strip()
     _check_profile_permission(current_profile_name)
 
-    global_settings = _get_global_dashboard_settings()
     profile_scope_enabled = True
     if frappe.db.has_column("POS Profile", "posa_allow_company_dashboard_scope"):
         profile_scope_enabled = _to_bool_setting(
             current_profile_doc.get("posa_allow_company_dashboard_scope"), True
         )
 
+    default_scope = DEFAULT_DASHBOARD_SCOPE
     allow_all_profiles = _user_can_view_all_profiles(user) and profile_scope_enabled
-    requested_scope = _normalize_scope(scope, global_settings["default_scope"], allow_all_profiles)
+    requested_scope = _normalize_scope(scope, default_scope, allow_all_profiles)
     profile_filter = cstr(profile_filter).strip()
 
     requested_fast_moving_page_size = (
@@ -4744,19 +4716,9 @@ def get_dashboard_data(
     selected_profiles = profile_override_enabled
     selected_profile_names = [profile.get("name") for profile in selected_profiles]
 
-    # Global dashboard should not be blocked only because profile-level flags are off
-    # for all records in the selected scope. Fall back to scope-selected profiles.
-    if not selected_profiles and selected_profiles_before_override and global_settings["enabled"]:
-        selected_profiles = selected_profiles_before_override
-        selected_profile_names = [
-            cstr(profile.get("name")).strip()
-            for profile in selected_profiles
-            if cstr(profile.get("name")).strip()
-        ]
-
     single_profile = selected_profiles[0] if len(selected_profiles) == 1 else None
     profile_threshold = single_profile.get("posa_low_stock_alert_threshold") if single_profile else None
-    threshold_fallback = profile_threshold or global_settings["low_stock_threshold"]
+    threshold_fallback = profile_threshold or DEFAULT_LOW_STOCK_THRESHOLD
     threshold = _coerce_threshold(low_stock_threshold, threshold_fallback)
 
     warehouses = [
@@ -4777,13 +4739,17 @@ def get_dashboard_data(
     current_today = getdate(nowdate())
     month_start, report_to_date, selected_report_month = _resolve_report_month(report_month, current_today)
     fast_moving_days = max(1, (report_to_date - month_start).days + 1)
-    global_enabled = bool(global_settings["enabled"])
+    global_enabled = True
     # Keep dashboard operational whenever scoped profiles are available.
-    # Global toggle is returned for diagnostics but does not hard-block data.
+    # Global flag is kept in payload for backward compatibility.
     enabled = bool(selected_profiles)
     disabled_reason = None
     if not selected_profiles:
-        disabled_reason = "no_profiles_in_scope"
+        disabled_reason = (
+            "profile_disabled"
+            if selected_profiles_before_override
+            else "no_profiles_in_scope"
+        )
     profile_label = single_profile.get("name") if single_profile else None
     warehouse_label = warehouses[0] if len(warehouses) == 1 else _("Multiple Warehouses")
 
@@ -4791,7 +4757,7 @@ def get_dashboard_data(
         "enabled": enabled,
         "profile": profile_label,
         "scope": requested_scope,
-        "default_scope": global_settings["default_scope"],
+        "default_scope": default_scope,
         "global_enabled": global_enabled,
         "allow_all_profiles": allow_all_profiles,
         "profile_scope_enabled": profile_scope_enabled,
