@@ -258,6 +258,11 @@ export default {
 		const isEditingAdditionalDiscount = ref(false);
 		const isEditingAdditionalDiscountPercentage = ref(false);
 		const invoiceTotal = computed(() => {
+			const liveSubtotal = Number(invoicePanel.value?.subtotal);
+			if (Number.isFinite(liveSubtotal)) {
+				return liveSubtotal;
+			}
+
 			const doc = invoiceDoc.value || {};
 			const fallbackTotal = Number(grossTotal.value || 0);
 			const rawValue = doc.rounded_total ?? doc.grand_total ?? doc.total ?? fallbackTotal;
