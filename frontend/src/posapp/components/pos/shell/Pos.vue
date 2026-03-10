@@ -254,12 +254,7 @@ export default {
 		const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1280);
 		const compactPanel = ref("selector");
 		const isPhone = computed(() => responsive.isPhone.value);
-		const showBottomDock = computed(
-			() =>
-				!dialog.value &&
-				useCompactPosSwitcher.value &&
-				activeView.value !== "payment",
-		);
+		const showBottomDock = computed(() => !dialog.value && useCompactPosSwitcher.value);
 		const isEditingAdditionalDiscount = ref(false);
 		const isEditingAdditionalDiscountPercentage = ref(false);
 		const invoiceTotal = computed(() => {
