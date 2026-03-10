@@ -171,7 +171,7 @@ const additionalDiscountDisplay = ref(normalizeDiscountDisplay(props.additional_
 const additionalDiscountPercentageDisplay = ref(
 	normalizeDiscountDisplay(props.additional_discount_percentage),
 );
-const useCompactSaleDock = computed(() => responsive.windowWidth.value < 1280);
+const useCompactSaleDock = computed(() => responsive.windowWidth.value < 1100);
 const showReturnDiscountAlert = computed(
 	() =>
 		!!props.return_discount_meta &&

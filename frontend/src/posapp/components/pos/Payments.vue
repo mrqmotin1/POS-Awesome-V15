@@ -1417,7 +1417,7 @@ onBeforeUnmount(() => {
 }
 
 .payment-shell--dialog {
-	height: calc(100vh - 48px);
+	height: calc(100dvh - 48px);
 	display: flex;
 	flex-direction: column;
 	gap: var(--pos-space-2);

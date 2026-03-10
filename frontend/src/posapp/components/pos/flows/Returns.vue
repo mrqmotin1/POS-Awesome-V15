@@ -347,12 +347,12 @@ export default {
 		const invoiceStore = useInvoiceStore();
 		const uiStore = useUIStore();
 		const responsive = useResponsive();
-		const isCompactReturns = computed(() => responsive.windowWidth.value < 1280);
+		const isCompactReturns = computed(() => responsive.windowWidth.value < 1100);
 		const returnsDialogWidth = computed(() =>
 			responsive.windowWidth.value < 600 ? "100vw" : "min(1120px, 96vw)",
 		);
 		const returnsDialogMaxWidth = computed(() =>
-			responsive.windowWidth.value < 1280 ? "100vw" : "1120px",
+			responsive.windowWidth.value < 1100 ? "100vw" : "1120px",
 		);
 		return {
 			invoiceStore,

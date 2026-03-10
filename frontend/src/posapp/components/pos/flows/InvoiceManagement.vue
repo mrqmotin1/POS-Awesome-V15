@@ -795,12 +795,12 @@ export default {
 		const theme = useTheme();
 		const responsive = useResponsive();
 		const eventBus = inject("eventBus");
-		const isCompactInvoiceManagement = computed(() => responsive.windowWidth.value < 1280);
+		const isCompactInvoiceManagement = computed(() => responsive.windowWidth.value < 1100);
 		const invoiceManagementDialogWidth = computed(() =>
 			responsive.windowWidth.value < 600 ? "100vw" : "min(1420px, 97vw)",
 		);
 		const invoiceManagementDialogMaxWidth = computed(() =>
-			responsive.windowWidth.value < 1280 ? "100vw" : "1420px",
+			responsive.windowWidth.value < 1100 ? "100vw" : "1420px",
 		);
 		const { invoiceManagementDialog, posProfile, posOpeningShift } = storeToRefs(uiStore);
 		return {

@@ -10,7 +10,7 @@
 			:style="{
 				height: invoiceHeight || 'var(--container-height)',
 				maxHeight: invoiceHeight || 'var(--container-height)',
-				resize: 'vertical',
+				resize: canResizeInvoicePanel() ? 'vertical' : 'none',
 				overflow: 'auto',
 			}"
 			:class="[
@@ -1070,6 +1070,7 @@ export default {
 	flex-direction: column;
 	flex: 0 0 auto;
 	overflow: auto !important;
+	min-width: 0;
 }
 
 /* Style for selected checkbox button */
@@ -1245,10 +1246,10 @@ export default {
 
 	.items-table-wrapper {
 		/* Adjust for smaller padding on tablets */
-		margin-left: calc(-1 * var(--dynamic-xs));
-		margin-right: calc(-1 * var(--dynamic-xs));
-		width: calc(100% + 2 * var(--dynamic-xs));
-		max-width: calc(100% + 2 * var(--dynamic-xs));
+		margin-left: 0;
+		margin-right: 0;
+		width: 100%;
+		max-width: 100%;
 		min-height: 280px;
 	}
 
@@ -1284,10 +1285,10 @@ export default {
 
 	.items-table-wrapper {
 		/* Adjust for smallest screens */
-		margin-left: calc(-1 * var(--dynamic-xs));
-		margin-right: calc(-1 * var(--dynamic-xs));
-		width: calc(100% + 2 * var(--dynamic-xs));
-		max-width: calc(100% + 2 * var(--dynamic-xs));
+		margin-left: 0;
+		margin-right: 0;
+		width: 100%;
+		max-width: 100%;
 		min-height: 240px;
 	}
 
@@ -1325,16 +1326,14 @@ export default {
 .items-table-wrapper {
 	position: relative;
 	margin-top: var(--dynamic-sm);
-	/* Override parent padding to make table full-width */
-	margin-left: calc(-1 * var(--dynamic-sm));
-	margin-right: calc(-1 * var(--dynamic-sm));
-	width: calc(100% + 2 * var(--dynamic-sm));
-	max-width: calc(100% + 2 * var(--dynamic-sm));
+	width: 100%;
+	max-width: 100%;
 	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
 	flex: 0 0 auto;
 	min-height: 320px;
+	min-width: 0;
 }
 
 :deep(.items-table-wrapper .column-selector-container) {

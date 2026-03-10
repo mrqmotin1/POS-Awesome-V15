@@ -1,6 +1,6 @@
 <template>
 	<v-menu
-		:min-width="isMobile ? 280 : 240"
+		:min-width="isMobile ? 240 : 220"
 		:close-on-content-click="true"
 		:location="isMobile ? 'bottom end' : 'bottom end'"
 		:offset="[0, 4]"
@@ -770,8 +770,8 @@ export default {
 		0 8px 16px rgba(0, 0, 0, 0.04),
 		0 0 0 1px rgba(255, 255, 255, 0.3) inset;
 	backdrop-filter: blur(20px) saturate(1.2);
-	min-width: 260px;
-	max-width: 280px;
+	min-width: min(260px, calc(100vw - 24px));
+	max-width: min(280px, calc(100vw - 24px));
 	margin-top: 2px;
 	display: flex;
 	flex-direction: column;
@@ -968,8 +968,8 @@ export default {
 /* Compact Responsive Design */
 @media (max-width: 768px) {
 	.menu-card-compact {
-		min-width: 280px;
-		max-width: 320px;
+		min-width: min(280px, calc(100vw - 20px));
+		max-width: min(320px, calc(100vw - 20px));
 		border-radius: 14px;
 		min-height: 300px;
 	}
@@ -1000,8 +1000,8 @@ export default {
 
 @media (max-width: 480px) {
 	.menu-card-compact {
-		min-width: 260px;
-		max-width: 300px;
+		min-width: min(260px, calc(100vw - 16px));
+		max-width: min(300px, calc(100vw - 16px));
 	}
 
 	.menu-item-compact {

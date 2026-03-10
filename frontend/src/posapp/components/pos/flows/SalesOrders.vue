@@ -148,12 +148,12 @@ export default {
 		const uiStore = useUIStore();
 		const invoiceStore = useInvoiceStore();
 		const responsive = useResponsive();
-		const isCompactOrders = computed(() => responsive.windowWidth.value < 1280);
+		const isCompactOrders = computed(() => responsive.windowWidth.value < 1100);
 		const ordersDialogWidth = computed(() =>
 			responsive.windowWidth.value < 600 ? "100vw" : "min(980px, 96vw)",
 		);
 		const ordersDialogMaxWidth = computed(() =>
-			responsive.windowWidth.value < 1280 ? "100vw" : "980px",
+			responsive.windowWidth.value < 1100 ? "100vw" : "980px",
 		);
 		const { ordersDialog, ordersData } = storeToRefs(uiStore);
 		return {

@@ -1005,6 +1005,9 @@ const {
 const { responsiveStyles } = responsive;
 const { rtlClasses } = rtl;
 const isPhone = computed(() => responsive.isPhone.value);
+const canResizeSelectorPanel = computed(
+	() => responsive.windowWidth.value >= 1280 && responsive.windowHeight.value >= 860,
+);
 const phoneSelectorHeight = "calc(var(--viewport-height) - var(--bottom-safe-space) - 24px)";
 const selectorCardStyle = computed<CSSProperties>(() => ({
 	height: isPhone.value ? phoneSelectorHeight : responsiveStyles.value["--container-height"],
@@ -1012,7 +1015,7 @@ const selectorCardStyle = computed<CSSProperties>(() => ({
 	minHeight: isPhone.value
 		? "calc(var(--viewport-height) * 0.46)"
 		: responsiveStyles.value["--container-height"],
-	resize: isPhone.value ? "none" : "vertical",
+	resize: canResizeSelectorPanel.value ? "vertical" : "none",
 	overflow: "auto",
 	position: "relative",
 }));
@@ -1200,6 +1203,7 @@ defineExpose({
 /* "dynamic-card" no longer composes from pos-card; the pos-card class is added directly in the template */
 .items-selector-shell {
 	min-height: 0;
+	min-width: 0;
 }
 
 .dynamic-padding {
@@ -1248,6 +1252,7 @@ defineExpose({
 .selector-results-card {
 	padding: var(--dynamic-xs);
 	overflow: hidden;
+	min-width: 0;
 }
 
 .dynamic-scroll {

@@ -251,10 +251,12 @@ export default {
 			additionalDiscountPercentage,
 		} = storeToRefs(invoiceStore);
 		const usePaymentDialog = computed(() => responsive.windowWidth.value >= 992);
-		const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1280);
+		const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1100);
 		const compactPanel = ref("selector");
 		const isPhone = computed(() => responsive.isPhone.value);
-		const showBottomDock = computed(() => !dialog.value && useCompactPosSwitcher.value);
+		const showBottomDock = computed(
+			() => !dialog.value && responsive.windowWidth.value < 1024,
+		);
 		const isEditingAdditionalDiscount = ref(false);
 		const isEditingAdditionalDiscountPercentage = ref(false);
 		const invoiceTotal = computed(() => {
@@ -631,12 +633,13 @@ export default {
 
 <style scoped>
 .payment-dialog :deep(.v-overlay__content) {
-	max-height: calc(100vh - 24px);
+	max-height: calc(100dvh - 24px);
 }
 
 .dynamic-container {
 	transition: all 0.3s ease;
-	padding-bottom: calc(var(--bottom-safe-space) + var(--dynamic-sm));
+	padding-bottom: calc(var(--bottom-safe-space) + var(--dynamic-xs));
+	min-width: 0;
 }
 
 .dynamic-main-row {
@@ -658,6 +661,8 @@ export default {
 .dynamic-col--invoice {
 	display: flex;
 	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
 }
 
 .mobile-pos-stack {
@@ -805,7 +810,7 @@ export default {
 @media (max-width: 768px) {
 	.dynamic-container {
 		padding-top: var(--dynamic-xs);
-		padding-bottom: calc(var(--bottom-safe-space) + var(--dynamic-xs));
+		padding-bottom: calc(var(--bottom-safe-space) + 4px);
 	}
 
 	.dynamic-col {

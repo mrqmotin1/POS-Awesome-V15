@@ -129,12 +129,12 @@ export default {
 		const invoiceStore = useInvoiceStore();
 		const theme = useTheme();
 		const responsive = useResponsive();
-		const isCompactDrafts = computed(() => responsive.windowWidth.value < 1280);
+		const isCompactDrafts = computed(() => responsive.windowWidth.value < 1100);
 		const draftsDialogWidth = computed(() =>
 			responsive.windowWidth.value < 600 ? "100vw" : "min(960px, 96vw)",
 		);
 		const draftsDialogMaxWidth = computed(() =>
-			responsive.windowWidth.value < 1280 ? "100vw" : "960px",
+			responsive.windowWidth.value < 1100 ? "100vw" : "960px",
 		);
 		const { draftsDialog, draftsData } = storeToRefs(uiStore);
 		return {

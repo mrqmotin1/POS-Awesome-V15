@@ -3,15 +3,15 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 export function useResponsive() {
 	const windowWidth = ref(window.innerWidth);
 	const windowHeight = ref(window.innerHeight);
-	const baseWidth = ref(window.innerWidth);
-	const baseHeight = ref(window.innerHeight);
+	const baseWidth = ref(1440);
+	const baseHeight = ref(900);
 
 	const isPhone = computed(() => windowWidth.value < 768);
 	const isTablet = computed(
-		() => windowWidth.value >= 768 && windowWidth.value < 1280,
+		() => windowWidth.value >= 768 && windowWidth.value < 1100,
 	);
-	const isDesktop = computed(() => windowWidth.value >= 1280);
-	const isCompact = computed(() => windowWidth.value < 1280);
+	const isDesktop = computed(() => windowWidth.value >= 1100);
+	const isCompact = computed(() => windowWidth.value < 1100);
 	const isShortViewport = computed(() => windowHeight.value < 760);
 
 	const widthScale = computed(() => windowWidth.value / baseWidth.value);
@@ -49,22 +49,23 @@ export function useResponsive() {
 		}
 
 		cardHeightVh = Math.max(42, Math.min(cardHeightVh, 72));
-		let containerHeightVh = 68;
+		let containerHeightVh = 70;
 		if (isPhone.value) {
-			containerHeightVh = isShortViewport.value ? 64 : 72;
+			containerHeightVh = isShortViewport.value ? 66 : 74;
 		} else if (isTablet.value) {
-			containerHeightVh = isShortViewport.value ? 62 : 70;
+			containerHeightVh = isShortViewport.value ? 64 : 72;
 		} else if (windowHeight.value <= 800) {
-			containerHeightVh = 52;
-		} else if (windowHeight.value <= 900) {
-			containerHeightVh = 60;
+			containerHeightVh = 58;
+		} else if (windowHeight.value <= 960) {
+			containerHeightVh = 64;
 		}
 
-		const bottomSafeSpace = isCompact.value
-			? isPhone.value
-				? 224
-				: 208
-			: 20;
+		let bottomSafeSpace = 24;
+		if (windowWidth.value < 600) {
+			bottomSafeSpace = isShortViewport.value ? 176 : 196;
+		} else if (windowWidth.value < 1024) {
+			bottomSafeSpace = isShortViewport.value ? 112 : 132;
+		}
 
 		return {
 			"--dynamic-xs": `${dynamicSpacing.value.xs}px`,
