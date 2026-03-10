@@ -2,7 +2,9 @@
 	<v-row justify="center">
 		<v-dialog
 			v-model="invoiceManagementDialog"
-			max-width="1380px"
+			:max-width="invoiceManagementDialogMaxWidth"
+			:fullscreen="isCompactInvoiceManagement"
+			:width="invoiceManagementDialogWidth"
 			scrollable
 			:theme="isDarkTheme ? 'dark' : 'light'"
 			content-class="invoice-management-dialog-content"
@@ -715,6 +717,11 @@
 						</v-window-item>
 					</v-window>
 				</v-card-text>
+				<v-card-actions class="invoice-management-footer">
+					<v-btn color="error" variant="tonal" theme="dark" @click="uiStore.closeInvoiceManagement()">
+						{{ __("Close") }}
+					</v-btn>
+				</v-card-actions>
 			</v-card>
 		</v-dialog>
 	</v-row>
@@ -761,11 +768,12 @@
 </template>
 
 <script>
-import { inject } from "vue";
+import { inject, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import format from "../../../format";
 import { useTheme } from "../../../composables/core/useTheme";
+import { useResponsive } from "../../../composables/core/useResponsive";
 import { useToastStore } from "../../../stores/toastStore";
 import { useUIStore } from "../../../stores/uiStore";
 import { useInvoiceStore } from "../../../stores/invoiceStore";
@@ -785,9 +793,32 @@ export default {
 		const toastStore = useToastStore();
 		const router = useRouter();
 		const theme = useTheme();
+		const responsive = useResponsive();
 		const eventBus = inject("eventBus");
+		const isCompactInvoiceManagement = computed(() => responsive.windowWidth.value < 1280);
+		const invoiceManagementDialogWidth = computed(() =>
+			responsive.windowWidth.value < 600 ? "100vw" : "min(1420px, 97vw)",
+		);
+		const invoiceManagementDialogMaxWidth = computed(() =>
+			responsive.windowWidth.value < 1280 ? "100vw" : "1420px",
+		);
 		const { invoiceManagementDialog, posProfile, posOpeningShift } = storeToRefs(uiStore);
-		return { uiStore, invoiceStore, customersStore, toastStore, router, eventBus, invoiceManagementDialog, posProfile, posOpeningShift, isDarkTheme: theme.isDark, isOffline };
+		return {
+			uiStore,
+			invoiceStore,
+			customersStore,
+			toastStore,
+			router,
+			eventBus,
+			invoiceManagementDialog,
+			posProfile,
+			posOpeningShift,
+			isDarkTheme: theme.isDark,
+			isOffline,
+			isCompactInvoiceManagement,
+			invoiceManagementDialogWidth,
+			invoiceManagementDialogMaxWidth,
+		};
 	},
 	data: () => ({
 		activeTab: "history",
@@ -1304,6 +1335,9 @@ export default {
 		var(--pos-surface-raised) !important;
 	color: var(--pos-text-primary) !important;
 	border: 1px solid rgba(148, 163, 184, 0.18);
+	display: flex;
+	flex-direction: column;
+	max-height: min(94vh, 1040px);
 }
 
 .invoice-management-card--dark {
@@ -1354,7 +1388,23 @@ export default {
 	font-weight: 700;
 }
 
-.invoice-management-card__body { min-height: 580px; }
+.invoice-management-card__body {
+	min-height: 580px;
+	flex: 1;
+	overflow: auto;
+}
+
+.invoice-management-footer {
+	position: sticky;
+	bottom: 0;
+	z-index: 2;
+	display: flex;
+	justify-content: flex-end;
+	padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+	background: color-mix(in srgb, var(--pos-surface-raised) 92%, transparent);
+	backdrop-filter: blur(10px);
+	border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
 
 .filter-grid,
 .summary-grid {
@@ -1686,8 +1736,18 @@ export default {
 }
 
 @media (max-width: 960px) {
+	.invoice-management-card {
+		max-height: 100vh;
+		border-radius: 0;
+	}
+
 	.invoice-record-card__hero { flex-direction: column; }
 	.invoice-record-card__amount-block { text-align: left; }
+	.invoice-management-footer {
+		padding-inline: 16px;
+		justify-content: stretch;
+	}
+	.invoice-management-footer :deep(.v-btn) { flex: 1; }
 }
 
 @media (max-width: 640px) {
