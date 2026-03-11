@@ -1,15 +1,20 @@
-import fs from "node:fs";
-import path from "node:path";
+/// <reference types="node" />
+
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "@playwright/test";
 
+const configDir = dirname(fileURLToPath(import.meta.url));
+
 function loadLocalEnvFile(filename = ".env.local") {
-	const envPath = path.resolve(__dirname, filename);
-	if (!fs.existsSync(envPath)) {
+	const envPath = resolve(configDir, filename);
+	if (!existsSync(envPath)) {
 		return;
 	}
 
-	const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+	const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
 	for (const line of lines) {
 		const trimmed = line.trim();
 		if (!trimmed || trimmed.startsWith("#")) {
