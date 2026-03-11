@@ -1,5 +1,5 @@
 <template>
-	<v-app class="container1" :class="rtlClasses">
+	<v-app class="container1 posapp pos-theme-root" :class="rtlClasses">
 		<AppLoadingOverlay :visible="globalLoading" />
 		<UpdatePrompt />
 		<v-main class="main-content">

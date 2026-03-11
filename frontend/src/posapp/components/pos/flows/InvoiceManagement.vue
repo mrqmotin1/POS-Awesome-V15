@@ -47,7 +47,12 @@
 						>
 							{{ __("Refresh") }}
 						</v-btn>
-						<v-btn icon="mdi-close" variant="text" @click="uiStore.closeInvoiceManagement()" />
+						<v-btn
+							icon="mdi-close"
+							variant="text"
+							:aria-label="__('Close invoice management')"
+							@click="uiStore.closeInvoiceManagement()"
+						/>
 					</div>
 				</v-card-title>
 
@@ -191,9 +196,9 @@
 								<template #item.status="{ item }"><v-chip size="small" :color="statusColor(item.status)" variant="tonal">{{ __(item.status || "Draft") }}</v-chip></template>
 								<template #item.actions="{ item }">
 									<div class="d-flex justify-end ga-1">
-										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" @click="viewInvoice(item)" />
-										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" @click="printInvoice(item)" />
-										<v-btn v-if="posProfile?.posa_allow_return == 1" icon="mdi-backup-restore" variant="text" size="small" color="warning" :title="__('Create Return')" @click="createReturn(item)" />
+										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" :aria-label="__('View invoice details')" @click="viewInvoice(item)" />
+										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" :aria-label="__('Print invoice')" @click="printInvoice(item)" />
+										<v-btn v-if="posProfile?.posa_allow_return == 1" icon="mdi-backup-restore" variant="text" size="small" color="warning" :title="__('Create Return')" :aria-label="__('Create return from invoice')" @click="createReturn(item)" />
 									</div>
 								</template>
 							</v-data-table>
@@ -257,8 +262,8 @@
 									</div>
 
 									<div class="invoice-record-card__actions">
-										<v-btn icon="mdi-eye-outline" size="small" variant="text" :title="__('View Details')" @click="viewInvoice(invoice)" />
-										<v-btn icon="mdi-printer-outline" size="small" variant="text" :title="__('Print')" @click="printInvoice(invoice)" />
+										<v-btn icon="mdi-eye-outline" size="small" variant="text" :title="__('View Details')" :aria-label="__('View invoice details')" @click="viewInvoice(invoice)" />
+										<v-btn icon="mdi-printer-outline" size="small" variant="text" :title="__('Print')" :aria-label="__('Print invoice')" @click="printInvoice(invoice)" />
 										<v-btn
 											v-if="posProfile?.posa_allow_return == 1"
 											icon="mdi-backup-restore"
@@ -399,9 +404,9 @@
 								<template #item.status="{ item }"><v-chip size="small" :color="statusColor(item.status)" variant="tonal">{{ __(item.status || "Unpaid") }}</v-chip></template>
 								<template #item.actions="{ item }">
 									<div class="d-flex justify-end ga-1">
-										<v-btn icon="mdi-cash-plus" variant="text" size="small" color="warning" :disabled="isOffline()" :title="__('Add Payment')" @click="openAddPayment(item)" />
-										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" @click="viewInvoice(item)" />
-										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" @click="printInvoice(item)" />
+										<v-btn icon="mdi-cash-plus" variant="text" size="small" color="warning" :disabled="isOffline()" :title="__('Add Payment')" :aria-label="__('Add payment to invoice')" @click="openAddPayment(item)" />
+										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" :aria-label="__('View invoice details')" @click="viewInvoice(item)" />
+										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" :aria-label="__('Print invoice')" @click="printInvoice(item)" />
 									</div>
 								</template>
 							</v-data-table>
@@ -475,8 +480,8 @@
 										<v-btn prepend-icon="mdi-cash-plus" size="small" variant="flat" color="warning" :disabled="isOffline()" @click="openAddPayment(invoice)">
 											{{ __("Add Payment") }}
 										</v-btn>
-										<v-btn icon="mdi-eye-outline" size="small" variant="text" :title="__('View Details')" @click="viewInvoice(invoice)" />
-										<v-btn icon="mdi-printer-outline" size="small" variant="text" :title="__('Print')" @click="printInvoice(invoice)" />
+										<v-btn icon="mdi-eye-outline" size="small" variant="text" :title="__('View Details')" :aria-label="__('View invoice details')" @click="viewInvoice(invoice)" />
+										<v-btn icon="mdi-printer-outline" size="small" variant="text" :title="__('Print')" :aria-label="__('Print invoice')" @click="printInvoice(invoice)" />
 									</div>
 								</v-card>
 							</div>
@@ -541,8 +546,8 @@
 								<template #item.grand_total="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.grand_total) }}</template>
 								<template #item.actions="{ item }">
 									<div class="d-flex justify-end ga-1">
-										<v-btn icon="mdi-folder-open-outline" variant="text" size="small" color="primary" :title="__('Load Draft')" @click="loadDraft(item)" />
-										<v-btn icon="mdi-delete-outline" variant="text" size="small" color="error" :title="__('Delete Draft')" @click="deleteDraft(item)" />
+										<v-btn icon="mdi-folder-open-outline" variant="text" size="small" color="primary" :title="__('Load Draft')" :aria-label="__('Load draft invoice')" @click="loadDraft(item)" />
+										<v-btn icon="mdi-delete-outline" variant="text" size="small" color="error" :title="__('Delete Draft')" :aria-label="__('Delete draft invoice')" @click="deleteDraft(item)" />
 									</div>
 								</template>
 							</v-data-table>
@@ -587,7 +592,7 @@
 
 									<div class="invoice-record-card__actions">
 										<v-btn prepend-icon="mdi-folder-open-outline" size="small" variant="flat" color="primary" @click="loadDraft(invoice)">{{ __("Load Draft") }}</v-btn>
-										<v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" :title="__('Delete Draft')" @click="deleteDraft(invoice)" />
+										<v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" :title="__('Delete Draft')" :aria-label="__('Delete draft invoice')" @click="deleteDraft(invoice)" />
 									</div>
 								</v-card>
 							</div>
@@ -653,8 +658,8 @@
 								<template #item.return_against="{ item }">{{ item.return_against || "-" }}</template>
 								<template #item.actions="{ item }">
 									<div class="d-flex justify-end ga-1">
-										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" @click="viewInvoice(item)" />
-										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" @click="printInvoice(item)" />
+										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" :aria-label="__('View invoice details')" @click="viewInvoice(item)" />
+										<v-btn icon="mdi-printer-outline" variant="text" size="small" :title="__('Print')" :aria-label="__('Print invoice')" @click="printInvoice(item)" />
 									</div>
 								</template>
 							</v-data-table>
@@ -698,8 +703,8 @@
 									</div>
 
 									<div class="invoice-record-card__actions">
-										<v-btn icon="mdi-eye-outline" size="small" variant="text" :title="__('View Details')" @click="viewInvoice(invoice)" />
-										<v-btn icon="mdi-printer-outline" size="small" variant="text" :title="__('Print')" @click="printInvoice(invoice)" />
+										<v-btn icon="mdi-eye-outline" size="small" variant="text" :title="__('View Details')" :aria-label="__('View invoice details')" @click="viewInvoice(invoice)" />
+										<v-btn icon="mdi-printer-outline" size="small" variant="text" :title="__('Print')" :aria-label="__('Print invoice')" @click="printInvoice(invoice)" />
 									</div>
 								</v-card>
 							</div>
@@ -735,7 +740,7 @@
 				</div>
 				<div class="d-flex align-center ga-2">
 					<v-chip v-if="selectedInvoiceDetail?.status" size="small" :color="statusColor(selectedInvoiceDetail.status)" variant="tonal">{{ __(selectedInvoiceDetail.status) }}</v-chip>
-					<v-btn icon="mdi-close" variant="text" @click="detailDialog = false" />
+					<v-btn icon="mdi-close" variant="text" :aria-label="__('Close invoice details dialog')" @click="detailDialog = false" />
 				</div>
 			</v-card-title>
 			<v-divider />

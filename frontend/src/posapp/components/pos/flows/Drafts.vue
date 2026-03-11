@@ -28,6 +28,7 @@
 						icon="mdi-close"
 						variant="text"
 						color="medium-emphasis"
+						:aria-label="__('Close drafts dialog')"
 						@click="close_dialog"
 					/>
 				</v-card-title>

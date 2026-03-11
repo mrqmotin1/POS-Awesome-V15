@@ -20,6 +20,7 @@
 						icon="mdi-close"
 						variant="text"
 						color="medium-emphasis"
+						:aria-label="__('Close sales orders dialog')"
 						@click="close_dialog"
 					/>
 				</v-card-title>

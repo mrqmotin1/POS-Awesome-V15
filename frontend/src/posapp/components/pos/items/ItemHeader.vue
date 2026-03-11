@@ -12,6 +12,7 @@
 					autofocus
 					variant="solo"
 					color="primary"
+					class="pos-themed-input"
 					:label="frappe._('Search, scan or browse item')"
 					hide-details
 					:model-value="searchInput"
@@ -40,6 +41,11 @@
 							variant="text"
 							:disabled="scannerLocked"
 							@click="$emit('start-camera')"
+							:aria-label="
+								scannerLocked
+									? __('Camera scanner is locked until the current error is acknowledged')
+									: __('Scan with camera')
+							"
 							:title="
 								scannerLocked
 									? __('Acknowledge the error to resume scanning')
@@ -64,6 +70,7 @@
 					density="compact"
 					variant="solo"
 					color="primary"
+					class="pos-themed-input"
 					:label="frappe._('QTY')"
 					hide-details
 					:model-value="qtyInput"

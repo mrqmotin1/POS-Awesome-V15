@@ -21,6 +21,7 @@
 						variant="text"
 						color="medium-emphasis"
 						class="returns-card__close"
+						:aria-label="__('Close returns dialog')"
 						@click="close_dialog"
 					/>
 				</v-card-title>
