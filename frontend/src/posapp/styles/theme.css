@@ -486,17 +486,31 @@ body[data-page-route="posapp"] .v-tooltip .v-overlay__content,
 body[data-page-route="posapp"] .v-overlay__content.posa-theme-tooltip {
 	background: var(--pos-tooltip-bg) !important;
 	color: var(--pos-text-primary) !important;
+	-webkit-text-fill-color: var(--pos-text-primary) !important;
 	border: 1px solid var(--pos-tooltip-border) !important;
 	border-radius: var(--pos-radius-sm) !important;
 	box-shadow: 0 14px 30px var(--pos-tooltip-shadow) !important;
 	padding: 10px 12px !important;
 	backdrop-filter: blur(12px);
+	opacity: 1 !important;
 }
 
 body[data-page-route="posapp"] .v-overlay-container .v-tooltip > .v-overlay__content *,
 body[data-page-route="posapp"] .v-tooltip .v-overlay__content *,
 body[data-page-route="posapp"] .v-overlay__content.posa-theme-tooltip * {
-	color: inherit !important;
+	color: var(--pos-text-primary) !important;
+	-webkit-text-fill-color: var(--pos-text-primary) !important;
+	opacity: 1 !important;
+}
+
+body[data-page-route="posapp"] .v-overlay-container .v-tooltip > .v-overlay__content > span,
+body[data-page-route="posapp"] .v-overlay-container .v-tooltip > .v-overlay__content > div,
+body[data-page-route="posapp"] .v-tooltip .v-overlay__content > span,
+body[data-page-route="posapp"] .v-tooltip .v-overlay__content > div,
+body[data-page-route="posapp"] .v-overlay__content.posa-theme-tooltip > span,
+body[data-page-route="posapp"] .v-overlay__content.posa-theme-tooltip > div {
+	color: var(--pos-text-primary) !important;
+	-webkit-text-fill-color: var(--pos-text-primary) !important;
 }
 
 body[data-page-route="posapp"] .v-overlay-container .v-tooltip > .v-overlay__content .text-medium-emphasis,
