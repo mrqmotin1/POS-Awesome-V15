@@ -7,8 +7,9 @@
 			:width="returnsDialogWidth"
 			scrollable
 			class="returns-dialog"
+			:theme="isDarkTheme ? 'dark' : 'light'"
 		>
-			<v-card class="returns-card">
+			<v-card class="returns-card pos-themed-card" :theme="isDarkTheme ? 'dark' : 'light'">
 				<v-card-title class="returns-card__title">
 					<div class="returns-card__title-copy">
 						<span class="text-h5 text-primary">{{ __("Select Return Invoice") }}</span>
@@ -170,7 +171,6 @@
 							block
 							variant="text"
 							color="primary"
-							theme="dark"
 							@click="search_invoices"
 						>
 							<v-icon start>mdi-magnify</v-icon>
@@ -178,7 +178,7 @@
 						</v-btn>
 						</v-col>
 						<v-col cols="12" sm="4" md="auto">
-						<v-btn block variant="text" color="warning" theme="dark" @click="clear_search">
+						<v-btn block variant="text" color="warning" @click="clear_search">
 							<v-icon start>mdi-refresh</v-icon>
 							{{ __("Clear") }}
 						</v-btn>
@@ -193,7 +193,6 @@
 							block
 							variant="text"
 							color="secondary"
-							theme="dark"
 							@click="return_without_invoice"
 						>
 							{{ __("Return without Invoice") }}
@@ -257,7 +256,7 @@
 								:headers="headers"
 								:items="dialog_data"
 								item-key="name"
-								class="elevation-1"
+								class="elevation-1 returns-table"
 								show-select
 								v-model="selected"
 								select-strategy="single"
@@ -318,13 +317,12 @@
 					</v-row>
 				</v-container>
 				<v-card-actions class="mt-1 returns-card__footer">
-					<v-btn color="error" variant="tonal" theme="dark" @click="close_dialog">
+					<v-btn color="error" variant="tonal" @click="close_dialog">
 						{{ __("Close") }}
 					</v-btn>
 					<v-btn
 						v-if="selected.length"
 						color="success"
-						theme="dark"
 						@click="submit_dialog"
 					>
 						{{ __("Select") }}
@@ -341,6 +339,7 @@ import { useInvoiceStore } from "../../../stores/invoiceStore.js";
 import { useUIStore } from "../../../stores/uiStore.js";
 import { computed } from "vue";
 import { useResponsive } from "../../../composables/core/useResponsive";
+import { useTheme } from "../../../composables/core/useTheme";
 
 export default {
 	mixins: [format],
@@ -348,6 +347,7 @@ export default {
 		const invoiceStore = useInvoiceStore();
 		const uiStore = useUIStore();
 		const responsive = useResponsive();
+		const theme = useTheme();
 		const isCompactReturns = computed(() => responsive.windowWidth.value < 1100);
 		const returnsDialogWidth = computed(() =>
 			responsive.windowWidth.value < 600 ? "100vw" : "min(1120px, 96vw)",
@@ -361,6 +361,7 @@ export default {
 			isCompactReturns,
 			returnsDialogWidth,
 			returnsDialogMaxWidth,
+			isDarkTheme: theme.isDark,
 		};
 	},
 	data: () => ({
@@ -853,13 +854,16 @@ export default {
 
 <style scoped>
 .return-expired-row {
-	background-color: #ffebee !important;
+	background-color: color-mix(in srgb, var(--pos-error) 14%, var(--pos-surface)) !important;
 }
 
 .returns-card {
 	display: flex;
 	flex-direction: column;
 	max-height: min(92vh, 100%);
+	background: var(--pos-surface-raised) !important;
+	color: var(--pos-text-primary) !important;
+	border: 1px solid var(--pos-border);
 }
 
 .returns-card__title {
@@ -868,6 +872,7 @@ export default {
 	justify-content: space-between;
 	gap: 12px;
 	padding: 20px 20px 12px;
+	border-bottom: 1px solid var(--pos-border);
 }
 
 .returns-card__title-copy {
@@ -880,7 +885,7 @@ export default {
 .returns-card__subtitle {
 	font-size: 0.88rem;
 	line-height: 1.4;
-	color: rgba(var(--v-theme-on-surface), 0.68);
+	color: var(--pos-text-secondary);
 }
 
 .returns-card__content {
@@ -902,9 +907,9 @@ export default {
 
 .returns-result-card {
 	width: 100%;
-	border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+	border: 1px solid var(--pos-border);
 	border-radius: 18px;
-	background: var(--pos-card-bg, rgb(var(--v-theme-surface)));
+	background: var(--pos-card-bg);
 	padding: 14px;
 	text-align: left;
 	cursor: pointer;
@@ -915,18 +920,18 @@ export default {
 }
 
 .returns-result-card:hover {
-	border-color: rgba(var(--v-theme-primary), 0.28);
-	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+	border-color: color-mix(in srgb, var(--pos-primary) 28%, var(--pos-border));
+	box-shadow: 0 10px 24px var(--pos-shadow);
 	transform: translateY(-1px);
 }
 
 .returns-result-card--selected {
-	border-color: rgb(var(--v-theme-primary));
-	box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.14);
+	border-color: var(--pos-primary);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--pos-primary) 14%, transparent);
 }
 
 .returns-result-card--expired {
-	background: rgba(var(--v-theme-error), 0.04);
+	background: color-mix(in srgb, var(--pos-error) 6%, var(--pos-surface));
 }
 
 .returns-result-card__top {
@@ -945,12 +950,12 @@ export default {
 
 .returns-result-card__identity strong,
 .returns-result-card__amount {
-	color: var(--pos-text-primary, rgb(var(--v-theme-on-surface)));
+	color: var(--pos-text-primary);
 }
 
 .returns-result-card__identity span,
 .returns-result-card__meta {
-	color: rgba(var(--v-theme-on-surface), 0.68);
+	color: var(--pos-text-secondary);
 	font-size: 0.86rem;
 }
 
@@ -980,7 +985,28 @@ export default {
 	justify-content: flex-end;
 	gap: 12px;
 	padding: 14px 20px 18px;
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--pos-surface) 30%);
+	background: linear-gradient(180deg, transparent, var(--pos-surface) 30%);
+	border-top: 1px solid var(--pos-border);
+}
+
+.returns-table :deep(.v-table),
+.returns-table :deep(.v-table__wrapper),
+.returns-table :deep(table),
+.returns-table :deep(thead),
+.returns-table :deep(tbody),
+.returns-table :deep(tr),
+.returns-table :deep(td),
+.returns-table :deep(th) {
+	background: var(--pos-surface) !important;
+	color: var(--pos-text-primary) !important;
+}
+
+.returns-table :deep(th) {
+	background: var(--pos-table-header-bg) !important;
+}
+
+.returns-table :deep(tbody tr:hover) {
+	background: var(--pos-table-row-hover) !important;
 }
 
 @media (max-width: 1279px) {
@@ -995,8 +1021,8 @@ export default {
 		top: 0;
 		z-index: 2;
 		padding: 16px 16px 10px;
-		background: var(--pos-surface, rgb(var(--v-theme-surface)));
-		border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+		background: var(--pos-surface);
+		border-bottom: 1px solid var(--pos-border);
 	}
 
 	.returns-card__content {

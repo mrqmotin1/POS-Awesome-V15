@@ -723,7 +723,7 @@
 					</v-window>
 				</v-card-text>
 				<v-card-actions class="invoice-management-footer">
-					<v-btn color="error" variant="tonal" theme="dark" @click="uiStore.closeInvoiceManagement()">
+					<v-btn color="error" variant="tonal" @click="uiStore.closeInvoiceManagement()">
 						{{ __("Close") }}
 					</v-btn>
 				</v-card-actions>

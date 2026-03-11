@@ -381,6 +381,7 @@ body[data-page-route="posapp"] {
 .posapp .v-sheet,
 .posapp .v-list,
 .posapp .v-table,
+.posapp .v-data-table-virtual,
 .posapp .v-table__wrapper,
 .posapp .v-data-table,
 .posapp .v-toolbar,
@@ -393,13 +394,17 @@ body[data-page-route="posapp"] {
 
 .posapp .v-table thead,
 .posapp .v-table thead tr,
-.posapp .v-table thead th {
+.posapp .v-table thead th,
+.posapp .v-data-table-virtual thead,
+.posapp .v-data-table-virtual thead tr,
+.posapp .v-data-table-virtual thead th {
 	background-color: var(--pos-table-header-bg) !important;
 	color: var(--pos-text-primary) !important;
 }
 
 .posapp .v-table tbody tr:hover,
-.posapp .v-data-table tbody tr:hover {
+.posapp .v-data-table tbody tr:hover,
+.posapp .v-data-table-virtual tbody tr:hover {
 	background-color: var(--pos-table-row-hover) !important;
 }
 
@@ -440,6 +445,36 @@ body[data-page-route="posapp"] .v-overlay__content > .v-card,
 body[data-page-route="posapp"] .v-overlay__content > .v-sheet,
 body[data-page-route="posapp"] .v-overlay__content .v-card {
 	background-color: var(--pos-card-bg) !important;
+	color: var(--pos-text-primary) !important;
+	border: 1px solid var(--pos-border);
+}
+
+body[data-page-route="posapp"] .v-overlay__content,
+body[data-page-route="posapp"] .v-overlay__content .v-list,
+body[data-page-route="posapp"] .v-overlay__content .v-list-item,
+body[data-page-route="posapp"] .v-overlay__content .v-list-item-title,
+body[data-page-route="posapp"] .v-overlay__content .v-list-item-subtitle,
+body[data-page-route="posapp"] .v-overlay__content .v-btn__content,
+body[data-page-route="posapp"] .v-overlay__content .v-chip__content,
+body[data-page-route="posapp"] .v-overlay__content .v-card-title,
+body[data-page-route="posapp"] .v-overlay__content .v-card-text,
+body[data-page-route="posapp"] .v-overlay__content .v-card-actions,
+body[data-page-route="posapp"] .v-overlay__content .v-label,
+body[data-page-route="posapp"] .v-overlay__content .text-medium-emphasis,
+body[data-page-route="posapp"] .v-overlay__content .text-caption {
+	color: var(--pos-text-primary) !important;
+}
+
+body[data-page-route="posapp"] .v-overlay__content .v-list-item-subtitle,
+body[data-page-route="posapp"] .v-overlay__content .text-medium-emphasis,
+body[data-page-route="posapp"] .v-overlay__content .text-caption {
+	color: var(--pos-text-secondary) !important;
+}
+
+body[data-page-route="posapp"] .v-tooltip > .v-overlay__content,
+body[data-page-route="posapp"] .v-tooltip .v-overlay__content,
+body[data-page-route="posapp"] .v-overlay__content .v-tooltip {
+	background: var(--pos-surface-raised) !important;
 	color: var(--pos-text-primary) !important;
 	border: 1px solid var(--pos-border);
 }

@@ -3,6 +3,78 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import "@mdi/font/css/materialdesignicons.css";
 
+const THEME_STORAGE_KEY = "posawesome_theme_preference";
+
+const getSystemTheme = () => {
+	if (
+		typeof window !== "undefined" &&
+		typeof window.matchMedia === "function" &&
+		window.matchMedia("(prefers-color-scheme: dark)").matches
+	) {
+		return "dark";
+	}
+	return "light";
+};
+
+const normalizeThemeMode = (value: string | null) => {
+	return value === "light" || value === "dark" || value === "automatic"
+		? value
+		: null;
+};
+
+const normalizeResolvedTheme = (value: string | null) => {
+	return value === "light" || value === "dark" ? value : null;
+};
+
+const resolveInitialThemeMode = () => {
+	if (typeof document !== "undefined") {
+		const domMode = normalizeThemeMode(
+			document.documentElement.getAttribute("data-theme-mode"),
+		);
+		if (domMode) {
+			return domMode;
+		}
+
+		const domTheme = normalizeResolvedTheme(
+			document.documentElement.getAttribute("data-theme"),
+		);
+		if (domTheme) {
+			return domTheme;
+		}
+	}
+
+	if (typeof localStorage !== "undefined") {
+		const storedMode = normalizeThemeMode(
+			localStorage.getItem(THEME_STORAGE_KEY),
+		);
+		if (storedMode) {
+			return storedMode;
+		}
+	}
+
+	return "automatic";
+};
+
+const resolveInitialTheme = () => {
+	const mode = resolveInitialThemeMode();
+	return mode === "automatic" ? getSystemTheme() : mode;
+};
+
+const bootstrapThemeAttributes = () => {
+	if (typeof document === "undefined") {
+		return;
+	}
+
+	const mode = resolveInitialThemeMode();
+	const resolvedTheme = mode === "automatic" ? getSystemTheme() : mode;
+	const root = document.documentElement;
+	root.setAttribute("data-theme", resolvedTheme);
+	root.setAttribute("data-theme-mode", mode);
+	root.style.setProperty("color-scheme", resolvedTheme);
+};
+
+bootstrapThemeAttributes();
+
 const lightTheme = {
 	dark: false,
 	colors: {
@@ -54,7 +126,7 @@ export default createVuetify({
 		rtl: typeof frappe !== "undefined" && frappe.utils ? frappe.utils.is_rtl() : false,
 	},
 	theme: {
-		defaultTheme: "light",
+		defaultTheme: resolveInitialTheme(),
 		themes: {
 			light: lightTheme,
 			dark: darkTheme,

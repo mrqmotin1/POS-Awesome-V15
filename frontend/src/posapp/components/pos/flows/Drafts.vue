@@ -99,10 +99,10 @@
 					</v-container>
 				</v-card-text>
 				<v-card-actions class="drafts-dialog-card__footer">
-					<v-btn color="error" variant="tonal" theme="dark" @click="close_dialog">
+					<v-btn color="error" variant="tonal" @click="close_dialog">
 						{{ __("Close") }}
 					</v-btn>
-					<v-btn color="success" theme="dark" :disabled="selected.length === 0" @click="submit_dialog">
+					<v-btn color="success" :disabled="selected.length === 0" @click="submit_dialog">
 						{{ __("Load Sale") }}
 					</v-btn>
 				</v-card-actions>

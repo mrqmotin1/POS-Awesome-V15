@@ -7,8 +7,9 @@
 			:width="ordersDialogWidth"
 			scrollable
 			content-class="sales-orders-dialog-content"
+			:theme="isDarkTheme ? 'dark' : 'light'"
 		>
-			<v-card class="sales-orders-card">
+			<v-card class="sales-orders-card pos-themed-card" :theme="isDarkTheme ? 'dark' : 'light'">
 				<v-card-title class="sales-orders-card__title">
 					<div class="sales-orders-card__title-copy">
 						<span class="text-h5 text-primary">{{ __("Select Sales Orders") }}</span>
@@ -43,7 +44,6 @@
 									block
 									variant="text"
 									color="primary"
-									theme="dark"
 									:loading="isLoading"
 									:disabled="isLoading || isSubmitting"
 									@click="search_orders"
@@ -98,7 +98,7 @@
 									:headers="headers"
 									:items="dialog_data"
 									item-key="name"
-									class="elevation-1"
+									class="elevation-1 sales-orders-table"
 									show-select
 									v-model="selected"
 									return-object
@@ -117,12 +117,11 @@
 					</v-container>
 				</v-card-text>
 				<v-card-actions class="sales-orders-card__footer">
-					<v-btn color="error" variant="tonal" theme="dark" @click="close_dialog">
+					<v-btn color="error" variant="tonal" @click="close_dialog">
 						{{ __("Close") }}
 					</v-btn>
 					<v-btn
 						color="success"
-						theme="dark"
 						:loading="isSubmitting"
 						:disabled="isSubmitting || selected.length === 0"
 						@click="submit_dialog"
@@ -142,6 +141,7 @@ import { useUIStore } from "../../../stores/uiStore.js";
 import { useInvoiceStore } from "../../../stores/invoiceStore.js";
 import { storeToRefs } from "pinia";
 import { useResponsive } from "../../../composables/core/useResponsive";
+import { useTheme } from "../../../composables/core/useTheme";
 export default {
 	// props: ["draftsDialog"],
 	mixins: [format],
@@ -149,6 +149,7 @@ export default {
 		const uiStore = useUIStore();
 		const invoiceStore = useInvoiceStore();
 		const responsive = useResponsive();
+		const theme = useTheme();
 		const isCompactOrders = computed(() => responsive.windowWidth.value < 1100);
 		const ordersDialogWidth = computed(() =>
 			responsive.windowWidth.value < 600 ? "100vw" : "min(980px, 96vw)",
@@ -165,6 +166,7 @@ export default {
 			isCompactOrders,
 			ordersDialogWidth,
 			ordersDialogMaxWidth,
+			isDarkTheme: theme.isDark,
 		};
 	},
 	mounted() {
@@ -369,6 +371,7 @@ export default {
 	max-height: min(92vh, 980px);
 	background: var(--pos-surface-raised) !important;
 	color: var(--pos-text-primary) !important;
+	border: 1px solid var(--pos-border);
 }
 
 .sales-orders-card__title {
@@ -377,6 +380,7 @@ export default {
 	justify-content: space-between;
 	gap: 16px;
 	padding: 20px 20px 12px;
+	border-bottom: 1px solid var(--pos-border);
 }
 
 .sales-orders-card__title-copy {
@@ -471,7 +475,27 @@ export default {
 	padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
 	background: color-mix(in srgb, var(--pos-surface-raised) 92%, transparent);
 	backdrop-filter: blur(10px);
-	border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+	border-top: 1px solid var(--pos-border);
+}
+
+.sales-orders-table :deep(.v-table),
+.sales-orders-table :deep(.v-table__wrapper),
+.sales-orders-table :deep(table),
+.sales-orders-table :deep(thead),
+.sales-orders-table :deep(tbody),
+.sales-orders-table :deep(tr),
+.sales-orders-table :deep(td),
+.sales-orders-table :deep(th) {
+	background: var(--pos-surface) !important;
+	color: var(--pos-text-primary) !important;
+}
+
+.sales-orders-table :deep(th) {
+	background: var(--pos-table-header-bg) !important;
+}
+
+.sales-orders-table :deep(tbody tr:hover) {
+	background: var(--pos-table-row-hover) !important;
 }
 
 @media (max-width: 959px) {

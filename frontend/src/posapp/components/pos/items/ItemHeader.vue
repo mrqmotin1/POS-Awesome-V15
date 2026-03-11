@@ -184,9 +184,9 @@ defineExpose({
 	position: sticky;
 	top: 0;
 	z-index: 5;
-	background: rgb(var(--v-theme-surface));
+	background: var(--pos-surface);
 	padding: 12px 12px 0 12px;
-	border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+	border-bottom: 1px solid var(--pos-border);
 	margin-bottom: 0;
 }
 
@@ -198,8 +198,8 @@ defineExpose({
 	margin-top: 8px;
 	padding: 10px 12px;
 	border-radius: 16px;
-	background: rgba(var(--v-theme-on-surface), 0.04);
-	border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+	background: var(--pos-surface-muted);
+	border: 1px solid var(--pos-border);
 }
 
 .tools-panel__actions {
