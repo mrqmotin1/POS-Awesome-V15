@@ -40,7 +40,7 @@
             </div>
             <footer class="display-footer">
               <div class="display-total-label">{{ __("Total") }}</div>
-              <div class="display-total-value">{{ formatCurrency(totals.grand_total) }}</div>
+              <div class="display-total-value">{{ formatCurrency(totals.net_total) }}</div>
             </footer>
           </div>
         </v-col>
