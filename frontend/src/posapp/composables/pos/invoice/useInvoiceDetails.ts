@@ -38,6 +38,27 @@ export interface SalesPerson {
 	title: string;
 }
 
+const buildSalesPersonOptionsFromProfile = (profile: any): SalesPerson[] => {
+	const rows = Array.isArray(profile?.posa_sales_persons) ? profile.posa_sales_persons : [];
+	const seen = new Set<string>();
+
+	return rows
+		.map((row: any) => String(row?.sales_person || "").trim())
+		.filter((salesPersonName: string) => {
+			if (!salesPersonName || seen.has(salesPersonName)) {
+				return false;
+			}
+			seen.add(salesPersonName);
+			return true;
+		})
+		.map((salesPersonName: string) => ({
+			value: salesPersonName,
+			title: salesPersonName,
+			sales_person_name: salesPersonName,
+			name: salesPersonName,
+		}));
+};
+
 export function useInvoiceDetails(options: InvoiceDetailsOptions) {
 	const {
 		invoiceDoc,
@@ -181,12 +202,15 @@ export function useInvoiceDetails(options: InvoiceDetailsOptions) {
 
 	const get_sales_person_names = () => {
 		const profile = unref(posProfile);
+		const profileSalesPersons = buildSalesPersonOptionsFromProfile(profile);
 		if (profile?.posa_local_storage && getSalesPersonsStorage().length) {
 			try {
 				sales_persons.value = getSalesPersonsStorage();
 			} catch (e) {
 				console.error(e);
 			}
+		} else if (profileSalesPersons.length) {
+			sales_persons.value = profileSalesPersons;
 		}
 
 		frappe.call({
@@ -203,8 +227,12 @@ export function useInvoiceDetails(options: InvoiceDetailsOptions) {
 						setSalesPersonsStorage(sales_persons.value);
 					}
 				} else {
-					sales_persons.value = [];
+					sales_persons.value = profileSalesPersons;
 				}
+			},
+			error: function (error: any) {
+				console.error("Failed to fetch sales persons", error);
+				sales_persons.value = profileSalesPersons;
 			},
 		});
 	};
