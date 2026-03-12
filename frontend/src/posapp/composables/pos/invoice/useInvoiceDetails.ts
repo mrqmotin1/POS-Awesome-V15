@@ -191,6 +191,9 @@ export function useInvoiceDetails(options: InvoiceDetailsOptions) {
 
 		frappe.call({
 			method: "posawesome.posawesome.api.utilities.get_sales_person_names",
+			args: {
+				pos_profile: profile?.name || profile || null,
+			},
 			callback: function (r: any) {
 				if (r.message && r.message.length > 0) {
 					sales_persons.value = r.message.map((sp: any) => ({

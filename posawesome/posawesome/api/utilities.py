@@ -374,8 +374,8 @@ def ensure_child_doctype(doc, table_field, child_doctype):
 
 
 @frappe.whitelist()
-def get_sales_person_names():
-    return fetch_sales_person_names()
+def get_sales_person_names(pos_profile=None):
+    return fetch_sales_person_names(pos_profile=pos_profile)
 
 
 @frappe.whitelist()

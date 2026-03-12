@@ -132,13 +132,38 @@ def get_default_warehouse(company=None):
     return warehouse
 
 
-def fetch_sales_person_names():
+def _resolve_pos_profile_input(pos_profile=None):
+    """Return a POS profile dict from a name, JSON string, dict or fallback."""
+
+    if isinstance(pos_profile, dict):
+        return pos_profile
+
+    if isinstance(pos_profile, str):
+        raw_value = pos_profile.strip()
+        if not raw_value:
+            return None
+
+        try:
+            decoded_value = json.loads(raw_value)
+        except Exception:
+            decoded_value = raw_value
+
+        if isinstance(decoded_value, dict):
+            return decoded_value
+
+        if isinstance(decoded_value, str) and decoded_value:
+            return frappe.get_cached_doc("POS Profile", decoded_value).as_dict()
+
+    return None
+
+
+def fetch_sales_person_names(pos_profile=None):
     """Return the list of enabled sales persons allowed for the active POS profile."""
 
     logger.info("Fetching sales persons...")
 
     try:
-        profile = get_active_pos_profile()
+        profile = _resolve_pos_profile_input(pos_profile) or get_active_pos_profile()
         allowed = []
         if profile:
             allowed = [
@@ -148,13 +173,21 @@ def fetch_sales_person_names():
         filters = {"enabled": 1}
         if allowed:
             filters["name"] = ["in", allowed]
-
-        sales_persons = frappe.get_list(
-            "Sales Person",
-            filters=filters,
-            fields=["name", "sales_person_name"],
-            limit_page_length=100000,
-        )
+            sales_persons = frappe.get_all(
+                "Sales Person",
+                filters=filters,
+                fields=["name", "sales_person_name"],
+                limit_page_length=100000,
+                order_by="sales_person_name asc, name asc",
+            )
+        else:
+            sales_persons = frappe.get_list(
+                "Sales Person",
+                filters=filters,
+                fields=["name", "sales_person_name"],
+                limit_page_length=100000,
+                order_by="sales_person_name asc, name asc",
+            )
 
         logger.info(
             "Found %s sales persons: %s",
