@@ -60,6 +60,7 @@ describe("usePosPaySubmission", () => {
 			total_selected_mpesa_payments: ref(10),
 			total_payment_methods: ref(100),
 			clearSelections: vi.fn(),
+			resetPaymentMethodAmounts: vi.fn(),
 			load_print_page: vi.fn(),
 			eventBus,
 			get_outstanding_invoices: getOutstandingInvoices,
@@ -114,6 +115,7 @@ describe("usePosPaySubmission", () => {
 			total_selected_mpesa_payments: ref(0),
 			total_payment_methods: ref(32000),
 			clearSelections: vi.fn(),
+			resetPaymentMethodAmounts: vi.fn(),
 			load_print_page: vi.fn(),
 			eventBus: { emit: vi.fn() },
 			get_outstanding_invoices: vi.fn(),
@@ -128,6 +130,60 @@ describe("usePosPaySubmission", () => {
 		expect(autoReconcile).toHaveBeenCalledWith(null, {
 			suppressToast: true,
 		});
+	});
+
+	it("clears entered payment method amounts after a successful submit", async () => {
+		(globalThis as any).frappe.call.mockImplementation(({ callback }: any) => {
+			callback({
+				message: {
+					new_payments_entry: [{ name: "ACC-PAY-0004" }],
+				},
+			});
+		});
+
+		const paymentMethods = ref([
+			{ mode_of_payment: "Cash", amount: 5000 },
+			{ mode_of_payment: "Online", amount: 32000 },
+		]);
+
+		const { processPayment } = usePosPaySubmission({
+			customerName: ref("Customer 727"),
+			company: ref("Test Company"),
+			posProfile: ref({ name: "Main POS" }),
+			posOpeningShift: ref({ name: "POS-OPEN-0001" }),
+			exchangeRate: ref(1),
+			invoiceTotalCurrency: ref("USD"),
+			autoAllocatePaymentAmount: ref(false),
+			payment_methods: paymentMethods,
+			selected_invoices: ref([]),
+			selected_payments: ref([]),
+			selected_mpesa_payments: ref([]),
+			total_selected_invoices: ref(0),
+			total_selected_payments: ref(0),
+			total_selected_mpesa_payments: ref(0),
+			total_payment_methods: ref(37000),
+			clearSelections: vi.fn(),
+			resetPaymentMethodAmounts: () => {
+				paymentMethods.value = paymentMethods.value.map((method) => ({
+					...method,
+					amount: 0,
+				}));
+			},
+			load_print_page: vi.fn(),
+			eventBus: { emit: vi.fn() },
+			get_outstanding_invoices: vi.fn(),
+			get_unallocated_payments: vi.fn(),
+			get_draft_mpesa_payments_register: vi.fn(),
+			set_mpesa_search_params: vi.fn(),
+			autoReconcile: vi.fn(),
+		});
+
+		await processPayment();
+
+		expect(paymentMethods.value).toEqual([
+			{ mode_of_payment: "Cash", amount: 0 },
+			{ mode_of_payment: "Online", amount: 0 },
+		]);
 	});
 
 	it("skips post-submit auto reconcile when auto allocation is disabled", async () => {
@@ -158,6 +214,7 @@ describe("usePosPaySubmission", () => {
 			total_selected_mpesa_payments: ref(0),
 			total_payment_methods: ref(100),
 			clearSelections: vi.fn(),
+			resetPaymentMethodAmounts: vi.fn(),
 			load_print_page: vi.fn(),
 			eventBus: { emit: vi.fn() },
 			get_outstanding_invoices: vi.fn(),

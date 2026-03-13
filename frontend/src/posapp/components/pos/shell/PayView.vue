@@ -299,6 +299,7 @@ export default {
 			toggleInvoiceSelection,
 			isInvoiceSelected,
 			clearSelections,
+			resetPaymentMethodAmounts,
 		} = usePosPaySelection({
 			outstanding_invoices,
 			unallocated_payments,
@@ -469,6 +470,7 @@ export default {
 			total_selected_mpesa_payments,
 			total_payment_methods,
 			clearSelections,
+			resetPaymentMethodAmounts,
 			load_print_page,
 			eventBus: proxy?.eventBus,
 			get_outstanding_invoices: refreshOutstandingInvoices,

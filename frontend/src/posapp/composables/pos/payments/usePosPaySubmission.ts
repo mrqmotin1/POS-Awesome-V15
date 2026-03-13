@@ -21,6 +21,7 @@ type PosPaySubmissionArgs = {
 	total_selected_mpesa_payments: Ref<number>;
 	total_payment_methods: Ref<number>;
 	clearSelections: () => void;
+	resetPaymentMethodAmounts: () => void;
 	load_print_page: (_name: string) => void;
 	eventBus: { emit: (_event: string, _payload?: unknown) => void };
 	get_outstanding_invoices: () => void;
@@ -49,6 +50,7 @@ export function usePosPaySubmission({
 	total_selected_mpesa_payments,
 	total_payment_methods,
 	clearSelections,
+	resetPaymentMethodAmounts,
 	load_print_page,
 	eventBus,
 	get_outstanding_invoices,
@@ -69,6 +71,7 @@ export function usePosPaySubmission({
 
 		const finalizeSubmission = () => {
 			clearSelections();
+			resetPaymentMethodAmounts();
 			customerName.value = customer;
 			get_outstanding_invoices();
 			get_unallocated_payments();
