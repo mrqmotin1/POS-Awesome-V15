@@ -212,18 +212,6 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                 )
             )
 
-        existing_keys = {(row.get("voucher_type"), row.get("voucher_no")) for row in normalized_rows}
-        for payment_row in _get_customer_payments_made_as_outstanding(
-            customer=customer,
-            company=company,
-            currency=currency,
-            include_all_currencies=include_all_currencies,
-        ):
-            key = (payment_row.get("voucher_type"), payment_row.get("voucher_no"))
-            if key not in existing_keys:
-                normalized_rows.append(payment_row)
-                existing_keys.add(key)
-
         normalized_rows = sorted(
             normalized_rows,
             key=lambda inv: (
@@ -496,6 +484,39 @@ def get_unallocated_payments(
                 "remarks": note.remarks,
             }
         )
+
+    for payment_row in _get_customer_payments_made_as_outstanding(
+        customer=customer,
+        company=company,
+        currency=currency,
+        include_all_currencies=include_all_currencies,
+    ):
+        key = (payment_row.get("voucher_type"), payment_row.get("voucher_no"))
+        if key in existing_keys:
+            continue
+
+        unallocated_payment.append(
+            {
+                "name": payment_row.get("voucher_no"),
+                "paid_amount": flt(
+                    payment_row.get("invoice_amount")
+                    or payment_row.get("outstanding_amount")
+                ),
+                "received_amount": flt(
+                    payment_row.get("invoice_amount")
+                    or payment_row.get("outstanding_amount")
+                ),
+                "customer_name": payment_row.get("customer_name") or customer_name,
+                "posting_date": payment_row.get("posting_date"),
+                "unallocated_amount": flt(payment_row.get("outstanding_amount")),
+                "mode_of_payment": payment_row.get("mode_of_payment"),
+                "currency": payment_row.get("currency") or currency,
+                "account": payment_row.get("account") or party_account,
+                "voucher_type": payment_row.get("voucher_type") or "Payment Entry",
+                "is_credit_note": 0,
+            }
+        )
+        existing_keys.add(key)
 
     unallocated_payment = sorted(
         unallocated_payment,

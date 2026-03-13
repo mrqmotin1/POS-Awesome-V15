@@ -172,10 +172,9 @@ export function usePosPaySubmission({
 			frappe.utils.play_sound("submit");
 
 			if (autoAllocatePaymentAmount.value) {
-				const autoReconcileResult = await autoReconcile(
-					posProfile.value?.name || null,
-					{ suppressToast: true },
-				);
+				const autoReconcileResult = await autoReconcile(null, {
+					suppressToast: true,
+				});
 				const autoReconcileSummary =
 					autoReconcileResult?.summary ||
 					__("Auto reconciliation completed after payment submit.");

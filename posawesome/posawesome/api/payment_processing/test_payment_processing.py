@@ -164,6 +164,10 @@ class TestPosPaymentProcessing(unittest.TestCase):
             "posawesome.posawesome.api.payment_processing.processor",
             payment_processing_dir / "processor.py",
         )
+        cls.reconciliation = _load_module(
+            "posawesome.posawesome.api.payment_processing.reconciliation",
+            payment_processing_dir / "reconciliation.py",
+        )
 
     @patch("posawesome.posawesome.api.payment_processing.processor.create_payment_entry")
     @patch("posawesome.posawesome.api.payment_processing.processor.frappe")
@@ -243,6 +247,57 @@ class TestPosPaymentProcessing(unittest.TestCase):
         "posawesome.posawesome.api.payment_processing.data._get_customer_payments_made_as_outstanding"
     )
     @patch(
+        "posawesome.posawesome.api.payment_processing.data.get_advance_payment_entries_for_regional"
+    )
+    @patch("posawesome.posawesome.api.payment_processing.data.get_party_account")
+    @patch("posawesome.posawesome.api.payment_processing.data.frappe")
+    def test_get_unallocated_payments_includes_pay_type_customer_entries(
+        self,
+        mock_frappe,
+        mock_get_party_account,
+        mock_regional_entries,
+        mock_pay_type_entries,
+    ):
+        mock_frappe._dict.side_effect = lambda value: AttrDict(value)
+        mock_frappe.get_cached_value.return_value = "Customer 727"
+        mock_get_party_account.return_value = "Debtors - TC"
+        mock_regional_entries.return_value = []
+        mock_frappe.db.sql.return_value = []
+        mock_pay_type_entries.return_value = [
+            AttrDict(
+                {
+                    "voucher_no": "ACC-PAY-2026-00999",
+                    "voucher_type": "Payment Entry",
+                    "outstanding_amount": 500,
+                    "invoice_amount": 500,
+                    "posting_date": "2026-03-13",
+                    "customer_name": "Customer 727",
+                    "currency": "USD",
+                    "mode_of_payment": "Bank",
+                    "account": "Debtors - TC",
+                }
+            )
+        ]
+        mock_frappe.get_list.side_effect = [[], []]
+
+        rows = self.data.get_unallocated_payments(
+            customer="Customer 727",
+            company="Test Company",
+            currency="USD",
+            include_all_currencies=True,
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].get("name"), "ACC-PAY-2026-00999")
+        self.assertEqual(rows[0].get("voucher_type"), "Payment Entry")
+        self.assertEqual(rows[0].get("unallocated_amount"), 500)
+        self.assertEqual(rows[0].get("account"), "Debtors - TC")
+        self.assertEqual(rows[0].get("is_credit_note"), 0)
+
+    @patch(
+        "posawesome.posawesome.api.payment_processing.data._get_customer_payments_made_as_outstanding"
+    )
+    @patch(
         "posawesome.posawesome.api.payment_processing.data.get_erpnext_outstanding_invoices",
         side_effect=AssertionError("legacy outstanding helper should not be called"),
         create=True,
@@ -314,13 +369,11 @@ class TestPosPaymentProcessing(unittest.TestCase):
 
         self.assertEqual(
             [(row.get("voucher_type"), row.get("voucher_no")) for row in rows],
-            [
-                ("Sales Invoice", "SINV-OPEN-0001"),
-                ("Payment Entry", "ACC-PAY-2026-0001"),
-            ],
+            [("Sales Invoice", "SINV-OPEN-0001")],
         )
         self.assertEqual(rows[0].get("outstanding_amount"), 125)
         self.assertEqual(rows[0].get("customer_name"), "Customer 727")
+        mock_payments_as_outstanding.assert_not_called()
         mock_legacy_helper.assert_not_called()
 
 
