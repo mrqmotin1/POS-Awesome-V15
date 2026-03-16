@@ -207,19 +207,19 @@ export function useItemAddition() {
 				new_item.qty = -Math.abs(new_item.qty || 1);
 			}
 			// Apply UOM conversion immediately if barcode specifies a different UOM
-			if (
-				context.calc_uom &&
-				new_item.uom &&
-				(!new_item.stock_uom || new_item.uom !== new_item.stock_uom)
-			) {
-				scheduleItemTask(
-					context,
-					new_item,
-					"calc_uom",
-					() => context.calc_uom(new_item, new_item.uom),
-					"calc_uom:new_item",
-				);
-			}
+			// if (
+			// 	context.calc_uom &&
+			// 	new_item.uom &&
+			// 	(!new_item.stock_uom || new_item.uom !== new_item.stock_uom)
+			// ) {
+			// 	scheduleItemTask(
+			// 		context,
+			// 		new_item,
+			// 		"calc_uom",
+			// 		() => context.calc_uom(new_item, new_item.uom),
+			// 		"calc_uom:new_item",
+			// 	);
+			// }
 
 			// Re-check in case other async updates modified the cart meanwhile
 			if (!context.new_line) {
