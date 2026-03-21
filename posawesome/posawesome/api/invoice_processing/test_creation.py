@@ -188,7 +188,7 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
         _install_package_stubs()
         cls.creation = _load_module()
 
-    def test_return_invoice_tolerates_none_payment_amounts(self):
+    def test_return_invoice_derives_missing_base_amount_from_amount(self):
         invoice_doc = FakeDoc(
             doctype="Sales Invoice",
             name=None,
@@ -201,7 +201,7 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
             items=[],
             payments=[
                 FakeDoc(
-                    amount=None,
+                    amount=125,
                     base_amount=None,
                 )
             ],
@@ -228,15 +228,15 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
                     "posting_date": "2026-03-21",
                     "is_return": 1,
                     "items": [],
-                    "payments": [{"amount": None, "base_amount": None}],
+                    "payments": [{"amount": 125, "base_amount": None}],
                 }
             )
         )
 
-        self.assertEqual(invoice_doc.payments[0].amount, 0)
-        self.assertEqual(invoice_doc.payments[0].base_amount, 0)
-        self.assertEqual(result["paid_amount"], 0)
-        self.assertEqual(result["base_paid_amount"], 0)
+        self.assertEqual(invoice_doc.payments[0].amount, -125)
+        self.assertEqual(invoice_doc.payments[0].base_amount, -125)
+        self.assertEqual(result["paid_amount"], -125)
+        self.assertEqual(result["base_paid_amount"], -125)
 
 
 if __name__ == "__main__":
