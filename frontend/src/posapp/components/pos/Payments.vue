@@ -532,7 +532,7 @@ const {
 	eventBus: eventBus,
 });
 
-const { ensureReturnPaymentsAreNegative, validateSubmission, submitInvoice } = usePaymentSubmission({
+const { ensureReturnPaymentsAreNegative, restoreReturnPayments, validateSubmission, submitInvoice } = usePaymentSubmission({
 	invoiceDoc: computed(() => invoiceStore.invoiceDoc),
 	posProfile: pos_profile,
 	stockSettings: stock_settings,
@@ -1133,8 +1133,15 @@ watch(
 		if (invoice_doc.value && data === "Return") {
 			invoice_doc.value.is_return = 1;
 			ensureReturnPaymentsAreNegative();
+			is_return.value = true;
 			is_credit_return.value = false;
 			return_valid_upto_date.value = null;
+		} else if (invoice_doc.value) {
+			invoice_doc.value.is_return = 0;
+			is_return.value = false;
+			is_credit_return.value = false;
+			return_valid_upto_date.value = null;
+			restoreReturnPayments();
 		}
 	},
 	{ immediate: true },
