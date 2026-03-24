@@ -522,16 +522,11 @@ export default {
 			this.uiStore.triggerItemSearchFocus();
 		},
 
-<<<<<<< HEAD
+
 		focusAdditionalDiscountField() {
 			this.eventBus?.emit?.("focus_additional_discount");
 			this.$refs.invoiceSummary?.focusAdditionalDiscountField?.();
-=======
-<<<<<<< HEAD
-		initializeItemsHeaders() {
-			// Define all available columns
-			this.available_columns = [
-=======
+		},
                 initializeItemsHeaders() {
 				// Define all available columns
 				this.available_columns = [
@@ -629,7 +624,6 @@ export default {
 
 			// Use the existing add_item method to add the dropped item
 			this.add_item(item);
->>>>>>> 6368ad3c (added serial number on items cart)
 		},
 
 		handleStockCoordinatorUpdate(event = {}) {

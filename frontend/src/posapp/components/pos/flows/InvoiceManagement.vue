@@ -783,7 +783,7 @@ import { useToastStore } from "../../../stores/toastStore";
 import { useUIStore } from "../../../stores/uiStore";
 import { useInvoiceStore } from "../../../stores/invoiceStore";
 import { useCustomersStore } from "../../../stores/customersStore";
-import { appendDebugPrintParam, isDebugPrintEnabled, silentPrint, watchPrintWindow } from "../../../plugins/print";
+import { appendDebugPrintParam, isDebugPrintEnabled, silentPrint, watchPrintWindow } from "../../../plugins/print.ts";
 import { printDocumentViaQz } from "../../../services/qzTray";
 import { isOffline } from "../../../../offline/index";
 

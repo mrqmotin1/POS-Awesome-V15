@@ -169,7 +169,7 @@ function defaultOfflineHTML(invoice) {
     // Return an empty string if no invoice data is provided.
     if (!invoice) return "";
 
-    let company = {};
+    let company = {string: ""};
     // Try to get the saved company details from localStorage.
     const company_json = localStorage.getItem('pos_offline_company_details');
     if (company_json) {
@@ -288,9 +288,9 @@ function formatDate(dateString) {
                 <div class="receipt">
                     <div style="text-align: center;">
                         <strong>${invoice.company || ""}</strong><br>
-                        ${company.registration_details || ""}<br>
-                        Tel: ${company.phone_no || ""}<br>
-                        TRN: ${company.tax_id || "N/A"}<br>
+                        ${invoice.company.registration_details || ""}<br>
+                        Tel: ${invoice.company.phone_no || ""}<br>
+                        TRN: ${invoice.company.tax_id || "N/A"}<br>
                     </div>
 
                     <hr style="border-top: 1px dashed #000; margin: 6px 0;">
@@ -411,7 +411,7 @@ export default async function renderOfflineInvoiceHTML(invoice) {
 		console.warn(
 			"No offline print template cached; using fallback template",
 		);
-		return defaultOfflineHTML(doc, doc.terms_and_conditions);
+		return defaultOfflineHTML(doc);
 	}
 
 	try {
@@ -449,6 +449,6 @@ export default async function renderOfflineInvoiceHTML(invoice) {
 		return env.renderString(template, context);
 	} catch (e) {
 		console.error("Failed to render offline invoice", e);
-		return defaultOfflineHTML(doc, doc.terms_and_conditions);
+		return defaultOfflineHTML(doc);
 	}
 }

@@ -135,7 +135,7 @@ import {
 	appendDebugPrintParam,
 	silentPrint,
 	watchPrintWindow,
-} from "../../../plugins/print";
+} from "../../../plugins/print.ts";
 import { printDocumentViaQz } from "../../../services/qzTray";
 
 import { useRtl } from "../../../composables/core/useRtl";

@@ -5,7 +5,7 @@ import {
 	isDebugPrintEnabled,
 	silentPrint,
 	watchPrintWindow,
-} from "../../../plugins/print";
+} from "../../../plugins/print.ts";
 import { printDocumentViaQz } from "../../../services/qzTray";
 import { isOffline } from "../../../../offline/index";
 

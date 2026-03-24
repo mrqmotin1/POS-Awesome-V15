@@ -626,7 +626,7 @@
 							@show-paid-change="showPaidChange"
 							@update-credit-change="handleCreditChangeUpdate"
 						/>
-					</section>
+					</v-col>
 
 					<section
 						v-if="is_cashback && invoice_doc"
@@ -770,7 +770,8 @@
 							(data) => setFormatedCurrency(data.target, data.field, null, false, data.value)
 						"
 					/>
-				</section>
+					</section>
+				</v-row>
 
 				<!-- Sales Person Selection -->
 				<!-- <v-row class="pb-0 mb-2" align="start">
@@ -797,7 +798,7 @@
 					</v-col>
 				</v-row> -->
 			</div>
-		</div>
+		
 		</v-card>
 
 		<div :class="['payment-footer', { 'payment-footer--dialog': dialogMode }]">
@@ -846,7 +847,7 @@ import { useRedemptionLogic } from "../../composables/pos/payments/useRedemption
 import { usePaymentPrinting } from "../../composables/pos/payments/usePaymentPrinting";
 import { usePaymentMethods } from "../../composables/pos/payments/usePaymentMethods";
 import { useInvoiceDetails } from "../../composables/pos/invoice/useInvoiceDetails";
-import { useFormat } from "../../format";
+import { useFormat } from "../../format.ts";
 import { isOffline } from "../../../offline/index";
 import {
 	initializePaymentLinesForDialog,
