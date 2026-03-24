@@ -3201,6 +3201,20 @@ export default {
 				return;
 			}
 
+			if (!/^\d+$/.test(scannedCode)) {
+				this.playScanTone("error");
+				if (frappe?.show_alert) {
+					frappe.show_alert(
+						{
+							message: this.__("Scanned code is not a valid barcode."),
+							indicator: "red",
+						},
+						3,
+					);
+				}
+				return;
+			}
+
 			if (this.search_onchange.cancel) {
 				this.search_onchange.cancel();
 			}
