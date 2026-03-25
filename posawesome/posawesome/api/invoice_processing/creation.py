@@ -192,17 +192,11 @@ def _resolve_payment_amounts(payment, conversion_rate=1):
     if amount in (None, "") and base_amount not in (None, ""):
         amount = flt(flt(base_amount) / rate, payment.precision("amount"))
 
-    if base_amount in (None, "") and amount not in (None, ""):
-        base_amount = flt(flt(amount) * rate, payment.precision("base_amount"))
-
     if amount in (None, ""):
         amount = 0
 
-    if base_amount in (None, ""):
-        base_amount = flt(flt(amount) * rate, payment.precision("base_amount"))
-
     amount = flt(amount, payment.precision("amount"))
-    base_amount = flt(base_amount, payment.precision("base_amount"))
+    base_amount = flt(flt(amount) * rate, payment.precision("base_amount"))
     return amount, base_amount
 
 

@@ -288,6 +288,14 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
         self.assertEqual(result["paid_amount"], -125)
         self.assertEqual(result["base_paid_amount"], -125)
 
+    def test_resolve_payment_amounts_recomputes_base_amount_from_server_rate(self):
+        payment = FakeDoc(amount=12.34, base_amount=999)
+
+        amount, base_amount = self.creation._resolve_payment_amounts(payment, conversion_rate=2)
+
+        self.assertEqual(amount, 12.34)
+        self.assertEqual(base_amount, 24.68)
+
 
 if __name__ == "__main__":
     unittest.main()
