@@ -43,6 +43,7 @@ describe("invoiceShortcuts", () => {
 		await (invoiceShortcuts as any).handleInvoiceShortcut.call(vm, event);
 
 		expect(vm.eventBus.emit).toHaveBeenCalledWith("set_compact_panel", "selector");
+		expect(vm.eventBus.emit).toHaveBeenCalledWith("focus_item_search");
 		expect(vm.uiStore.setActiveView).toHaveBeenCalledWith("items");
 		expect(vm.uiStore.triggerItemSearchFocus).toHaveBeenCalledTimes(1);
 		expect(event.defaultPrevented).toBe(true);
@@ -60,7 +61,6 @@ describe("invoiceShortcuts", () => {
 	});
 
 	it.each([
-		["u", "KeyU", "uom"],
 		["r", "KeyR", "rate"],
 	])(
 		"switches compact layout to the invoice before focusing %s cart fields",
@@ -75,6 +75,19 @@ describe("invoiceShortcuts", () => {
 			expect(event.defaultPrevented).toBe(true);
 		},
 	);
+
+	it("switches compact layout to the invoice and opens the uom selector", async () => {
+		const vm = {
+			...createVm(),
+		};
+		const event = createAltEvent("u", "KeyU");
+
+		await (invoiceShortcuts as any).handleInvoiceShortcut.call(vm, event);
+
+		expect(vm.eventBus.emit).toHaveBeenCalledWith("set_compact_panel", "invoice");
+		expect(vm.focusItemTableField).toHaveBeenCalledWith("uom");
+		expect(event.defaultPrevented).toBe(true);
+	});
 
 	it("switches compact layout to payments before queueing submit and print", async () => {
 		const vm = {

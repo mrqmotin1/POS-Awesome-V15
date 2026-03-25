@@ -157,6 +157,7 @@ const invoiceShortcuts: Record<string, unknown> & ThisType<InvoiceShortcutsVm> =
 				showCompactPanel(this.eventBus, "selector");
 				this.uiStore.setActiveView("items");
 				this.uiStore.triggerItemSearchFocus();
+				this.eventBus.emit("focus_item_search");
 				return;
 			}
 
