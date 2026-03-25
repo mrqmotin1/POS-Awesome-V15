@@ -164,17 +164,17 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		additionalDiscountPercentage.value = toNumber(val);
 	};
 
-	// const setDeliveryCharges = (val: any) => {
-	// 	deliveryCharges.value = Array.isArray(val) ? val : [];
-	// };
+	const setDeliveryCharges = (val: any) => {
+		deliveryCharges.value = Array.isArray(val) ? val : [];
+	};
 
-	// const setDeliveryChargesRate = (val: any) => {
-	// 	deliveryChargesRate.value = toNumber(val);
-	// };
+	const setDeliveryChargesRate = (val: any) => {
+		deliveryChargesRate.value = toNumber(val);
+	};
 
-	// const setSelectedDeliveryCharge = (val: string) => {
-	// 	selectedDeliveryCharge.value = val;
-	// };
+	const setSelectedDeliveryCharge = (val: string) => {
+		selectedDeliveryCharge.value = val;
+	};
 
 	const resetDeliveryCharges = () => {
 		deliveryCharges.value = [];
@@ -425,16 +425,10 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		setDiscountAmount,
 		setAdditionalDiscount,
 		setAdditionalDiscountPercentage,
-<<<<<<< HEAD
 		setDeliveryCharges,
 		setDeliveryChargesRate,
 		setSelectedDeliveryCharge,
 		resetDeliveryCharges,
-=======
-		// setDeliveryCharges,
-		// setDeliveryChargesRate,
-		// setSelectedDeliveryCharge,
->>>>>>> 65607667 (d)
 	};
 });
 
