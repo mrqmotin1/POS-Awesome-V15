@@ -395,29 +395,29 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 
 	// Keep delivery charge state mirrored in the central invoice store.
 	// Customer display publisher reads from invoiceStore.* values.
-	watch(
-		delivery_charges,
-		(next) => {
-			invoiceStore.setDeliveryCharges(next);
-		},
-		{ deep: true, immediate: true },
-	);
+	// watch(
+	// 	delivery_charges,
+	// 	(next) => {
+	// 		invoiceStore.setDeliveryCharges(next);
+	// 	},
+	// 	{ deep: true, immediate: true },
+	// );
 
-	watch(
-		selected_delivery_charge,
-		(next) => {
-			invoiceStore.setSelectedDeliveryCharge(next?.name || "");
-		},
-		{ immediate: true },
-	);
+	// watch(
+	// 	selected_delivery_charge,
+	// 	(next) => {
+	// 		invoiceStore.setSelectedDeliveryCharge(next?.name || "");
+	// 	},
+	// 	{ immediate: true },
+	// );
 
-	watch(
-		delivery_charges_rate,
-		(next) => {
-			invoiceStore.setDeliveryChargesRate(next);
-		},
-		{ immediate: true },
-	);
+	// watch(
+	// 	delivery_charges_rate,
+	// 	(next) => {
+	// 		invoiceStore.setDeliveryChargesRate(next);
+	// 	},
+	// 	{ immediate: true },
+	// );
 
 	return {
 		items_headers,
@@ -430,10 +430,10 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		subtract_one,
 		handleItemDrop,
 		handleItemReorder,
-		delivery_charges,
-		selected_delivery_charge,
-		base_delivery_charges_rate,
-		delivery_charges_rate,
+		//delivery_charges,
+		//selected_delivery_charge,
+		//base_delivery_charges_rate,
+		//delivery_charges_rate,
 		fetch_delivery_charges,
 		update_delivery_charges,
 		isReturnInvoice,
