@@ -252,10 +252,10 @@ export default {
 			additionalDiscount,
 			additionalDiscountPercentage,
 		} = storeToRefs(invoiceStore);
-		const usePaymentDialog = computed(() => responsive.windowWidth.value >= 992);
-		const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1100);
+		// const usePaymentDialog = computed(() => responsive.windowWidth.value >= 992);
+		// const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1100);
 		const compactPanel = ref("selector");
-		const isPhone = computed(() => responsive.isPhone.value);
+		// const isPhone = computed(() => responsive.isPhone.value);
 		const showBottomDock = computed(
 			() => !dialog.value && responsive.windowWidth.value < 1100,
 		);
@@ -451,6 +451,12 @@ export default {
 		});
 
 		onMounted(() => {
+			 nextTick(() => {
+                shift.check_opening_entry();
+                frappe.db.get_doc("POS Settings", undefined).then((doc) => {
+                        eventBus?.emit("set_pos_settings", doc);
+                });
+        });
 			if (typeof window !== "undefined" && "ResizeObserver" in window) {
 				mobileDockObserver = new ResizeObserver(() => {
 					updateBottomDockHeight();
@@ -645,57 +651,57 @@ export default {
 	},
 
 	mounted: function () {
-		this.$nextTick(function () {
-			this.check_opening_entry();
-			this.get_pos_setting();
+		// this.$nextTick(function () {
+		// 	this.check_opening_entry();
+		// 	this.get_pos_setting();
 
-			// Watch store for updates
-			this.$watch(
-				() => this.uiStore.posProfile,
-				async (newProfile) => {
-					if (newProfile && newProfile.name) {
-						this.pos_profile = newProfile;
-						this.get_offers(newProfile.name, newProfile);
+		// 	// Watch store for updates
+		// 	this.$watch(
+		// 		() => this.uiStore.posProfile,
+		// 		async (newProfile) => {
+		// 			if (newProfile && newProfile.name) {
+		// 				this.pos_profile = newProfile;
+		// 				this.get_offers(newProfile.name, newProfile);
 
-						// Initialize Customers Store
-						const customersStore = useCustomersStore();
-						customersStore.setPosProfile(newProfile);
-						await customersStore.get_customer_names();
-					}
-				},
-				{ deep: true, immediate: true },
-			);
+		// 				// Initialize Customers Store
+		// 				const customersStore = useCustomersStore();
+		// 				customersStore.setPosProfile(newProfile);
+		// 				await customersStore.get_customer_names();
+		// 			}
+		// 		},
+		// 		{ deep: true, immediate: true },
+		// 	);
 
-			// Items loading state check
-			const { itemsLoaded } = storeToRefs(this.itemsStore);
-			this.$watch(
-				() => itemsLoaded.value,
-				(val) => {
-					if (val) {
-						this.itemsLoaded = true;
-						this.checkLoadingComplete();
-					}
-				},
-				{ immediate: true },
-			);
-		});
+		// 	// Items loading state check
+		// 	const { itemsLoaded } = storeToRefs(this.itemsStore);
+		// 	this.$watch(
+		// 		() => itemsLoaded.value,
+		// 		(val) => {
+		// 			if (val) {
+		// 				this.itemsLoaded = true;
+		// 				this.checkLoadingComplete();
+		// 			}
+		// 		},
+		// 		{ immediate: true },
+		// 	);
+		// });
 	},
 	// In the created() or mounted() lifecycle hook
 	created() {
 		// Clean up expired customer balance cache on POS load
-		clearExpiredCustomerBalances();
-		const customersStore = useCustomersStore();
-		const { customersLoaded } = storeToRefs(customersStore);
-		this.$watch(
-			() => customersLoaded.value,
-			(value) => {
-				if (value) {
-					this.customersLoaded = true;
-					this.checkLoadingComplete();
-				}
-			},
-			{ immediate: true },
-		);
+		// clearExpiredCustomerBalances();
+		// const customersStore = useCustomersStore();
+		// const { customersLoaded } = storeToRefs(customersStore);
+		// this.$watch(
+		// 	() => customersLoaded.value,
+		// 	(value) => {
+		// 		if (value) {
+		// 			this.customersLoaded = true;
+		// 			this.checkLoadingComplete();
+		// 		}
+		// 	},
+		// 	{ immediate: true },
+		// );
 	},
 };
 </script>

@@ -77,6 +77,14 @@ export default {
 			}
 		});
 		const offers = useOffers();
+		onMounted(() => {
+                nextTick(() => {
+                        shift.check_opening_entry();
+                        frappe.db.get_doc("POS Settings", undefined).then((doc) => {
+                                // eventBus emit handled by child components
+                        });
+                });
+        });
 		return { ...responsive, ...rtl, ...shift, ...offers };
 	},
 	data: function () {

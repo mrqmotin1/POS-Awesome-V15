@@ -67,7 +67,10 @@ export function useInvoiceOffers() {
 	const _manuallySuppressedAutoOffers = ref<Set<string>>(new Set());
 
 	// Computed properties matching Invoice.vue context
-	const Total = computed(() => invoiceStore.grossTotal);
+	const Total = computed(() => {
+		const g = invoiceStore.grossTotal;
+		return typeof g === "number" ? g : (g as any)?.value ?? 0;
+	});
 	const makeid = (length: number) => {
 		let result = "";
 		const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
