@@ -252,10 +252,10 @@ export default {
 			additionalDiscount,
 			additionalDiscountPercentage,
 		} = storeToRefs(invoiceStore);
-		// const usePaymentDialog = computed(() => responsive.windowWidth.value >= 992);
-		// const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1100);
+		const usePaymentDialog = computed(() => responsive.windowWidth.value >= 992);
+		const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1100);
 		const compactPanel = ref("selector");
-		// const isPhone = computed(() => responsive.isPhone.value);
+		const isPhone = computed(() => responsive.isPhone.value);
 		const showBottomDock = computed(
 			() => !dialog.value && responsive.windowWidth.value < 1100,
 		);
@@ -314,10 +314,10 @@ export default {
 			return value;
 		};
 		const additionalDiscountDisplay = ref(
-			normalizeDiscountDisplay(additionalDiscount.value),
+			normalizeDiscountDisplay(additionalDiscount?.value),
 		);
 		const additionalDiscountPercentageDisplay = ref(
-			normalizeDiscountDisplay(additionalDiscountPercentage.value),
+			normalizeDiscountDisplay(additionalDiscountPercentage?.value),
 		);
 
 		watch(additionalDiscount, (value) => {

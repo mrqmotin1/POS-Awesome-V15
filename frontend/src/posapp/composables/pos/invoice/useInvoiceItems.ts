@@ -28,13 +28,13 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 
 	const isReturnInvoice = computed(() => {
 		return (
-			invoiceType.value === "Return" ||
+			invoiceType?.value === "Return" ||
 			(invoiceStore.invoiceDoc && invoiceStore.invoiceDoc.is_return)
 		);
 	});
 
 	const blockSaleBeyondAvailableQty = computed(() => {
-		if (["Order", "Quotation"].includes(invoiceType.value)) {
+		if (["Order", "Quotation"].includes(invoiceType?.value)) {
 			return false;
 		}
 		return parseBooleanSetting(

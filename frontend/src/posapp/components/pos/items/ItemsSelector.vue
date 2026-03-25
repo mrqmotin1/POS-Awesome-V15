@@ -384,7 +384,7 @@ const isReturnInvoice = computed(() => {
 });
 
 const blockSaleBeyondAvailableQty = computed(() => {
-	if (props.context === "purchase" || invoiceTypeDefersStockValidation.value) {
+	if (props.context === "purchase" || invoiceTypeDefersStockValidation?.value) {
 		return false;
 	}
 	return parseBooleanSetting(
@@ -393,7 +393,7 @@ const blockSaleBeyondAvailableQty = computed(() => {
 });
 
 const deferStockValidationToPayment = computed(() =>
-	props.context === "purchase" || invoiceTypeDefersStockValidation.value,
+	props.context === "purchase" || invoiceTypeDefersStockValidation?.value,
 );
 const forceCustomerPriceList = computed(() =>
 	parseBooleanSetting(pos_profile.value?.posa_force_price_from_customer_price_list),
