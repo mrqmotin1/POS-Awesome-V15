@@ -231,6 +231,7 @@ import {
 	buildSelectorRowProps,
 	createItemHighlightMatcher,
 } from "../../../utils/itemSelectorHighlightBindings";
+import { createItemSearchFocusClearGuard } from "../../../utils/itemSearchFocusClearGuard";
 
 const props = defineProps({
 	context: {
@@ -973,6 +974,7 @@ onBeforeUnmount(() => {
 	if (props.context === "pos") {
 		document.removeEventListener("keydown", handleGlobalTypeToSearchKeydown, true);
 	}
+	itemSearchFocusClearGuard.dispose();
 	window.removeEventListener("resize", checkItemContainerOverflow);
 });
 
@@ -1052,6 +1054,7 @@ const selectorCardStyle = computed<CSSProperties>(() => ({
 	overflow: "auto",
 	position: "relative",
 }));
+const itemSearchFocusClearGuard = createItemSearchFocusClearGuard();
 
 const SEARCH_TRIGGER_KEY_PATTERN = /^[A-Za-z0-9\-._/\\]$/;
 
@@ -1118,6 +1121,10 @@ const searchItems = (term) => itemsIntegration.searchItems(term);
 const get_items = (force = false) => itemsIntegration.get_items(force);
 const loadVisibleItems = (reset = false) => itemsLoader.loadVisibleItems(reset);
 const verifyServerItemCount = () => {};
+const prepareSearchInjection = () => {
+	clearSearch();
+	itemSearchFocusClearGuard.armPreserveNextFocusClear();
+};
 const appendSearchCharacter = (character: string) => {
 	const nextValue = `${String(search_input.value || "")}${character}`;
 	handleSearchInput(nextValue);
@@ -1143,7 +1150,10 @@ const requestForegroundItemSearchFocus = () => {
 };
 scannerInput.setInputHandlers?.({
 	get: () => String(search_input.value || ""),
-	set: (value: string) => handleSearchInput(String(value ?? "")),
+	set: (value: string) => {
+		prepareSearchInjection();
+		handleSearchInput(String(value ?? ""));
+	},
 	clear: clearSearch,
 	focus: requestForegroundItemSearchFocus,
 });
@@ -1162,11 +1172,16 @@ const handleGlobalTypeToSearchKeydown = (event: KeyboardEvent) => {
 	}
 	event.preventDefault();
 	event.stopPropagation();
+	prepareSearchInjection();
 	revealItemSearchView();
-	appendSearchCharacter(event.key);
 	requestForegroundItemSearchFocus();
+	appendSearchCharacter(event.key);
 };
 const handleItemSearchFocus = () => {
+	if (!itemSearchFocusClearGuard.shouldClearSearchOnFocus()) {
+		requestItemSearchFocus();
+		return;
+	}
 	clearSearch();
 	requestItemSearchFocus();
 };
