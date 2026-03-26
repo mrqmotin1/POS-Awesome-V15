@@ -340,6 +340,21 @@ const invoice_doc = computed({
 
 const displayCurrency = computed(() => (invoice_doc.value ? invoice_doc.value.currency : ""));
 const isPaymentOpen = computed(() => activeView.value === "payment" || paymentDialogOpen.value);
+const netInvoiceSettlementAmount = computed(() => {
+	if (!invoice_doc.value) return 0;
+
+	const invoiceTotal = flt(
+		invoice_doc.value.rounded_total || invoice_doc.value.grand_total,
+		currency_precision.value,
+	);
+	const coveredAmount = flt(
+		(invoice_doc.value?.loyalty_amount || loyalty_amount.value || 0) +
+			(redeemed_customer_credit.value || 0),
+		currency_precision.value,
+	);
+
+	return Math.max(invoiceTotal - coveredAmount, 0);
+});
 
 const validatePayment = computed(() => {
 	const profile = pos_profile.value;
@@ -462,6 +477,7 @@ const {
 	invoiceDoc: computed(() => invoiceStore.invoiceDoc),
 	posProfile: pos_profile,
 	diffPayment: diff_payment,
+	getNetInvoiceAmount: () => netInvoiceSettlementAmount.value,
 	formatFloat: (val) => flt(val, currency_precision.value),
 	stores: {
 		toastStore,
@@ -726,7 +742,7 @@ const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
 		return preferredPayment;
 	}
 
-	const total = flt(doc.rounded_total || doc.grand_total, currency_precision.value);
+	const total = netInvoiceSettlementAmount.value;
 	const normalizedTotal = doc.is_return ? -Math.abs(total) : Math.abs(total);
 	const conversionRate = flt(doc.conversion_rate || 1, currency_precision.value);
 

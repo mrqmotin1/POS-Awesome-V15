@@ -215,6 +215,14 @@ def get_amount(ref_doc, payment_account=None):
 def redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments):
     # redeeming customer credit with journal voucher
     today = nowdate()
+
+    def _row_value(row, key, default=None):
+        if hasattr(row, "get"):
+            value = row.get(key, default)
+            if value is not None:
+                return value
+        return getattr(row, key, default)
+
     if data.get("redeemed_customer_credit"):
         cost_center = frappe.get_value("POS Profile", invoice_doc.pos_profile, "cost_center")
         if not cost_center:
@@ -273,10 +281,18 @@ def redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, c
                     frappe.log_error(frappe.get_traceback(), "POSAwesome JV Error")
                     frappe.throw(_("Unable to create Journal Entry for customer credit."))
 
-    if is_payment_entry and total_cash > 0:
+    remaining_total_cash = flt(total_cash)
+
+    if is_payment_entry and remaining_total_cash > 0:
         for payment in payments:
-            if not payment.amount:
+            payment_amount = flt(_row_value(payment, "amount", 0))
+            if payment_amount <= 0:
                 continue
+
+            applied_amount = min(payment_amount, remaining_total_cash)
+            if applied_amount <= 0:
+                break
+
             payment_entry_doc = frappe.get_doc(
                 {
                     "doctype": "Payment Entry",
@@ -284,19 +300,19 @@ def redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, c
                     "payment_type": "Receive",
                     "party_type": "Customer",
                     "party": invoice_doc.customer,
-                    "paid_amount": payment.amount,
-                    "received_amount": payment.amount,
+                    "paid_amount": applied_amount,
+                    "received_amount": applied_amount,
                     "paid_from": invoice_doc.debit_to,
-                    "paid_to": payment.account,
+                    "paid_to": _row_value(payment, "account"),
                     "company": invoice_doc.company,
-                    "mode_of_payment": payment.mode_of_payment,
+                    "mode_of_payment": _row_value(payment, "mode_of_payment"),
                     "reference_no": invoice_doc.posa_pos_opening_shift,
                     "reference_date": today,
                 }
             )
 
             payment_reference = {
-                "allocated_amount": payment.amount,
+                "allocated_amount": applied_amount,
                 "due_date": data.get("due_date"),
                 "reference_doctype": "Sales Invoice",
                 "reference_name": invoice_doc.name,
@@ -309,6 +325,7 @@ def redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, c
             frappe.flags.ignore_account_permission = True
             payment_entry_doc.save()
             payment_entry_doc.submit()
+            remaining_total_cash = flt(remaining_total_cash - applied_amount)
 
 
 @frappe.whitelist()

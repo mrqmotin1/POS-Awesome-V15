@@ -490,7 +490,13 @@ def submit_invoice(invoice, data, submit_in_background=False):
     # calculating cash
     total_cash = 0
     if data.get("redeemed_customer_credit"):
-        total_cash = invoice_doc.total - float(data.get("redeemed_customer_credit"))
+        invoice_total = flt(invoice_doc.rounded_total or invoice_doc.grand_total)
+        settled_without_cash = (
+            flt(data.get("redeemed_customer_credit"))
+            + flt(invoice_doc.get("loyalty_amount"))
+            + flt(invoice_doc.get("write_off_amount"))
+        )
+        total_cash = max(invoice_total - settled_without_cash, 0)
 
     is_payment_entry = 0
     if data.get("redeemed_customer_credit"):
