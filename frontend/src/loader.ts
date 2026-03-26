@@ -1,5 +1,6 @@
 declare const __BUILD_VERSION__: string;
 import { resolvePosAppNormalizedPath } from "./loader-utils";
+import { recordPendingBundleActivation } from "./posapp/utils/bundleVersionActivation";
 
 const POSAPP_BASE_PATH = "/app/posapp";
 const VERSION_ENDPOINT = "/assets/posawesome/dist/js/version.json";
@@ -90,10 +91,12 @@ async function importPosAwesomeBundle() {
 		const latestVersion = await fetchLatestBuildVersion();
 		if (latestVersion && latestVersion !== initialVersion) {
 			try {
-				return await import(
+				const reloadedBundle = await import(
 					/* @vite-ignore */
 					getBundlePath(latestVersion)
 				);
+				recordPendingBundleActivation(latestVersion);
+				return reloadedBundle;
 			} catch (retryError) {
 				if (isDynamicImportFailure(retryError)) {
 					recoverByReloadingPosApp();
