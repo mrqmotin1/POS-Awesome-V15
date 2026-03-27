@@ -182,6 +182,58 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
         self.assertEqual(entry.received_amount, 4)
         self.assertEqual(entry.references, [])
 
+    def test_paid_change_entry_links_to_source_receive_payment_entry(self):
+        invoice_doc = FakeInvoiceDoc(
+            docstatus=1,
+            doctype="Sales Invoice",
+            name="SINV-0001",
+            customer="CUST-0001",
+            company="Test Company",
+            debit_to="Debtors - TC",
+            posting_date="2026-03-26",
+            posa_pos_opening_shift="POS-OPEN-0001",
+            payments=[
+                {
+                    "amount": 1000,
+                    "type": "Cash",
+                    "mode_of_payment": "Cash",
+                    "account": "Cash",
+                }
+            ],
+        )
+
+        self.module._create_change_payment_entries(
+            invoice_doc,
+            {
+                "paid_change": 410,
+                "credit_change": 0,
+                "created_receive_payment_entries": [
+                    {
+                        "name": "ACC-PAY-RECEIVE-0001",
+                        "mode_of_payment": "Cash",
+                        "account": "Cash",
+                        "unallocated_amount": 410,
+                    }
+                ],
+            },
+            pos_profile="Main POS",
+            cash_account={"account": "Cash"},
+        )
+
+        self.assertEqual(len(self.created_entries), 1)
+        entry = self.created_entries[0]
+        self.assertEqual(entry.payment_type, "Pay")
+        self.assertEqual(
+            entry.references,
+            [
+                {
+                    "reference_doctype": "Payment Entry",
+                    "reference_name": "ACC-PAY-RECEIVE-0001",
+                    "allocated_amount": 410,
+                }
+            ],
+        )
+
     def test_credit_change_entry_is_created_without_invoice_allocation(self):
         invoice_doc = FakeInvoiceDoc(
             docstatus=1,

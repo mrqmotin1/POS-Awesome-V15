@@ -71,6 +71,34 @@ def _create_change_payment_entries(invoice_doc, data, pos_profile=None, cash_acc
 
     posting_date = invoice_doc.get("posting_date") or nowdate()
     reference_no = invoice_doc.get("posa_pos_opening_shift")
+    created_receive_payment_entries = data.get("created_receive_payment_entries") or []
+
+    def _normalized_text(value):
+        return str(value or "").strip().lower()
+
+    def _get_matching_receive_payment_entry(required_amount):
+        if required_amount <= 0:
+            return None
+
+        cash_mode_lower = _normalized_text(cash_mode_of_payment)
+        cash_account_lower = _normalized_text(cash_account_name)
+
+        fallback_candidate = None
+        for row in reversed(created_receive_payment_entries):
+            unallocated_amount = flt(row.get("unallocated_amount"))
+            if unallocated_amount < required_amount:
+                continue
+
+            if (
+                _normalized_text(row.get("mode_of_payment")) == cash_mode_lower
+                and _normalized_text(row.get("account")) == cash_account_lower
+            ):
+                return row
+
+            if fallback_candidate is None:
+                fallback_candidate = row
+
+        return fallback_candidate
 
     def _using_only_configured_cash_mode():
         """Return True when every paid row matches the configured cash mode and account."""
@@ -104,7 +132,7 @@ def _create_change_payment_entries(invoice_doc, data, pos_profile=None, cash_acc
 
     # If every payment row uses the configured cash mode, skip overpayment handling
     # and let the regular cash change flow apply.
-    if _using_only_configured_cash_mode():
+    if _using_only_configured_cash_mode() and not created_receive_payment_entries:
         return
 
     if credit_change_amount > 0:
@@ -141,6 +169,7 @@ def _create_change_payment_entries(invoice_doc, data, pos_profile=None, cash_acc
         advance_payment_entry.submit()
 
     if paid_change_amount > 0:
+        source_receive_payment_entry = _get_matching_receive_payment_entry(paid_change_amount)
         change_payment_entry = frappe.new_doc("Payment Entry")
         change_payment_entry.payment_type = "Pay"
         change_payment_entry.mode_of_payment = (
@@ -159,6 +188,16 @@ def _create_change_payment_entries(invoice_doc, data, pos_profile=None, cash_acc
         if reference_no:
             change_payment_entry.reference_no = reference_no
             change_payment_entry.reference_date = posting_date
+
+        if source_receive_payment_entry:
+            change_payment_entry.append(
+                "references",
+                {
+                    "reference_doctype": "Payment Entry",
+                    "reference_name": source_receive_payment_entry.get("name"),
+                    "allocated_amount": paid_change_amount,
+                },
+            )
 
         change_payment_entry.setup_party_account_field()
         change_payment_entry.set_missing_values()

@@ -577,8 +577,8 @@ def submit_invoice(invoice, data, submit_in_background=False):
     else:
         invoice_doc.submit()
 
-        _create_change_payment_entries(invoice_doc, data, pos_profile, cash_account)
         redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
+        _create_change_payment_entries(invoice_doc, data, pos_profile, cash_account)
 
     return {"name": invoice_doc.name, "status": invoice_doc.docstatus}
 
@@ -629,8 +629,8 @@ def submit_in_background_job(kwargs):
 
         invoice_doc.submit()
 
-        _create_change_payment_entries(invoice_doc, data, invoice_doc.pos_profile, cash_account)
         redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
+        _create_change_payment_entries(invoice_doc, data, invoice_doc.pos_profile, cash_account)
 
     except Exception as e:
         frappe.db.rollback()

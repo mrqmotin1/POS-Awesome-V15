@@ -20,6 +20,7 @@ class FakePaymentEntry:
     def __init__(self):
         self.references = []
         self.flags = types.SimpleNamespace(ignore_permissions=False)
+        self.name = "ACC-PAY-TEST-0001"
 
     def update(self, other=None, **kwargs):
         if other:
@@ -188,7 +189,7 @@ class TestRedeemingCustomerCredit(unittest.TestCase):
             )
         ]
 
-        self.payments_module.redeeming_customer_credit(
+        created_entries = self.payments_module.redeeming_customer_credit(
             invoice_doc=invoice_doc,
             data=data,
             is_payment_entry=1,
@@ -203,6 +204,19 @@ class TestRedeemingCustomerCredit(unittest.TestCase):
         self.assertEqual(payment_entry.received_amount, 10)
         self.assertEqual(len(payment_entry.references), 1)
         self.assertEqual(payment_entry.references[0]["allocated_amount"], 6)
+        self.assertEqual(
+            created_entries,
+            [
+                {
+                    "name": payment_entry.name,
+                    "mode_of_payment": "Cash",
+                    "account": "Cash - TC",
+                    "paid_amount": 10,
+                    "allocated_amount": 6,
+                    "unallocated_amount": 4,
+                }
+            ],
+        )
 
     def test_get_available_credit_excludes_pay_type_payment_entries(self):
         self.get_all_responses["Sales Invoice"] = []
@@ -238,12 +252,42 @@ class TestRedeemingCustomerCredit(unittest.TestCase):
                 {
                     "type": "Advance",
                     "credit_origin": "ACC-PAY-RECEIVE-0001",
-                    "total_credit": 25,
+                    "total_credit": 15.0,
                     "credit_to_redeem": 0,
                     "source_type": "Payment Entry",
                 }
             ],
         )
+
+    def test_get_available_credit_offsets_receive_advances_with_unallocated_pay_entries(self):
+        self.get_all_responses["Sales Invoice"] = []
+        self.get_all_responses["Payment Entry"] = [
+            types.SimpleNamespace(
+                name="ACC-PAY-RECEIVE-0001",
+                unallocated_amount=410,
+                payment_type="Receive",
+                party_type="Customer",
+                party="CUST-0001",
+                company="Test Company",
+                docstatus=1,
+            ),
+            types.SimpleNamespace(
+                name="ACC-PAY-PAY-0001",
+                unallocated_amount=410,
+                payment_type="Pay",
+                party_type="Customer",
+                party="CUST-0001",
+                company="Test Company",
+                docstatus=1,
+            ),
+        ]
+
+        credits = self.payments_module.get_available_credit(
+            customer="CUST-0001",
+            company="Test Company",
+        )
+
+        self.assertEqual(credits, [])
 
 
 if __name__ == "__main__":
