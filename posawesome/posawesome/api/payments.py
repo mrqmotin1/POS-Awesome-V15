@@ -388,6 +388,7 @@ def get_available_credit(customer, company):
         "Payment Entry",
         {
             "unallocated_amount": [">", 0],
+            "payment_type": "Receive",
             "party_type": "Customer",
             "party": customer,
             "company": company,

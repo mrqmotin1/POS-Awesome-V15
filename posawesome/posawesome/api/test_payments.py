@@ -62,6 +62,8 @@ def _install_stubs():
     utilities_module = types.ModuleType("posawesome.posawesome.api.utilities")
 
     created_docs = []
+    get_all_responses = {}
+    sql_responses = []
 
     frappe_utils.nowdate = lambda: "2026-03-26"
     frappe_utils.flt = lambda value, precision=None: round(
@@ -73,7 +75,32 @@ def _install_stubs():
     frappe_module.whitelist = lambda *args, **kwargs: (lambda fn: fn)
     frappe_module.flags = types.SimpleNamespace(ignore_account_permission=False)
     frappe_module.get_value = lambda *args, **kwargs: "Main - CC"
-    frappe_module.db = types.SimpleNamespace(get_value=lambda *args, **kwargs: None)
+    frappe_module.db = types.SimpleNamespace(
+        get_value=lambda *args, **kwargs: None,
+        sql=lambda *args, **kwargs: list(sql_responses),
+    )
+
+    def _matches_filters(row, filters):
+        if not filters:
+            return True
+
+        for key, expected in filters.items():
+            actual = getattr(row, key, None)
+            if isinstance(expected, (list, tuple)) and len(expected) == 2:
+                operator, value = expected
+                if operator == ">" and not actual > value:
+                    return False
+                if operator == "<" and not actual < value:
+                    return False
+            elif actual != expected:
+                return False
+        return True
+
+    def _get_all(doctype, filters=None, fields=None):
+        rows = list(get_all_responses.get(doctype, []))
+        return [row for row in rows if _matches_filters(row, filters or {})]
+
+    frappe_module.get_all = _get_all
 
     def _make_payment_entry():
         doc = FakePaymentEntry()
@@ -105,7 +132,7 @@ def _install_stubs():
     ] = payment_request_module
     sys.modules["posawesome.posawesome.api.utilities"] = utilities_module
 
-    return created_docs
+    return created_docs, get_all_responses, sql_responses
 
 
 def _load_payments_module():
@@ -121,11 +148,17 @@ def _load_payments_module():
 class TestRedeemingCustomerCredit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.created_docs = _install_stubs()
+        (
+            cls.created_docs,
+            cls.get_all_responses,
+            cls.sql_responses,
+        ) = _install_stubs()
         cls.payments_module = _load_payments_module()
 
     def setUp(self):
         self.created_docs.clear()
+        self.get_all_responses.clear()
+        self.sql_responses.clear()
 
     def test_advance_credit_overpayment_keeps_full_received_amount_and_allocates_only_due(self):
         invoice_doc = types.SimpleNamespace(
@@ -170,6 +203,47 @@ class TestRedeemingCustomerCredit(unittest.TestCase):
         self.assertEqual(payment_entry.received_amount, 10)
         self.assertEqual(len(payment_entry.references), 1)
         self.assertEqual(payment_entry.references[0]["allocated_amount"], 6)
+
+    def test_get_available_credit_excludes_pay_type_payment_entries(self):
+        self.get_all_responses["Sales Invoice"] = []
+        self.get_all_responses["Payment Entry"] = [
+            types.SimpleNamespace(
+                name="ACC-PAY-RECEIVE-0001",
+                unallocated_amount=25,
+                payment_type="Receive",
+                party_type="Customer",
+                party="CUST-0001",
+                company="Test Company",
+                docstatus=1,
+            ),
+            types.SimpleNamespace(
+                name="ACC-PAY-PAY-0001",
+                unallocated_amount=10,
+                payment_type="Pay",
+                party_type="Customer",
+                party="CUST-0001",
+                company="Test Company",
+                docstatus=1,
+            ),
+        ]
+
+        credits = self.payments_module.get_available_credit(
+            customer="CUST-0001",
+            company="Test Company",
+        )
+
+        self.assertEqual(
+            credits,
+            [
+                {
+                    "type": "Advance",
+                    "credit_origin": "ACC-PAY-RECEIVE-0001",
+                    "total_credit": 25,
+                    "credit_to_redeem": 0,
+                    "source_type": "Payment Entry",
+                }
+            ],
+        )
 
 
 if __name__ == "__main__":
