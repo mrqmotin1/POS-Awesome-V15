@@ -34,6 +34,85 @@ from frappe.utils import money_in_words
 from frappe.utils.background_jobs import enqueue
 
 
+def _has_post_submit_payment_work(data):
+    return bool(
+        flt((data or {}).get("redeemed_customer_credit"))
+        or flt((data or {}).get("paid_change"))
+        or flt((data or {}).get("credit_change"))
+    )
+
+
+def _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments):
+    from posawesome.posawesome.api.invoice_processing.payment import _create_change_payment_entries
+
+    redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
+    _create_change_payment_entries(invoice_doc, data, invoice_doc.pos_profile, cash_account)
+
+
+def _process_post_submit_payments(
+    invoice_doc,
+    data,
+    is_payment_entry,
+    total_cash,
+    cash_account,
+    payments,
+    run_async=False,
+):
+    if not _has_post_submit_payment_work(data):
+        return
+
+    if run_async:
+        enqueue(
+            method=process_post_submit_payments_job,
+            queue="default",
+            timeout=3000,
+            is_async=True,
+            kwargs={
+                "invoice": invoice_doc.name,
+                "doctype": invoice_doc.doctype,
+                "data": data,
+                "is_payment_entry": is_payment_entry,
+                "total_cash": total_cash,
+                "cash_account": cash_account,
+                "payments": payments,
+                "user": getattr(getattr(frappe, "session", None), "user", None),
+            },
+        )
+        return
+
+    _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
+
+
+def process_post_submit_payments_job(kwargs):
+    invoice = kwargs.get("invoice")
+    try:
+        doctype = kwargs.get("doctype") or "Sales Invoice"
+        data = kwargs.get("data") or {}
+        is_payment_entry = kwargs.get("is_payment_entry")
+        total_cash = kwargs.get("total_cash")
+        cash_account = kwargs.get("cash_account")
+        payments = kwargs.get("payments") or []
+
+        invoice_doc = frappe.get_doc(doctype, invoice)
+        if invoice_doc.docstatus != 1:
+            return
+
+        invoice_doc.flags.ignore_permissions = True
+        frappe.flags.ignore_account_permission = True
+        _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
+    except Exception as e:
+        frappe.db.rollback()
+        error_msg = str(e)
+        frappe.log_error(f"POS Post Submit Payment Processing Failed for {invoice}: {error_msg}")
+        user = kwargs.get("user")
+        if user and hasattr(frappe, "publish_realtime"):
+            frappe.publish_realtime(
+                "pos_invoice_submit_error",
+                {"invoice": invoice, "error": error_msg},
+                user=user,
+            )
+
+
 def _resolve_write_off_limit(pos_profile_doc):
     if not pos_profile_doc:
         return None
@@ -428,7 +507,6 @@ def update_invoice(data):
 
 @frappe.whitelist()
 def submit_invoice(invoice, data, submit_in_background=False):
-    from posawesome.posawesome.api.invoice_processing.payment import _create_change_payment_entries
     data = json.loads(data)
     invoice = json.loads(invoice)
     _sanitize_delivery_dates(invoice)
@@ -576,15 +654,20 @@ def submit_invoice(invoice, data, submit_in_background=False):
         )
     else:
         invoice_doc.submit()
-
-        redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
-        _create_change_payment_entries(invoice_doc, data, pos_profile, cash_account)
+        _process_post_submit_payments(
+            invoice_doc,
+            data,
+            is_payment_entry,
+            total_cash,
+            cash_account,
+            payments,
+            run_async=bool(allow_background_submit),
+        )
 
     return {"name": invoice_doc.name, "status": invoice_doc.docstatus}
 
 
 def submit_in_background_job(kwargs):
-    from posawesome.posawesome.api.invoice_processing.payment import _create_change_payment_entries
     invoice = kwargs.get("invoice")
     try:
         doctype = kwargs.get("doctype") or "Sales Invoice"
@@ -628,9 +711,15 @@ def submit_in_background_job(kwargs):
         invoice_doc = _save_draft_with_latest_timestamp(invoice_doc)
 
         invoice_doc.submit()
-
-        redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
-        _create_change_payment_entries(invoice_doc, data, invoice_doc.pos_profile, cash_account)
+        _process_post_submit_payments(
+            invoice_doc,
+            data,
+            is_payment_entry,
+            total_cash,
+            cash_account,
+            payments,
+            run_async=False,
+        )
 
     except Exception as e:
         frappe.db.rollback()

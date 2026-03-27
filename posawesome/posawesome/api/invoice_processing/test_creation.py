@@ -106,14 +106,21 @@ def _install_framework_stubs():
     frappe_module.get_doc = lambda *args, **kwargs: None
 
     frappe_exceptions.TimestampMismatchError = TimestampMismatchError
-    frappe_background_jobs.enqueue = lambda *args, **kwargs: None
+    enqueue_calls = []
+
+    def _enqueue(*args, **kwargs):
+        enqueue_calls.append({"args": args, "kwargs": kwargs})
+        return None
+
+    frappe_background_jobs.enqueue = _enqueue
+    frappe_module._enqueue_calls = enqueue_calls
 
     sys.modules["frappe"] = frappe_module
     sys.modules["frappe.utils"] = frappe_utils
     sys.modules["frappe.exceptions"] = frappe_exceptions
     sys.modules["frappe.utils.background_jobs"] = frappe_background_jobs
 
-    return frappe_module
+    return frappe_module, enqueue_calls
 
 
 def _install_dependency_stubs():
@@ -183,10 +190,13 @@ def _load_module():
 class TestUpdateInvoiceReturnPayments(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.frappe = _install_framework_stubs()
+        cls.frappe, cls.enqueue_calls = _install_framework_stubs()
         _install_dependency_stubs()
         _install_package_stubs()
         cls.creation = _load_module()
+
+    def setUp(self):
+        self.enqueue_calls.clear()
 
     def test_return_invoice_derives_missing_base_amount_from_amount(self):
         invoice_doc = FakeDoc(
@@ -295,6 +305,75 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
 
         self.assertEqual(amount, 12.34)
         self.assertEqual(base_amount, 24.68)
+
+
+class TestPostSubmitPaymentProcessing(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.frappe, cls.enqueue_calls = _install_framework_stubs()
+        _install_dependency_stubs()
+        _install_package_stubs()
+        cls.creation = _load_module()
+
+    def setUp(self):
+        self.enqueue_calls.clear()
+
+    def test_process_post_submit_payments_runs_inline_when_async_disabled(self):
+        calls = []
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="SINV-0001",
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+
+        original_runner = self.creation._run_post_submit_payments
+        self.creation._run_post_submit_payments = (
+            lambda *args, **kwargs: calls.append(("run", args))
+        )
+
+        try:
+            self.creation._process_post_submit_payments(
+                invoice_doc,
+                {"paid_change": 4},
+                is_payment_entry=1,
+                total_cash=590,
+                cash_account={"account": "Cash"},
+                payments=[{"mode_of_payment": "Cash", "amount": 600}],
+                run_async=False,
+            )
+        finally:
+            self.creation._run_post_submit_payments = original_runner
+
+        self.assertEqual([call[0] for call in calls], ["run"])
+        self.assertEqual(self.enqueue_calls, [])
+
+    def test_process_post_submit_payments_enqueues_when_async_enabled(self):
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="SINV-0002",
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+
+        self.creation._process_post_submit_payments(
+            invoice_doc,
+            {"paid_change": 4},
+            is_payment_entry=1,
+            total_cash=590,
+            cash_account={"account": "Cash"},
+            payments=[{"mode_of_payment": "Cash", "amount": 600}],
+            run_async=True,
+        )
+
+        self.assertEqual(len(self.enqueue_calls), 1)
+        queued = self.enqueue_calls[0]["kwargs"]
+        self.assertEqual(queued["method"], self.creation.process_post_submit_payments_job)
+        self.assertTrue(queued["is_async"])
+        self.assertEqual(queued["kwargs"]["invoice"], "SINV-0002")
+        self.assertEqual(queued["kwargs"]["doctype"], "Sales Invoice")
+        self.assertEqual(queued["kwargs"]["data"], {"paid_change": 4})
+        self.assertEqual(queued["kwargs"]["payments"], [{"mode_of_payment": "Cash", "amount": 600}])
 
 
 if __name__ == "__main__":
