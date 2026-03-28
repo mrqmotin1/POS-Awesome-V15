@@ -8,7 +8,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from posawesome.posawesome.doctype.pos_closing_shift.closing_processing import overview
+from posawesome.posawesome.doctype.pos_closing_shift.closing_processing import invoices, overview
 
 
 class DummyClosingShift:
@@ -104,3 +104,45 @@ class TestPOSClosingShift(unittest.TestCase):
         overview.get_payment_reconciliation_details(closing_shift_doc)
 
         payment_doc.check_permission.assert_called_once_with("read")
+
+    @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.invoices.frappe")
+    def test_submit_printed_invoices_skips_return_drafts_against_cancelled_invoices(self, mock_frappe):
+        class DummyInvoiceDoc:
+            def __init__(self, name, is_return=0, return_against=None):
+                self.name = name
+                self._values = {
+                    "is_return": is_return,
+                    "return_against": return_against,
+                }
+                self.submit = Mock()
+
+            def get(self, key, default=None):
+                return self._values.get(key, default)
+
+        cancelled_return = DummyInvoiceDoc(
+            "SINV-RET-0001",
+            is_return=1,
+            return_against="ACC-SINV-2026-00222",
+        )
+        regular_invoice = DummyInvoiceDoc("SINV-0002")
+
+        mock_frappe.get_all.return_value = [
+            SimpleNamespace(name="SINV-RET-0001"),
+            SimpleNamespace(name="SINV-0002"),
+        ]
+        mock_frappe.get_doc.side_effect = lambda doctype, name: {
+            "SINV-RET-0001": cancelled_return,
+            "SINV-0002": regular_invoice,
+        }[name]
+        mock_frappe.db.get_value.side_effect = lambda doctype, name, field: (
+            2 if (doctype, name, field) == ("Sales Invoice", "ACC-SINV-2026-00222", "docstatus") else None
+        )
+
+        result = invoices.submit_printed_invoices("POS-OPEN-1", "Sales Invoice")
+
+        cancelled_return.submit.assert_not_called()
+        regular_invoice.submit.assert_called_once_with()
+        mock_frappe.log_error.assert_called_once()
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].invoice, "SINV-RET-0001")
+        self.assertEqual(result[0].return_against, "ACC-SINV-2026-00222")

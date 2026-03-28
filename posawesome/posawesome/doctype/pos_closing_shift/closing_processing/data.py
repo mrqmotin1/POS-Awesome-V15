@@ -1,4 +1,5 @@
 import frappe
+from frappe.utils import cint
 from posawesome.posawesome.doctype.pos_closing_shift.closing_processing.invoices import submit_printed_invoices
 
 @frappe.whitelist()
@@ -14,7 +15,7 @@ def get_cashiers(doctype, txt, searchfield, start, page_len, filters):
 
 
 @frappe.whitelist()
-def get_pos_invoices(pos_opening_shift, doctype=None):
+def get_pos_invoices(pos_opening_shift, doctype=None, submit_printed=1):
     if not doctype:
         pos_profile = frappe.db.get_value("POS Opening Shift", pos_opening_shift, "pos_profile")
         use_pos_invoice = frappe.db.get_value(
@@ -23,7 +24,8 @@ def get_pos_invoices(pos_opening_shift, doctype=None):
             "create_pos_invoice_instead_of_sales_invoice",
         )
         doctype = "POS Invoice" if use_pos_invoice else "Sales Invoice"
-    submit_printed_invoices(pos_opening_shift, doctype)
+    if cint(submit_printed):
+        submit_printed_invoices(pos_opening_shift, doctype)
     cond = " and ifnull(consolidated_invoice,'') = ''" if doctype == "POS Invoice" else ""
     data = frappe.db.sql(
         f"""
