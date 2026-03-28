@@ -275,6 +275,38 @@ def _build_fresh_invoice_payload(data, doctype):
     return fresh_data
 
 
+def _clear_stale_party_fields_for_customer_change(
+    invoice_doc,
+    incoming_data,
+    previous_customer,
+    previous_values=None,
+):
+    next_customer = (incoming_data or {}).get("customer")
+    if not previous_customer or not next_customer or previous_customer == next_customer:
+        return invoice_doc
+
+    # Only clear fields that were carried over unchanged from the previous customer.
+    customer_dependent_fields = (
+        "customer_name",
+        "customer_address",
+        "address_display",
+        "shipping_address_name",
+        "contact_person",
+        "contact_display",
+        "contact_mobile",
+        "contact_email",
+        "territory",
+    )
+
+    for fieldname in customer_dependent_fields:
+        previous_value = (previous_values or {}).get(fieldname)
+        next_value = incoming_data.get(fieldname)
+        if next_value not in (None, "") and next_value == previous_value:
+            setattr(invoice_doc, fieldname, None)
+
+    return invoice_doc
+
+
 def _get_mutable_invoice_doc(data, doctype):
     invoice_name = (data or {}).get("name")
     if not invoice_name:
@@ -287,7 +319,25 @@ def _get_mutable_invoice_doc(data, doctype):
     if cint(invoice_doc.docstatus) != 0:
         return frappe.get_doc(_build_fresh_invoice_payload(data, doctype))
 
+    previous_customer = invoice_doc.get("customer")
+    previous_values = {fieldname: invoice_doc.get(fieldname) for fieldname in (
+        "customer_name",
+        "customer_address",
+        "address_display",
+        "shipping_address_name",
+        "contact_person",
+        "contact_display",
+        "contact_mobile",
+        "contact_email",
+        "territory",
+    )}
     invoice_doc.update(data)
+    invoice_doc = _clear_stale_party_fields_for_customer_change(
+        invoice_doc,
+        data,
+        previous_customer,
+        previous_values=previous_values,
+    )
     return invoice_doc
 
 

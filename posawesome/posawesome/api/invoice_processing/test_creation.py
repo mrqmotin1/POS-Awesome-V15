@@ -424,6 +424,100 @@ class TestStaleNamedInvoiceHandling(unittest.TestCase):
         self.assertNotIn("name", created_payloads[0])
         self.assertEqual(result["docstatus"], 0)
 
+    def test_update_invoice_clears_stale_party_fields_when_customer_changes(self):
+        existing_doc = self._build_invoice_doc(
+            name="SINV-DRAFT",
+            docstatus=0,
+            customer="CUST-OLD",
+            customer_name="Old Customer",
+            customer_address="ADDR-OLD",
+            shipping_address_name="SHIP-OLD",
+            contact_person="CONT-OLD",
+            address_display="Old Address",
+            contact_display="Old Contact",
+            contact_mobile="0300",
+            contact_email="old@example.com",
+            territory="Old Territory",
+        )
+
+        self.creation.frappe.db.exists = lambda doctype, name: True
+        self.creation.frappe.get_doc = lambda *args: existing_doc
+        self.creation.frappe.get_cached_value = lambda *args, **kwargs: 0
+        self.creation._save_draft_with_latest_timestamp = lambda doc: doc
+
+        result = self.creation.update_invoice(
+            json.dumps(
+                {
+                    "doctype": "Sales Invoice",
+                    "name": "SINV-DRAFT",
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "currency": "USD",
+                    "posting_date": "2026-03-21",
+                    "customer": "CUST-NEW",
+                    "customer_name": "Old Customer",
+                    "customer_address": "ADDR-OLD",
+                    "shipping_address_name": "SHIP-OLD",
+                    "contact_person": "CONT-OLD",
+                    "address_display": "Old Address",
+                    "contact_display": "Old Contact",
+                    "contact_mobile": "0300",
+                    "contact_email": "old@example.com",
+                    "territory": "Old Territory",
+                    "items": [],
+                    "payments": [],
+                }
+            )
+        )
+
+        self.assertEqual(result["customer"], "CUST-NEW")
+        self.assertIsNone(result.get("customer_address"))
+        self.assertIsNone(result.get("shipping_address_name"))
+        self.assertIsNone(result.get("contact_person"))
+        self.assertIsNone(result.get("address_display"))
+        self.assertIsNone(result.get("contact_display"))
+        self.assertIsNone(result.get("contact_mobile"))
+        self.assertIsNone(result.get("contact_email"))
+        self.assertIsNone(result.get("territory"))
+
+    def test_update_invoice_preserves_explicitly_changed_party_fields_for_new_customer(self):
+        existing_doc = self._build_invoice_doc(
+            name="SINV-DRAFT",
+            docstatus=0,
+            customer="CUST-OLD",
+            customer_address="ADDR-OLD",
+            shipping_address_name="SHIP-OLD",
+            contact_person="CONT-OLD",
+        )
+
+        self.creation.frappe.db.exists = lambda doctype, name: True
+        self.creation.frappe.get_doc = lambda *args: existing_doc
+        self.creation.frappe.get_cached_value = lambda *args, **kwargs: 0
+        self.creation._save_draft_with_latest_timestamp = lambda doc: doc
+
+        result = self.creation.update_invoice(
+            json.dumps(
+                {
+                    "doctype": "Sales Invoice",
+                    "name": "SINV-DRAFT",
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "currency": "USD",
+                    "posting_date": "2026-03-21",
+                    "customer": "CUST-NEW",
+                    "customer_address": "ADDR-NEW",
+                    "shipping_address_name": "SHIP-NEW",
+                    "contact_person": "CONT-NEW",
+                    "items": [],
+                    "payments": [],
+                }
+            )
+        )
+
+        self.assertEqual(result.get("customer_address"), "ADDR-NEW")
+        self.assertEqual(result.get("shipping_address_name"), "SHIP-NEW")
+        self.assertEqual(result.get("contact_person"), "CONT-NEW")
+
 
 class TestPostSubmitPaymentProcessing(unittest.TestCase):
     @classmethod
