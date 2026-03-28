@@ -140,7 +140,7 @@ export const useToastStore = defineStore("toast", () => {
 				: data.message || "";
 		const color = data.color || "success";
 		const timeout =
-			typeof data.timeout === "number" && data.timeout >= 0
+			typeof data.timeout === "number"
 				? data.timeout
 				: DEFAULT_SNACK_TIMEOUT;
 		const summary =

@@ -42,6 +42,7 @@ describe("socketStore", () => {
 
 		expect(toastStore.text).toContain("Invoice Submitted");
 		expect(toastStore.loading).toBe(true);
+		expect(toastStore.timeout).toBe(-1);
 		expect(toastStore.text).toContain("Processing payment entries");
 
 		handlers.pos_post_submit_payments_started({

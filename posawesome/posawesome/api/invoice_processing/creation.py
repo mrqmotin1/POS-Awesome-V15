@@ -57,12 +57,13 @@ def _process_post_submit_payments(
     cash_account,
     payments,
     run_async=False,
+    user=None,
 ):
     if not _has_post_submit_payment_work(data):
         return
 
     if run_async:
-        user = getattr(getattr(frappe, "session", None), "user", None)
+        user = user or getattr(getattr(frappe, "session", None), "user", None)
         if user and hasattr(frappe, "publish_realtime"):
             frappe.publish_realtime(
                 "pos_post_submit_payments_started",
@@ -670,6 +671,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
                 "total_cash": total_cash,
                 "cash_account": cash_account,
                 "payments": payments,
+                "user": getattr(getattr(frappe, "session", None), "user", None),
             },
         )
     else:
@@ -682,6 +684,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
             cash_account,
             payments,
             run_async=bool(allow_background_submit),
+            user=getattr(getattr(frappe, "session", None), "user", None),
         )
 
     return {"name": invoice_doc.name, "status": invoice_doc.docstatus}
@@ -696,6 +699,7 @@ def submit_in_background_job(kwargs):
         total_cash = kwargs.get("total_cash")
         cash_account = kwargs.get("cash_account")
         payments = kwargs.get("payments") or []
+        user = kwargs.get("user") or getattr(getattr(frappe, "session", None), "user", None)
 
         invoice_doc = frappe.get_doc(doctype, invoice)
 
@@ -739,7 +743,7 @@ def submit_in_background_job(kwargs):
                     "doctype": invoice_doc.doctype,
                     "has_post_submit_payment_work": _has_post_submit_payment_work(data),
                 },
-                user=frappe.session.user,
+                user=user,
             )
         _process_post_submit_payments(
             invoice_doc,
@@ -749,6 +753,7 @@ def submit_in_background_job(kwargs):
             cash_account,
             payments,
             run_async=True,
+            user=user,
         )
 
     except Exception as e:

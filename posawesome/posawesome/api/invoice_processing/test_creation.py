@@ -373,6 +373,7 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
             cash_account={"account": "Cash"},
             payments=[{"mode_of_payment": "Cash", "amount": 600}],
             run_async=True,
+            user="cashier@example.com",
         )
 
         self.assertEqual(len(self.enqueue_calls), 1)
@@ -383,10 +384,15 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
         self.assertEqual(queued["kwargs"]["doctype"], "Sales Invoice")
         self.assertEqual(queued["kwargs"]["data"], {"paid_change": 4})
         self.assertEqual(queued["kwargs"]["payments"], [{"mode_of_payment": "Cash", "amount": 600}])
+        self.assertEqual(queued["kwargs"]["user"], "cashier@example.com")
         self.assertEqual(len(self.frappe._publish_realtime_calls), 1)
         self.assertEqual(
             self.frappe._publish_realtime_calls[0]["args"][0],
             "pos_post_submit_payments_started",
+        )
+        self.assertEqual(
+            self.frappe._publish_realtime_calls[0]["kwargs"]["user"],
+            "cashier@example.com",
         )
 
     def test_process_post_submit_payments_job_publishes_completion_event(self):
@@ -449,6 +455,7 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
                 "doctype": "Sales Invoice",
                 "data": {"paid_change": 4},
                 "payments": [],
+                "user": "cashier@example.com",
             }
         )
 
@@ -457,7 +464,15 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
             self.frappe._publish_realtime_calls[0]["args"][0],
             "pos_invoice_processed",
         )
+        self.assertEqual(
+            self.frappe._publish_realtime_calls[0]["kwargs"]["user"],
+            "cashier@example.com",
+        )
         self.assertEqual(len(self.enqueue_calls), 1)
+        self.assertEqual(
+            self.enqueue_calls[0]["kwargs"]["kwargs"]["user"],
+            "cashier@example.com",
+        )
 
 
 if __name__ == "__main__":
