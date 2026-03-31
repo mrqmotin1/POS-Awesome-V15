@@ -1216,8 +1216,11 @@ export default {
 	transition:
 		background-color 0.18s ease,
 		color 0.18s ease,
+		border-color 0.18s ease,
 		box-shadow 0.18s ease,
-		transform 0.18s ease !important;
+		transform 0.18s ease,
+		opacity 0.18s ease !important;
+	opacity: 0.88;
 }
 
 .pay-mode-btn:hover,
@@ -1229,6 +1232,15 @@ export default {
 
 .pay-mode-btn:active {
 	transform: translateY(0);
+}
+
+.pay-mode-btn.v-btn--active,
+.pay-mode-btn.v-btn--selected,
+.pay-mode-btn[aria-pressed="true"] {
+	opacity: 1;
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18) !important;
+	border-width: 2px !important;
+	transform: translateY(-1px);
 }
 
 .pay-mode-btn .v-btn__overlay,
@@ -1243,9 +1255,12 @@ export default {
 	border-color: rgba(var(--v-theme-success), 0.24) !important;
 }
 
-.pay-mode-btn--receive.v-btn--selected {
+.pay-mode-btn--receive.v-btn--active,
+.pay-mode-btn--receive.v-btn--selected,
+.pay-mode-btn--receive[aria-pressed="true"] {
 	background: rgb(var(--v-theme-success)) !important;
 	color: #ffffff !important;
+	border-color: rgba(var(--v-theme-success), 0.92) !important;
 }
 
 .pay-mode-btn--pay {
@@ -1254,9 +1269,12 @@ export default {
 	border-color: rgba(var(--v-theme-warning), 0.28) !important;
 }
 
-.pay-mode-btn--pay.v-btn--selected {
+.pay-mode-btn--pay.v-btn--active,
+.pay-mode-btn--pay.v-btn--selected,
+.pay-mode-btn--pay[aria-pressed="true"] {
 	background: rgb(var(--v-theme-warning)) !important;
 	color: #1f1300 !important;
+	border-color: rgba(var(--v-theme-warning), 0.96) !important;
 }
 
 .pay-mode-btn--customer {
@@ -1265,9 +1283,12 @@ export default {
 	border-color: rgba(var(--v-theme-primary), 0.24) !important;
 }
 
-.pay-mode-btn--customer.v-btn--selected {
+.pay-mode-btn--customer.v-btn--active,
+.pay-mode-btn--customer.v-btn--selected,
+.pay-mode-btn--customer[aria-pressed="true"] {
 	background: rgb(var(--v-theme-primary)) !important;
 	color: #ffffff !important;
+	border-color: rgba(var(--v-theme-primary), 0.92) !important;
 }
 
 .pay-mode-btn--supplier {
@@ -1276,9 +1297,12 @@ export default {
 	border-color: rgba(var(--v-theme-secondary), 0.24) !important;
 }
 
-.pay-mode-btn--supplier.v-btn--selected {
+.pay-mode-btn--supplier.v-btn--active,
+.pay-mode-btn--supplier.v-btn--selected,
+.pay-mode-btn--supplier[aria-pressed="true"] {
 	background: rgb(var(--v-theme-secondary)) !important;
 	color: #ffffff !important;
+	border-color: rgba(var(--v-theme-secondary), 0.92) !important;
 }
 
 .pay-mode-btn--employee {
@@ -1287,13 +1311,25 @@ export default {
 	border-color: rgba(var(--v-theme-info), 0.24) !important;
 }
 
-.pay-mode-btn--employee.v-btn--selected {
+.pay-mode-btn--employee.v-btn--active,
+.pay-mode-btn--employee.v-btn--selected,
+.pay-mode-btn--employee[aria-pressed="true"] {
 	background: rgb(var(--v-theme-info)) !important;
+	color: #ffffff !important;
+	border-color: rgba(var(--v-theme-info), 0.92) !important;
+}
+
+[data-theme="dark"] .pay-mode-btn--pay.v-btn--active,
+[data-theme="dark"] .pay-mode-btn--pay.v-btn--selected,
+[data-theme="dark"] .pay-mode-btn--pay[aria-pressed="true"] {
 	color: #ffffff !important;
 }
 
-[data-theme="dark"] .pay-mode-btn--pay.v-btn--selected {
-	color: #ffffff !important;
+.pay-mode-btn.v-btn--active .v-btn__content,
+.pay-mode-btn.v-btn--selected .v-btn__content,
+.pay-mode-btn[aria-pressed="true"] .v-btn__content {
+	color: inherit !important;
+	font-weight: 800;
 }
 
 .pay-customer-row {
