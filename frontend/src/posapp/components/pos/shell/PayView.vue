@@ -10,7 +10,31 @@
 					class="main mx-auto mt-3 p-3 pb-16 overflow-y-auto pos-themed-card"
 					style="max-height: calc(100dvh - 32px); height: calc(100dvh - 32px)"
 				>
-					<Customer></Customer>
+					<v-row class="pay-customer-row" dense>
+						<v-col
+							cols="12"
+							:md="pos_profile?.posa_allow_change_posting_date ? 9 : 12"
+							class="pb-0"
+						>
+							<Customer></Customer>
+						</v-col>
+						<v-col
+							v-if="pos_profile?.posa_allow_change_posting_date"
+							cols="12"
+							md="3"
+							class="pb-0"
+						>
+							<VueDatePicker
+								v-model="postingDateDisplay"
+								model-type="format"
+								format="dd-MM-yyyy"
+								auto-apply
+								teleport
+								:placeholder="__('Posting Date')"
+								class="sleek-field posting-date-input pos-themed-input pay-posting-date"
+							/>
+						</v-col>
+					</v-row>
 					<v-divider></v-divider>
 
 					<PayInvoicesTable
@@ -118,7 +142,9 @@
 <script>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, getCurrentInstance } from "vue";
 import { storeToRefs } from "pinia";
+import VueDatePicker from "@vuepic/vue-datepicker";
 import format from "../../../format";
+import { normalizeDateForBackend } from "../../../format";
 import Customer from "../customer/Customer.vue";
 import {
 	initPromise,
@@ -161,10 +187,21 @@ import {
 	isPaymentRouteLocked as resolvePaymentRouteLocked,
 } from "../../../utils/paymentRouteReadiness";
 
+const getTodayDate = () => frappe?.datetime?.nowdate?.() || new Date().toISOString().slice(0, 10);
+const formatDisplayDate = (date) => {
+	if (!date) return "";
+	const parts = String(date).split("-");
+	if (parts.length === 3) {
+		return `${parts[2]}-${parts[1]}-${parts[0]}`;
+	}
+	return String(date);
+};
+
 export default {
 	mixins: [format],
 	components: {
 		Customer,
+		VueDatePicker,
 		PayInvoicesTable,
 		PayUnallocatedTable,
 		PayMpesaSection,
@@ -193,6 +230,7 @@ export default {
 		const pos_profile = ref({});
 		const pos_opening_shift = ref("");
 		const customer_name = ref("");
+		const postingDate = ref(getTodayDate());
 		const company = ref("");
 		const pos_profile_search = ref("");
 		const currency_filter = ref("ALL");
@@ -444,6 +482,13 @@ export default {
 				(m) => getPaymentMethodCurrency(m.mode_of_payment) === target,
 			);
 		});
+		const postingDateDisplay = computed({
+			get: () => formatDisplayDate(postingDate.value),
+			set: (value) => {
+				const normalized = normalizeDateForBackend(value);
+				postingDate.value = normalized || getTodayDate();
+			},
+		});
 		const isPaymentRouteLocked = computed(() =>
 			resolvePaymentRouteLocked({
 				customersLoaded: !!customersLoaded.value,
@@ -460,6 +505,7 @@ export default {
 			company,
 			posProfile: pos_profile,
 			posOpeningShift: pos_opening_shift,
+			postingDate,
 			exchangeRate,
 			invoiceTotalCurrency,
 			payment_methods,
@@ -516,7 +562,7 @@ export default {
 					args: {
 						from_currency: invoiceTotalCurrency.value,
 						to_currency: companyCurrencyLocal.value,
-						transaction_date: frappe.datetime.nowdate(),
+						transaction_date: postingDate.value || getTodayDate(),
 						args: "for_selling",
 					},
 				});
@@ -546,7 +592,7 @@ export default {
 			if (!pos_profile.value?.payments?.length || !company.value) return;
 			try {
 				const modes = pos_profile.value.payments.map((p) => p.mode_of_payment).filter(Boolean);
-				// Call standard ERPNext method instead of missing custom method
+				// Use the shared payment utility for mode/account currency resolution.
 				const r = await frappe.call({
 					method: "posawesome.posawesome.api.payment_processing.utils.get_mode_of_payment_accounts",
 					args: { company: company.value, mode_of_payments: modes },
@@ -770,6 +816,7 @@ export default {
 
 		watch(invoiceTotalCurrency, fetchExchangeRate, { immediate: true });
 		watch(companyCurrency, fetchExchangeRate, { immediate: true });
+		watch(postingDate, fetchExchangeRate, { immediate: true });
 		watch([paymentRouteTarget, outstanding_invoices], () => {
 			applyPaymentRouteTarget();
 		});
@@ -779,6 +826,7 @@ export default {
 			pos_profile,
 			pos_opening_shift,
 			customer_name,
+			postingDateDisplay,
 			company,
 			pos_profile_search,
 			currency_filter,
@@ -871,5 +919,44 @@ export default {
 
 .totals-wrapper {
 	font-weight: bold;
+}
+
+.pay-customer-row {
+	align-items: start;
+}
+
+.pay-customer-row .customer-input-wrapper {
+	padding-right: 0;
+}
+
+.pay-posting-date .dp__input_wrap {
+	width: 100%;
+}
+
+.pay-posting-date .dp__input {
+	width: 100%;
+	min-height: 48px;
+	border-radius: 12px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+	background-color: var(--field-bg);
+	color: var(--text-primary);
+	padding: 10px 12px;
+}
+
+.pay-posting-date:hover .dp__input {
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.pay-posting-date .dp__input_icon {
+	inset-inline-start: auto;
+	inset-inline-end: 30px;
+}
+
+.pay-posting-date .dp__input_icon_pad {
+	padding-inline-start: 12px;
+}
+
+.pay-posting-date .dp__input {
+	padding-right: calc(30px + var(--dp-input-icon-padding));
 }
 </style>
