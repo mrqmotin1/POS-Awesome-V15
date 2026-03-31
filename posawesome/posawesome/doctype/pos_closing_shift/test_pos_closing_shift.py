@@ -146,3 +146,37 @@ class TestPOSClosingShift(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].invoice, "SINV-RET-0001")
         self.assertEqual(result[0].return_against, "ACC-SINV-2026-00222")
+
+    @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.overview.get_payments_entries")
+    @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.overview.get_pos_invoices")
+    @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.overview.frappe")
+    def test_overview_does_not_resubmit_printed_invoices(
+        self,
+        mock_frappe,
+        mock_get_pos_invoices,
+        mock_get_payments_entries,
+    ):
+        mock_frappe.get_doc.return_value = SimpleNamespace(
+            doctype="POS Opening Shift",
+            name="POS-OPEN-1",
+            pos_profile="POS-PROFILE-1",
+            company="My Co",
+        )
+        mock_frappe.get_cached_value.return_value = "USD"
+        mock_frappe.db.get_value.side_effect = lambda doctype, name, field: (
+            0
+            if (doctype, name, field)
+            == ("POS Profile", "POS-PROFILE-1", "create_pos_invoice_instead_of_sales_invoice")
+            else "Cash"
+        )
+        mock_get_pos_invoices.return_value = []
+        mock_get_payments_entries.return_value = []
+        mock_frappe.get_all.return_value = []
+
+        overview.get_closing_shift_overview("POS-OPEN-1")
+
+        mock_get_pos_invoices.assert_called_once_with(
+            "POS-OPEN-1",
+            "Sales Invoice",
+            submit_printed=0,
+        )
