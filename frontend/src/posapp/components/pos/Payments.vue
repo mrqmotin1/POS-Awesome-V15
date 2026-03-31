@@ -256,6 +256,7 @@ import {
 	rebalancePreferredPaymentLine,
 	resolvePreferredPaymentLine,
 } from "../../utils/paymentInitialization";
+import { resolvePaymentPrintFormat } from "../../utils/paymentPrintFormat";
 
 // Components
 import PaymentSummary from "./payments/PaymentSummary.vue";
@@ -595,20 +596,17 @@ const get_print_formats = () => {
 		callback: (r) => {
 			const formats = r.message || [];
 			print_formats.value = formats.map((pf) => (typeof pf === "object" && pf.name ? pf.name : pf));
+			set_print_format();
 		},
 	});
 };
 
 const set_print_format = () => {
-	print_format.value = "";
-	if (pos_profile.value.posa_print_format_rules && customer_info.value) {
-		const rule = pos_profile.value.posa_print_format_rules.find(
-			(r) => r.customer_group === customer_info.value.customer_group,
-		);
-		if (rule) {
-			print_format.value = rule.print_format;
-		}
-	}
+	print_format.value = resolvePaymentPrintFormat({
+		profile: pos_profile.value,
+		customerInfo: customer_info.value,
+		availableFormats: print_formats.value,
+	});
 };
 
 const releaseActiveFocus = () => {
@@ -1428,7 +1426,7 @@ watch(
 			set_print_format();
 		} else if (!customer) {
 			addresses.value = [];
-			print_format.value = "";
+			set_print_format();
 		}
 	},
 );
@@ -1463,6 +1461,7 @@ watch(
 
 watch(customerInfo, (newInfo) => {
 	customer_info.value = newInfo || "";
+	set_print_format();
 });
 
 watch(selectedCustomer, (newCustomer, oldCustomer) => {
