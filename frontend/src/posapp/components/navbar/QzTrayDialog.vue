@@ -25,7 +25,13 @@
 					>
 						{{ __("Connect") }}
 					</v-btn>
-					<v-btn color="secondary" variant="outlined" :loading="loadingPrinters" @click="refreshPrinters">
+					<v-btn
+						color="secondary"
+						variant="outlined"
+						:loading="loadingPrinters"
+						:disabled="loadingPrinters || (qzReconnectPaused && !qzConnected)"
+						@click="refreshPrinters"
+					>
 						{{ __("Refresh Printers") }}
 					</v-btn>
 					<v-btn color="default" variant="text" :disabled="!qzConnected" @click="handleDisconnect">
@@ -97,6 +103,7 @@ import {
 	qzConnected,
 	qzConnecting,
 	qzPrinters,
+	qzReconnectPaused,
 	selectedQzPrinter,
 	setSelectedQzPrinter,
 	setupQzCertificate,
@@ -145,6 +152,9 @@ const connectionStatusText = computed(() => {
 	if (qzConnected.value) {
 		return __("QZ Tray connected.");
 	}
+	if (qzReconnectPaused.value) {
+		return __("QZ Tray is manually disconnected. Press Connect to enable it again.");
+	}
 	return __("QZ Tray is not connected.");
 });
 
@@ -174,7 +184,7 @@ function notify(title: string, color = "info") {
 
 async function handleConnect(showNotification = true) {
 	try {
-		const connected = await connectQzTray();
+		const connected = await connectQzTray({ userInitiated: true });
 		if (!connected) {
 			if (showNotification) {
 				notify("Could not connect to QZ Tray.", "warning");
@@ -201,10 +211,17 @@ async function handleConnect(showNotification = true) {
 
 async function handleDisconnect() {
 	await disconnectQzTray();
-	notify("QZ Tray disconnected.", "info");
+	notify("QZ Tray disconnected. Auto-connect is paused until you press Connect.", "info");
 }
 
 async function refreshPrinters(showNotification = true) {
+	if (qzReconnectPaused.value && !qzConnected.value) {
+		if (showNotification) {
+			notify("QZ Tray is manually disconnected. Press Connect to enable it again.", "warning");
+		}
+		return;
+	}
+
 	loadingPrinters.value = true;
 	try {
 		const printers = await findQzPrinters();
@@ -275,7 +292,7 @@ watch(
 	async (open) => {
 		if (!open) return;
 		await checkQzCertificateOnce();
-		if (!qzConnected.value) {
+		if (!qzConnected.value && !qzReconnectPaused.value) {
 			await handleConnect(false);
 		}
 		if (qzConnected.value && !qzPrinters.value.length) {
