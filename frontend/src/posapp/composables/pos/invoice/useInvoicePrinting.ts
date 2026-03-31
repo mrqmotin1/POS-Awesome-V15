@@ -23,6 +23,14 @@ export function useInvoicePrinting(
 		}
 
 		let invoice_name = invoice_doc.value?.name || null;
+		if (typeof save_and_clear_invoice !== "function") {
+			toastStore.show({
+				title: __("Unable to print draft invoice"),
+				color: "error",
+			});
+			return;
+		}
+
 		try {
 			const saved_doc = await save_and_clear_invoice();
 			if (saved_doc?.name) {

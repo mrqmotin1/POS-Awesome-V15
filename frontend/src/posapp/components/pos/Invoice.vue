@@ -280,7 +280,8 @@ import { useToastStore } from "../../stores/toastStore.js";
 import { useUIStore } from "../../stores/uiStore.js";
 import { storeToRefs } from "pinia";
 import stockCoordinator from "../../utils/stockCoordinator";
-import { ref } from "vue";
+import { getCurrentInstance, ref } from "vue";
+import { save_and_clear_invoice as saveAndClearInvoiceAction } from "./invoice_utils/actions";
 
 // Composables
 import { useOnlineStatus } from "../../composables/core/useOnlineStatus";
@@ -300,6 +301,7 @@ export default {
 	name: "POSInvoice",
 	mixins: [format],
 	setup() {
+		const instance = getCurrentInstance();
 		const uiStore = useUIStore();
 		const invoiceStore = useInvoiceStore();
 		const customersStore = useCustomersStore();
@@ -324,11 +326,14 @@ export default {
 		const printingLogic = useInvoicePrinting(
 			livePosProfile,
 			(name) => uiStore.loadPrintPage(name), // Assuming this exists or passed via mixin/store
-			itemActions.save_and_clear_invoice, // Need to verify if this is available
+			() => {
+				if (!instance?.proxy) {
+					return Promise.resolve(null);
+				}
+				return saveAndClearInvoiceAction(instance.proxy);
+			},
 			invoice_doc,
 		);
-		// Note: save_and_clear_invoice might be in methods mixin, not composable.
-		// We'll keep print logic partly in component if dependencies are complex.
 
 		const stockLogic = useInvoiceStock(items, packed_items, uiStore.eventBus, () => {});
 

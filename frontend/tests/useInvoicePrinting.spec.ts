@@ -55,4 +55,26 @@ describe("useInvoicePrinting", () => {
 		expect(loadPrintPage).toHaveBeenCalledWith("DRAFT-0002");
 		expect(toastShow).not.toHaveBeenCalled();
 	});
+
+	it("does not throw when the save callback is missing", async () => {
+		const consoleErrorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => undefined);
+		const loadPrintPage = vi.fn();
+		const { print_draft_invoice } = useInvoicePrinting(
+			ref({ posa_allow_print_draft_invoices: 1 }),
+			loadPrintPage,
+			undefined as any,
+			ref({ name: "DRAFT-0003" }),
+		);
+
+		await expect(print_draft_invoice()).resolves.toBeUndefined();
+
+		expect(loadPrintPage).not.toHaveBeenCalled();
+		expect(toastShow).toHaveBeenCalledWith({
+			title: "Unable to print draft invoice",
+			color: "error",
+		});
+		expect(consoleErrorSpy).not.toHaveBeenCalled();
+	});
 });
