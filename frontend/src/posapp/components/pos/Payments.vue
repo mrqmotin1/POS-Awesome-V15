@@ -195,6 +195,9 @@
 						:readonly="readonly"
 						:print-formats="print_formats"
 						:print-format="print_format"
+						:show-print-format="
+							parseBooleanSetting(pos_profile?.posa_allow_select_print_format_in_payments)
+						"
 						@update:sales-person="sales_person = $event"
 						@update:print-format="print_format = $event"
 					/>
@@ -258,6 +261,7 @@ import {
 } from "../../utils/paymentInitialization";
 import { resolvePaymentPrintFormatDoctypes } from "../../utils/paymentPrintDoctype";
 import { resolvePaymentPrintFormat } from "../../utils/paymentPrintFormat";
+import { parseBooleanSetting } from "../../utils/stock";
 
 // Components
 import PaymentSummary from "./payments/PaymentSummary.vue";
