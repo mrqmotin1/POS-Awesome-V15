@@ -291,6 +291,7 @@ import { useInvoiceOffers } from "../../composables/pos/invoice/useInvoiceOffers
 import { useInvoiceUI } from "../../composables/pos/invoice/useInvoiceUI";
 import { useInvoicePrinting } from "../../composables/pos/invoice/useInvoicePrinting";
 import { useInvoiceStock } from "../../composables/pos/invoice/useInvoiceStock";
+import { usePaymentPrinting } from "../../composables/pos/payments/usePaymentPrinting";
 import {
 	createInvoiceShortcutListeners,
 	registerInvoiceShortcutListener,
@@ -323,9 +324,14 @@ export default {
 
 		// New composables
 		const uiLogic = useInvoiceUI();
+		const { loadPrintPage } = usePaymentPrinting({
+			invoiceDoc: invoice_doc,
+			posProfile: livePosProfile,
+			invoiceType,
+		});
 		const printingLogic = useInvoicePrinting(
 			livePosProfile,
-			(name) => uiStore.loadPrintPage(name), // Assuming this exists or passed via mixin/store
+			loadPrintPage,
 			() => {
 				if (!instance?.proxy) {
 					return Promise.resolve(null);

@@ -6,7 +6,7 @@ declare const __: (_text: string, _args?: any[]) => string;
 
 export function useInvoicePrinting(
 	pos_profile: any,
-	load_print_page: (_name: string) => void,
+	load_print_page: (_input: { doc?: any; doctype?: string }) => void | Promise<void>,
 	save_and_clear_invoice: () => Promise<any>,
 	invoice_doc: any,
 ) {
@@ -41,7 +41,14 @@ export function useInvoicePrinting(
 				throw new Error("Invoice could not be saved before printing");
 			}
 
-			load_print_page(invoice_name);
+			await load_print_page({
+				doc: saved_doc?.name
+					? saved_doc
+					: {
+							...(unref(invoice_doc) || {}),
+							name: invoice_name,
+					  },
+			});
 		} catch (error) {
 			console.error("Failed to print draft invoice:", error);
 			toastStore.show({

@@ -40,7 +40,10 @@ describe("useInvoicePrinting", () => {
 	});
 
 	it("prints the saved draft when draft printing is allowed", async () => {
-		const saveAndClearInvoice = vi.fn(async () => ({ name: "DRAFT-0002" }));
+		const saveAndClearInvoice = vi.fn(async () => ({
+			name: "DRAFT-0002",
+			doctype: "Sales Invoice",
+		}));
 		const loadPrintPage = vi.fn();
 		const { print_draft_invoice } = useInvoicePrinting(
 			ref({ posa_allow_print_draft_invoices: 1 }),
@@ -52,7 +55,12 @@ describe("useInvoicePrinting", () => {
 		await print_draft_invoice();
 
 		expect(saveAndClearInvoice).toHaveBeenCalledTimes(1);
-		expect(loadPrintPage).toHaveBeenCalledWith("DRAFT-0002");
+		expect(loadPrintPage).toHaveBeenCalledWith({
+			doc: {
+				name: "DRAFT-0002",
+				doctype: "Sales Invoice",
+			},
+		});
 		expect(toastShow).not.toHaveBeenCalled();
 	});
 
