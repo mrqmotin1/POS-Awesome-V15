@@ -10,6 +10,7 @@ type PosPaySubmissionArgs = {
 	company: Ref<any>;
 	posProfile: Ref<any>;
 	posOpeningShift: Ref<any>;
+	postingDate?: Ref<string | null>;
 	exchangeRate: Ref<number>;
 	invoiceTotalCurrency: Ref<string>;
 	autoAllocatePaymentAmount: Ref<boolean>;
@@ -39,6 +40,7 @@ export function usePosPaySubmission({
 	company,
 	posProfile,
 	posOpeningShift,
+	postingDate,
 	exchangeRate,
 	invoiceTotalCurrency,
 	autoAllocatePaymentAmount,
@@ -121,6 +123,7 @@ export function usePosPaySubmission({
 				customer,
 				company: company.value,
 				currency: invoiceTotalCurrency.value,
+				posting_date: postingDate?.value || null,
 				exchange_rate: exchangeRate.value || null,
 				pos_opening_shift_name: posOpeningShift.value.name,
 				pos_profile_name: posProfile.value.name,
