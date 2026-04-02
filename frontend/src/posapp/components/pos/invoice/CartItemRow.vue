@@ -8,6 +8,7 @@
 
 			<!-- Item Name Column -->
 			<td v-else-if="column.key === 'item_name'" class="text-start" :data-column-key="'item_name'">
+				<div class="d-flex flex-column justify-center h-100">
 				<div class="d-flex align-center">
 					<span>{{ item.item_name }}</span>
 					<v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">
@@ -73,6 +74,14 @@
 					>
 						<v-icon size="small">mdi-undo</v-icon>
 					</v-btn>
+				</div>
+
+					<div
+						v-if="item.barcode || (item.item_barcode && item.item_barcode.length > 0)"
+						class="barcode-display"
+					>
+						({{ item.barcode ? item.barcode : (item.item_barcode && item.item_barcode[0] ? item.item_barcode[0].barcode : '') }})
+					</div>
 				</div>
 			</td>
 
@@ -469,6 +478,9 @@ const memoDeps = computed(() => {
 		props.item.qty,
 		props.item.rate,
 		props.item.amount,
+		String(props.item.barcode || ""), 
+        // Also check if the array exists and get its first barcode as a string
+        String(props.item.item_barcode?.[0]?.barcode || ""),
 		props.item.discount_amount,
 		props.item.discount_percentage,
 		props.item.uom,
@@ -721,5 +733,18 @@ td {
 	outline: 2px solid var(--pos-primary);
 	outline-offset: 2px;
 	z-index: 10;
+}
+
+.barcode-display {
+    font-size: 0.85rem; /* Slightly smaller so it looks like a sub-label */
+    opacity: 0.7;       /* Gives it a professional, secondary look */
+    font-family: inherit; /* Inherits the SF Pro / Segoe UI font */
+    margin-top: 2px;    /* Small gap between name and barcode */
+    line-height: 1;
+}
+
+/* Ensure the cell content is centered vertically */
+.h-100 {
+    height: 100%;
 }
 </style>

@@ -588,6 +588,7 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		}
 
 		if (foundItem) {
+			foundItem.barcode = scannedCode;
 			const localAssignment = extractScanAssignmentFromItem(
 				foundItem,
 				scannedCode,
@@ -646,6 +647,7 @@ export function useScanProcessor(context: ScanProcessorContext) {
 			}
 
 			if (newItem) {
+				newItem.barcode = scannedCode;
 				items.value.push(newItem);
 				barcodeIndex.indexItem(newItem);
 
