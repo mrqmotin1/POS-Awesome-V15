@@ -1,8 +1,13 @@
 <template>
 	<tr class="posa-cart-item-row" v-memo="memoDeps">
 		<template v-for="column in visibleColumns" :key="column.key">
+			<!-- SL Column -->
+			<td v-if="column.key === 'sl'" class="text-center" :data-column-key="'sl'">
+				<div>{{ index + 1 }}</div>
+			</td>
+
 			<!-- Item Name Column -->
-			<td v-if="column.key === 'item_name'" class="text-start" :data-column-key="'item_name'">
+			<td v-else-if="column.key === 'item_name'" class="text-start" :data-column-key="'item_name'">
 				<div class="d-flex align-center">
 					<span>{{ item.item_name }}</span>
 					<v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">
@@ -404,6 +409,10 @@ const props = defineProps({
 	visibleColumns: {
 		type: Array,
 		default: () => [],
+	},
+	index: {
+		type: Number,
+		required: true,
 	},
 	posProfile: {
 		type: Object,
