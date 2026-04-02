@@ -135,6 +135,25 @@
         </v-row>
 
         <v-divider></v-divider>
+        <v-row>
+            <v-col md="7">
+                <h4 class="text-primary mt-1">{{ __("Difference:") }}</h4>
+            </v-col>
+            <v-col md="5">
+                <v-text-field
+                    class="p-0 m-0 pos-themed-input"
+                    density="compact"
+                    color="primary"
+                    hide-details
+                    :model-value="formatCurrency(totalOfDiff)"
+                    readonly
+                    flat
+                    :prefix="currencySymbol(invoiceTotalCurrency)"
+                ></v-text-field>
+            </v-col>
+        </v-row>
+
+        <v-divider></v-divider>
         <h4 class="text-primary">{{ __("Transaction ID") }}</h4>
         <v-row>
             <v-col md="6" cols="12">
