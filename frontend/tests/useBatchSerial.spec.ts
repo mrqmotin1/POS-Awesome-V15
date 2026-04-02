@@ -102,4 +102,49 @@ describe("useBatchSerial.setBatchQty", () => {
 			"B-VALID",
 		]);
 	});
+
+	it("applies batch price immediately during auto batch selection", () => {
+		const { setBatchQty } = useBatchSerial();
+		const context: any = {
+			items: [],
+			pos_profile: { currency: "USD" },
+			price_list_currency: "USD",
+			selected_currency: "USD",
+			exchange_rate: 1,
+			currency_precision: 2,
+			flt: (value: any) => Number(value),
+			forceUpdate: vi.fn(),
+		};
+
+		const item: any = {
+			item_code: "ITEM-BATCH-PRICE",
+			qty: 2,
+			has_batch_no: 1,
+			has_serial_no: 0,
+			rate: 15,
+			price_list_rate: 15,
+			base_rate: 15,
+			base_price_list_rate: 15,
+			batch_no_data: [
+				{
+					batch_no: "B-FEFO",
+					batch_qty: 8,
+					batch_price: 12,
+					is_expired: false,
+				},
+			],
+		};
+
+		setBatchQty(item, null, false, context);
+
+		expect(item.batch_no).toBe("B-FEFO");
+		expect(item.batch_price).toBe(12);
+		expect(item.base_batch_price).toBe(12);
+		expect(item.rate).toBe(12);
+		expect(item.price_list_rate).toBe(12);
+		expect(item.base_rate).toBe(12);
+		expect(item.base_price_list_rate).toBe(12);
+		expect(item.amount).toBe(24);
+		expect(item.base_amount).toBe(24);
+	});
 });

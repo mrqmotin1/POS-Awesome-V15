@@ -255,12 +255,11 @@ export function useBatchSerial() {
 				update,
 			});
 
-			const hasPriceListRate =
-				item.price_list_rate !== undefined &&
-				item.price_list_rate !== null &&
-				Number(item.price_list_rate) !== 0;
-			const shouldApplyBatchPrice =
-				batch_to_use.batch_price && (update || !hasPriceListRate);
+			const hasBatchPrice =
+				batch_to_use.batch_price !== undefined &&
+				batch_to_use.batch_price !== null &&
+				batch_to_use.batch_price !== "";
+			const shouldApplyBatchPrice = hasBatchPrice;
 
 			if (shouldApplyBatchPrice) {
 				// Store batch price in base currency

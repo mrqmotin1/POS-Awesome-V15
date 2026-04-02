@@ -664,10 +664,10 @@ body[data-page-route="posapp"] .v-overlay__scrim {
 
 /* ==========================================================================
    POSAwesome - Hide Frappe Desk Elements in POS View
-   Target only when in POSApp route to avoid affecting ERPNext functionality
+   Target only when in POSApp route to avoid affecting the host desk layout
    ========================================================================== */
 
-/* Only apply when in POSApp page route - ensures ERPNext 15/16 compatibility */
+/* Only apply when in POSApp page route to preserve desk compatibility */
 body[data-page-route="posapp"] .body-sidebar-container,
 body[data-page-route="posapp"] .body-sidebar,
 body[data-page-route="posapp"] .desk-sidebar,

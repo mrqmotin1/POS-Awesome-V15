@@ -7,9 +7,13 @@ declare const flt: (_value: unknown, _precision?: number) => number;
 
 type PosPaySubmissionArgs = {
 	customerName: Ref<string>;
+	partyName?: Ref<string>;
+	partyType?: Ref<string>;
+	paymentType?: Ref<string>;
 	company: Ref<any>;
 	posProfile: Ref<any>;
 	posOpeningShift: Ref<any>;
+	postingDate?: Ref<string | null>;
 	exchangeRate: Ref<number>;
 	invoiceTotalCurrency: Ref<string>;
 	autoAllocatePaymentAmount: Ref<boolean>;
@@ -36,9 +40,13 @@ type PosPaySubmissionArgs = {
 
 export function usePosPaySubmission({
 	customerName,
+	partyName,
+	partyType,
+	paymentType,
 	company,
 	posProfile,
 	posOpeningShift,
+	postingDate,
 	exchangeRate,
 	invoiceTotalCurrency,
 	autoAllocatePaymentAmount,
@@ -67,12 +75,14 @@ export function usePosPaySubmission({
 		if (isSubmitting.value) return;
 
 		isSubmitting.value = true;
-		const customer = customerName.value;
+		const party = partyName?.value || customerName.value;
+		const resolvedPartyType = partyType?.value || "Customer";
+		const resolvedPaymentType = paymentType?.value || "Receive";
 
 		const finalizeSubmission = () => {
 			clearSelections();
 			resetPaymentMethodAmounts();
-			customerName.value = customer;
+			customerName.value = party;
 			get_outstanding_invoices();
 			get_unallocated_payments();
 			set_mpesa_search_params();
@@ -80,8 +90,8 @@ export function usePosPaySubmission({
 		};
 
 		try {
-			if (!customer) {
-				frappe.throw(__("Please select a customer"));
+			if (!party) {
+				frappe.throw(__("Please select a party"));
 			}
 
 			const total_payments =
@@ -90,7 +100,7 @@ export function usePosPaySubmission({
 				total_payment_methods.value;
 
 			if (total_payments <= 0) {
-				frappe.throw(__("Please make a payment or select an payment"));
+				frappe.throw(__("Please make a payment or select a payment"));
 			}
 
 			const hasNewPayments = flt(total_payment_methods.value) > 0;
@@ -118,9 +128,13 @@ export function usePosPaySubmission({
 				);
 
 			const payload = {
-				customer,
+				customer: party,
+				party,
+				party_type: resolvedPartyType,
+				payment_type: resolvedPaymentType,
 				company: company.value,
 				currency: invoiceTotalCurrency.value,
+				posting_date: postingDate?.value || null,
 				exchange_rate: exchangeRate.value || null,
 				pos_opening_shift_name: posOpeningShift.value.name,
 				pos_profile_name: posProfile.value.name,
