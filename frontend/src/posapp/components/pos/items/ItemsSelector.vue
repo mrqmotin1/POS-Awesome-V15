@@ -356,7 +356,7 @@ const {
 const search_input = ref("");
 const first_search = ref("");
 const items_view = ref("list");
-const itemsPerPage = ref(50);
+const itemsPerPage = ref(10);
 const clearingSearch = ref(false);
 const isDragging = ref(false);
 const new_line = ref(false);
