@@ -82,6 +82,11 @@ export function usePosPaySubmission({
 		const party = partyName?.value || customerName.value;
 		const resolvedPartyType = partyType?.value || "Customer";
 		const resolvedPaymentType = paymentType?.value || "Receive";
+		const resolvedPostingDate = postingDate?.value || null;
+		const resolvedReferenceNo =
+			referenceNo?.value?.trim() || posOpeningShift.value?.name || null;
+		const resolvedReferenceDate =
+			referenceDate?.value?.trim() || resolvedPostingDate || null;
 
 		const finalizeSubmission = () => {
 			clearSelections();
@@ -140,10 +145,10 @@ export function usePosPaySubmission({
 			payment_type: resolvedPaymentType,
 			company: company.value,
 			currency: invoiceTotalCurrency.value,
-			posting_date: postingDate?.value || null,
+			posting_date: resolvedPostingDate,
 			exchange_rate: exchangeRate.value || null,
-			reference_no: referenceNo?.value?.trim() || null,
-			reference_date: referenceDate?.value?.trim() || null,
+			reference_no: resolvedReferenceNo,
+			reference_date: resolvedReferenceDate,
 			pos_opening_shift_name: posOpeningShift.value.name,
 			pos_profile_name: posProfile.value.name,
 			pos_profile: posProfile.value,

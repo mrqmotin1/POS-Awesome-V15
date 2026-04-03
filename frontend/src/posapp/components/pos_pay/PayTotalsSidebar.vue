@@ -167,15 +167,19 @@
                 ></v-text-field>
             </v-col>
             <v-col md="6" cols="12">
-                <v-text-field
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    type="date"
-                    class="pos-themed-input"
-                    v-model="internalReferenceDate"
-                    :label="__('Cheque/Reference Date')"
-                ></v-text-field>
+                <VueDatePicker
+                    :model-value="referenceDateDisplay"
+                    model-type="format"
+                    format="dd-MM-yyyy"
+                    auto-apply
+                    teleport
+                    text-input
+                    :enable-time-picker="false"
+                    class="sleek-field pos-themed-input pay-reference-date"
+                    :placeholder="__('Cheque/Reference Date')"
+                    data-test="reference-date-input"
+                    @update:model-value="updateReferenceDate"
+                />
             </v-col>
         </v-row>
         <v-row class="mt-2">
@@ -205,6 +209,8 @@
 
 <script setup>
 import { computed } from 'vue';
+import VueDatePicker from "@vuepic/vue-datepicker";
+import { normalizeDateForBackend } from "../../format";
 
 const props = defineProps({
     posProfile: Object,
@@ -261,4 +267,43 @@ const internalReferenceDate = computed({
     get: () => props.referenceDate,
     set: (val) => emit('update:referenceDate', val),
 });
+
+const formatReferenceDateForDisplay = (value) => {
+    const normalized = normalizeDateForBackend(value);
+    if (!normalized) return "";
+
+    const [year, month, day] = normalized.split("-");
+    return `${day}-${month}-${year}`;
+};
+
+const referenceDateDisplay = computed(() =>
+    formatReferenceDateForDisplay(props.referenceDate),
+);
+
+const updateReferenceDate = (val) => {
+    const normalized = normalizeDateForBackend(val);
+    const resolvedValue = normalized || "";
+    emit('update:referenceDate', resolvedValue);
+    return resolvedValue;
+};
+
+defineExpose({
+    updateReferenceDate,
+});
 </script>
+
+<style scoped>
+.pay-reference-date :deep(.dp__input_wrap) {
+    width: 100%;
+}
+
+.pay-reference-date :deep(.dp__input) {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    border-radius: 4px;
+    background-color: rgb(var(--v-theme-surface));
+    color: inherit;
+    padding: 0 12px;
+}
+</style>

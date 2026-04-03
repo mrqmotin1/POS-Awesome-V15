@@ -50,6 +50,8 @@ describe("usePosPaySubmission", () => {
 			posOpeningShift: ref({ name: "POS-OPEN-0001" }),
 			exchangeRate: ref(1),
 			invoiceTotalCurrency: ref("USD"),
+			referenceNo: ref(""),
+			referenceDate: ref(""),
 			autoAllocatePaymentAmount: ref(true),
 			payment_methods: ref([{ mode_of_payment: "Cash", amount: 100 }]),
 			selected_invoices: ref([]),
@@ -105,6 +107,8 @@ describe("usePosPaySubmission", () => {
 			posOpeningShift: ref({ name: "POS-OPEN-0001" }),
 			exchangeRate: ref(1),
 			invoiceTotalCurrency: ref("USD"),
+			referenceNo: ref(""),
+			referenceDate: ref(""),
 			autoAllocatePaymentAmount: ref(true),
 			payment_methods: ref([{ mode_of_payment: "Online", amount: 32000 }]),
 			selected_invoices: ref([]),
@@ -153,6 +157,8 @@ describe("usePosPaySubmission", () => {
 			posOpeningShift: ref({ name: "POS-OPEN-0001" }),
 			exchangeRate: ref(1),
 			invoiceTotalCurrency: ref("USD"),
+			referenceNo: ref(""),
+			referenceDate: ref(""),
 			autoAllocatePaymentAmount: ref(false),
 			payment_methods: paymentMethods,
 			selected_invoices: ref([]),
@@ -204,6 +210,8 @@ describe("usePosPaySubmission", () => {
 			posOpeningShift: ref({ name: "POS-OPEN-0001" }),
 			exchangeRate: ref(1),
 			invoiceTotalCurrency: ref("USD"),
+			referenceNo: ref(""),
+			referenceDate: ref(""),
 			autoAllocatePaymentAmount: ref(false),
 			payment_methods: ref([{ mode_of_payment: "Cash", amount: 100 }]),
 			selected_invoices: ref([]),
@@ -248,6 +256,8 @@ describe("usePosPaySubmission", () => {
 			postingDate,
 			exchangeRate: ref(1),
 			invoiceTotalCurrency: ref("USD"),
+			referenceNo: ref(""),
+			referenceDate: ref(""),
 			autoAllocatePaymentAmount: ref(false),
 			payment_methods: ref([{ mode_of_payment: "Cash", amount: 100 }]),
 			selected_invoices: ref([]),
@@ -274,6 +284,52 @@ describe("usePosPaySubmission", () => {
 		expect(callConfig.args.payload.posting_date).toBe("2026-03-29");
 	});
 
+	it("sends posting date and opening shift when the user leaves reference fields blank", async () => {
+		(globalThis as any).frappe.call.mockImplementation(({ callback }: any) => {
+			callback({
+				message: {
+					new_payments_entry: [{ name: "ACC-PAY-0007" }],
+				},
+			});
+		});
+
+		const { processPayment } = usePosPaySubmission({
+			customerName: ref("Customer 727"),
+			company: ref("Test Company"),
+			posProfile: ref({ name: "Main POS" }),
+			posOpeningShift: ref({ name: "POS-OPEN-0001" }),
+			postingDate: ref("2026-04-03"),
+			exchangeRate: ref(1),
+			invoiceTotalCurrency: ref("USD"),
+			referenceNo: ref("   "),
+			referenceDate: ref(""),
+			autoAllocatePaymentAmount: ref(false),
+			payment_methods: ref([{ mode_of_payment: "Cash", amount: 100 }]),
+			selected_invoices: ref([]),
+			selected_payments: ref([]),
+			selected_mpesa_payments: ref([]),
+			total_selected_invoices: ref(0),
+			total_selected_payments: ref(0),
+			total_selected_mpesa_payments: ref(0),
+			total_payment_methods: ref(100),
+			clearSelections: vi.fn(),
+			resetPaymentMethodAmounts: vi.fn(),
+			load_print_page: vi.fn(),
+			eventBus: { emit: vi.fn() },
+			get_outstanding_invoices: vi.fn(),
+			get_unallocated_payments: vi.fn(),
+			get_draft_mpesa_payments_register: vi.fn(),
+			set_mpesa_search_params: vi.fn(),
+			autoReconcile: vi.fn(),
+		});
+
+		await processPayment();
+
+		const callConfig = (globalThis as any).frappe.call.mock.calls[0][0];
+		expect(callConfig.args.payload.reference_no).toBe("POS-OPEN-0001");
+		expect(callConfig.args.payload.reference_date).toBe("2026-04-03");
+	});
+
 	it("includes generic payment and party fields for supplier pay mode", async () => {
 		(globalThis as any).frappe.call.mockImplementation(({ callback }: any) => {
 			callback({
@@ -294,6 +350,8 @@ describe("usePosPaySubmission", () => {
 			postingDate: ref("2026-03-30"),
 			exchangeRate: ref(1),
 			invoiceTotalCurrency: ref("USD"),
+			referenceNo: ref(""),
+			referenceDate: ref(""),
 			autoAllocatePaymentAmount: ref(false),
 			payment_methods: ref([{ mode_of_payment: "Bank", amount: 250 }]),
 			selected_invoices: ref([]),
