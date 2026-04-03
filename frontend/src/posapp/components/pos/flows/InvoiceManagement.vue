@@ -2687,6 +2687,7 @@ export default {
 						printFormat,
 						letterhead: letterHead || null,
 						noLetterhead: letterHead ? "0" : "1",
+						printerName: profile.custom_pos_printer || null,
 					});
 					return;
 				} catch (error) {
