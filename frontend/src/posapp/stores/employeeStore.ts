@@ -96,7 +96,16 @@ export const useEmployeeStore = defineStore("employee", () => {
 			terminalEmployees.value[0] ||
 			null;
 
-		if (!currentCashier.value || currentCashier.value.user !== preferredCashier?.user) {
+		const shouldRefreshCurrentCashier =
+			!currentCashier.value
+			|| currentCashier.value.user !== preferredCashier?.user
+			|| (
+				preferredCashier
+				&& currentCashier.value.user === preferredCashier.user
+				&& Boolean(currentCashier.value.is_supervisor) !== Boolean(preferredCashier.is_supervisor)
+			);
+
+		if (shouldRefreshCurrentCashier) {
 			setCurrentCashier(preferredCashier);
 		}
 	};

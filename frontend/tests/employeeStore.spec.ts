@@ -52,4 +52,22 @@ describe("employeeStore", () => {
 		expect(store.lockDialogOpen).toBe(false);
 		expect(store.isLocked).toBe(false);
 	});
+
+	it("upgrades the session cashier with supervisor metadata from terminal employees", () => {
+		const store = useEmployeeStore();
+
+		expect(store.currentCashier?.user).toBe("cashier@example.com");
+		expect(store.currentCashier?.is_supervisor).toBeUndefined();
+
+		store.setTerminalEmployees([
+			{
+				user: "cashier@example.com",
+				full_name: "Main Cashier",
+				is_supervisor: true,
+			},
+		]);
+
+		expect(store.currentCashier?.user).toBe("cashier@example.com");
+		expect(store.currentCashier?.is_supervisor).toBe(true);
+	});
 });
