@@ -807,7 +807,7 @@ export default {
 		const invoiceManagementDialogMaxWidth = computed(() =>
 			responsive.windowWidth.value < 1100 ? "100vw" : "1420px",
 		);
-		const { invoiceManagementDialog, posProfile, posOpeningShift } = storeToRefs(uiStore);
+		const { invoiceManagementDialog, invoiceManagementTargetTab, posProfile, posOpeningShift } = storeToRefs(uiStore);
 		return {
 			uiStore,
 			invoiceStore,
@@ -816,6 +816,7 @@ export default {
 			router,
 			eventBus,
 			invoiceManagementDialog,
+			invoiceManagementTargetTab,
 			posProfile,
 			posOpeningShift,
 			isDarkTheme: theme.isDark,
@@ -925,7 +926,10 @@ export default {
 	},
 	watch: {
 		invoiceManagementDialog(value) {
-			if (value) this.refreshAll();
+			if (value) {
+				this.activeTab = this.invoiceManagementTargetTab || "history";
+				this.refreshAll();
+			}
 			else this.resetPagination();
 		},
 		activeTab() {
