@@ -36,7 +36,7 @@
 				class="white-text-btn summary-btn"
 				:loading="loadDraftsLoading"
 			>
-				{{ __("Parked Orders") }}
+				{{ __("Drafts") }}
 			</v-btn>
 		</v-col>
 		<v-col cols="12" sm="6" v-if="pos_profile.custom_allow_select_sales_order == 1">

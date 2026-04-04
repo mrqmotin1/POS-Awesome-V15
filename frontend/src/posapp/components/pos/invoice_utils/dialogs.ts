@@ -160,10 +160,15 @@ export async function get_draft_invoices(context: any) {
 			posOpeningShift: context.pos_opening_shift,
 			posProfile: context.pos_profile,
 		});
+		context.uiStore.setDraftsData?.(drafts);
+		context.uiStore.setParkedOrders?.(drafts);
+		context.uiStore.closeDrafts?.();
+
 		if (drafts.length) {
-			context.uiStore.openDrafts(drafts);
-		} else {
-			context.uiStore.setParkedOrders?.([]);
+			if (typeof context.$nextTick === "function") {
+				await context.$nextTick();
+			}
+			context.$refs?.invoiceSummary?.openDraftsSurface?.();
 		}
 	} catch (error) {
 		console.error("Error fetching draft invoices:", error);

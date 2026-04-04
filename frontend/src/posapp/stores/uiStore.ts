@@ -65,6 +65,10 @@ export const useUIStore = defineStore("ui", () => {
     draftsDialog.value = false;
   };
 
+  const setDraftsData = (data?: any[]) => {
+    draftsData.value = Array.isArray(data) ? data : [];
+  };
+
   const setParkedOrders = (data?: any[]) => {
     parkedOrders.value = Array.isArray(data) ? data : [];
   };
@@ -251,6 +255,7 @@ export const useUIStore = defineStore("ui", () => {
     hasParkedOrders,
     openDrafts,
     closeDrafts,
+    setDraftsData,
     setParkedOrders,
     ordersDialog,
     ordersData,

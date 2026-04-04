@@ -34,4 +34,15 @@ describe("uiStore parked orders", () => {
 		expect(store.parkedOrders).toEqual(drafts);
 		expect(store.parkedOrdersCount).toBe(1);
 	});
+
+	it("can cache drafts data without opening the legacy drafts dialog", () => {
+		const store = useUIStore();
+		const drafts = [{ name: "ACC-SINV-0004" }];
+
+		store.setDraftsData(drafts);
+
+		expect(store.draftsDialog).toBe(false);
+		expect(store.draftsData).toEqual(drafts);
+		expect(store.parkedOrders).toEqual([]);
+	});
 });
