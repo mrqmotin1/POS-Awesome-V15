@@ -128,6 +128,18 @@
 									hide-details
 									:label="__('To Date')"
 								/>
+								<v-btn
+									class="history-repair-toggle"
+									:color="historyShowRepairCandidatesOnly ? 'warning' : undefined"
+									:variant="historyShowRepairCandidatesOnly ? 'flat' : 'outlined'"
+									prepend-icon="mdi-wrench-check-outline"
+									@click="historyShowRepairCandidatesOnly = !historyShowRepairCandidatesOnly"
+								>
+									{{ __("Show Repair Candidates") }}
+									<v-chip size="x-small" variant="flat" :color="historyShowRepairCandidatesOnly ? 'white' : 'warning'" class="ms-2">
+										{{ historyRepairCandidateCount }}
+									</v-chip>
+								</v-btn>
 							</div>
 
 							<div class="summary-grid mb-4">
@@ -175,7 +187,7 @@
 								<v-icon size="42" color="medium-emphasis">mdi-receipt-text-clock-outline</v-icon>
 								<div class="empty-state__title">{{ __("No invoices found") }}</div>
 								<div class="empty-state__subtitle">
-									{{ __("Try changing the date range or status filter.") }}
+									{{ historyShowRepairCandidatesOnly ? __("No repair-candidate invoices match the current filters.") : __("Try changing the date range or status filter.") }}
 								</div>
 							</div>
 
@@ -861,6 +873,7 @@ export default {
 		historyStatus: "All",
 		historyDateFrom: "",
 		historyDateTo: "",
+		historyShowRepairCandidatesOnly: false,
 		draftSearch: "",
 		draftDateFrom: "",
 		draftDateTo: "",
@@ -885,7 +898,30 @@ export default {
 	computed: {
 		currentInvoiceDoctype() { return this.posProfile?.create_pos_invoice_instead_of_sales_invoice ? "POS Invoice" : "Sales Invoice"; },
 		filteredUnpaidInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.unpaidInvoices, this.partialSearch, this.partialStatus, this.partialDateFrom, this.partialDateTo)); },
-		filteredHistoryInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.historyInvoices.filter((d) => !d.is_return), this.historySearch, this.historyStatus, this.historyDateFrom, this.historyDateTo)); },
+		filteredHistoryInvoices() {
+			const visibleInvoices = this.historyInvoices.filter((invoice) => !invoice.is_return);
+			const candidateScopedInvoices = this.historyShowRepairCandidatesOnly
+				? visibleInvoices.filter((invoice) => this.isRepairCandidate(invoice))
+				: visibleInvoices;
+			return this.sortInvoicesByLatest(
+				this.filterCollection(
+					candidateScopedInvoices,
+					this.historySearch,
+					this.historyStatus,
+					this.historyDateFrom,
+					this.historyDateTo,
+				),
+			);
+		},
+		historyRepairCandidateCount() {
+			return this.filterCollection(
+				this.historyInvoices.filter((invoice) => !invoice.is_return && this.isRepairCandidate(invoice)),
+				this.historySearch,
+				this.historyStatus,
+				this.historyDateFrom,
+				this.historyDateTo,
+			).length;
+		},
 		filteredDraftInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.draftInvoices, this.draftSearch, "All", this.draftDateFrom, this.draftDateTo)); },
 		filteredReturnInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.historyInvoices.filter((d) => d.is_return), this.returnSearch, "All", this.returnDateFrom, this.returnDateTo)); },
 		filteredUnpaidSummary() {
@@ -1549,6 +1585,11 @@ export default {
 .summary-tile--warning-strong { background: linear-gradient(145deg, rgba(255, 247, 237, 0.98), rgba(254, 215, 170, 0.9)); }
 .summary-tile--danger { background: linear-gradient(145deg, rgba(254, 242, 242, 0.98), rgba(254, 202, 202, 0.88)); }
 
+.history-repair-toggle {
+	min-height: 40px;
+	justify-content: space-between;
+}
+
 .summary-tile__label {
 	font-size: 0.76rem;
 	font-weight: 700;
@@ -1575,6 +1616,20 @@ export default {
 	border-color: rgba(100, 116, 139, 0.38);
 	background: linear-gradient(145deg, rgba(36, 43, 51, 0.98), rgba(26, 32, 40, 0.94));
 	box-shadow: 0 18px 44px rgba(2, 6, 23, 0.34);
+}
+
+.invoice-management-card--dark .summary-tile__label {
+	color: rgba(226, 232, 240, 0.88);
+	opacity: 1;
+}
+
+.invoice-management-card--dark .summary-tile__value {
+	color: rgb(248, 250, 252);
+}
+
+.invoice-management-card--dark .summary-tile__meta {
+	color: rgba(226, 232, 240, 0.78);
+	opacity: 1;
 }
 
 .invoice-management-card--dark .summary-tile--history {
