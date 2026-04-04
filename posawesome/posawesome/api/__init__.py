@@ -43,6 +43,10 @@ from .payments import (
     create_payment_request,
     get_available_credit,
 )
+from .stored_value import (
+    get_available_stored_value,
+    get_stored_value_summary,
+)
 from .sales_orders import (
     search_orders,
     submit_sales_order,

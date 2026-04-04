@@ -26,7 +26,14 @@ export async function fetch_customer_details(context: any) {
 
 		const r = await frappe.call({
 			method: "posawesome.posawesome.api.customers.get_customer_info",
-			args: { customer },
+			args: {
+				customer,
+				company:
+					context?.pos_profile?.company ||
+					context?.company?.name ||
+					context?.company ||
+					null,
+			},
 		});
 
 		if (

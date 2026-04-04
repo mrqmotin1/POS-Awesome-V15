@@ -351,7 +351,10 @@ export function usePosPayData({
 		try {
 			const r = await frappe.call({
 				method: "posawesome.posawesome.api.customers.get_customer_info",
-				args: { customer },
+				args: {
+					customer,
+					company: company.value || null,
+				},
 			});
 			if (r.message && !r.exc) {
 				customer_info.value = { ...r.message };

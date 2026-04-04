@@ -50,7 +50,7 @@
 							:model-value="redeemCustomerCredit"
 							color="primary"
 							flat
-							:label="$frappe._('Use Customer Credit')"
+							:label="$frappe._('Use Stored Value')"
 							class="my-0 pa-1"
 							@update:model-value="handleRedeemCustomerCreditUpdate"
 						></v-switch>
@@ -118,8 +118,8 @@
 				</div>
 
 				<div v-else-if="redeemCustomerCredit" class="payment-options-panel__note">
-					<h4>{{ $frappe._("Customer Credit Ready") }}</h4>
-					<p>{{ $frappe._("Available balance") }}: {{ formatCurrency(availableCustomerCredit) }}</p>
+					<h4>{{ $frappe._("Stored Value Ready") }}</h4>
+					<p>{{ $frappe._("Available stored value") }}: {{ formatCurrency(availableCustomerCredit) }}</p>
 					<p>{{ $frappe._("Applied now") }}: {{ formatCurrency(redeemedCustomerCredit) }}</p>
 					<p>{{ customerCreditSources }} {{ $frappe._("source(s) will be used in order.") }}</p>
 				</div>

@@ -28,3 +28,6 @@
 - Reworked parked-order UX around `Drafts`: the visible copy now uses ERPNext-style drafts terminology instead of parked orders, while the store-backed draft cache and resume flow stay unchanged.
 - Moved the inline draft list out of the invoice summary flow by introducing a compact recent-drafts surface plus a reusable full drafts list component for secondary surfaces.
 - Added responsive placement for drafts: desktop now uses a right-side drawer, while non-desktop layouts use a secondary dialog surface, and verified the relocation with focused frontend regression tests plus `vue-tsc`.
+- Completed the missing Phase 2 stored-value slice without adding a parallel wallet system: added a dedicated `stored_value` API wrapper over the existing customer-credit engine, exposed stored-value summary fields in customer info responses, and kept redemption sourcing on the proven credit/cashback path.
+- Added a compact customer insights surface so the selected customer now shows stored-value balance and loyalty points inline, and updated payment redemption copy to use `stored value` terminology consistently across summary and source-allocation views.
+- Verified the new Phase 2 stored-value slice with targeted frontend Vitest coverage and a dedicated backend Python test, while leaving manual release-gate walkthroughs as a separate operational check.
