@@ -14,3 +14,5 @@
 - Added a backend employee-list endpoint based on existing `POS Profile User` membership and verified it with a standalone Python test plus targeted frontend specs.
 - Extended Phase 2 with PIN-gated cashier switching/unlocking: the dialog now verifies the selected cashier against `POS Profile User` membership and a new POS PIN field on `User` before applying the switch.
 - Added repo fixtures for `User-posa_pos_pin` and `User-posa_is_pos_supervisor`, updated hooks so they ship with the app, and verified the flow with new frontend and backend tests plus `vue-tsc`.
+- Added a stored-value UX slice on top of the existing customer-credit engine: payment options and redemption copy now surface `stored value` terminology, available/applied balance, and source counts instead of a hidden legacy credit flow.
+- Tightened redemption behavior so manual source edits are automatically capped by both source balance and remaining invoice amount after loyalty, preventing over-redemption errors from surfacing only at submit time.

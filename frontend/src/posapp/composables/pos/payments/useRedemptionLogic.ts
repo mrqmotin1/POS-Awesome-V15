@@ -49,6 +49,17 @@ export function useRedemptionLogic(options: RedemptionLogicOptions) {
 		return amount;
 	});
 
+	const getMaxRedeemableCustomerCredit = () => {
+		const doc = unref(invoiceDoc);
+		if (!doc) {
+			return 0;
+		}
+
+		const invoiceTotal = normalizeFloat(doc.rounded_total || doc.grand_total || 0);
+		const loyaltyCovered = normalizeFloat(unref(loyalty_amount) || 0);
+		return Math.max(normalizeFloat(invoiceTotal - loyaltyCovered), 0);
+	};
+
 	// Get available customer credit
 	const get_available_credit = (use_credit: boolean) => {
 		if (options.onClearAmounts) {
@@ -106,8 +117,30 @@ export function useRedemptionLogic(options: RedemptionLogicOptions) {
 		return parser(value, prec);
 	};
 
+	const normalizeCustomerCreditAllocations = () => {
+		const rows = Array.isArray(customer_credit_dict.value) ? customer_credit_dict.value : [];
+		let remainingAllowed = getMaxRedeemableCustomerCredit();
+
+		rows.forEach((row: any) => {
+			const available = Math.max(normalizeFloat(row?.total_credit || 0), 0);
+			const requested = Math.max(normalizeFloat(row?.credit_to_redeem || 0), 0);
+			const allowed = Math.min(requested, available, Math.max(remainingAllowed, 0));
+			row.credit_to_redeem = normalizeFloat(allowed);
+			remainingAllowed = normalizeFloat(Math.max(remainingAllowed - row.credit_to_redeem, 0));
+		});
+
+		const total = rows.reduce(
+			(sum, row) => sum + normalizeFloat(row?.credit_to_redeem || 0),
+			0,
+		);
+		redeemed_customer_credit.value = normalizeFloat(total);
+	};
+
 	watch(redeemed_customer_credit, (newVal) => {
-		const limit = unref(available_customer_credit);
+		const limit = Math.min(
+			unref(available_customer_credit),
+			getMaxRedeemableCustomerCredit(),
+		);
 		if (normalizeFloat(newVal) > normalizeFloat(limit)) {
 			redeemed_customer_credit.value = limit;
 			if (stores?.toastStore) {
@@ -121,15 +154,15 @@ export function useRedemptionLogic(options: RedemptionLogicOptions) {
 
 	watch(
 		customer_credit_dict,
-		(newVal) => {
-			const total = newVal.reduce(
-				(sum, row) => sum + normalizeFloat(row.credit_to_redeem || 0),
-				0,
-			);
-			redeemed_customer_credit.value = normalizeFloat(total);
+		() => {
+			normalizeCustomerCreditAllocations();
 		},
 		{ deep: true },
 	);
+
+	watch(loyalty_amount, () => {
+		normalizeCustomerCreditAllocations();
+	});
 
 	// Kept for backward compatibility with previous interface.
 	const get_loyalty_points = () => {
