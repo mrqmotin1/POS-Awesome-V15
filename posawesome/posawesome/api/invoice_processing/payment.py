@@ -248,6 +248,21 @@ def _create_change_payment_entries(
         change_payment_entry.set_missing_values()
         change_payment_entry.set_amounts()
 
+        if not source_receive_payment_entry and invoice_doc.get("name"):
+            change_payment_entry.append(
+                "references",
+                {
+                    "reference_doctype": invoice_doc.get("doctype") or "Sales Invoice",
+                    "reference_name": invoice_doc.get("name"),
+                    "total_amount": paid_change_amount,
+                    "outstanding_amount": paid_change_amount,
+                    "allocated_amount": paid_change_amount,
+                },
+            )
+            change_payment_entry.total_allocated_amount = paid_change_amount
+            change_payment_entry.unallocated_amount = 0
+            change_payment_entry.difference_amount = 0
+
         change_payment_entry.flags.ignore_permissions = True
         frappe.flags.ignore_account_permission = True
         change_payment_entry.save()

@@ -179,7 +179,7 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
         self.created_entries.clear()
         self.reconcile_calls.clear()
 
-    def test_paid_change_entry_is_created_without_invoice_allocation(self):
+    def test_paid_change_entry_is_allocated_back_to_invoice_when_no_receive_entry_exists(self):
         invoice_doc = FakeInvoiceDoc(
             docstatus=1,
             doctype="Sales Invoice",
@@ -211,7 +211,21 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
         self.assertEqual(entry.payment_type, "Pay")
         self.assertEqual(entry.paid_amount, 4)
         self.assertEqual(entry.received_amount, 4)
-        self.assertEqual(entry.references, [])
+        self.assertEqual(
+            entry.references,
+            [
+                {
+                    "reference_doctype": "Sales Invoice",
+                    "reference_name": "SINV-0001",
+                    "total_amount": 4,
+                    "outstanding_amount": 4,
+                    "allocated_amount": 4,
+                }
+            ],
+        )
+        self.assertEqual(entry.total_allocated_amount, 4)
+        self.assertEqual(entry.unallocated_amount, 0)
+        self.assertEqual(entry.difference_amount, 0)
 
     def test_paid_change_entry_reconciles_against_source_receive_payment_entry(self):
         invoice_doc = FakeInvoiceDoc(
