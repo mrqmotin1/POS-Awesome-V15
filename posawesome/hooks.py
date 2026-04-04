@@ -346,6 +346,8 @@ fixtures = [
                     "POS Settings-posa_dashboard_low_stock_alert_threshold",
                     "POS Invoice-posa_return_valid_upto",
                     "Sales Invoice-posa_return_valid_upto",
+                    "User-posa_pos_pin",
+                    "User-posa_is_pos_supervisor",
                 ),
             ]
         ],
