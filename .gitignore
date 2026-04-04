@@ -28,4 +28,7 @@ frontend/.env.local
 frontend/.env.*.local
 frontend/playwright/.auth/
 __reference_erpnext/
+<<<<<<< HEAD
 .claude/settings.local.json
+=======
+>>>>>>> f9771aec (add parked orders rail and faster payment quick actions)

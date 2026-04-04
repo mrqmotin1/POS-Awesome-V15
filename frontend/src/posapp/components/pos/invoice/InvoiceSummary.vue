@@ -86,6 +86,15 @@
 			</v-col>
 
 			<v-col cols="12" :md="useCompactSaleDock ? 12 : 5" class="invoice-summary-actions">
+				<ParkedOrdersRail
+					v-if="visibleParkedOrders.length"
+					:parked-orders="visibleParkedOrders"
+					:format-currency="formatCurrency"
+					:currency-symbol="currencySymbol"
+					@resume="handleResumeParkedOrder"
+					@view-all="handleLoadDrafts"
+					class="mb-3"
+				/>
 				<InvoiceActionButtons
 					:pos_profile="pos_profile"
 					:saveLoading="saveLoading"

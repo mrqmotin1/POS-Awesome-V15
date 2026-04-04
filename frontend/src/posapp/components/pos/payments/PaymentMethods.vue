@@ -268,6 +268,18 @@ const handlePrimaryAction = (payment) => {
 	background-color: rgba(var(--v-theme-success), 0.9) !important;
 }
 
+.payment-method-action-btn--quick-secondary {
+	background: rgba(var(--v-theme-primary), 0.12) !important;
+	color: rgb(var(--v-theme-primary)) !important;
+}
+
+.payment-method-action-btn--quick-secondary:hover,
+.payment-method-action-btn--quick-secondary:focus,
+.payment-method-action-btn--quick-secondary:focus-visible,
+.payment-method-action-btn--quick-secondary:active {
+	background-color: rgba(var(--v-theme-primary), 0.18) !important;
+}
+
 .payment-method-action-btn--secondary {
 	background: rgba(var(--v-theme-success), 0.14) !important;
 	color: rgb(var(--v-theme-success)) !important;
