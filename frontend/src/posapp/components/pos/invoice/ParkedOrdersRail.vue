@@ -238,6 +238,22 @@ const formatDraftAge = (draft) => {
 	gap: 6px 10px;
 	font-size: 0.8rem;
 	color: var(--pos-text-secondary);
+.drafts-rail__strip {
+	display: flex;
+	gap: 10px;
+	overflow-x: auto;
+	padding-bottom: 4px;
+	scrollbar-width: thin;
+}
+
+.drafts-rail__chip-card {
+	min-width: 180px;
+	max-width: 220px;
+}
+
+.drafts-rail__chip-meta {
+	font-size: 0.8rem;
+	color: var(--pos-text-secondary);
 }
 
 .drafts-rail__status {
