@@ -6,7 +6,10 @@ vi.mock("../src/posapp/utils/draftInvoices", () => ({
 	fetchDraftInvoices: (...args: unknown[]) => fetchDraftInvoicesMock(...args),
 }));
 
-import { get_draft_invoices } from "../src/posapp/components/pos/invoice_utils/dialogs";
+import {
+	get_draft_invoices,
+	open_invoice_management,
+} from "../src/posapp/components/pos/invoice_utils/dialogs";
 
 describe("get_draft_invoices", () => {
 	beforeEach(() => {
@@ -73,5 +76,19 @@ describe("get_draft_invoices", () => {
 		expect(context.uiStore.setParkedOrders).toHaveBeenCalledWith([]);
 		expect(context.uiStore.closeDrafts).toHaveBeenCalled();
 		expect(context.$refs.invoiceSummary.openDraftsSurface).not.toHaveBeenCalled();
+	});
+});
+
+describe("open_invoice_management", () => {
+	it("forwards the requested target tab to invoice management", () => {
+		const context = {
+			uiStore: {
+				openInvoiceManagement: vi.fn(),
+			},
+		};
+
+		open_invoice_management(context, "drafts");
+
+		expect(context.uiStore.openInvoiceManagement).toHaveBeenCalledWith("drafts");
 	});
 });

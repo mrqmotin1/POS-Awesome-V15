@@ -205,8 +205,8 @@ export function open_returns(context: any) {
 	context.eventBus.emit("open_returns", context.pos_profile.company);
 }
 
-export function open_invoice_management(context: any) {
-	context.uiStore?.openInvoiceManagement?.();
+export function open_invoice_management(context: any, targetTab: string = "history") {
+	context.uiStore?.openInvoiceManagement?.(targetTab);
 }
 
 export function close_payments(context: any) {

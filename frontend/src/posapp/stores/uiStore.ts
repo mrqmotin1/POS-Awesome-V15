@@ -17,6 +17,7 @@ export const useUIStore = defineStore("ui", () => {
   const paymentDialogOpen = ref(false);
 
   const invoiceManagementDialog = ref(false);
+  const invoiceManagementTargetTab = ref<string>("history");
   const draftsDialog = ref(false);
   const draftsData = ref<any[]>([]);
   const parkedOrders = ref<any[]>([]);
@@ -36,12 +37,14 @@ export const useUIStore = defineStore("ui", () => {
     paymentDialogOpen.value = false;
   };
 
-  const openInvoiceManagement = () => {
+  const openInvoiceManagement = (targetTab: string = "history") => {
+    invoiceManagementTargetTab.value = targetTab || "history";
     invoiceManagementDialog.value = true;
   };
 
   const closeInvoiceManagement = () => {
     invoiceManagementDialog.value = false;
+    invoiceManagementTargetTab.value = "history";
   };
 
   const paymentRouteTarget = ref<any | null>(null);
@@ -240,6 +243,7 @@ export const useUIStore = defineStore("ui", () => {
     activeView,
     paymentDialogOpen,
     invoiceManagementDialog,
+    invoiceManagementTargetTab,
     paymentRouteTarget,
     setActiveView,
     openPaymentDialog,

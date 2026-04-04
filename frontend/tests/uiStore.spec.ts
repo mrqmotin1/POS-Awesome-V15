@@ -45,4 +45,13 @@ describe("uiStore parked orders", () => {
 		expect(store.draftsData).toEqual(drafts);
 		expect(store.parkedOrders).toEqual([]);
 	});
+
+	it("can open invoice management directly on the drafts tab", () => {
+		const store = useUIStore();
+
+		store.openInvoiceManagement("drafts");
+
+		expect(store.invoiceManagementDialog).toBe(true);
+		expect(store.invoiceManagementTargetTab).toBe("drafts");
+	});
 });

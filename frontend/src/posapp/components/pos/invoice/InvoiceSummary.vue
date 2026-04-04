@@ -127,7 +127,7 @@
 				:currency-symbol="currencySymbol"
 				:show-manage-all="true"
 				@resume="handleResumeDraft"
-				@manage-all="handleLoadDrafts"
+				@manage-all="handleManageAllDrafts"
 			/>
 		</div>
 	</v-navigation-drawer>
@@ -153,7 +153,7 @@
 					:currency-symbol="currencySymbol"
 					:show-manage-all="true"
 					@resume="handleResumeDraft"
-					@manage-all="handleLoadDrafts"
+					@manage-all="handleManageAllDrafts"
 				/>
 			</v-card-text>
 		</v-card>
@@ -374,6 +374,12 @@ async function handleOpenInvoiceManagement() {
 	}
 }
 
+function handleManageAllDrafts() {
+	desktopDraftsDrawer.value = false;
+	mobileDraftsDialog.value = false;
+	emit("open-invoice-management", "drafts");
+}
+
 async function handleOpenReturns() {
 	returnsLoading.value = true;
 	try {
@@ -418,6 +424,7 @@ function handleResumeDraft(draft) {
 
 defineExpose({
 	focusAdditionalDiscountField,
+	handleManageAllDrafts,
 	openDraftsSurface,
 });
 </script>
