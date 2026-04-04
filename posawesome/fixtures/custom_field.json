@@ -7951,5 +7951,24 @@
 		"collapsible": 1,
 		"insert_after": "posa_print_format_rules",
 		"name": "POS Profile-posa_section_cash_movement"
+	},
+	{
+		"doctype": "Custom Field",
+		"dt": "User",
+		"fieldname": "posa_pos_pin",
+		"fieldtype": "Data",
+		"label": "POS PIN",
+		"insert_after": "time_zone",
+		"name": "User-posa_pos_pin"
+	},
+	{
+		"doctype": "Custom Field",
+		"dt": "User",
+		"fieldname": "posa_is_pos_supervisor",
+		"fieldtype": "Check",
+		"label": "POS Supervisor",
+		"default": "0",
+		"insert_after": "posa_pos_pin",
+		"name": "User-posa_is_pos_supervisor"
 	}
 ]

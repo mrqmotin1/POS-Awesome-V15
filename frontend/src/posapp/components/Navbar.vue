@@ -3,6 +3,7 @@
 		<!-- Use the modular NavbarAppBar component -->
 		<NavbarAppBar
 			:pos-profile="posProfile"
+			:cashier-name="currentCashierDisplay"
 			:pending-invoices="pendingInvoices"
 			:loading-progress="loadingProgress"
 			:loading-active="loadingActive"
@@ -10,6 +11,7 @@
 			@nav-click="handleNavClick"
 			@go-desk="goDesk"
 			@show-offline-invoices="showOfflineInvoices = true"
+			@open-employee-switch="openEmployeeSwitch"
 		>
 			<!-- Slot for status indicator -->
 			<template #status-indicator>
@@ -55,11 +57,14 @@
 			<template #menu>
 				<NavbarMenu
 					:pos-profile="posProfile"
+					:cashier-name="currentCashierDisplay"
 					:manual-offline="manualOffline"
 					:network-online="networkOnline"
 					:server-online="serverOnline"
 					@close-shift="openCloseShift"
 					@sync-invoices="syncPendingInvoices"
+					@open-employee-switch="openEmployeeSwitch"
+					@lock-pos="lockPosScreen"
 					@open-customer-display="$emit('open-customer-display')"
 					@toggle-offline="toggleManualOffline"
 					@clear-cache="clearCache"
@@ -82,6 +87,7 @@
 
 		<!-- Use the modular AboutDialog component -->
 		<AboutDialog v-model="showAboutDialog" />
+		<EmployeeSwitchDialog />
 
 		<!-- Keep existing dialogs -->
 		<v-dialog v-model="isFrozen" persistent max-width="290">
@@ -135,6 +141,7 @@ import StatusIndicator from "./navbar/StatusIndicator.vue";
 import CacheUsageMeter from "./navbar/CacheUsageMeter.vue";
 import AboutDialog from "./navbar/AboutDialog.vue";
 import OfflineInvoices from "./OfflineInvoices.vue";
+import EmployeeSwitchDialog from "./pos/employee/EmployeeSwitchDialog.vue";
 import posLogo from "./pos/pos.png";
 import { forceClearAllCache } from "../../offline/index";
 import { clearAllCaches } from "../../utils/clearAllCaches";
@@ -146,6 +153,7 @@ const DatabaseUsageGadget = defineAsyncComponent(() => import("./navbar/Database
 
 import { useToastStore } from "../stores/toastStore.js";
 import { useUIStore } from "../stores/uiStore.js";
+import { useEmployeeStore } from "../stores/employeeStore";
 import { storeToRefs } from "pinia";
 
 export default {
@@ -154,9 +162,11 @@ export default {
 		const { isRtl, rtlStyles, rtlClasses } = useRtl();
 		const toastStore = useToastStore();
 		const uiStore = useUIStore();
+		const employeeStore = useEmployeeStore();
 		// Extract reactive refs
 		const { visible, text, color, timeout, loading: toastLoading, history, unreadCount } = storeToRefs(toastStore);
 		const { isFrozen, freezeTitle, freezeMessage } = storeToRefs(uiStore);
+		const { currentCashierDisplay } = storeToRefs(employeeStore);
 
 		return {
 			isRtl,
@@ -174,6 +184,8 @@ export default {
 			isFrozen,
 			freezeTitle,
 			freezeMessage,
+			employeeStore,
+			currentCashierDisplay,
 		};
 	},
 	components: {
@@ -184,6 +196,7 @@ export default {
 		StatusIndicator,
 		CacheUsageMeter,
 		AboutDialog,
+		EmployeeSwitchDialog,
 		OfflineInvoicesDialog: OfflineInvoices,
 		ServerUsageGadget,
 		DatabaseUsageGadget,
@@ -250,6 +263,8 @@ export default {
 			showOfflineInvoices: false,
 			lastSyncTotalsSnapshot: { pending: 0, synced: 0, drafted: 0 },
 			syncNotificationPrimed: false,
+			employeeSwitchHandler: null,
+			lockPosHandler: null,
 		};
 	},
 	watch: {
@@ -268,6 +283,7 @@ export default {
 		posProfile: {
 			handler() {
 				this.updateNavigationItems();
+				void this.fetchTerminalEmployees();
 			},
 			deep: true,
 			immediate: true,
@@ -301,6 +317,12 @@ export default {
 			this.eventBus.off("show_message");
 			this.eventBus.off("set_company", this.handleSetCompany);
 			this.eventBus.off("invoice_submission_failed", this.handleInvoiceSubmissionFailed);
+			if (this.employeeSwitchHandler) {
+				this.eventBus.off("open_employee_switch", this.employeeSwitchHandler);
+			}
+			if (this.lockPosHandler) {
+				this.eventBus.off("lock_pos_screen", this.lockPosHandler);
+			}
 		}
 	},
 	methods: {
@@ -335,6 +357,31 @@ export default {
 				});
 			}
 			this.items = items;
+		},
+		async fetchTerminalEmployees() {
+			if (!this.posProfile?.name) {
+				this.employeeStore.setTerminalEmployees([]);
+				return;
+			}
+
+			try {
+				const response = await frappe.call({
+					method: "posawesome.posawesome.api.employees.get_terminal_employees",
+					args: {
+						pos_profile: this.posProfile.name,
+					},
+				});
+				this.employeeStore.setTerminalEmployees(response?.message || []);
+			} catch (error) {
+				console.error("Failed to load terminal employees", error);
+				this.employeeStore.setTerminalEmployees([]);
+			}
+		},
+		openEmployeeSwitch() {
+			this.employeeStore.openEmployeeSwitch();
+		},
+		lockPosScreen() {
+			this.employeeStore.lockTerminal();
 		},
 
 		initializeNavbar() {
@@ -399,6 +446,10 @@ export default {
 			if (this.eventBus) {
 				this.eventBus.on("show_message", (data) => this.toastStore.show(data));
 				this.eventBus.on("invoice_submission_failed", this.handleInvoiceSubmissionFailed);
+				this.employeeSwitchHandler = () => this.openEmployeeSwitch();
+				this.lockPosHandler = () => this.lockPosScreen();
+				this.eventBus.on("open_employee_switch", this.employeeSwitchHandler);
+				this.eventBus.on("lock_pos_screen", this.lockPosHandler);
 			}
 		},
 		handleNavClick() {

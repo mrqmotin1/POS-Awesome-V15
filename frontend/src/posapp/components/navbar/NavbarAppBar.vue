@@ -126,6 +126,29 @@
 
 				<div :class="['profile-section', isRtl ? 'rtl-profile-section' : 'ltr-profile-section']">
 					<v-chip
+						v-if="cashierName"
+						variant="outlined"
+						:class="[
+							'profile-chip cashier-chip pos-themed-card',
+							isRtl ? 'rtl-profile-chip' : 'ltr-profile-chip',
+						]"
+						tabindex="0"
+						role="button"
+						@click="$emit('open-employee-switch')"
+						@keydown.enter="$emit('open-employee-switch')"
+					>
+						<v-icon
+							:start="!isRtl"
+							:end="isRtl"
+							:class="['pos-text-primary', isRtl ? 'rtl-profile-icon' : 'ltr-profile-icon']"
+						>
+							mdi-account-switch-outline
+						</v-icon>
+						<span :class="['pos-text-primary', isRtl ? 'rtl-profile-text' : 'ltr-profile-text']">
+							{{ cashierName }}
+						</span>
+					</v-chip>
+					<v-chip
 						variant="outlined"
 						:class="[
 							'profile-chip pos-themed-card',
@@ -273,6 +296,10 @@ export default {
 			type: String,
 			default: "Loading app data...",
 		},
+		cashierName: {
+			type: String,
+			default: "",
+		},
 	},
 	computed: {
 		appBarColor() {
@@ -343,7 +370,7 @@ export default {
 			}
 		},
 	},
-	emits: ["nav-click", "go-desk", "show-offline-invoices"],
+	emits: ["nav-click", "go-desk", "show-offline-invoices", "open-employee-switch"],
 };
 </script>
 
