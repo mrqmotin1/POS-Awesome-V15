@@ -16,6 +16,7 @@ vi.mock("../src/posapp/composables/core/useResponsive", () => ({
 }));
 
 import InvoiceSummary from "../src/posapp/components/pos/invoice/InvoiceSummary.vue";
+import ParkedOrdersRail from "../src/posapp/components/pos/invoice/ParkedOrdersRail.vue";
 import { useUIStore } from "../src/posapp/stores/uiStore";
 
 const BoxStub = defineComponent({
@@ -100,10 +101,9 @@ describe("InvoiceSummary drafts placement", () => {
 		const setupState = (wrapper.vm as any).$?.setupState || {};
 
 		expect(Boolean(setupState.showDesktopDrafts?.value ?? setupState.showDesktopDrafts)).toBe(true);
-		expect((setupState.visibleDrafts?.value ?? setupState.visibleDrafts)?.length).toBe(1);
-		expect((setupState.visibleDrafts?.value ?? setupState.visibleDrafts)?.[0]?.name).toBe(
-			"ACC-SINV-0001",
-		);
+		expect((setupState.allDrafts?.value ?? setupState.allDrafts)?.length).toBe(2);
+		expect(wrapper.findComponent(ParkedOrdersRail).exists()).toBe(false);
+		expect(wrapper.find('[data-test="parked-orders-view-all"]').exists()).toBe(false);
 		expect(wrapper.find('[data-test="mobile-drafts-dialog"]').exists()).toBe(false);
 	});
 });

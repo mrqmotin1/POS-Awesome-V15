@@ -86,17 +86,6 @@
 			</v-col>
 
 			<v-col cols="12" :md="useCompactSaleDock ? 12 : 5" class="invoice-summary-actions">
-				<ParkedOrdersRail
-					v-if="visibleDrafts.length"
-					:parked-orders="visibleDrafts"
-					:format-currency="formatCurrency"
-					:currency-symbol="currencySymbol"
-					:layout="showDesktopDrafts ? 'desktop' : 'mobile'"
-					:total-count="draftsCount"
-					@resume="handleResumeDraft"
-					@view-all="openDraftsSurface"
-					class="mb-3"
-				/>
 				<InvoiceActionButtons
 					:pos_profile="pos_profile"
 					:saveLoading="saveLoading"
@@ -179,7 +168,6 @@ import { useResponsive } from "../../../composables/core/useResponsive";
 import { useUIStore } from "../../../stores/uiStore";
 import InvoiceActionButtons from "./InvoiceActionButtons.vue";
 import ParkedOrdersList from "./ParkedOrdersList.vue";
-import ParkedOrdersRail from "./ParkedOrdersRail.vue";
 
 defineOptions({
 	name: "InvoiceSummary",
@@ -251,10 +239,6 @@ const showReturnDiscountAlert = computed(
 		!isFullReturnDiscount(props.return_discount_meta?.ratio),
 );
 const allDrafts = computed(() => (Array.isArray(parkedOrders.value) ? parkedOrders.value : []));
-const draftsCount = computed(() => allDrafts.value.length);
-const visibleDrafts = computed(() =>
-	showDesktopDrafts.value ? allDrafts.value.slice(0, 1) : allDrafts.value.slice(0, 4),
-);
 
 const hide_qty_decimals = computed(() => {
 	const opts = loadItemSelectorSettings();
