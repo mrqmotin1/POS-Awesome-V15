@@ -19,3 +19,6 @@
 - Polished shared-terminal UX: cashier PIN inputs now support show/hide, invalid PIN messages are surfaced in a stronger alert state, and the dialog now includes setup guidance for assigning POS Profile users and User PINs.
 - Cleaned up navbar identity affordances so desktop shows a single actionable cashier chip with terminal context instead of duplicate user chips, and mobile menu profile info is styled as static terminal status rather than a dead action.
 - Updated `User-posa_pos_pin` to a `Password` custom field so the Desk form stores it as a masked password-style field with reveal support.
+- Added self-service cashier PIN management in the actions menu so the current cashier can create a first PIN or change an existing PIN without leaving the POS flow; backend APIs now expose PIN status and save/update behavior using the masked `User` password field.
+- Restricted Awesome Dashboard visibility to POS supervisors by removing the drawer item for non-supervisors and gating the reports view so non-supervisors see an access warning instead of loading dashboard data.
+- Fixed stale `.js` store imports in navbar-related components that surfaced during regression testing and added targeted frontend/backend regression tests for cashier PIN self-service, supervisor-only dashboard access, and wrong-current-PIN rejection.
