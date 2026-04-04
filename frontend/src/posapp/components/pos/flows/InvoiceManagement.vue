@@ -765,6 +765,17 @@
 			</v-card-text>
 			<v-card-actions>
 				<v-spacer />
+				<v-btn
+					v-if="selectedInvoiceDetail && isRepairCandidate(selectedInvoiceDetail)"
+					color="secondary"
+					variant="text"
+					prepend-icon="mdi-link-wrench"
+					:loading="repairChangeLoading"
+					:disabled="repairChangeLoading || isOffline()"
+					@click="repairChangeAllocation(selectedInvoiceDetail)"
+				>
+					{{ __("Repair Change Allocation") }}
+				</v-btn>
 				<v-btn v-if="selectedInvoiceDetail && Number(selectedInvoiceDetail.outstanding_amount || 0) > 0" color="warning" variant="text" prepend-icon="mdi-cash-plus" @click="openAddPayment(selectedInvoiceDetail)">{{ __("Add Payment") }}</v-btn>
 				<v-btn v-if="selectedInvoiceDetail" color="primary" variant="text" prepend-icon="mdi-printer-outline" @click="printInvoice(selectedInvoiceDetail)">{{ __("Print") }}</v-btn>
 			</v-card-actions>
@@ -854,6 +865,7 @@ export default {
 		unpaidInvoices: [],
 		historyInvoices: [],
 		draftInvoices: [],
+		repairChangeLoading: false,
 		detailDialog: false,
 		selectedInvoiceDetail: null,
 		partialStatusItems: ["All", "Partly Paid", "Unpaid", "Overdue"],
@@ -1117,6 +1129,61 @@ export default {
 			const grandTotal = Number(invoice?.grand_total || 0);
 			if (!grandTotal) return 0;
 			return Math.max(0, Math.min(100, (Number(invoice?.paid_amount || 0) / grandTotal) * 100));
+		},
+		isRepairCandidate(invoice) {
+			return Boolean(
+				invoice
+				&& !Number(invoice?.is_return || 0)
+				&& Number(invoice?.change_amount || 0) > 0
+				&& Number(invoice?.outstanding_amount || 0) < 0,
+			);
+		},
+		async runRepairChangeAllocation(invoice, dryRun = true) {
+			const response = await frappe.call({
+				method: "posawesome.posawesome.api.payments.repair_overpayment_change_allocations",
+				args: {
+					invoice_names: [invoice.name],
+					company: this.posProfile?.company || invoice.company || null,
+					dry_run: dryRun ? 1 : 0,
+				},
+				freeze: !dryRun,
+				freeze_message: dryRun ? undefined : __("Repairing change allocation"),
+			});
+			return response?.message || {};
+		},
+		async repairChangeAllocation(invoice) {
+			if (!this.isRepairCandidate(invoice)) {
+				this.toastStore.show({ title: __("This invoice does not need change-allocation repair"), color: "info" });
+				return;
+			}
+			if (isOffline()) {
+				this.toastStore.show({ title: __("Repair requires an online connection"), color: "warning" });
+				return;
+			}
+
+			this.repairChangeLoading = true;
+			try {
+				const preview = await this.runRepairChangeAllocation(invoice, true);
+				if (!Array.isArray(preview?.matched) || preview.matched.length !== 1 || (preview?.skipped || []).length) {
+					this.toastStore.show({ title: __("No exact repair match found for this invoice"), color: "warning" });
+					return;
+				}
+
+				const result = await this.runRepairChangeAllocation(invoice, false);
+				if (!Array.isArray(result?.repaired) || !result.repaired.length) {
+					this.toastStore.show({ title: __("Unable to repair change allocation"), color: "error" });
+					return;
+				}
+
+				await this.viewInvoice(invoice);
+				await this.refreshAll();
+				this.toastStore.show({ title: __("Change allocation repaired"), color: "success" });
+			} catch (error) {
+				console.error("Error repairing change allocation:", error);
+				this.toastStore.show({ title: __("Unable to repair change allocation"), color: "error" });
+			} finally {
+				this.repairChangeLoading = false;
+			}
 		},
 		draftItemCount(invoice) {
 			if (Array.isArray(invoice?.items)) return invoice.items.length;

@@ -8,6 +8,7 @@ import frappe
 from frappe.utils import nowdate, flt
 from frappe import _
 from erpnext.accounts.party import get_party_bank_account
+from erpnext.accounts.utils import reconcile_against_document
 from erpnext.accounts.doctype.payment_request.payment_request import (
     get_dummy_message,
     get_existing_payment_request_amount,
@@ -452,3 +453,271 @@ def get_available_credit(customer, company):
         total_credit.append(row)
 
     return total_credit
+
+
+def _coerce_text_list(value):
+    if not value:
+        return []
+
+    parsed_value = value
+    if isinstance(value, str):
+        stripped_value = value.strip()
+        if not stripped_value:
+            return []
+
+        if stripped_value.startswith("["):
+            parsed_value = json.loads(stripped_value)
+        else:
+            return [row.strip() for row in stripped_value.split(",") if row.strip()]
+
+    if isinstance(parsed_value, (list, tuple, set)):
+        return [str(row).strip() for row in parsed_value if str(row).strip()]
+
+    frappe.throw(_("Expected a list of names"))
+
+
+def _coerce_bool_flag(value, default=False):
+    if value is None:
+        return default
+
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, (int, float)):
+        return bool(value)
+
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off"}:
+            return False
+
+    return default
+
+
+def _row_value(row, fieldname, default=None):
+    if hasattr(row, "get"):
+        value = row.get(fieldname, default)
+        if value is not None:
+            return value
+    return getattr(row, fieldname, default)
+
+
+@frappe.whitelist()
+def repair_overpayment_change_allocations(
+    invoice_names=None,
+    company=None,
+    customer=None,
+    posting_date=None,
+    dry_run=1,
+    limit=100,
+):
+    """Repair historical POS invoices where change Pay entries were left unallocated.
+
+    The helper only touches a narrow pattern:
+    - submitted POS Sales Invoice
+    - negative outstanding amount
+    - non-return invoice
+    - positive change amount matching the negative outstanding
+    - exactly one submitted Customer/Pay Payment Entry candidate with no references
+
+    Ambiguous rows are reported and skipped instead of guessed.
+    """
+
+    invoice_names = set(_coerce_text_list(invoice_names))
+    dry_run = _coerce_bool_flag(dry_run, default=True)
+    try:
+        limit = max(1, min(int(limit or 100), 500))
+    except Exception:
+        limit = 100
+
+    invoice_filters = {
+        "docstatus": 1,
+        "is_pos": 1,
+        "is_return": 0,
+        "outstanding_amount": ["<", 0],
+    }
+    if company:
+        invoice_filters["company"] = company
+    if customer:
+        invoice_filters["customer"] = customer
+    if posting_date:
+        invoice_filters["posting_date"] = posting_date
+
+    candidate_invoices = frappe.get_all(
+        "Sales Invoice",
+        filters=invoice_filters,
+        fields=[
+            "name",
+            "customer",
+            "company",
+            "posting_date",
+            "outstanding_amount",
+            "change_amount",
+            "base_change_amount",
+            "posa_pos_opening_shift",
+            "account_for_change_amount",
+        ],
+        order_by="posting_date asc, name asc",
+        limit_page_length=limit,
+    )
+
+    if invoice_names:
+        candidate_invoices = [
+            row for row in candidate_invoices if _row_value(row, "name") in invoice_names
+        ]
+
+    matched = []
+    repaired = []
+    skipped = []
+
+    for invoice in candidate_invoices:
+        invoice_name = _row_value(invoice, "name")
+        invoice_customer = _row_value(invoice, "customer")
+        invoice_company = _row_value(invoice, "company")
+        amount_to_allocate = abs(flt(_row_value(invoice, "outstanding_amount")))
+        change_amount = flt(
+            _row_value(invoice, "change_amount") or _row_value(invoice, "base_change_amount")
+        )
+
+        if amount_to_allocate <= 0:
+            skipped.append(
+                {
+                    "invoice": invoice_name,
+                    "reason": "no_negative_outstanding",
+                }
+            )
+            continue
+
+        if change_amount <= 0 or abs(change_amount - amount_to_allocate) > 0.01:
+            skipped.append(
+                {
+                    "invoice": invoice_name,
+                    "reason": "change_amount_mismatch",
+                    "outstanding_amount": amount_to_allocate,
+                    "change_amount": change_amount,
+                }
+            )
+            continue
+
+        payment_filters = {
+            "docstatus": 1,
+            "payment_type": "Pay",
+            "party_type": "Customer",
+            "party": invoice_customer,
+            "company": invoice_company,
+            "posting_date": _row_value(invoice, "posting_date"),
+            "unallocated_amount": [">", 0],
+        }
+        if _row_value(invoice, "posa_pos_opening_shift"):
+            payment_filters["reference_no"] = _row_value(invoice, "posa_pos_opening_shift")
+
+        payment_candidates = frappe.get_all(
+            "Payment Entry",
+            filters=payment_filters,
+            fields=[
+                "name",
+                "paid_amount",
+                "unallocated_amount",
+                "paid_from",
+                "reference_no",
+            ],
+            order_by="creation asc, name asc",
+        )
+
+        change_account = _row_value(invoice, "account_for_change_amount")
+        filtered_candidates = []
+        for payment in payment_candidates:
+            if change_account and _row_value(payment, "paid_from") != change_account:
+                continue
+
+            if abs(flt(_row_value(payment, "paid_amount")) - amount_to_allocate) > 0.01:
+                continue
+
+            if abs(flt(_row_value(payment, "unallocated_amount")) - amount_to_allocate) > 0.01:
+                continue
+
+            payment_doc = frappe.get_doc("Payment Entry", _row_value(payment, "name"))
+            existing_references = list(getattr(payment_doc, "references", []) or [])
+            if existing_references:
+                if any(
+                    _row_value(row, "reference_doctype") == "Sales Invoice"
+                    and _row_value(row, "reference_name") == invoice_name
+                    for row in existing_references
+                ):
+                    skipped.append(
+                        {
+                            "invoice": invoice_name,
+                            "payment_entry": _row_value(payment, "name"),
+                            "reason": "already_allocated",
+                        }
+                    )
+                continue
+
+            filtered_candidates.append(payment_doc)
+
+        if not filtered_candidates:
+            skipped.append(
+                {
+                    "invoice": invoice_name,
+                    "reason": "no_matching_payment_entry",
+                }
+            )
+            continue
+
+        if len(filtered_candidates) > 1:
+            skipped.append(
+                {
+                    "invoice": invoice_name,
+                    "reason": "ambiguous_payment_entries",
+                    "payment_entries": [_row_value(row, "name") for row in filtered_candidates],
+                }
+            )
+            continue
+
+        payment_doc = filtered_candidates[0]
+        match_summary = {
+            "invoice": invoice_name,
+            "payment_entry": _row_value(payment_doc, "name"),
+            "allocated_amount": amount_to_allocate,
+        }
+        matched.append(match_summary)
+
+        if dry_run:
+            continue
+
+        reconcile_against_document(
+            [
+                {
+                    "voucher_type": "Payment Entry",
+                    "voucher_no": _row_value(payment_doc, "name"),
+                    "voucher_detail_no": None,
+                    "against_voucher_type": "Sales Invoice",
+                    "against_voucher": invoice_name,
+                    "account": _row_value(payment_doc, "paid_from"),
+                    "party_type": "Customer",
+                    "party": invoice_customer,
+                    "dr_or_cr": "credit_in_account_currency",
+                    "unreconciled_amount": amount_to_allocate,
+                    "unadjusted_amount": amount_to_allocate,
+                    "allocated_amount": amount_to_allocate,
+                    "grand_total": amount_to_allocate,
+                    "outstanding_amount": amount_to_allocate,
+                    "exchange_rate": 1,
+                    "is_advance": 0,
+                    "difference_amount": 0,
+                    "cost_center": _row_value(payment_doc, "cost_center"),
+                }
+            ]
+        )
+
+        repaired.append(match_summary)
+
+    return {
+        "dry_run": dry_run,
+        "matched": matched,
+        "repaired": repaired,
+        "skipped": skipped,
+        "candidate_count": len(candidate_invoices),
+    }
