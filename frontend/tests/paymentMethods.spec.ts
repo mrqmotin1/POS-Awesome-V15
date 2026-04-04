@@ -101,12 +101,12 @@ describe("PaymentMethods", () => {
 		(window as any).__ = (value: string) => value;
 	});
 
-	it("renders cashier quick actions for full due and remaining amount", () => {
+	it("renders a single payment method action using the method label", () => {
 		const wrapper = mountMethods();
 
-		expect(wrapper.text()).toContain("Full Due");
-		expect(wrapper.text()).toContain("Remaining");
-		expect(wrapper.get('[data-test="payment-full-due-Cash"]').exists()).toBe(true);
-		expect(wrapper.get('[data-test="payment-remaining-Cash"]').exists()).toBe(true);
+		expect(wrapper.text()).toContain("Cash");
+		expect(wrapper.text()).not.toContain("Full Due");
+		expect(wrapper.text()).not.toContain("Remaining");
+		expect(wrapper.get('[data-test="payment-method-action-Cash"]').exists()).toBe(true);
 	});
 });

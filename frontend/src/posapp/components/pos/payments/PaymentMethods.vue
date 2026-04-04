@@ -35,20 +35,10 @@
 							color="primary"
 							variant="flat"
 							class="payment-method-action-btn"
-							:data-test="`payment-full-due-${payment.mode_of_payment}`"
-							@click="$emit('set-full-amount', payment)"
-						>
-							{{ __("Full Due") }}
-						</v-btn>
-						<v-btn
-							block
-							color="secondary"
-							variant="tonal"
-							class="payment-method-action-btn payment-method-action-btn--quick-secondary"
-							:data-test="`payment-remaining-${payment.mode_of_payment}`"
+							:data-test="`payment-method-action-${payment.mode_of_payment}`"
 							@click="$emit('set-rest-amount', payment)"
 						>
-							{{ __("Remaining") }}
+							{{ payment.mode_of_payment }}
 						</v-btn>
 					</div>
 				</v-col>
@@ -204,9 +194,7 @@ const __ = window.__;
 }
 
 .payment-method-actions {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: var(--pos-space-2);
+	display: block;
 }
 
 .payment-method-action-btn:hover,
@@ -238,18 +226,6 @@ const __ = window.__;
 .payment-method-action-btn--success:focus-visible,
 .payment-method-action-btn--success:active {
 	background-color: rgba(var(--v-theme-success), 0.9) !important;
-}
-
-.payment-method-action-btn--quick-secondary {
-	background: rgba(var(--v-theme-primary), 0.12) !important;
-	color: rgb(var(--v-theme-primary)) !important;
-}
-
-.payment-method-action-btn--quick-secondary:hover,
-.payment-method-action-btn--quick-secondary:focus,
-.payment-method-action-btn--quick-secondary:focus-visible,
-.payment-method-action-btn--quick-secondary:active {
-	background-color: rgba(var(--v-theme-primary), 0.18) !important;
 }
 
 .payment-method-action-btn--secondary {
