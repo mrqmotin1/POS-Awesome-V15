@@ -9,3 +9,19 @@
 - Started Phase 1 implementation by reusing the existing drafts flow as a parked-orders cache and adding a visible parked-orders rail in the invoice summary.
 - Added payment quick-action UI in the payments screen using existing `set_full_amount` and `set_rest_amount` flows instead of creating duplicate payment logic.
 - Added targeted frontend tests for parked-order state/rendering and payment quick-action rendering, then verified them along with `vue-tsc`.
+<<<<<<< HEAD
+=======
+- Started Phase 2 with a shared-terminal cashier switching slice: added a dedicated employee store, navbar switch/lock entry points, and a persistent employee switch dialog.
+- Converted invoice shortcut placeholders into real `F4` switch-cashier and `F8` lock-screen events, wired through the shared event bus and navbar shell.
+- Added a backend employee-list endpoint based on existing `POS Profile User` membership and verified it with a standalone Python test plus targeted frontend specs.
+- Extended Phase 2 with PIN-gated cashier switching/unlocking: the dialog now verifies the selected cashier against `POS Profile User` membership and a new POS PIN field on `User` before applying the switch.
+- Added repo fixtures for `User-posa_pos_pin` and `User-posa_is_pos_supervisor`, updated hooks so they ship with the app, and verified the flow with new frontend and backend tests plus `vue-tsc`.
+- Added a stored-value UX slice on top of the existing customer-credit engine: payment options and redemption copy now surface `stored value` terminology, available/applied balance, and source counts instead of a hidden legacy credit flow.
+- Tightened redemption behavior so manual source edits are automatically capped by both source balance and remaining invoice amount after loyalty, preventing over-redemption errors from surfacing only at submit time.
+- Polished shared-terminal UX: cashier PIN inputs now support show/hide, invalid PIN messages are surfaced in a stronger alert state, and the dialog now includes setup guidance for assigning POS Profile users and User PINs.
+- Cleaned up navbar identity affordances so desktop shows a single actionable cashier chip with terminal context instead of duplicate user chips, and mobile menu profile info is styled as static terminal status rather than a dead action.
+- Updated `User-posa_pos_pin` to a `Password` custom field so the Desk form stores it as a masked password-style field with reveal support.
+- Added self-service cashier PIN management in the actions menu so the current cashier can create a first PIN or change an existing PIN without leaving the POS flow; backend APIs now expose PIN status and save/update behavior using the masked `User` password field.
+- Restricted Awesome Dashboard visibility to POS supervisors by removing the drawer item for non-supervisors and gating the reports view so non-supervisors see an access warning instead of loading dashboard data.
+- Fixed stale `.js` store imports in navbar-related components that surfaced during regression testing and added targeted frontend/backend regression tests for cashier PIN self-service, supervisor-only dashboard access, and wrong-current-PIN rejection.
+>>>>>>> d166b719 (feat: add self-service cashier pin management and supervisor-only dashboard access)
