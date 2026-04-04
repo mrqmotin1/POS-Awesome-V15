@@ -25,3 +25,6 @@
 - Refactored the long navbar actions menu into a cashier-first flow: quick actions now sit on the first panel, while language/theme/terminal/system/session tools live inside a categorized settings panel.
 - Added a two-column quick actions layout, a dedicated settings entry point, and a restricted supervisor tools section inside the settings panel without duplicating existing dialogs or handlers.
 - Added navbar menu regression coverage for quick-action grouping, settings sections, and supervisor-only restricted tools, then re-verified navbar/report access behavior and `vue-tsc`.
+- Reworked parked-order UX around `Drafts`: the visible copy now uses ERPNext-style drafts terminology instead of parked orders, while the store-backed draft cache and resume flow stay unchanged.
+- Moved the inline draft list out of the invoice summary flow by introducing a compact recent-drafts surface plus a reusable full drafts list component for secondary surfaces.
+- Added responsive placement for drafts: desktop now uses a right-side drawer, while non-desktop layouts use a secondary dialog surface, and verified the relocation with focused frontend regression tests plus `vue-tsc`.

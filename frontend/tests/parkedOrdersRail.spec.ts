@@ -68,17 +68,21 @@ describe("ParkedOrdersRail", () => {
 		(window as any).__ = (value: string) => value;
 	});
 
-	it("renders parked orders with a count and quick resume action", () => {
-		const wrapper = mountRail();
+	it("renders compact drafts copy with count and quick resume action", () => {
+		const wrapper = mountRail({
+			layout: "mobile",
+		});
 
-		expect(wrapper.text()).toContain("Parked Orders");
+		expect(wrapper.text()).toContain("Drafts");
 		expect(wrapper.text()).toContain("2");
 		expect(wrapper.text()).toContain("Walk-in Customer");
-		expect(wrapper.get('[data-test="parked-order-card-ACC-SINV-0001"]').exists()).toBe(true);
+		expect(wrapper.get('[data-test="draft-card-ACC-SINV-0001"]').exists()).toBe(true);
 	});
 
 	it("exposes a view all action for the existing drafts dialog", () => {
-		const wrapper = mountRail();
+		const wrapper = mountRail({
+			layout: "desktop",
+		});
 
 		expect(wrapper.get('[data-test="parked-orders-view-all"]').exists()).toBe(true);
 	});

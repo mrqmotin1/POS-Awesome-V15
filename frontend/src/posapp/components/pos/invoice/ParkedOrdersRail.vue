@@ -1,12 +1,12 @@
 <template>
-	<section v-if="parkedOrders.length" class="parked-orders-rail">
-		<div class="parked-orders-rail__header">
+	<section v-if="parkedOrders.length" class="drafts-rail" :class="`drafts-rail--${layout}`">
+		<div class="drafts-rail__header">
 			<div>
-				<p class="parked-orders-rail__eyebrow">{{ __("Ready to resume") }}</p>
-				<h4 class="parked-orders-rail__title">{{ __("Parked Orders") }}</h4>
+				<p class="drafts-rail__eyebrow">{{ __("Ready to resume") }}</p>
+				<h4 class="drafts-rail__title">{{ __("Drafts") }}</h4>
 			</div>
-			<div class="parked-orders-rail__actions">
-				<span class="parked-orders-rail__count">{{ parkedOrders.length }}</span>
+			<div class="drafts-rail__actions">
+				<span class="drafts-rail__count">{{ totalCount || parkedOrders.length }}</span>
 				<v-btn
 					size="small"
 					variant="text"
@@ -14,32 +14,49 @@
 					data-test="parked-orders-view-all"
 					@click="$emit('view-all')"
 				>
-					{{ __("View all") }}
+					{{ layout === "desktop" ? __("Open drawer") : __("View all") }}
 				</v-btn>
 			</div>
 		</div>
 
-		<div class="parked-orders-rail__list">
+		<div v-if="layout === 'desktop'" class="drafts-rail__desktop">
 			<button
 				v-for="draft in parkedOrders"
 				:key="draft.name"
 				type="button"
-				class="parked-orders-rail__card"
-				:data-test="`parked-order-card-${draft.name}`"
+				class="drafts-rail__summary-card"
+				:data-test="`draft-card-${draft.name}`"
 				@click="$emit('resume', draft)"
 			>
-				<div class="parked-orders-rail__card-top">
+				<div class="drafts-rail__card-top">
 					<strong>{{ draft.customer_name || __("Walk-in Customer") }}</strong>
-					<span class="parked-orders-rail__amount">
+					<span class="drafts-rail__amount">
 						{{ currencySymbol(draft.currency) }}{{ formatCurrency(draft.grand_total) }}
 					</span>
 				</div>
-				<div class="parked-orders-rail__meta">
+				<div class="drafts-rail__meta">
 					<span>{{ draft.name }}</span>
-					<span>{{ draft.posting_date }}</span>
 					<span>{{ draft.posting_time?.split(".")[0] || "" }}</span>
 				</div>
 			</button>
+		</div>
+
+		<div v-else class="drafts-rail__mobile">
+			<div class="drafts-rail__strip">
+				<button
+					v-for="draft in parkedOrders"
+					:key="draft.name"
+					type="button"
+					class="drafts-rail__chip-card"
+					:data-test="`draft-card-${draft.name}`"
+					@click="$emit('resume', draft)"
+				>
+					<strong>{{ draft.customer_name || __("Walk-in Customer") }}</strong>
+					<span class="drafts-rail__chip-meta">
+						{{ currencySymbol(draft.currency) }}{{ formatCurrency(draft.grand_total) }}
+					</span>
+				</button>
+			</div>
 		</div>
 	</section>
 </template>
@@ -58,6 +75,14 @@ defineProps({
 		type: Function,
 		required: true,
 	},
+	layout: {
+		type: String,
+		default: "mobile",
+	},
+	totalCount: {
+		type: Number,
+		default: 0,
+	},
 });
 
 defineEmits(["resume", "view-all"]);
@@ -66,7 +91,7 @@ const __ = window.__;
 </script>
 
 <style scoped>
-.parked-orders-rail {
+.drafts-rail {
 	display: flex;
 	flex-direction: column;
 	gap: var(--pos-space-2);
@@ -76,16 +101,17 @@ const __ = window.__;
 		linear-gradient(135deg, rgba(var(--v-theme-primary), 0.08), rgba(var(--v-theme-info), 0.06)),
 		var(--pos-surface-muted);
 	border: 1px solid rgba(var(--v-theme-primary), 0.14);
+	min-width: 0;
 }
 
-.parked-orders-rail__header {
+.drafts-rail__header {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 12px;
 }
 
-.parked-orders-rail__eyebrow {
+.drafts-rail__eyebrow {
 	margin: 0 0 2px;
 	font-size: 0.72rem;
 	font-weight: 700;
@@ -94,20 +120,20 @@ const __ = window.__;
 	color: var(--pos-text-secondary);
 }
 
-.parked-orders-rail__title {
+.drafts-rail__title {
 	margin: 0;
 	font-size: 1rem;
 	font-weight: 700;
 	color: var(--pos-text-primary);
 }
 
-.parked-orders-rail__actions {
+.drafts-rail__actions {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 }
 
-.parked-orders-rail__count {
+.drafts-rail__count {
 	min-width: 28px;
 	height: 28px;
 	padding: 0 8px;
@@ -120,13 +146,13 @@ const __ = window.__;
 	font-weight: 700;
 }
 
-.parked-orders-rail__list {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: 10px;
+.drafts-rail__desktop,
+.drafts-rail__mobile {
+	min-width: 0;
 }
 
-.parked-orders-rail__card {
+.drafts-rail__summary-card,
+.drafts-rail__chip-card {
 	border: 1px solid rgba(var(--v-theme-primary), 0.14);
 	border-radius: 16px;
 	background: rgba(var(--v-theme-surface), 0.92);
@@ -141,42 +167,57 @@ const __ = window.__;
 		transform 0.18s ease,
 		box-shadow 0.18s ease,
 		border-color 0.18s ease;
+	width: 100%;
 }
 
-.parked-orders-rail__card:hover,
-.parked-orders-rail__card:focus-visible {
+.drafts-rail__summary-card:hover,
+.drafts-rail__summary-card:focus-visible,
+.drafts-rail__chip-card:hover,
+.drafts-rail__chip-card:focus-visible {
 	transform: translateY(-1px);
 	box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
 	border-color: rgba(var(--v-theme-primary), 0.34);
 }
 
-.parked-orders-rail__card-top {
+.drafts-rail__card-top {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 8px;
 }
 
-.parked-orders-rail__amount {
+.drafts-rail__amount {
 	font-weight: 700;
 	white-space: nowrap;
 }
 
-.parked-orders-rail__meta {
+.drafts-rail__meta {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px 10px;
 	font-size: 0.8rem;
 	color: var(--pos-text-secondary);
+.drafts-rail__strip {
+	display: flex;
+	gap: 10px;
+	overflow-x: auto;
+	padding-bottom: 4px;
+	scrollbar-width: thin;
+}
+
+.drafts-rail__chip-card {
+	min-width: 180px;
+	max-width: 220px;
+}
+
+.drafts-rail__chip-meta {
+	font-size: 0.8rem;
+	color: var(--pos-text-secondary);
 }
 
 @media (max-width: 768px) {
-	.parked-orders-rail {
+	.drafts-rail {
 		padding: 10px;
-	}
-
-	.parked-orders-rail__list {
-		grid-template-columns: 1fr;
 	}
 }
 </style>
