@@ -28,6 +28,7 @@
 						density="compact"
 						variant="outlined"
 						hide-details
+						:disabled="!isPosSupervisor"
 						class="dashboard-filter mr-2 mb-2 mb-sm-0"
 						:label="__('Scope')"
 					/>
@@ -40,6 +41,7 @@
 						density="compact"
 						variant="outlined"
 						hide-details
+						:disabled="!isPosSupervisor"
 						class="dashboard-filter mr-2 mb-2 mb-sm-0"
 						:label="__('Profile')"
 					/>
@@ -50,6 +52,7 @@
 						density="compact"
 						variant="outlined"
 						hide-details
+						:disabled="!isPosSupervisor"
 						class="dashboard-filter mr-2 mb-2 mb-sm-0"
 						:label="__('Month')"
 					/>
@@ -62,14 +65,20 @@
 					>
 						{{ lastUpdatedLabel }}
 					</v-chip>
-					<v-btn color="primary" variant="flat" :loading="loading" @click="loadDashboard">
+					<v-btn
+						color="primary"
+						variant="flat"
+						:loading="loading"
+						:disabled="!isPosSupervisor"
+						@click="loadDashboard"
+					>
 						{{ __("Refresh") }}
 					</v-btn>
 				</div>
 			</div>
 
 			<v-alert
-				v-if="!isDashboardEnabledOnServer"
+				v-if="!isPosSupervisor || !isDashboardEnabledOnServer"
 				type="warning"
 				variant="tonal"
 				class="mb-4"
@@ -2012,6 +2021,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useUIStore } from "@/posapp/stores/uiStore";
+import { useEmployeeStore } from "@/posapp/stores/employeeStore";
 import {
 	type BranchLocationRow,
 	type BranchTopItemsByLocationRow,
@@ -2048,6 +2058,7 @@ defineOptions({
 });
 
 const uiStore = useUIStore();
+const employeeStore = useEmployeeStore();
 
 const loading = ref(false);
 const errorMessage = ref("");
@@ -2426,6 +2437,7 @@ const availableProfiles = computed(() => dashboardData.value.available_profiles 
 const enabledProfiles = computed(() =>
 	availableProfiles.value.filter((profile) => profile.dashboard_enabled !== false),
 );
+const isPosSupervisor = computed(() => Boolean(employeeStore.currentCashier?.is_supervisor));
 
 const dashboardScopeItems = computed(() => {
 	const items = [
@@ -2445,8 +2457,11 @@ const profileFilterItems = computed(() =>
 	})),
 );
 
-const canRenderDashboard = computed(() => isDashboardEnabledOnServer.value);
+const canRenderDashboard = computed(() => isPosSupervisor.value && isDashboardEnabledOnServer.value);
 const disabledReasonText = computed(() => {
+	if (!isPosSupervisor.value) {
+		return __("Awesome Dashboard is visible only to POS supervisors.");
+	}
 	const reason = dashboardData.value.disabled_reason;
 	if (reason === "profile_disabled") {
 		return __("Awesome Dashboard is disabled for the selected POS Profile.");
@@ -3743,7 +3758,19 @@ function logDashboardError(error: any) {
 	console.groupEnd();
 }
 
+function resetDashboardState() {
+	dashboardData.value = createEmptyDashboard();
+	errorMessage.value = "";
+	isDashboardEnabledOnServer.value = true;
+	lastUpdatedAt.value = null;
+}
+
 async function loadDashboard() {
+	if (!isPosSupervisor.value) {
+		resetDashboardState();
+		return;
+	}
+
 	loading.value = true;
 	errorMessage.value = "";
 	logDashboardRequest();
@@ -3802,6 +3829,18 @@ async function loadDashboard() {
 		loading.value = false;
 	}
 }
+
+watch(
+	() => isPosSupervisor.value,
+	(isSupervisor) => {
+		if (!isSupervisor) {
+			resetDashboardState();
+			return;
+		}
+		void loadDashboard();
+	},
+	{ immediate: true },
+);
 
 watch(
 	() => profileName.value,
@@ -3913,6 +3952,10 @@ onBeforeUnmount(() => {
 });
 
 onMounted(() => {
+	if (!isPosSupervisor.value) {
+		resetDashboardState();
+		return;
+	}
 	void loadDashboard();
 });
 </script>

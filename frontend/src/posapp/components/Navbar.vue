@@ -151,8 +151,8 @@ import { useRtl } from "../composables/core/useRtl";
 const ServerUsageGadget = defineAsyncComponent(() => import("./navbar/ServerUsageGadget.vue"));
 const DatabaseUsageGadget = defineAsyncComponent(() => import("./navbar/DatabaseUsageGadget.vue"));
 
-import { useToastStore } from "../stores/toastStore.js";
-import { useUIStore } from "../stores/uiStore.js";
+import { useToastStore } from "../stores/toastStore";
+import { useUIStore } from "../stores/uiStore";
 import { useEmployeeStore } from "../stores/employeeStore";
 import { storeToRefs } from "pinia";
 
@@ -166,7 +166,7 @@ export default {
 		// Extract reactive refs
 		const { visible, text, color, timeout, loading: toastLoading, history, unreadCount } = storeToRefs(toastStore);
 		const { isFrozen, freezeTitle, freezeMessage } = storeToRefs(uiStore);
-		const { currentCashierDisplay } = storeToRefs(employeeStore);
+		const { currentCashier, currentCashierDisplay } = storeToRefs(employeeStore);
 
 		return {
 			isRtl,
@@ -185,6 +185,7 @@ export default {
 			freezeTitle,
 			freezeMessage,
 			employeeStore,
+			currentCashier,
 			currentCashierDisplay,
 		};
 	},
@@ -251,7 +252,6 @@ export default {
 			item: 0,
 			baseItems: [
 				{ text: "POS", icon: "mdi-network-pos", to: "/pos" },
-				{ text: "Awesome Dashboard", icon: "mdi-view-dashboard-outline", to: "/dashboard" },
 				{ text: "Payments", icon: "mdi-credit-card", to: "/payments" },
 				{ text: "Purchase Order", icon: "mdi-cart-plus", to: "/orders" },
 				{ text: "Barcode Printing", icon: "mdi-barcode", to: "/barcode" },
@@ -287,6 +287,12 @@ export default {
 			},
 			deep: true,
 			immediate: true,
+		},
+		currentCashier: {
+			handler() {
+				this.updateNavigationItems();
+			},
+			deep: true,
 		},
 	},
 	computed: {
@@ -349,6 +355,13 @@ export default {
 		},
 		updateNavigationItems() {
 			const items = [...this.baseItems];
+			if (this.currentCashier?.is_supervisor) {
+				items.splice(1, 0, {
+					text: "Awesome Dashboard",
+					icon: "mdi-view-dashboard-outline",
+					to: "/dashboard",
+				});
+			}
 			if (this.posProfile?.posa_enable_cash_movement) {
 				items.push({
 					text: "Cash Movement",
