@@ -60,16 +60,38 @@ const VTextFieldStub = defineComponent({
 			type: [String, Number],
 			default: "",
 		},
+		type: {
+			type: String,
+			default: "text",
+		},
+		appendInnerIcon: {
+			type: String,
+			default: "",
+		},
 	},
-	emits: ["update:modelValue"],
+	emits: ["update:modelValue", "click:append-inner"],
 	setup(props, { attrs, emit }) {
 		return () =>
-			h("input", {
-				value: props.modelValue,
-				"data-test": attrs["data-test"],
-				onInput: (event: Event) =>
-					emit("update:modelValue", (event.target as HTMLInputElement).value),
-			});
+			h("div", {}, [
+				h("input", {
+					value: props.modelValue,
+					type: props.type,
+					"data-test": attrs["data-test"],
+					onInput: (event: Event) =>
+						emit("update:modelValue", (event.target as HTMLInputElement).value),
+				}),
+				props.appendInnerIcon
+					? h(
+							"button",
+							{
+								type: "button",
+								"data-test": `${attrs["data-test"]}-toggle`,
+								onClick: () => emit("click:append-inner"),
+							},
+							props.appendInnerIcon,
+						)
+					: null,
+			]);
 	},
 });
 
@@ -112,13 +134,14 @@ describe("EmployeeSwitchDialog", () => {
 					VCardActions: BoxStub,
 					VBtn: VBtnStub,
 					VIcon: BoxStub,
+					VAlert: BoxStub,
 					VTextField: VTextFieldStub,
 				},
 			},
 		});
 
 		await wrapper.get('[data-test="employee-option-backup@example.com"]').trigger("click");
-		await wrapper.get('[data-test="cashier-pin-input"]').setValue("1234");
+		await wrapper.get('input[data-test="cashier-pin-input"]').setValue("1234");
 		await wrapper.get('[data-test="cashier-pin-submit"]').trigger("click");
 		await Promise.resolve();
 
@@ -132,5 +155,49 @@ describe("EmployeeSwitchDialog", () => {
 		});
 		expect(store.currentCashier?.user).toBe("backup@example.com");
 		expect(store.switchDialogOpen).toBe(false);
+	});
+
+	it("shows an actionable error state and allows revealing the PIN", async () => {
+		const store = useEmployeeStore();
+		const uiStore = useUIStore();
+		uiStore.setPosProfile({ name: "Main POS" } as any);
+		store.setTerminalEmployees([
+			{ user: "cashier@example.com", full_name: "Main Cashier" },
+			{ user: "backup@example.com", full_name: "Backup Cashier" },
+		]);
+		store.openEmployeeSwitch();
+
+		(window as any).frappe.call = vi.fn(async () => {
+			throw new Error("Invalid cashier PIN.");
+		});
+
+		const wrapper = mount(EmployeeSwitchDialog, {
+			global: {
+				components: {
+					VDialog: VDialogStub,
+					VCard: BoxStub,
+					VCardTitle: BoxStub,
+					VCardText: BoxStub,
+					VCardActions: BoxStub,
+					VBtn: VBtnStub,
+					VIcon: BoxStub,
+					VAlert: BoxStub,
+					VTextField: VTextFieldStub,
+				},
+			},
+		});
+
+		await wrapper.get('[data-test="employee-option-backup@example.com"]').trigger("click");
+		expect(wrapper.get('input[data-test="cashier-pin-input"]').attributes("type")).toBe("password");
+
+		await wrapper.get('[data-test="cashier-pin-input-toggle"]').trigger("click");
+		expect(wrapper.get('input[data-test="cashier-pin-input"]').attributes("type")).toBe("text");
+
+		await wrapper.get('input[data-test="cashier-pin-input"]').setValue("9999");
+		await wrapper.get('[data-test="cashier-pin-submit"]').trigger("click");
+		await Promise.resolve();
+
+		expect(wrapper.get('[data-test="cashier-pin-error"]').text()).toContain("Invalid cashier PIN.");
+		expect(wrapper.text()).toContain("Set each cashier PIN in the User form");
 	});
 });

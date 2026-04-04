@@ -7956,8 +7956,9 @@
 		"doctype": "Custom Field",
 		"dt": "User",
 		"fieldname": "posa_pos_pin",
-		"fieldtype": "Data",
+		"fieldtype": "Password",
 		"label": "POS PIN",
+		"description": "Used for shared-terminal cashier switching and lock/unlock verification.",
 		"insert_after": "time_zone",
 		"name": "User-posa_pos_pin"
 	},

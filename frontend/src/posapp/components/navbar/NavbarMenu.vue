@@ -38,10 +38,10 @@
 				<template v-if="isMobile">
 					<v-list density="compact" class="menu-list-compact mobile-only-section">
 						<!-- Profile Information on mobile -->
-						<v-list-item class="menu-item-compact profile-info-mobile">
+						<v-list-item class="menu-item-compact profile-info-mobile profile-info-mobile--static">
 							<template v-slot:prepend>
 								<div class="menu-icon-wrapper-compact info-icon">
-									<v-icon color="white" size="16">mdi-account-circle</v-icon>
+									<v-icon color="white" size="16">mdi-storefront-outline</v-icon>
 								</div>
 							</template>
 							<div class="menu-content-compact">
@@ -49,7 +49,7 @@
 									displayUserName
 								}}</v-list-item-title>
 								<v-list-item-subtitle class="menu-item-subtitle-compact">{{
-									cashierName || __("Current User")
+									cashierName ? `${__("Cashier")}: ${cashierName}` : __("Current User")
 								}}</v-list-item-subtitle>
 							</div>
 						</v-list-item>
@@ -1099,6 +1099,19 @@ export default {
 .menu-item-compact:hover {
 	transform: translateX(3px) scale(1.01);
 	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.profile-info-mobile--static {
+	cursor: default;
+}
+
+.profile-info-mobile--static::before {
+	background: linear-gradient(135deg, rgba(25, 118, 210, 0.03) 0%, rgba(66, 165, 245, 0.05) 100%);
+}
+
+.profile-info-mobile--static:hover {
+	transform: none;
+	box-shadow: none;
 }
 
 /* Compact Icon Wrapper */

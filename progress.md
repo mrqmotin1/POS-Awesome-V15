@@ -16,3 +16,6 @@
 - Added repo fixtures for `User-posa_pos_pin` and `User-posa_is_pos_supervisor`, updated hooks so they ship with the app, and verified the flow with new frontend and backend tests plus `vue-tsc`.
 - Added a stored-value UX slice on top of the existing customer-credit engine: payment options and redemption copy now surface `stored value` terminology, available/applied balance, and source counts instead of a hidden legacy credit flow.
 - Tightened redemption behavior so manual source edits are automatically capped by both source balance and remaining invoice amount after loyalty, preventing over-redemption errors from surfacing only at submit time.
+- Polished shared-terminal UX: cashier PIN inputs now support show/hide, invalid PIN messages are surfaced in a stronger alert state, and the dialog now includes setup guidance for assigning POS Profile users and User PINs.
+- Cleaned up navbar identity affordances so desktop shows a single actionable cashier chip with terminal context instead of duplicate user chips, and mobile menu profile info is styled as static terminal status rather than a dead action.
+- Updated `User-posa_pos_pin` to a `Password` custom field so the Desk form stores it as a masked password-style field with reveal support.

@@ -37,19 +37,37 @@
 							<v-icon icon="mdi-check-circle" color="primary" v-if="selectedUser === employee.user" />
 						</button>
 					</div>
+					<v-alert
+						variant="tonal"
+						type="info"
+						density="comfortable"
+						class="employee-switch-dialog__help"
+						data-test="cashier-pin-help"
+					>
+						{{ __("Set each cashier PIN in the User form and keep terminal members assigned in POS Profile User.") }}
+					</v-alert>
 					<v-text-field
 						v-model="cashierPin"
-						:type="'password'"
+						:type="showPin ? 'text' : 'password'"
+						:append-inner-icon="showPin ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
 						variant="outlined"
 						density="comfortable"
 						hide-details="auto"
 						:label="__('Cashier PIN')"
 						:data-test="'cashier-pin-input'"
+						@click:append-inner="showPin = !showPin"
 						@keyup.enter="submitSwitch"
 					/>
-					<div v-if="pinError" class="employee-switch-dialog__error">
+					<v-alert
+						v-if="pinError"
+						variant="tonal"
+						type="error"
+						density="comfortable"
+						class="employee-switch-dialog__error"
+						data-test="cashier-pin-error"
+					>
 						{{ pinError }}
-					</div>
+					</v-alert>
 				</v-card-text>
 				<v-card-actions class="employee-switch-dialog__actions">
 					<v-btn variant="text" @click="employeeStore.closeEmployeeSwitch()">
@@ -96,18 +114,34 @@
 							<v-icon icon="mdi-lock-open-outline" color="primary" />
 						</button>
 					</div>
+					<v-alert
+						variant="tonal"
+						type="info"
+						density="comfortable"
+						class="employee-switch-dialog__help"
+					>
+						{{ __("Set each cashier PIN in the User form and keep terminal members assigned in POS Profile User.") }}
+					</v-alert>
 					<v-text-field
 						v-model="cashierPin"
-						:type="'password'"
+						:type="showPin ? 'text' : 'password'"
+						:append-inner-icon="showPin ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
 						variant="outlined"
 						density="comfortable"
 						hide-details="auto"
 						:label="__('Cashier PIN')"
+						@click:append-inner="showPin = !showPin"
 						@keyup.enter="submitUnlock"
 					/>
-					<div v-if="pinError" class="employee-switch-dialog__error">
+					<v-alert
+						v-if="pinError"
+						variant="tonal"
+						type="error"
+						density="comfortable"
+						class="employee-switch-dialog__error"
+					>
 						{{ pinError }}
-					</div>
+					</v-alert>
 				</v-card-text>
 				<v-card-actions class="employee-switch-dialog__actions">
 					<v-btn
@@ -137,6 +171,7 @@ const selectedUser = ref("");
 const cashierPin = ref("");
 const pinError = ref("");
 const isSubmitting = ref(false);
+const showPin = ref(false);
 const posProfileName = computed(
 	() => uiStore.posProfile?.name || window.frappe?.boot?.pos_profile?.name || "",
 );
@@ -148,6 +183,7 @@ watch(
 			selectedUser.value = cashier?.user || terminalEmployees.value[0]?.user || "";
 			cashierPin.value = "";
 			pinError.value = "";
+			showPin.value = false;
 		}
 	},
 	{ immediate: true },
@@ -307,7 +343,11 @@ const __ = window.__;
 
 .employee-switch-dialog__error {
 	margin-top: 12px;
-	font-size: 0.88rem;
-	color: rgb(var(--v-theme-error));
+	border-radius: 14px;
+}
+
+.employee-switch-dialog__help {
+	margin: 14px 0 12px;
+	border-radius: 14px;
 }
 </style>
