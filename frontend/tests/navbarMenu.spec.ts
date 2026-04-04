@@ -103,7 +103,8 @@ describe("NavbarMenu cashier pin management", () => {
 			"sync-offline-invoices",
 			"close-shift",
 		]);
-		expect((wrapper.vm as any).quickActionRows).toHaveLength(3);
+		expect((wrapper.vm as any).quickActionRows).toHaveLength(5);
+		expect((wrapper.vm as any).quickActionRows.every((row: any[]) => row.length === 1)).toBe(true);
 
 		await (wrapper.vm as any).openSettingsPanel();
 

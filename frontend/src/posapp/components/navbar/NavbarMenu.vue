@@ -636,11 +636,7 @@ export default {
 			return actions.filter(Boolean);
 		},
 		quickActionRows() {
-			const rows = [];
-			for (let index = 0; index < this.quickActions.length; index += 2) {
-				rows.push(this.quickActions.slice(index, index + 2));
-			}
-			return rows;
+			return this.quickActions.map((action) => [action]);
 		},
 		settingsSections() {
 			return [
