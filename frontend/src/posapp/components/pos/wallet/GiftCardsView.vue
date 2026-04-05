@@ -86,8 +86,8 @@
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 
-import { useEmployeeStore } from "../../stores/employeeStore";
-import { useUIStore } from "../../stores/uiStore";
+import { useEmployeeStore } from "../../../stores/employeeStore";
+import { useUIStore } from "../../../stores/uiStore";
 
 const __ = window.__;
 const frappe = window.frappe;
