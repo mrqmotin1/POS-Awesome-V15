@@ -23,6 +23,7 @@ export interface PaymentSubmissionOptions {
 	creditChange?: Ref<number>;
 	redeemedCustomerCredit?: Ref<number>;
 	customerCreditDict?: Ref<any[]>;
+	giftCardRedemptions?: Ref<any[]>;
 	diff_payment?: ComputedRef<number>;
 	is_credit_sale?: Ref<boolean>;
 	loyaltyAmount?: Ref<number>;
@@ -438,6 +439,25 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			);
 		}
 
+		const giftCardRows = Array.isArray(options.giftCardRedemptions?.value)
+			? options.giftCardRedemptions?.value || []
+			: [];
+		const totalGiftCardRedemption = giftCardRows.reduce(
+			(sum: number, row: any) => sum + formatFloat(row?.amount || 0, prec),
+			0,
+		);
+		const invalidGiftCardRow = giftCardRows.find(
+			(row: any) =>
+				formatFloat(row?.amount || 0, prec) > 0 &&
+				!String(row?.gift_card_code || "").trim(),
+		);
+		if (invalidGiftCardRow) {
+			throw new Error(__("Gift card code is required for redemption"));
+		}
+		if (!doc.is_return && totalGiftCardRedemption > invoice_total + 0.001) {
+			throw new Error(__("Cannot redeem gift cards more than invoice total"));
+		}
+
 		return true;
 	};
 
@@ -623,17 +643,26 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			write_off_amount: writeOffAmount,
 			redeemed_customer_credit: unref(redeemedCustomerCredit),
 			customer_credit_dict: unref(customerCreditDict),
+			gift_card_redemptions: unref(options.giftCardRedemptions) || [],
 			is_cashback: unref(isCashback),
 		};
+		const hasGiftCardRedemption = Array.isArray(data.gift_card_redemptions)
+			&& data.gift_card_redemptions.some(
+				(row: any) => formatFloat(row?.amount || 0, prec) > 0,
+			);
 		const hasPostSubmitPaymentWork =
 			Boolean(profile?.posa_allow_submissions_in_background_job) &&
 			(
 				formatFloat(unref(redeemedCustomerCredit) || 0, prec) > 0 ||
+				hasGiftCardRedemption ||
 				pChange > 0 ||
 				cChange > 0
 			);
 
 		if (isOffline()) {
+			if (hasGiftCardRedemption) {
+				throw new Error(__("Gift card redemption requires an online connection"));
+			}
 			try {
 				saveOfflineInvoice({ data, invoice: doc });
 				stores?.syncStore?.updatePendingCount();

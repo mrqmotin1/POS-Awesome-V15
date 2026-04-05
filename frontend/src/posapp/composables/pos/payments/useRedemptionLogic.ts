@@ -1,4 +1,9 @@
 import { ref, watch, computed, unref, type Ref } from "vue";
+import {
+	isOffline,
+	getCachedStoredValueSnapshot,
+	saveStoredValueSnapshot,
+} from "../../../../offline/index";
 
 declare const frappe: any;
 
@@ -72,6 +77,35 @@ export function useRedemptionLogic(options: RedemptionLogicOptions) {
 
 			if (!customer || !company) return;
 
+			if (isOffline()) {
+				const cachedSnapshot = getCachedStoredValueSnapshot(customer, company);
+				const data = Array.isArray(cachedSnapshot?.sources)
+					? JSON.parse(JSON.stringify(cachedSnapshot.sources))
+					: [];
+				if (data.length) {
+					const doc = unref(invoiceDoc);
+					const amount = doc.rounded_total || doc.grand_total;
+					let remainAmount = amount;
+					data.forEach((row: any) => {
+						if (remainAmount > 0) {
+							if (remainAmount >= row.total_credit) {
+								row.credit_to_redeem = row.total_credit;
+								remainAmount -= row.total_credit;
+							} else {
+								row.credit_to_redeem = remainAmount;
+								remainAmount = 0;
+							}
+						} else {
+							row.credit_to_redeem = 0;
+						}
+					});
+					customer_credit_dict.value = data;
+				} else {
+					customer_credit_dict.value = [];
+				}
+				return;
+			}
+
 			frappe
 				.call(
 					"posawesome.posawesome.api.payments.get_available_credit",
@@ -83,6 +117,7 @@ export function useRedemptionLogic(options: RedemptionLogicOptions) {
 				.then((r: any) => {
 					const data = r.message;
 					if (data && data.length) {
+						saveStoredValueSnapshot(customer, company, data);
 						const doc = unref(invoiceDoc);
 						const amount = doc.rounded_total || doc.grand_total;
 						let remainAmount = amount;

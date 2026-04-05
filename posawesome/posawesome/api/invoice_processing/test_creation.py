@@ -728,6 +728,61 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
         self.assertEqual(len(captured_calls), 1)
         self.assertEqual(captured_calls[0][0][4], receive_entries)
 
+    def test_has_post_submit_payment_work_includes_gift_card_redemptions(self):
+        self.assertTrue(
+            self.creation._has_post_submit_payment_work(
+                {
+                    "gift_card_redemptions": [
+                        {"gift_card_code": "GC-0001", "amount": 150}
+                    ]
+                }
+            )
+        )
+
+    def test_run_post_submit_payments_applies_gift_card_redemptions(self):
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="SINV-0006",
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+
+        payment_module_name = "posawesome.posawesome.api.invoice_processing.payment"
+        payment_module = types.ModuleType(payment_module_name)
+        payment_module._create_change_payment_entries = lambda *args, **kwargs: None
+        sys.modules[payment_module_name] = payment_module
+
+        gift_card_module_name = "posawesome.posawesome.api.gift_cards"
+        gift_card_calls = []
+        gift_card_module = types.ModuleType(gift_card_module_name)
+        gift_card_module.redeem_gift_card = lambda **kwargs: gift_card_calls.append(kwargs)
+        sys.modules[gift_card_module_name] = gift_card_module
+
+        original_redeem = self.creation.redeeming_customer_credit
+        self.creation.redeeming_customer_credit = lambda *args, **kwargs: []
+
+        try:
+            self.creation._run_post_submit_payments(
+                invoice_doc,
+                {
+                    "gift_card_redemptions": [
+                        {"gift_card_code": "GC-0001", "amount": 150, "cashier": "cashier@example.com"}
+                    ]
+                },
+                is_payment_entry=0,
+                total_cash=0,
+                cash_account={"account": "Cash"},
+                payments=[],
+            )
+        finally:
+            self.creation.redeeming_customer_credit = original_redeem
+
+        self.assertEqual(len(gift_card_calls), 1)
+        self.assertEqual(gift_card_calls[0]["gift_card_code"], "GC-0001")
+        self.assertEqual(gift_card_calls[0]["amount"], 150)
+        self.assertEqual(gift_card_calls[0]["invoice_doctype"], "Sales Invoice")
+        self.assertEqual(gift_card_calls[0]["invoice_name"], "SINV-0006")
+
     def test_process_post_submit_payments_job_publishes_completion_event(self):
         invoice_doc = FakeDoc(
             doctype="Sales Invoice",

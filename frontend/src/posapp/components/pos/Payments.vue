@@ -59,12 +59,14 @@
 							:getVisibleDenominations="getVisibleDenominations"
 							:isCashLikePayment="isCashLikePayment"
 							:isMpesaC2bPayment="is_mpesa_c2b_payment"
+							:isGiftCardPayment="isGiftCardPayment"
 							@update-amount="handlePaymentAmountChange"
 							@set-full-amount="set_full_amount"
 							@set-denomination="setPaymentToDenomination"
 							@mpesa-dialog="mpesa_c2b_dialog"
 							@request-payment="request_payment"
 							@set-rest-amount="set_rest_amount"
+							@open-gift-card="openGiftCardDialog"
 						/>
 					</section>
 
@@ -234,6 +236,25 @@
 			@update:phone-dialog="phone_dialog = $event"
 			@request-payment="request_payment"
 		/>
+		<GiftCardDialog
+			:model-value="giftCardDialogOpen"
+			:card-code="giftCardCode"
+			:redeem-amount="giftCardAmount"
+			:balance="giftCardBalance"
+			:status="giftCardStatus"
+			:is-supervisor="Boolean(currentCashier?.is_supervisor)"
+			:loading="giftCardLoading"
+			:mode="giftCardMode"
+			:error-message="giftCardError"
+			@update:model-value="giftCardDialogOpen = $event"
+			@update:card-code="giftCardCode = $event"
+			@update:redeem-amount="giftCardAmount = $event"
+			@set-mode="setGiftCardMode"
+			@check-balance="checkGiftCardBalance"
+			@apply-redemption="applyGiftCardRedemption"
+			@issue-card="issueGiftCard"
+			@top-up-card="topUpGiftCard"
+		/>
 	</div>
 </template>
 
@@ -248,6 +269,7 @@ import { useUIStore } from "../../stores/uiStore.js";
 import { useToastStore } from "../../stores/toastStore.js";
 import { useSyncStore } from "../../stores/syncStore.ts";
 import { useSocketStore } from "../../stores/socketStore";
+import { useEmployeeStore } from "../../stores/employeeStore";
 
 // Composables
 import { usePaymentCalculations } from "../../composables/pos/payments/usePaymentCalculations";
@@ -257,7 +279,8 @@ import { usePaymentPrinting } from "../../composables/pos/payments/usePaymentPri
 import { usePaymentMethods } from "../../composables/pos/payments/usePaymentMethods";
 import { useInvoiceDetails } from "../../composables/pos/invoice/useInvoiceDetails";
 import { useFormat } from "../../format";
-import { isOffline } from "../../../offline/index";
+import { isOffline, getCachedGiftCardSnapshot, saveGiftCardSnapshot } from "../../../offline/index";
+import GiftCardDialog from "./wallet/GiftCardDialog.vue";
 import {
 	initializePaymentLinesForDialog,
 	rebalancePreferredPaymentLine,
@@ -313,6 +336,8 @@ const {
 const { selectedCustomer, customerInfo } = storeToRefs(customersStore);
 const { activeView, paymentDialogOpen } = storeToRefs(uiStore);
 const { invoiceType } = storeToRefs(invoiceStore);
+const employeeStore = useEmployeeStore();
+const { currentCashier } = storeToRefs(employeeStore);
 
 // State
 const is_return = ref(false);
@@ -344,6 +369,16 @@ const _shortcutHandlers = ref({});
 const readonly = ref(false); // Add missing readonly ref
 const submissionInFlight = ref(false);
 const queuedShortcutSubmit = ref(null);
+const giftCardDialogOpen = ref(false);
+const activeGiftCardPayment = ref(null);
+const giftCardCode = ref("");
+const giftCardAmount = ref(0);
+const giftCardBalance = ref(0);
+const giftCardStatus = ref("");
+const giftCardLoading = ref(false);
+const giftCardMode = ref("redeem");
+const giftCardError = ref("");
+const giftCardRedemptions = ref([]);
 
 // Computed Properties
 const invoice_doc = computed({
@@ -582,6 +617,7 @@ const { ensureReturnPaymentsAreNegative, restoreReturnPayments, validateSubmissi
 	creditChange: credit_change,
 	redeemedCustomerCredit: redeemed_customer_credit,
 	customerCreditDict: customer_credit_dict,
+	giftCardRedemptions: giftCardRedemptions,
 	diff_payment: diff_payment,
 	is_credit_sale: is_credit_sale,
 	loyaltyAmount: loyalty_amount,
@@ -595,6 +631,207 @@ const { ensureReturnPaymentsAreNegative, restoreReturnPayments, validateSubmissi
 	},
 	currencyPrecision: currency_precision,
 });
+
+const isGiftCardPayment = (payment) => {
+	if (!pos_profile.value?.posa_use_gift_cards) {
+		return false;
+	}
+	return String(payment?.mode_of_payment || "").trim().toLowerCase().includes("gift");
+};
+
+const resetGiftCardState = ({ clearPayment = false } = {}) => {
+	giftCardDialogOpen.value = false;
+	giftCardCode.value = "";
+	giftCardAmount.value = 0;
+	giftCardBalance.value = 0;
+	giftCardStatus.value = "";
+	giftCardLoading.value = false;
+	giftCardMode.value = "redeem";
+	giftCardError.value = "";
+	giftCardRedemptions.value = [];
+	if (clearPayment && activeGiftCardPayment.value) {
+		activeGiftCardPayment.value.amount = 0;
+		if (activeGiftCardPayment.value.base_amount !== undefined) {
+			activeGiftCardPayment.value.base_amount = 0;
+		}
+	}
+	activeGiftCardPayment.value = null;
+};
+
+const setGiftCardMode = (mode) => {
+	giftCardMode.value = mode || "redeem";
+	giftCardError.value = "";
+};
+
+const getGiftCardRemainingAmount = () => {
+	const activePayment = activeGiftCardPayment.value;
+	const payments = Array.isArray(invoice_doc.value?.payments)
+		? invoice_doc.value.payments
+		: [];
+	const otherPaymentsTotal = payments.reduce((sum, payment) => {
+		if (!payment || payment === activePayment) {
+			return sum;
+		}
+		return sum + flt(payment.amount || 0, currency_precision.value);
+	}, 0);
+	return Math.max(
+		flt(netInvoiceSettlementAmount.value - otherPaymentsTotal, currency_precision.value),
+		0,
+	);
+};
+
+const openGiftCardDialog = (payment) => {
+	activeGiftCardPayment.value = payment;
+	giftCardDialogOpen.value = true;
+	giftCardCode.value =
+		giftCardRedemptions.value[0]?.gift_card_code || "";
+	giftCardAmount.value = flt(payment?.amount || 0, currency_precision.value);
+	giftCardBalance.value = 0;
+	giftCardStatus.value = "";
+	giftCardMode.value = "redeem";
+	giftCardError.value = "";
+};
+
+const checkGiftCardBalance = async () => {
+	if (!giftCardCode.value || !pos_profile.value?.company) {
+		giftCardError.value = __("Gift card code is required.");
+		return;
+	}
+
+	if (isOffline()) {
+		const cached = getCachedGiftCardSnapshot(giftCardCode.value);
+		if (!cached) {
+			giftCardError.value = __("No cached gift card balance is available offline.");
+			return;
+		}
+		giftCardBalance.value = flt(cached.current_balance || 0, currency_precision.value);
+		giftCardStatus.value = cached.status || "";
+		return;
+	}
+
+	giftCardLoading.value = true;
+	giftCardError.value = "";
+	try {
+		const response = await frappe.call({
+			method: "posawesome.posawesome.api.gift_cards.check_gift_card_balance",
+			args: {
+				gift_card_code: giftCardCode.value,
+				company: pos_profile.value.company,
+			},
+		});
+		const card = response?.message || {};
+		giftCardBalance.value = flt(card.current_balance || 0, currency_precision.value);
+		giftCardStatus.value = card.status || "";
+		saveGiftCardSnapshot(giftCardCode.value, card);
+		if (!giftCardAmount.value && giftCardMode.value === "redeem") {
+			giftCardAmount.value = Math.min(
+				giftCardBalance.value,
+				getGiftCardRemainingAmount(),
+			);
+		}
+	} catch (error) {
+		giftCardError.value =
+			error?.message || __("Unable to load gift card balance.");
+	}
+	giftCardLoading.value = false;
+};
+
+const applyGiftCardRedemption = async () => {
+	if (!activeGiftCardPayment.value) {
+		return;
+	}
+	if (!giftCardBalance.value || !giftCardStatus.value) {
+		await checkGiftCardBalance();
+		if (!giftCardBalance.value || giftCardError.value) {
+			return;
+		}
+	}
+
+	const nextAmount = Math.min(
+		flt(giftCardAmount.value || 0, currency_precision.value),
+		giftCardBalance.value,
+		getGiftCardRemainingAmount(),
+	);
+
+	if (nextAmount <= 0) {
+		giftCardError.value = __("Gift card amount must be greater than zero.");
+		return;
+	}
+
+	activeGiftCardPayment.value.amount = nextAmount;
+	if (activeGiftCardPayment.value.base_amount !== undefined) {
+		const conversionRate = invoice_doc.value?.conversion_rate || 1;
+		activeGiftCardPayment.value.base_amount = flt(
+			nextAmount * conversionRate,
+			currency_precision.value,
+		);
+	}
+	giftCardRedemptions.value = [
+		{
+			gift_card_code: giftCardCode.value,
+			amount: nextAmount,
+			cashier: currentCashier.value?.user || null,
+		},
+	];
+	giftCardDialogOpen.value = false;
+};
+
+const issueGiftCard = async () => {
+	if (!currentCashier.value?.is_supervisor) {
+		giftCardError.value = __("A POS supervisor is required for this action.");
+		return;
+	}
+	giftCardLoading.value = true;
+	giftCardError.value = "";
+	try {
+		const response = await frappe.call({
+			method: "posawesome.posawesome.api.gift_cards.issue_gift_card",
+			args: {
+				pos_profile: pos_profile.value?.name,
+				cashier: currentCashier.value?.user,
+				company: pos_profile.value?.company,
+				initial_amount: flt(giftCardAmount.value || 0, currency_precision.value),
+				gift_card_code: giftCardCode.value || null,
+				currency: invoice_doc.value?.currency || pos_profile.value?.currency,
+			},
+		});
+		const card = response?.message || {};
+		giftCardCode.value = card.gift_card_code || giftCardCode.value;
+		giftCardBalance.value = flt(card.current_balance || 0, currency_precision.value);
+		giftCardStatus.value = card.status || "Active";
+		giftCardMode.value = "redeem";
+	} catch (error) {
+		giftCardError.value = error?.message || __("Unable to issue gift card.");
+	}
+	giftCardLoading.value = false;
+};
+
+const topUpGiftCard = async () => {
+	if (!currentCashier.value?.is_supervisor) {
+		giftCardError.value = __("A POS supervisor is required for this action.");
+		return;
+	}
+	giftCardLoading.value = true;
+	giftCardError.value = "";
+	try {
+		const response = await frappe.call({
+			method: "posawesome.posawesome.api.gift_cards.top_up_gift_card",
+			args: {
+				pos_profile: pos_profile.value?.name,
+				cashier: currentCashier.value?.user,
+				gift_card_code: giftCardCode.value,
+				amount: flt(giftCardAmount.value || 0, currency_precision.value),
+			},
+		});
+		const card = response?.message || {};
+		giftCardBalance.value = flt(card.current_balance || 0, currency_precision.value);
+		giftCardStatus.value = card.status || "Active";
+		giftCardMode.value = "redeem";
+	} catch (error) {
+		giftCardError.value = error?.message || __("Unable to top up gift card.");
+	}
+	giftCardLoading.value = false;
+};
 
 // Methods
 
@@ -1275,6 +1512,7 @@ watch(
 			stock_settings.value = uiStore.stockSettings || {};
 			get_mpesa_modes();
 			get_print_formats();
+			resetGiftCardState({ clearPayment: true });
 		}
 	},
 	{ immediate: true },
@@ -1468,6 +1706,7 @@ watch(isPaymentOpen, (isOpen) => {
 		paymentVisible.value = false;
 		highlightSubmit.value = false;
 		queuedShortcutSubmit.value = null;
+		giftCardDialogOpen.value = false;
 	}
 });
 
@@ -1499,6 +1738,7 @@ watch(selectedCustomer, (newCustomer, oldCustomer) => {
 	is_cashback.value = true;
 	is_credit_return.value = false;
 	loyalty_amount.value = 0;
+	resetGiftCardState({ clearPayment: true });
 
 	if (invoice_doc.value) {
 		invoice_doc.value.loyalty_amount = 0;
@@ -1536,6 +1776,7 @@ onMounted(() => {
 			initializeReturnValidity(doc);
 			loyalty_amount.value = 0;
 			redeemed_customer_credit.value = 0;
+			resetGiftCardState({ clearPayment: true });
 			if (doc.customer) {
 				get_addresses();
 			}
@@ -1573,6 +1814,7 @@ onMounted(() => {
 			is_return.value = false;
 			is_credit_return.value = false;
 			return_valid_upto_date.value = null;
+			resetGiftCardState({ clearPayment: true });
 		});
 	}
 

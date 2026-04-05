@@ -162,6 +162,8 @@ const KEY_TABLE_MAP = {
 	offline_cash_movements: "queue",
 	item_details_cache: "cache",
 	customer_storage: "cache",
+	stored_value_snapshot_cache: "cache",
+	gift_card_snapshot_cache: "cache",
 	local_stock_cache: "local_stock",
 	coupons_cache: "coupons",
 	item_groups_cache: "item_groups",
