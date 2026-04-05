@@ -13,5 +13,8 @@ describe("InvoiceManagement dark mode summary cards", () => {
 		expect(source).toContain(".invoice-management-card--dark .summary-tile__label");
 		expect(source).toContain(".invoice-management-card--dark .summary-tile__value");
 		expect(source).toContain(".invoice-management-card--dark .summary-tile__meta");
+		expect(source).toContain(".invoice-detail-card--dark .summary-tile");
+		expect(source).toContain(".invoice-detail-card--dark .summary-tile__label");
+		expect(source).toContain(".invoice-detail-card--dark .summary-tile__value");
 	});
 });

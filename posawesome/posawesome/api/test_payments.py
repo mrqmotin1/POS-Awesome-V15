@@ -454,6 +454,261 @@ class TestRedeemingCustomerCredit(unittest.TestCase):
         self.assertEqual(reconcile_row["party"], "zzz")
         self.assertEqual(reconcile_row["dr_or_cr"], "credit_in_account_currency")
 
+    def test_repair_overpayment_change_allocations_supports_pos_invoice(self):
+        self.get_all_responses["POS Invoice"] = [
+            types.SimpleNamespace(
+                name="ACC-PINV-2026-00011",
+                customer="zzz",
+                company="Farooq Chemicals",
+                posting_date="2026-04-04",
+                outstanding_amount=-800,
+                change_amount=800,
+                base_change_amount=800,
+                posa_pos_opening_shift="POSA-OS-26-0000007",
+                account_for_change_amount="1110 - Cash - FC",
+                is_pos=1,
+                is_return=0,
+                docstatus=1,
+            )
+        ]
+        self.get_all_responses["Payment Entry"] = [
+            types.SimpleNamespace(
+                name="ACC-PAY-2026-00991",
+                paid_amount=800,
+                unallocated_amount=800,
+                paid_from="1110 - Cash - FC",
+                reference_no="POSA-OS-26-0000007",
+                posting_date="2026-04-04",
+                payment_type="Pay",
+                party_type="Customer",
+                party="zzz",
+                company="Farooq Chemicals",
+                docstatus=1,
+            )
+        ]
+
+        payment_doc = FakePaymentEntry()
+        payment_doc.name = "ACC-PAY-2026-00991"
+        payment_doc.paid_from = "1110 - Cash - FC"
+        payment_doc.cost_center = "Main - FC"
+        self.get_doc_responses[("Payment Entry", "ACC-PAY-2026-00991")] = payment_doc
+
+        result = self.payments_module.repair_overpayment_change_allocations(
+            invoice_names=["ACC-PINV-2026-00011"],
+            doctype="POS Invoice",
+            dry_run=1,
+        )
+
+        self.assertEqual(result["candidate_count"], 1)
+        self.assertEqual(
+            result["matched"],
+            [
+                {
+                    "invoice": "ACC-PINV-2026-00011",
+                    "payment_entry": "ACC-PAY-2026-00991",
+                    "allocated_amount": 800.0,
+                }
+            ],
+        )
+        self.assertEqual(result["skipped"], [])
+        self.assertEqual(self.reconcile_calls, [])
+
+    def test_repair_overpayment_change_allocations_matches_unallocated_pay_entry_even_with_other_references(self):
+        self.get_all_responses["Sales Invoice"] = [
+            types.SimpleNamespace(
+                name="ACC-SINV-2026-08540",
+                customer="zzz",
+                company="Farooq Chemicals",
+                posting_date="2026-04-04",
+                outstanding_amount=-2160,
+                change_amount=2160,
+                base_change_amount=2160,
+                posa_pos_opening_shift="POSA-OS-26-0000007",
+                account_for_change_amount="1110 - Cash - FC",
+                is_pos=1,
+                is_return=0,
+                docstatus=1,
+            )
+        ]
+        self.get_all_responses["Payment Entry"] = [
+            types.SimpleNamespace(
+                name="ACC-PAY-2026-00781",
+                paid_amount=2160,
+                unallocated_amount=2160,
+                paid_from="1110 - Cash - FC",
+                reference_no="POSA-OS-26-0000007",
+                posting_date="2026-04-04",
+                payment_type="Pay",
+                party_type="Customer",
+                party="zzz",
+                company="Farooq Chemicals",
+                docstatus=1,
+            )
+        ]
+
+        payment_doc = FakePaymentEntry()
+        payment_doc.name = "ACC-PAY-2026-00781"
+        payment_doc.paid_from = "1110 - Cash - FC"
+        payment_doc.cost_center = "Main - FC"
+        payment_doc.references = [
+            FakeChildRow(
+                {
+                    "reference_doctype": "Sales Invoice",
+                    "reference_name": "ACC-SINV-OTHER",
+                    "allocated_amount": 240,
+                }
+            )
+        ]
+        self.get_doc_responses[("Payment Entry", "ACC-PAY-2026-00781")] = payment_doc
+
+        result = self.payments_module.repair_overpayment_change_allocations(
+            invoice_names=["ACC-SINV-2026-08540"],
+            dry_run=1,
+        )
+
+        self.assertEqual(
+            result["matched"],
+            [
+                {
+                    "invoice": "ACC-SINV-2026-08540",
+                    "payment_entry": "ACC-PAY-2026-00781",
+                    "allocated_amount": 2160.0,
+                }
+            ],
+        )
+        self.assertEqual(result["skipped"], [])
+
+    def test_repair_overpayment_change_allocations_reports_already_allocated_exact_match(self):
+        self.get_all_responses["Sales Invoice"] = [
+            types.SimpleNamespace(
+                name="ACC-SINV-2026-08541",
+                customer="zzz",
+                company="Farooq Chemicals",
+                posting_date="2026-04-04",
+                outstanding_amount=-690,
+                change_amount=690,
+                base_change_amount=690,
+                posa_pos_opening_shift="POSA-OS-26-0000007",
+                account_for_change_amount="1110 - Cash - FC",
+                is_pos=1,
+                is_return=0,
+                docstatus=1,
+            )
+        ]
+        self.get_all_responses["Payment Entry"] = [
+            types.SimpleNamespace(
+                name="ACC-PAY-2026-00782",
+                paid_amount=690,
+                unallocated_amount=0,
+                total_allocated_amount=690,
+                paid_from="1110 - Cash - FC",
+                reference_no="POSA-OS-26-0000007",
+                posting_date="2026-04-04",
+                payment_type="Pay",
+                party_type="Customer",
+                party="zzz",
+                company="Farooq Chemicals",
+                docstatus=1,
+            )
+        ]
+
+        payment_doc = FakePaymentEntry()
+        payment_doc.name = "ACC-PAY-2026-00782"
+        payment_doc.paid_from = "1110 - Cash - FC"
+        payment_doc.cost_center = "Main - FC"
+        payment_doc.references = [
+            FakeChildRow(
+                {
+                    "reference_doctype": "Sales Invoice",
+                    "reference_name": "ACC-SINV-2026-08541",
+                    "allocated_amount": 690,
+                }
+            )
+        ]
+        self.get_doc_responses[("Payment Entry", "ACC-PAY-2026-00782")] = payment_doc
+
+        result = self.payments_module.repair_overpayment_change_allocations(
+            invoice_names=["ACC-SINV-2026-08541"],
+            dry_run=1,
+        )
+
+        self.assertEqual(result["matched"], [])
+        self.assertEqual(
+            result["skipped"],
+            [
+                {
+                    "invoice": "ACC-SINV-2026-08541",
+                    "payment_entry": "ACC-PAY-2026-00782",
+                    "reason": "already_allocated",
+                }
+            ],
+        )
+
+    def test_repair_overpayment_change_allocations_requires_fully_allocated_signature_for_repaired_state(self):
+        self.get_all_responses["Sales Invoice"] = [
+            types.SimpleNamespace(
+                name="ACC-SINV-2026-08542",
+                customer="zzz",
+                company="Farooq Chemicals",
+                posting_date="2026-04-04",
+                outstanding_amount=-690,
+                change_amount=690,
+                base_change_amount=690,
+                posa_pos_opening_shift="POSA-OS-26-0000007",
+                account_for_change_amount="1110 - Cash - FC",
+                is_pos=1,
+                is_return=0,
+                docstatus=1,
+            )
+        ]
+        self.get_all_responses["Payment Entry"] = [
+            types.SimpleNamespace(
+                name="ACC-PAY-2026-00783",
+                paid_amount=690,
+                unallocated_amount=40,
+                total_allocated_amount=650,
+                paid_from="1110 - Cash - FC",
+                reference_no="POSA-OS-26-0000007",
+                posting_date="2026-04-04",
+                payment_type="Pay",
+                party_type="Customer",
+                party="zzz",
+                company="Farooq Chemicals",
+                docstatus=1,
+            )
+        ]
+
+        payment_doc = FakePaymentEntry()
+        payment_doc.name = "ACC-PAY-2026-00783"
+        payment_doc.paid_from = "1110 - Cash - FC"
+        payment_doc.cost_center = "Main - FC"
+        payment_doc.references = [
+            FakeChildRow(
+                {
+                    "reference_doctype": "Sales Invoice",
+                    "reference_name": "ACC-SINV-2026-08542",
+                    "allocated_amount": 650,
+                }
+            )
+        ]
+        self.get_doc_responses[("Payment Entry", "ACC-PAY-2026-00783")] = payment_doc
+
+        result = self.payments_module.repair_overpayment_change_allocations(
+            invoice_names=["ACC-SINV-2026-08542"],
+            dry_run=1,
+        )
+
+        self.assertEqual(result["matched"], [])
+        self.assertEqual(
+            result["skipped"],
+            [
+                {
+                    "invoice": "ACC-SINV-2026-08542",
+                    "reason": "no_matching_payment_entry",
+                }
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

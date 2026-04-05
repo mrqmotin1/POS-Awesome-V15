@@ -18,6 +18,18 @@
 						</div>
 					</div>
 					<div class="d-flex align-center ga-2">
+						<v-select
+							v-if="isSupervisorScope()"
+							v-model="selectedSupervisorPosProfile"
+							class="supervisor-profile-select"
+							variant="outlined"
+							density="compact"
+							hide-details
+							:items="supervisorPosProfileItems"
+							item-title="title"
+							item-value="value"
+							:label="__('POS Profile')"
+						/>
 						<div class="view-toggle-group">
 							<v-btn
 								:variant="viewMode === 'card' ? 'flat' : 'text'"
@@ -187,7 +199,7 @@
 								<v-icon size="42" color="medium-emphasis">mdi-receipt-text-clock-outline</v-icon>
 								<div class="empty-state__title">{{ __("No invoices found") }}</div>
 								<div class="empty-state__subtitle">
-									{{ historyShowRepairCandidatesOnly ? __("No repair-candidate invoices match the current filters.") : __("Try changing the date range or status filter.") }}
+									{{ historyShowRepairCandidatesOnly ? __("No change-allocation invoices match the current filters.") : __("Try changing the date range or status filter.") }}
 								</div>
 							</div>
 
@@ -205,7 +217,19 @@
 								<template #item.paid_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.paid_amount || 0) }}</template>
 								<template #item.change_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.change_amount || 0) }}</template>
 								<template #item.outstanding_amount="{ item }">{{ currencySymbol(item.currency) }} {{ formatCurrency(item.outstanding_amount || 0) }}</template>
-								<template #item.status="{ item }"><v-chip size="small" :color="statusColor(item.status)" variant="tonal">{{ __(item.status || "Draft") }}</v-chip></template>
+								<template #item.status="{ item }">
+									<div class="d-flex flex-wrap ga-1">
+										<v-chip size="small" :color="statusColor(item.status)" variant="tonal">{{ __(item.status || "Draft") }}</v-chip>
+										<v-chip
+											v-if="changeAllocationRepairState(item)"
+											size="small"
+											:color="repairStateColor(changeAllocationRepairState(item))"
+											variant="flat"
+										>
+											{{ repairStateLabel(changeAllocationRepairState(item)) }}
+										</v-chip>
+									</div>
+								</template>
 								<template #item.actions="{ item }">
 									<div class="d-flex justify-end ga-1">
 										<v-btn icon="mdi-eye-outline" variant="text" size="small" :title="__('View Details')" :aria-label="__('View invoice details')" @click="viewInvoice(item)" />
@@ -228,6 +252,14 @@
 												<div class="invoice-record-card__title">{{ invoice.name }}</div>
 												<v-chip size="small" :color="statusColor(invoice.status)" variant="flat">
 													{{ __(invoice.status || "Draft") }}
+												</v-chip>
+												<v-chip
+													v-if="changeAllocationRepairState(invoice)"
+													size="small"
+													:color="repairStateColor(changeAllocationRepairState(invoice))"
+													variant="flat"
+												>
+													{{ repairStateLabel(changeAllocationRepairState(invoice)) }}
 												</v-chip>
 											</div>
 											<div class="invoice-record-card__subtitle">
@@ -752,6 +784,14 @@
 				</div>
 				<div class="d-flex align-center ga-2">
 					<v-chip v-if="selectedInvoiceDetail?.status" size="small" :color="statusColor(selectedInvoiceDetail.status)" variant="tonal">{{ __(selectedInvoiceDetail.status) }}</v-chip>
+					<v-chip
+						v-if="selectedInvoiceDetail && changeAllocationRepairState(selectedInvoiceDetail)"
+						size="small"
+						:color="repairStateColor(changeAllocationRepairState(selectedInvoiceDetail))"
+						variant="flat"
+					>
+						{{ repairStateLabel(changeAllocationRepairState(selectedInvoiceDetail)) }}
+					</v-chip>
 					<v-btn icon="mdi-close" variant="text" :aria-label="__('Close invoice details dialog')" @click="detailDialog = false" />
 				</div>
 			</v-card-title>
@@ -874,6 +914,12 @@ export default {
 		historyDateFrom: "",
 		historyDateTo: "",
 		historyShowRepairCandidatesOnly: false,
+		repairCandidateInvoiceNames: [],
+		repairedChangeAllocationInvoiceNames: [],
+		repairCandidateScopeReady: false,
+		selectedSupervisorPosProfile: null,
+		supervisorPosProfiles: [],
+		suppressSupervisorProfileRefresh: false,
 		draftSearch: "",
 		draftDateFrom: "",
 		draftDateTo: "",
@@ -897,11 +943,27 @@ export default {
 	}),
 	computed: {
 		currentInvoiceDoctype() { return this.posProfile?.create_pos_invoice_instead_of_sales_invoice ? "POS Invoice" : "Sales Invoice"; },
+		supervisorProfileScope() {
+			return this.resolveSupervisorProfileScope();
+		},
+		supervisorPosProfileItems() {
+			if (!this.isSupervisorScope()) return [];
+			const profileNames = new Set(
+				[this.posProfile?.name, ...(this.supervisorPosProfiles || [])].filter(Boolean),
+			);
+			return [
+				{ title: __("All"), value: "All" },
+				...Array.from(profileNames).sort((left, right) => String(left).localeCompare(String(right))).map((profileName) => ({
+					title: profileName,
+					value: profileName,
+				})),
+			];
+		},
 		filteredUnpaidInvoices() { return this.sortInvoicesByLatest(this.filterCollection(this.unpaidInvoices, this.partialSearch, this.partialStatus, this.partialDateFrom, this.partialDateTo)); },
 		filteredHistoryInvoices() {
 			const visibleInvoices = this.historyInvoices.filter((invoice) => !invoice.is_return);
 			const candidateScopedInvoices = this.historyShowRepairCandidatesOnly
-				? visibleInvoices.filter((invoice) => this.isRepairCandidate(invoice))
+				? visibleInvoices.filter((invoice) => this.changeAllocationRepairState(invoice) !== null)
 				: visibleInvoices;
 			return this.sortInvoicesByLatest(
 				this.filterCollection(
@@ -915,7 +977,7 @@ export default {
 		},
 		historyRepairCandidateCount() {
 			return this.filterCollection(
-				this.historyInvoices.filter((invoice) => !invoice.is_return && this.isRepairCandidate(invoice)),
+				this.historyInvoices.filter((invoice) => !invoice.is_return && this.changeAllocationRepairState(invoice) !== null),
 				this.historySearch,
 				this.historyStatus,
 				this.historyDateFrom,
@@ -981,6 +1043,8 @@ export default {
 		invoiceManagementDialog(value) {
 			if (value) {
 				this.activeTab = this.invoiceManagementTargetTab || "history";
+				this.initializeSupervisorProfileScope();
+				this.loadSupervisorPosProfiles();
 				this.refreshAll();
 			}
 			else this.resetPagination();
@@ -999,6 +1063,22 @@ export default {
 		},
 		filteredReturnInvoices() {
 			this.resetTabPage("returns");
+		},
+		selectedSupervisorPosProfile(value, previousValue) {
+			if (
+				value !== previousValue
+				&& this.invoiceManagementDialog
+				&& this.isSupervisorScope()
+				&& !this.suppressSupervisorProfileRefresh
+			) {
+				this.refreshAll();
+			}
+		},
+		posProfile: {
+			handler() {
+				this.initializeSupervisorProfileScope();
+			},
+			deep: true,
 		},
 	},
 	methods: {
@@ -1118,6 +1198,127 @@ export default {
 				return this.inRange(item.posting_date, this.normalizeDate(fromDate), this.normalizeDate(toDate));
 			});
 		},
+		resolveSupervisorProfileScope() {
+			if (!this.isSupervisorScope()) return null;
+			const selectedProfile = this.selectedSupervisorPosProfile;
+			if (selectedProfile && selectedProfile !== "All") return selectedProfile;
+			return selectedProfile === "All" ? null : this.posProfile?.name || null;
+		},
+		initializeSupervisorProfileScope() {
+			if (!this.isSupervisorScope()) {
+				this.selectedSupervisorPosProfile = null;
+				this.supervisorPosProfiles = [];
+				return;
+			}
+			const currentProfile = this.posProfile?.name || null;
+			this.suppressSupervisorProfileRefresh = true;
+			if (
+				!this.selectedSupervisorPosProfile
+				|| (
+					this.selectedSupervisorPosProfile !== "All"
+					&& ![currentProfile, ...(this.supervisorPosProfiles || [])].filter(Boolean).includes(this.selectedSupervisorPosProfile)
+				)
+			) {
+				this.selectedSupervisorPosProfile = currentProfile;
+			}
+			this.suppressSupervisorProfileRefresh = false;
+		},
+		async loadSupervisorPosProfiles() {
+			if (!this.isSupervisorScope()) {
+				this.supervisorPosProfiles = [];
+				return;
+			}
+			try {
+				const { message } = await frappe.call({
+					method: "frappe.client.get_list",
+					args: {
+						doctype: "POS Profile",
+						filters: {
+							company: this.posProfile?.company,
+						},
+						fields: ["name"],
+						order_by: "name asc",
+						limit_page_length: 0,
+					},
+				});
+				this.supervisorPosProfiles = Array.isArray(message)
+					? message.map((entry) => entry.name).filter(Boolean)
+					: [];
+				this.initializeSupervisorProfileScope();
+			} catch (error) {
+				console.error("Error loading supervisor POS profiles:", error);
+				this.supervisorPosProfiles = this.posProfile?.name ? [this.posProfile.name] : [];
+			}
+		},
+		matchesRepairCandidatePattern(invoice) {
+			return Boolean(
+				invoice
+				&& !Number(invoice?.is_return || 0)
+				&& Number(invoice?.change_amount || 0) > 0
+				&& Number(invoice?.outstanding_amount || 0) < 0,
+			);
+		},
+		async refreshRepairCandidates(invoices = this.historyInvoices) {
+			const candidateInvoices = Array.isArray(invoices)
+				? invoices.filter((invoice) => this.matchesRepairCandidatePattern(invoice))
+				: [];
+
+			if (!candidateInvoices.length) {
+				this.repairCandidateInvoiceNames = [];
+				this.repairedChangeAllocationInvoiceNames = [];
+				this.repairCandidateScopeReady = true;
+				return;
+			}
+
+			try {
+				const invoicesByDoctype = candidateInvoices.reduce((groups, invoice) => {
+					const doctype = invoice?.doctype || this.currentInvoiceDoctype || "Sales Invoice";
+					if (!groups[doctype]) groups[doctype] = [];
+					groups[doctype].push(invoice.name);
+					return groups;
+				}, {});
+				const responses = await Promise.all(
+					Object.entries(invoicesByDoctype).map(async ([doctype, invoiceNames]) => {
+						const { message } = await frappe.call({
+							method: "posawesome.posawesome.api.payments.repair_overpayment_change_allocations",
+							args: {
+								doctype,
+								invoice_names: invoiceNames,
+								company: this.posProfile?.company || null,
+								dry_run: 1,
+								limit: Math.min(invoiceNames.length, 500),
+							},
+						});
+						return message || {};
+					}),
+				);
+				this.repairCandidateInvoiceNames = responses.flatMap((message) => (
+					Array.isArray(message?.matched)
+						? message.matched
+							.map((entry) => entry?.invoice)
+							.filter(Boolean)
+						: []
+				));
+				this.repairedChangeAllocationInvoiceNames = responses.flatMap((message) => (
+					Array.isArray(message?.skipped)
+						? message.skipped
+							.filter((entry) => entry?.reason === "already_allocated")
+							.map((entry) => entry.invoice)
+							.filter(Boolean)
+						: []
+				));
+				this.repairCandidateScopeReady = true;
+			} catch (error) {
+				console.error("Error refreshing repair candidates:", error);
+				this.repairCandidateInvoiceNames = [];
+				this.repairedChangeAllocationInvoiceNames = [];
+				this.repairCandidateScopeReady = false;
+			}
+		},
+		historyInvoiceDoctypes() {
+			if (this.currentInvoiceDoctype === "POS Invoice") return ["POS Invoice", "Sales Invoice"];
+			return [this.currentInvoiceDoctype || "Sales Invoice"];
+		},
 		isSupervisorScope() {
 			return Boolean(this.currentCashier?.is_supervisor && this.posProfile?.company);
 		},
@@ -1125,14 +1326,15 @@ export default {
 			const filters = { ...baseFilters, docstatus: 1 };
 			if (this.isSupervisorScope()) {
 				filters.company = this.posProfile.company;
-				delete filters.pos_profile;
+				const scopedProfile = typeof this.resolveSupervisorProfileScope === "function"
+					? this.resolveSupervisorProfileScope()
+					: null;
+				if (scopedProfile) filters.pos_profile = scopedProfile;
+				else delete filters.pos_profile;
 				delete filters.posa_pos_opening_shift;
 				return filters;
 			}
 			filters.pos_profile = this.posProfile?.name;
-			if (this.posOpeningShift?.name) {
-				filters.posa_pos_opening_shift = this.posOpeningShift.name;
-			}
 			return filters;
 		},
 		getInvoiceListFields(extraFields = []) {
@@ -1217,18 +1419,58 @@ export default {
 			if (!grandTotal) return 0;
 			return Math.max(0, Math.min(100, (Number(invoice?.paid_amount || 0) / grandTotal) * 100));
 		},
+		changeAllocationRepairState(invoice) {
+			const matchesRepairPattern = typeof this.matchesRepairCandidatePattern === "function"
+				? this.matchesRepairCandidatePattern(invoice)
+				: Boolean(
+					invoice
+					&& !Number(invoice?.is_return || 0)
+					&& Number(invoice?.change_amount || 0) > 0
+					&& Number(invoice?.outstanding_amount || 0) < 0,
+				);
+			if (!matchesRepairPattern) return null;
+			if (this.repairCandidateScopeReady) {
+				if (
+					Array.isArray(this.repairedChangeAllocationInvoiceNames)
+					&& this.repairedChangeAllocationInvoiceNames.includes(invoice?.name)
+				) {
+					return "repaired";
+				}
+				if (
+					Array.isArray(this.repairCandidateInvoiceNames)
+					&& this.repairCandidateInvoiceNames.includes(invoice?.name)
+				) {
+					return "candidate";
+				}
+				return null;
+			}
+			return "candidate";
+		},
+		repairStateLabel(state) {
+			if (state === "repaired") return __("Repaired");
+			if (state === "candidate") return __("Repair Candidate");
+			return "";
+		},
+		repairStateColor(state) {
+			if (state === "repaired") return "success";
+			if (state === "candidate") return "warning";
+			return "primary";
+		},
 		isRepairCandidate(invoice) {
-			return Boolean(
-				invoice
-				&& !Number(invoice?.is_return || 0)
-				&& Number(invoice?.change_amount || 0) > 0
-				&& Number(invoice?.outstanding_amount || 0) < 0,
-			);
+			const repairState = typeof this.changeAllocationRepairState === "function"
+				? this.changeAllocationRepairState(invoice)
+				: (
+					typeof this.matchesRepairCandidatePattern === "function" && this.matchesRepairCandidatePattern(invoice)
+						? "candidate"
+						: null
+				);
+			return repairState === "candidate";
 		},
 		async runRepairChangeAllocation(invoice, dryRun = true) {
 			const response = await frappe.call({
 				method: "posawesome.posawesome.api.payments.repair_overpayment_change_allocations",
 				args: {
+					doctype: invoice.doctype || this.currentInvoiceDoctype || "Sales Invoice",
 					invoice_names: [invoice.name],
 					company: this.posProfile?.company || invoice.company || null,
 					dry_run: dryRun ? 1 : 0,
@@ -1239,7 +1481,14 @@ export default {
 			return response?.message || {};
 		},
 		async repairChangeAllocation(invoice) {
-			if (!this.isRepairCandidate(invoice)) {
+			const repairState = typeof this.changeAllocationRepairState === "function"
+				? this.changeAllocationRepairState(invoice)
+				: (typeof this.isRepairCandidate === "function" && this.isRepairCandidate(invoice) ? "candidate" : null);
+			if (repairState === "repaired") {
+				this.toastStore.show({ title: __("This invoice is already repaired"), color: "info" });
+				return;
+			}
+			if (repairState !== "candidate") {
 				this.toastStore.show({ title: __("This invoice does not need change-allocation repair"), color: "info" });
 				return;
 			}
@@ -1314,24 +1563,44 @@ export default {
 			}
 		},
 		async loadHistory() {
-			if (!this.posProfile?.name) return void (this.historyInvoices = []);
+			if (!this.posProfile?.name) {
+				this.historyInvoices = [];
+				this.repairCandidateInvoiceNames = [];
+				this.repairedChangeAllocationInvoiceNames = [];
+				this.repairCandidateScopeReady = false;
+				return;
+			}
 			this.loading = true;
 			try {
 				const filters = this.buildInvoiceFilters();
-				const { message } = await frappe.call({
-					method: "frappe.client.get_list",
-					args: {
-						doctype: this.currentInvoiceDoctype,
-						filters,
-						fields: this.getInvoiceListFields(["change_amount", "is_return", "return_against"]),
-						order_by: "posting_date desc, posting_time desc, modified desc",
-						limit_page_length: 0,
-					},
-				});
-				this.historyInvoices = Array.isArray(message) ? message.map((entry) => ({ ...entry, doctype: this.currentInvoiceDoctype })) : [];
+				const doctypes = typeof this.historyInvoiceDoctypes === "function"
+					? this.historyInvoiceDoctypes()
+					: (this.currentInvoiceDoctype === "POS Invoice"
+						? ["POS Invoice", "Sales Invoice"]
+						: [this.currentInvoiceDoctype || "Sales Invoice"]);
+				const results = await Promise.all(doctypes.map(async (doctype) => {
+					const { message } = await frappe.call({
+						method: "frappe.client.get_list",
+						args: {
+							doctype,
+							filters,
+							fields: this.getInvoiceListFields(["change_amount", "is_return", "return_against"]),
+							order_by: "posting_date desc, posting_time desc, modified desc",
+							limit_page_length: 0,
+						},
+					});
+					return Array.isArray(message) ? message.map((entry) => ({ ...entry, doctype })) : [];
+				}));
+				this.historyInvoices = results.flat();
+				if (typeof this.refreshRepairCandidates === "function") {
+					await this.refreshRepairCandidates(this.historyInvoices);
+				}
 			} catch (error) {
 				console.error("Error loading invoice history:", error);
 				this.toastStore.show({ title: __("Unable to fetch invoice history"), color: "error" });
+				this.repairCandidateInvoiceNames = [];
+				this.repairedChangeAllocationInvoiceNames = [];
+				this.repairCandidateScopeReady = false;
 			} finally {
 				this.loading = false;
 			}
@@ -1347,7 +1616,9 @@ export default {
 						doctype: this.currentInvoiceDoctype,
 						limit_page_length: 0,
 						company: this.isSupervisorScope() ? this.posProfile?.company : null,
-						pos_profile: null,
+						pos_profile: this.isSupervisorScope() && typeof this.resolveSupervisorProfileScope === "function"
+							? this.resolveSupervisorProfileScope()
+							: null,
 						cashier: null,
 						is_supervisor: this.isSupervisorScope() ? 1 : 0,
 					},
@@ -1521,6 +1792,11 @@ export default {
 	padding: 4px;
 	border-radius: 12px;
 	background: rgba(148, 163, 184, 0.08);
+}
+
+.supervisor-profile-select {
+	min-width: 220px;
+	max-width: 280px;
 }
 
 .invoice-tabs {
@@ -1908,6 +2184,21 @@ export default {
 .invoice-detail-card--dark {
 	background: var(--pos-surface-raised) !important;
 	color: var(--pos-text-primary) !important;
+}
+
+.invoice-detail-card--dark .summary-tile {
+	border-color: rgba(100, 116, 139, 0.34);
+	background: linear-gradient(145deg, rgba(36, 43, 51, 0.98), rgba(26, 32, 40, 0.96));
+	box-shadow: 0 18px 40px rgba(2, 6, 23, 0.32);
+}
+
+.invoice-detail-card--dark .summary-tile__label {
+	color: rgba(226, 232, 240, 0.84);
+	opacity: 1;
+}
+
+.invoice-detail-card--dark .summary-tile__value {
+	color: rgb(248, 250, 252);
 }
 
 @media (max-width: 960px) {

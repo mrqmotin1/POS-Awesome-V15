@@ -59,6 +59,25 @@ describe("InvoiceManagement repair change allocation", () => {
 		expect((InvoiceManagement as any).methods.isRepairCandidate(nonCandidate)).toBe(false);
 	});
 
+	it("marks already repaired invoices as non-actionable", () => {
+		const repaired = {
+			name: "ACC-SINV-2026-08532",
+			is_return: 0,
+			outstanding_amount: -2160,
+			change_amount: 2160,
+		};
+
+		const context = {
+			repairedChangeAllocationInvoiceNames: ["ACC-SINV-2026-08532"],
+			repairCandidateScopeReady: true,
+			matchesRepairCandidatePattern: (InvoiceManagement as any).methods.matchesRepairCandidatePattern,
+			changeAllocationRepairState: (InvoiceManagement as any).methods.changeAllocationRepairState,
+		};
+
+		expect((InvoiceManagement as any).methods.changeAllocationRepairState.call(context, repaired)).toBe("repaired");
+		expect((InvoiceManagement as any).methods.isRepairCandidate.call(context, repaired)).toBe(false);
+	});
+
 	it("previews and then applies repair for the selected invoice only", async () => {
 		const callMock = (globalThis as any).frappe.call as ReturnType<typeof vi.fn>;
 		callMock
@@ -96,6 +115,8 @@ describe("InvoiceManagement repair change allocation", () => {
 				outstanding_amount: -2160,
 				change_amount: 2160,
 			},
+			matchesRepairCandidatePattern: (InvoiceManagement as any).methods.matchesRepairCandidatePattern,
+			changeAllocationRepairState: (InvoiceManagement as any).methods.changeAllocationRepairState,
 			isRepairCandidate: (InvoiceManagement as any).methods.isRepairCandidate,
 			runRepairChangeAllocation: (InvoiceManagement as any).methods.runRepairChangeAllocation,
 			posProfile: {
@@ -118,6 +139,7 @@ describe("InvoiceManagement repair change allocation", () => {
 			expect.objectContaining({
 				method: "posawesome.posawesome.api.payments.repair_overpayment_change_allocations",
 				args: {
+					doctype: "Sales Invoice",
 					invoice_names: ["ACC-SINV-2026-08532"],
 					company: "Farooq Chemicals",
 					dry_run: 1,
@@ -129,6 +151,7 @@ describe("InvoiceManagement repair change allocation", () => {
 			expect.objectContaining({
 				method: "posawesome.posawesome.api.payments.repair_overpayment_change_allocations",
 				args: {
+					doctype: "Sales Invoice",
 					invoice_names: ["ACC-SINV-2026-08532"],
 					company: "Farooq Chemicals",
 					dry_run: 0,

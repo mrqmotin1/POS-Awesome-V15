@@ -504,9 +504,40 @@ def _row_value(row, fieldname, default=None):
     return getattr(row, fieldname, default)
 
 
+def _is_exact_repaired_change_allocation(
+    payment_row, payment_doc, invoice_doctype, invoice_name, amount_to_allocate
+):
+    existing_references = list(getattr(payment_doc, "references", []) or [])
+    matching_references = [
+        row
+        for row in existing_references
+        if _row_value(row, "reference_doctype") == invoice_doctype
+        and _row_value(row, "reference_name") == invoice_name
+    ]
+    if not matching_references:
+        return False
+
+    allocated_to_invoice = sum(
+        flt(_row_value(row, "allocated_amount")) for row in matching_references
+    )
+    total_allocated_amount = flt(
+        _row_value(payment_doc, "total_allocated_amount", _row_value(payment_row, "total_allocated_amount"))
+    )
+    unallocated_amount = flt(
+        _row_value(payment_doc, "unallocated_amount", _row_value(payment_row, "unallocated_amount"))
+    )
+
+    return (
+        abs(allocated_to_invoice - amount_to_allocate) <= 0.01
+        and abs(total_allocated_amount - amount_to_allocate) <= 0.01
+        and abs(unallocated_amount) <= 0.01
+    )
+
+
 @frappe.whitelist()
 def repair_overpayment_change_allocations(
     invoice_names=None,
+    doctype="Sales Invoice",
     company=None,
     customer=None,
     posting_date=None,
@@ -516,16 +547,17 @@ def repair_overpayment_change_allocations(
     """Repair historical POS invoices where change Pay entries were left unallocated.
 
     The helper only touches a narrow pattern:
-    - submitted POS Sales Invoice
+    - submitted POS invoice
     - negative outstanding amount
     - non-return invoice
     - positive change amount matching the negative outstanding
-    - exactly one submitted Customer/Pay Payment Entry candidate with no references
+    - exactly one submitted Customer/Pay Payment Entry candidate with a matching change-payment signature
 
     Ambiguous rows are reported and skipped instead of guessed.
     """
 
     invoice_names = set(_coerce_text_list(invoice_names))
+    invoice_doctype = doctype if doctype in {"Sales Invoice", "POS Invoice"} else "Sales Invoice"
     dry_run = _coerce_bool_flag(dry_run, default=True)
     try:
         limit = max(1, min(int(limit or 100), 500))
@@ -546,7 +578,7 @@ def repair_overpayment_change_allocations(
         invoice_filters["posting_date"] = posting_date
 
     candidate_invoices = frappe.get_all(
-        "Sales Invoice",
+        invoice_doctype,
         filters=invoice_filters,
         fields=[
             "name",
@@ -608,7 +640,6 @@ def repair_overpayment_change_allocations(
             "party": invoice_customer,
             "company": invoice_company,
             "posting_date": _row_value(invoice, "posting_date"),
-            "unallocated_amount": [">", 0],
         }
         if _row_value(invoice, "posa_pos_opening_shift"):
             payment_filters["reference_no"] = _row_value(invoice, "posa_pos_opening_shift")
@@ -620,6 +651,7 @@ def repair_overpayment_change_allocations(
                 "name",
                 "paid_amount",
                 "unallocated_amount",
+                "total_allocated_amount",
                 "paid_from",
                 "reference_no",
             ],
@@ -628,6 +660,7 @@ def repair_overpayment_change_allocations(
 
         change_account = _row_value(invoice, "account_for_change_amount")
         filtered_candidates = []
+        already_allocated = False
         for payment in payment_candidates:
             if change_account and _row_value(payment, "paid_from") != change_account:
                 continue
@@ -635,17 +668,17 @@ def repair_overpayment_change_allocations(
             if abs(flt(_row_value(payment, "paid_amount")) - amount_to_allocate) > 0.01:
                 continue
 
-            if abs(flt(_row_value(payment, "unallocated_amount")) - amount_to_allocate) > 0.01:
-                continue
-
             payment_doc = frappe.get_doc("Payment Entry", _row_value(payment, "name"))
             existing_references = list(getattr(payment_doc, "references", []) or [])
             if existing_references:
-                if any(
-                    _row_value(row, "reference_doctype") == "Sales Invoice"
-                    and _row_value(row, "reference_name") == invoice_name
-                    for row in existing_references
+                if _is_exact_repaired_change_allocation(
+                    payment,
+                    payment_doc,
+                    invoice_doctype,
+                    invoice_name,
+                    amount_to_allocate,
                 ):
+                    already_allocated = True
                     skipped.append(
                         {
                             "invoice": invoice_name,
@@ -653,9 +686,15 @@ def repair_overpayment_change_allocations(
                             "reason": "already_allocated",
                         }
                     )
+                    continue
+
+            if abs(flt(_row_value(payment, "unallocated_amount")) - amount_to_allocate) > 0.01:
                 continue
 
             filtered_candidates.append(payment_doc)
+
+        if already_allocated:
+            continue
 
         if not filtered_candidates:
             skipped.append(
@@ -694,7 +733,7 @@ def repair_overpayment_change_allocations(
                         "voucher_type": "Payment Entry",
                         "voucher_no": _row_value(payment_doc, "name"),
                         "voucher_detail_no": None,
-                        "against_voucher_type": "Sales Invoice",
+                        "against_voucher_type": invoice_doctype,
                         "against_voucher": invoice_name,
                         "account": _row_value(payment_doc, "paid_from"),
                         "party_type": "Customer",
