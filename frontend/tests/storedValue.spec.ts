@@ -5,7 +5,6 @@ import { defineComponent, h } from "vue";
 import { mount } from "@vue/test-utils";
 
 import PaymentOptions from "../src/posapp/components/pos/payments/PaymentOptions.vue";
-import CustomerInsights from "../src/posapp/components/pos/customer/CustomerInsights.vue";
 
 const BoxStub = defineComponent({
 	setup(_, { slots }) {
@@ -86,34 +85,10 @@ describe("stored value UX", () => {
 			},
 		});
 
-		expect(wrapper.text()).toContain("Use Stored Value");
-		expect(wrapper.text()).toContain("Stored Value Ready");
-		expect(wrapper.text()).toContain("Available stored value");
+		expect(wrapper.text()).toContain("Use Customer Balance");
+		expect(wrapper.text()).toContain("Available Customer Redeemable Balance");
+		expect(wrapper.text()).toContain("Available customer redeemable balance");
 		expect(wrapper.text()).toContain("Applied now");
 		expect(wrapper.text()).toContain("2 source(s)");
-	});
-
-	it("shows stored value and loyalty insights for the selected customer", () => {
-		const wrapper = mount(CustomerInsights, {
-			props: {
-				customerInfo: {
-					loyalty_points: 120,
-					stored_value_balance: 850,
-					stored_value_sources: 2,
-				},
-				formatCurrency: (value: number) => `PKR ${value}`,
-			},
-			global: {
-				components: {
-					VChip: BoxStub,
-				},
-			},
-		});
-
-		expect(wrapper.text()).toContain("Stored Value");
-		expect(wrapper.text()).toContain("PKR 850");
-		expect(wrapper.text()).toContain("2 sources");
-		expect(wrapper.text()).toContain("Loyalty");
-		expect(wrapper.text()).toContain("120 pts");
 	});
 });

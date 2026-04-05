@@ -106,9 +106,6 @@
 				rounded
 			/>
 		</div>
-
-		<CustomerInsights :customer-info="customerInfo" :format-currency="formatCustomerMetric" />
-
 		<!-- Update customer modal -->
 		<div class="mt-4">
 			<UpdateCustomer />
@@ -210,7 +207,6 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, getCurrentInstance, n
 import { storeToRefs } from "pinia";
 import _ from "lodash";
 import UpdateCustomer from "../dialogs/customer/UpdateCustomer.vue";
-import CustomerInsights from "./CustomerInsights.vue";
 import { useCustomersStore } from "../../../stores/customersStore.js";
 import { useOnlineStatus } from "../../../composables/core/useOnlineStatus";
 import { useToastStore } from "../../../stores/toastStore.js";
@@ -222,7 +218,6 @@ export default {
 	},
 	components: {
 		UpdateCustomer,
-		CustomerInsights,
 	},
 	setup(props, { expose }) {
 		const { proxy } = getCurrentInstance();

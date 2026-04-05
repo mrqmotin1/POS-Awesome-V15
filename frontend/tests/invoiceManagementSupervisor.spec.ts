@@ -253,4 +253,27 @@ describe("InvoiceManagement supervisor scope", () => {
 		expect(matchedByProfile).toHaveLength(1);
 		expect(matchedByCashier).toHaveLength(1);
 	});
+
+	it("refreshes invoice management when the active POS profile changes while open", async () => {
+		const context = {
+			invoiceManagementDialog: true,
+			posProfile: { name: "Main POS", company: "Farooq Chemicals" },
+			currentCashier: { is_supervisor: true },
+			selectedSupervisorPosProfile: "Main POS",
+			initializeSupervisorProfileScope: vi.fn(),
+			loadSupervisorPosProfiles: vi.fn().mockResolvedValue(undefined),
+			refreshAll: vi.fn().mockResolvedValue(undefined),
+			isSupervisorScope: (InvoiceManagement as any).methods.isSupervisorScope,
+		};
+
+		await (InvoiceManagement as any).watch.posProfile.handler.call(
+			context,
+			{ name: "Backup POS", company: "Farooq Chemicals", create_pos_invoice_instead_of_sales_invoice: 0 },
+			{ name: "Main POS", company: "Farooq Chemicals", create_pos_invoice_instead_of_sales_invoice: 0 },
+		);
+
+		expect(context.initializeSupervisorProfileScope).toHaveBeenCalledTimes(1);
+		expect(context.loadSupervisorPosProfiles).toHaveBeenCalledTimes(1);
+		expect(context.refreshAll).toHaveBeenCalledTimes(1);
+	});
 });
