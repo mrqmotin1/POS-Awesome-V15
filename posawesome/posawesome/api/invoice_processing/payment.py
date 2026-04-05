@@ -155,6 +155,41 @@ def _create_change_payment_entries(
             ]
         )
 
+    def _reconcile_change_against_invoice(change_payment_entry):
+        if not change_payment_entry or not invoice_doc.get("name"):
+            return
+
+        allocated_amount = flt(_doc_value(change_payment_entry, "paid_amount"))
+        if allocated_amount <= 0:
+            return
+
+        reconcile_against_document(
+            [
+                frappe._dict(
+                    {
+                        "voucher_type": "Payment Entry",
+                        "voucher_no": _doc_value(change_payment_entry, "name"),
+                        "voucher_detail_no": None,
+                        "against_voucher_type": invoice_doc.get("doctype") or "Sales Invoice",
+                        "against_voucher": invoice_doc.get("name"),
+                        "account": _doc_value(change_payment_entry, "paid_from") or cash_account_name,
+                        "party_type": "Customer",
+                        "party": invoice_doc.get("customer"),
+                        "dr_or_cr": "credit_in_account_currency",
+                        "unreconciled_amount": allocated_amount,
+                        "unadjusted_amount": allocated_amount,
+                        "allocated_amount": allocated_amount,
+                        "grand_total": allocated_amount,
+                        "outstanding_amount": allocated_amount,
+                        "exchange_rate": 1,
+                        "is_advance": 0,
+                        "difference_amount": 0,
+                        "cost_center": _doc_value(change_payment_entry, "cost_center"),
+                    }
+                )
+            ]
+        )
+
     def _using_only_configured_cash_mode():
         """Return True when every paid row matches the configured cash mode and account."""
 
@@ -248,21 +283,6 @@ def _create_change_payment_entries(
         change_payment_entry.set_missing_values()
         change_payment_entry.set_amounts()
 
-        if not source_receive_payment_entry and invoice_doc.get("name"):
-            change_payment_entry.append(
-                "references",
-                {
-                    "reference_doctype": invoice_doc.get("doctype") or "Sales Invoice",
-                    "reference_name": invoice_doc.get("name"),
-                    "total_amount": paid_change_amount,
-                    "outstanding_amount": paid_change_amount,
-                    "allocated_amount": paid_change_amount,
-                },
-            )
-            change_payment_entry.total_allocated_amount = paid_change_amount
-            change_payment_entry.unallocated_amount = 0
-            change_payment_entry.difference_amount = 0
-
         change_payment_entry.flags.ignore_permissions = True
         frappe.flags.ignore_account_permission = True
         change_payment_entry.save()
@@ -273,3 +293,5 @@ def _create_change_payment_entries(
                 source_receive_payment_entry.get("name"),
                 change_payment_entry,
             )
+        else:
+            _reconcile_change_against_invoice(change_payment_entry)
