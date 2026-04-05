@@ -11,6 +11,7 @@ export interface PaymentCalculationOptions {
 	redeemedCustomerCredit: Ref<number>;
 	customerCreditDict: Ref<any[]>;
 	customerInfo: Ref<any>;
+	giftCardRedemptions?: Ref<any[]>;
 	formatCurrency: (_value: number, _currency: string) => string;
 }
 
@@ -27,6 +28,7 @@ export function usePaymentCalculations(options: PaymentCalculationOptions) {
 		redeemedCustomerCredit,
 		customerCreditDict,
 		customerInfo,
+		giftCardRedemptions,
 		formatCurrency,
 	} = options;
 
@@ -88,6 +90,15 @@ export function usePaymentCalculations(options: PaymentCalculationOptions) {
 				total += flt(rCredit);
 			}
 		}
+
+		const giftCardRows = giftCardRedemptions ? unref(giftCardRedemptions) : [];
+		const giftCardTotal = Array.isArray(giftCardRows)
+			? giftCardRows.reduce(
+					(sum, row) => sum + flt(row?.amount || 0),
+					0,
+				)
+			: 0;
+		total += giftCardTotal;
 
 		return flt(total);
 	});

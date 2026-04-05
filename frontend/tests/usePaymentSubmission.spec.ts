@@ -431,4 +431,77 @@ describe("usePaymentSubmission", () => {
 
 		(offlineModule.isOffline as any).mockReturnValue(false);
 	});
+
+	it("treats gift card redemptions as settlement even without a gift payment row", async () => {
+		const invoiceService =
+			(await import("../src/posapp/services/invoiceService")).default;
+		(invoiceService.submitInvoice as any).mockResolvedValue({
+			name: "ACC-SINV-0007",
+			doctype: "Sales Invoice",
+			docstatus: 1,
+		});
+
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-0007",
+			doctype: "Sales Invoice",
+			is_return: 0,
+			items: [{ item_code: "ITEM-1", qty: 1 }],
+			payments: [],
+			rounded_total: 300,
+			grand_total: 300,
+		});
+
+		const giftCardRedemptions = ref([
+			{
+				gift_card_code: "GC-ONLY",
+				amount: 300,
+				cashier: "cashier@example.com",
+			},
+		]);
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 0,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+				posa_allow_partial_payment: 0,
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Invoice"),
+			formatFloat: (value) => Number(value || 0),
+			stores: {
+				toastStore: { show: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(false),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			giftCardRedemptions,
+			diff_payment: ref(0),
+		});
+
+		await expect(
+			submitInvoice(false, {
+				onFinishNavigation: vi.fn(),
+			}),
+		).resolves.not.toThrow();
+
+		expect(invoiceService.submitInvoice).toHaveBeenCalledWith(
+			expect.objectContaining({
+				gift_card_redemptions: [
+					expect.objectContaining({
+						gift_card_code: "GC-ONLY",
+						amount: 300,
+					}),
+				],
+			}),
+			invoiceDoc.value,
+			"Invoice",
+			expect.any(Object),
+		);
+	});
 });

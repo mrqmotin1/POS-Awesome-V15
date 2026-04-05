@@ -92,4 +92,47 @@ describe("Navbar supervisor access", () => {
 
 		expect((wrapper.vm as any).items.some((item: any) => item.to === "/dashboard")).toBe(true);
 	});
+
+	it("shows the gift cards drawer item when gift cards are enabled on the POS profile", async () => {
+		const employeeStore = useEmployeeStore();
+		employeeStore.setCurrentCashier({
+			user: "cashier@example.com",
+			full_name: "Main Cashier",
+			is_supervisor: true,
+		});
+
+		const wrapper = shallowMount(Navbar, {
+			props: {
+				posProfile: { name: "Main POS", posa_use_gift_cards: 1 },
+			},
+			global: {
+				mocks: {
+					__: (value: string) => value,
+				},
+				stubs: {
+					NavbarAppBar: true,
+					NavbarDrawer: true,
+					NavbarMenu: true,
+					NotificationBell: true,
+					StatusIndicator: true,
+					CacheUsageMeter: true,
+					AboutDialog: true,
+					EmployeeSwitchDialog: true,
+					OfflineInvoicesDialog: true,
+					ServerUsageGadget: true,
+					DatabaseUsageGadget: true,
+					VDialog: true,
+					VCard: true,
+					VCardTitle: true,
+					VCardText: true,
+					VSnackbar: true,
+					VBtn: true,
+					VProgressCircular: true,
+				},
+			},
+		});
+
+		await Promise.resolve();
+		expect((wrapper.vm as any).items.some((item: any) => item.to === "/gift-cards")).toBe(true);
+	});
 });
