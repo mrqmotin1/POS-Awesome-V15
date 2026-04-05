@@ -370,7 +370,14 @@ describe("usePaymentSubmission", () => {
 					}),
 				],
 			}),
-			invoiceDoc.value,
+			expect.objectContaining({
+				payments: [
+					expect.objectContaining({
+						mode_of_payment: "Gift Card",
+						amount: 300,
+					}),
+				],
+			}),
 			"Invoice",
 			expect.any(Object),
 		);
@@ -432,7 +439,7 @@ describe("usePaymentSubmission", () => {
 		(offlineModule.isOffline as any).mockReturnValue(false);
 	});
 
-	it("treats gift card redemptions as settlement even without a gift payment row", async () => {
+	it("adds a hidden gift card payment row from the POS profile when submitting redemptions", async () => {
 		const invoiceService =
 			(await import("../src/posapp/services/invoiceService")).default;
 		(invoiceService.submitInvoice as any).mockResolvedValue({
@@ -465,6 +472,10 @@ describe("usePaymentSubmission", () => {
 				posa_allow_submissions_in_background_job: 0,
 				create_pos_invoice_instead_of_sales_invoice: 0,
 				posa_allow_partial_payment: 0,
+				payments: [
+					{ mode_of_payment: "Cash", type: "Cash", account: "1110 - Cash", default: 1 },
+					{ mode_of_payment: "Gift Card", type: "Bank", account: "2190 - Gift Card", default: 0 },
+				],
 			}),
 			stockSettings: ref({}),
 			invoiceType: ref("Invoice"),
@@ -499,9 +510,69 @@ describe("usePaymentSubmission", () => {
 					}),
 				],
 			}),
-			invoiceDoc.value,
+			expect.objectContaining({
+				payments: [
+					expect.objectContaining({
+						mode_of_payment: "Gift Card",
+						amount: 300,
+						account: "2190 - Gift Card",
+					}),
+				],
+			}),
 			"Invoice",
 			expect.any(Object),
 		);
+	});
+
+	it("blocks gift card submission when no gift card mode of payment is configured", async () => {
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-0008",
+			doctype: "Sales Invoice",
+			is_return: 0,
+			items: [{ item_code: "ITEM-1", qty: 1 }],
+			payments: [{ mode_of_payment: "Cash", amount: 0, type: "Cash" }],
+			rounded_total: 300,
+			grand_total: 300,
+		});
+
+		const giftCardRedemptions = ref([
+			{
+				gift_card_code: "GC-MISSING",
+				amount: 300,
+				cashier: "cashier@example.com",
+			},
+		]);
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 0,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+				posa_allow_partial_payment: 0,
+				payments: [{ mode_of_payment: "Cash", type: "Cash", account: "1110 - Cash", default: 1 }],
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Invoice"),
+			formatFloat: (value) => Number(value || 0),
+			stores: {
+				toastStore: { show: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(false),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			giftCardRedemptions,
+			diff_payment: ref(0),
+		});
+
+		await expect(
+			submitInvoice(false, {
+				onFinishNavigation: vi.fn(),
+			}),
+		).rejects.toThrow("Add a Gift Card mode of payment to the POS profile before redeeming gift cards");
 	});
 });

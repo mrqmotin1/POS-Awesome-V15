@@ -6,6 +6,7 @@ import {
 	updateLocalStock,
 } from "../../../../offline/index";
 import stockCoordinator from "../../../utils/stockCoordinator";
+import { ensureGiftCardPaymentLine } from "../../../utils/paymentInitialization";
 
 declare const frappe: any;
 declare const __: (_str: string, _args?: any[]) => string;
@@ -467,6 +468,33 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 		return true;
 	};
 
+	const buildSubmissionInvoiceDoc = (doc: any, profile: any, prec: number) => {
+		const submissionDoc = JSON.parse(JSON.stringify(doc || {}));
+		const giftCardRows = Array.isArray(options.giftCardRedemptions?.value)
+			? options.giftCardRedemptions?.value || []
+			: [];
+		const totalGiftCardRedemption = giftCardRows.reduce(
+			(sum: number, row: any) => sum + formatFloat(row?.amount || 0, prec),
+			0,
+		);
+
+		if (totalGiftCardRedemption > 0) {
+			const giftCardPaymentLine = ensureGiftCardPaymentLine(
+				submissionDoc,
+				profile,
+				totalGiftCardRedemption,
+				prec,
+			);
+			if (!giftCardPaymentLine) {
+				throw new Error(
+					__("Add a Gift Card mode of payment to the POS profile before redeeming gift cards"),
+				);
+			}
+		}
+
+		return submissionDoc;
+	};
+
 	function ensureReturnPaymentsAreNegative() {
 		const doc = unref(invoiceDoc);
 		if (!doc || !doc.is_return || !unref(options.isCashback)) {
@@ -702,9 +730,10 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 
 		// Online Submission
 		try {
+			const submissionDoc = buildSubmissionInvoiceDoc(doc, profile, prec);
 			const message = await invoiceService.submitInvoice(
 				data,
-				doc,
+				submissionDoc,
 				type,
 				profile,
 			);
