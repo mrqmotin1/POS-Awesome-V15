@@ -35,6 +35,7 @@ def before_cancel(doc, method):
 
 def on_cancel(doc, method):
     cancel_posawesome_credit_journal_entries(doc)
+    restore_posawesome_gift_card_redemptions(doc)
 
 
 def cancel_posawesome_credit_journal_entries(doc):
@@ -70,6 +71,23 @@ def cancel_posawesome_credit_journal_entries(doc):
                     "Unable to cancel Journal Entry {0} linked to this invoice. Please cancel it manually and try again."
                 ).format(journal_entry)
             )
+
+
+def restore_posawesome_gift_card_redemptions(doc):
+    try:
+        from posawesome.posawesome.api.gift_cards import restore_invoice_gift_card_redemptions
+
+        restore_invoice_gift_card_redemptions(doc)
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "POSAwesome Gift Card Restoration Error",
+        )
+        frappe.throw(
+            _(
+                "Unable to restore gift card balances linked to this invoice. Please review the applied gift cards and try again."
+            )
+        )
 
 
 def add_loyalty_point(invoice_doc):

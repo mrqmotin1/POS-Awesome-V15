@@ -728,8 +728,8 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
         self.assertEqual(len(captured_calls), 1)
         self.assertEqual(captured_calls[0][0][4], receive_entries)
 
-    def test_has_post_submit_payment_work_includes_gift_card_redemptions(self):
-        self.assertTrue(
+    def test_has_post_submit_payment_work_ignores_gift_card_redemptions(self):
+        self.assertFalse(
             self.creation._has_post_submit_payment_work(
                 {
                     "gift_card_redemptions": [
@@ -739,7 +739,7 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
             )
         )
 
-    def test_run_post_submit_payments_applies_gift_card_redemptions(self):
+    def test_apply_invoice_gift_card_settlement_delegates_before_submit(self):
         invoice_doc = FakeDoc(
             doctype="Sales Invoice",
             name="SINV-0006",
@@ -755,7 +755,44 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
         gift_card_module_name = "posawesome.posawesome.api.gift_cards"
         gift_card_calls = []
         gift_card_module = types.ModuleType(gift_card_module_name)
-        gift_card_module.redeem_gift_card = lambda **kwargs: gift_card_calls.append(kwargs)
+        gift_card_module.apply_invoice_gift_card_redemptions = (
+            lambda invoice_doc, rows: gift_card_calls.append((invoice_doc, rows))
+        )
+        sys.modules[gift_card_module_name] = gift_card_module
+
+        self.creation._apply_invoice_gift_card_settlement(
+            invoice_doc,
+            {
+                "gift_card_redemptions": [
+                    {"gift_card_code": "GC-0001", "amount": 150, "cashier": "cashier@example.com"}
+                ]
+            },
+        )
+
+        self.assertEqual(len(gift_card_calls), 1)
+        self.assertIs(gift_card_calls[0][0], invoice_doc)
+        self.assertEqual(gift_card_calls[0][1][0]["gift_card_code"], "GC-0001")
+        self.assertEqual(gift_card_calls[0][1][0]["amount"], 150)
+
+    def test_run_post_submit_payments_skips_gift_card_redemptions(self):
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="SINV-0006",
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+
+        payment_module_name = "posawesome.posawesome.api.invoice_processing.payment"
+        payment_module = types.ModuleType(payment_module_name)
+        payment_module._create_change_payment_entries = lambda *args, **kwargs: None
+        sys.modules[payment_module_name] = payment_module
+
+        gift_card_module_name = "posawesome.posawesome.api.gift_cards"
+        gift_card_calls = []
+        gift_card_module = types.ModuleType(gift_card_module_name)
+        gift_card_module.apply_invoice_gift_card_redemptions = (
+            lambda *args, **kwargs: gift_card_calls.append((args, kwargs))
+        )
         sys.modules[gift_card_module_name] = gift_card_module
 
         original_redeem = self.creation.redeeming_customer_credit
@@ -777,11 +814,7 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
         finally:
             self.creation.redeeming_customer_credit = original_redeem
 
-        self.assertEqual(len(gift_card_calls), 1)
-        self.assertEqual(gift_card_calls[0]["gift_card_code"], "GC-0001")
-        self.assertEqual(gift_card_calls[0]["amount"], 150)
-        self.assertEqual(gift_card_calls[0]["invoice_doctype"], "Sales Invoice")
-        self.assertEqual(gift_card_calls[0]["invoice_name"], "SINV-0006")
+        self.assertEqual(gift_card_calls, [])
 
     def test_process_post_submit_payments_job_publishes_completion_event(self):
         invoice_doc = FakeDoc(

@@ -156,6 +156,143 @@ def _append_transaction(
 	return row
 
 
+def _set_child_rows(doc, fieldname, rows):
+	if hasattr(doc, "set"):
+		doc.set(fieldname, rows)
+	else:
+		setattr(doc, fieldname, rows)
+
+
+def _invoice_payment_child_doctype(invoice_doc):
+	return "POS Invoice Payment" if _doc_value(invoice_doc, "doctype") == "POS Invoice" else "Sales Invoice Payment"
+
+
+def _invoice_gift_card_child_doctype(invoice_doc):
+	return "POS Gift Card Redemption"
+
+
+def _remove_invoice_gift_card_settlement(invoice_doc):
+	payments = list(_doc_value(invoice_doc, "payments") or [])
+	filtered = [
+		row
+		for row in payments
+		if str(_doc_value(row, "mode_of_payment") or "").strip() != "Gift Card"
+	]
+	_set_child_rows(invoice_doc, "payments", filtered)
+
+
+def _append_invoice_gift_card_payment(invoice_doc, amount, liability_account):
+	redeemed_amount = _to_float(amount)
+	if redeemed_amount <= 0:
+		return None
+
+	conversion_rate = _to_float(_doc_value(invoice_doc, "conversion_rate") or 1) or 1
+	row = invoice_doc.append(
+		"payments",
+		{
+			"mode_of_payment": "Gift Card",
+			"amount": redeemed_amount,
+			"base_amount": _to_float(redeemed_amount * conversion_rate),
+			"account": liability_account,
+			"type": "Cash",
+		},
+	)
+	ensure_child_doctype(invoice_doc, "payments", _invoice_payment_child_doctype(invoice_doc))
+	return row
+
+
+def apply_invoice_gift_card_redemptions(invoice_doc, rows=None):
+	rows = rows or []
+	_set_child_rows(invoice_doc, "gift_card_redemptions", [])
+	_remove_invoice_gift_card_settlement(invoice_doc)
+
+	total_redeemed = 0
+	normalized_rows = []
+	cashier = None
+	company = _doc_value(invoice_doc, "company")
+	profile_doc = _get_profile_doc(_doc_value(invoice_doc, "pos_profile"))
+	liability_account = _resolve_liability_account(profile_doc)
+
+	for row in rows:
+		redeem_amount = _to_float((row or {}).get("amount"))
+		if redeem_amount <= 0:
+			continue
+
+		gift_card_code = (row or {}).get("gift_card_code")
+		cashier = (row or {}).get("cashier") or cashier
+		gift_card_doc = _get_gift_card(gift_card_code)
+		if company and _doc_value(gift_card_doc, "company") != company:
+			frappe.throw(frappe._("Gift card does not belong to company {0}.").format(company))
+		status = _doc_value(gift_card_doc, "status", "Active")
+		if status != "Active":
+			frappe.throw(frappe._("Only active gift cards can be redeemed."))
+
+		current_balance = _to_float(_doc_value(gift_card_doc, "current_balance"))
+		if redeem_amount > current_balance:
+			frappe.throw(frappe._("Gift card balance is insufficient."))
+
+		next_balance = _to_float(current_balance - redeem_amount)
+		gift_card_doc.current_balance = next_balance
+		gift_card_doc.last_redeemed_on = _now_datetime()
+		gift_card_doc.flags.ignore_permissions = True
+		gift_card_doc.save(ignore_permissions=True)
+
+		normalized_rows.append(
+			{
+				"gift_card_code": _doc_value(gift_card_doc, "gift_card_code"),
+				"redeemed_amount": redeem_amount,
+				"balance_before": current_balance,
+				"balance_after": next_balance,
+				"status": "Applied",
+				"cashier": cashier,
+			}
+		)
+		total_redeemed += redeem_amount
+
+	for row in normalized_rows:
+		invoice_doc.append("gift_card_redemptions", row)
+
+	if normalized_rows:
+		ensure_child_doctype(
+			invoice_doc,
+			"gift_card_redemptions",
+			_invoice_gift_card_child_doctype(invoice_doc),
+		)
+		_append_invoice_gift_card_payment(invoice_doc, total_redeemed, liability_account)
+
+	return _to_float(total_redeemed)
+
+
+def restore_invoice_gift_card_redemptions(invoice_doc):
+	total_restored = 0
+	for row in list(_doc_value(invoice_doc, "gift_card_redemptions") or []):
+		status = str(_doc_value(row, "status") or "").strip()
+		if status == "Cancelled":
+			continue
+
+		redeemed_amount = _to_float(_doc_value(row, "redeemed_amount") or _doc_value(row, "amount"))
+		if redeemed_amount <= 0:
+			continue
+
+		gift_card_doc = _get_gift_card(_doc_value(row, "gift_card_code"))
+		restore_balance = _to_float(_doc_value(row, "balance_before"))
+		if restore_balance <= 0:
+			restore_balance = _to_float(_doc_value(gift_card_doc, "current_balance") + redeemed_amount)
+
+		gift_card_doc.current_balance = restore_balance
+		gift_card_doc.flags.ignore_permissions = True
+		gift_card_doc.save(ignore_permissions=True)
+
+		if isinstance(row, dict):
+			row["status"] = "Cancelled"
+		else:
+			setattr(row, "status", "Cancelled")
+
+		total_restored += redeemed_amount
+
+	return _to_float(total_restored)
+
+
 def _serialize_gift_card(gift_card_doc):
 	return {
 		"name": getattr(gift_card_doc, "name", None),
@@ -331,53 +468,4 @@ def check_gift_card_balance(gift_card_code=None, company=None):
 	gift_card_doc = _get_gift_card(gift_card_code)
 	if company and getattr(gift_card_doc, "company", None) != company:
 		frappe.throw(frappe._("Gift card does not belong to company {0}.").format(company))
-	return _serialize_gift_card(gift_card_doc)
-
-
-def redeem_gift_card(
-	gift_card_code=None,
-	amount=0,
-	invoice_doctype=None,
-	invoice_name=None,
-	cashier=None,
-	company=None,
-):
-	redeem_amount = _to_float(amount)
-	if redeem_amount <= 0:
-		frappe.throw(frappe._("Redeem amount must be greater than zero."))
-	if not invoice_doctype or not invoice_name:
-		frappe.throw(frappe._("Gift card redemption requires an invoice reference."))
-
-	gift_card_doc = _get_gift_card(gift_card_code)
-	if company and getattr(gift_card_doc, "company", None) != company:
-		frappe.throw(frappe._("Gift card does not belong to company {0}.").format(company))
-	status = getattr(gift_card_doc, "status", "Active")
-	if status != "Active":
-		frappe.throw(frappe._("Only active gift cards can be redeemed."))
-
-	current_balance = _to_float(getattr(gift_card_doc, "current_balance", 0))
-	if redeem_amount > current_balance:
-		frappe.throw(frappe._("Gift card balance is insufficient."))
-
-	invoice_doc = frappe.get_doc(invoice_doctype, invoice_name)
-	if company and _doc_value(invoice_doc, "company") != company:
-		frappe.throw(frappe._("Invoice company does not match gift card company."))
-
-	profile_doc = _get_profile_doc(_doc_value(invoice_doc, "pos_profile"))
-	_create_redemption_entry(profile_doc, invoice_doc, redeem_amount, cashier)
-
-	next_balance = _to_float(current_balance - redeem_amount)
-	gift_card_doc.current_balance = next_balance
-	gift_card_doc.last_redeemed_on = _now_datetime()
-	_append_transaction(
-		gift_card_doc,
-		"Redeem",
-		redeem_amount,
-		next_balance,
-		cashier=cashier,
-		reference_doctype=invoice_doctype,
-		reference_name=invoice_name,
-	)
-	gift_card_doc.flags.ignore_permissions = True
-	gift_card_doc.save(ignore_permissions=True)
 	return _serialize_gift_card(gift_card_doc)

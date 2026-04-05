@@ -34,6 +34,8 @@
 							:paid_change_rules="paid_change_rules"
 							:currencySymbol="currencySymbol"
 							:formatCurrency="formatCurrency"
+							:gift-card-applied-amount="giftCardAppliedAmount"
+							:gift-card-code="giftCardRedemptions[0]?.gift_card_code || ''"
 							@show-paid-amount="showPaidAmount"
 							@show-diff-payment="showDiffPayment"
 							@show-paid-change="showPaidChange"

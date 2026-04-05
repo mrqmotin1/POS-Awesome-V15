@@ -31,6 +31,40 @@ class FakeGiftCard:
         return self
 
 
+class FakeInvoice:
+    def __init__(
+        self,
+        doctype="Sales Invoice",
+        name="ACC-SINV-0001",
+        company="Test Company",
+        posting_date="2026-04-05",
+        pos_profile="Main POS",
+        debit_to="1310 - Debtors - TC",
+        customer="CUST-0001",
+        grand_total=800,
+    ):
+        self.doctype = doctype
+        self.name = name
+        self.company = company
+        self.posting_date = posting_date
+        self.pos_profile = pos_profile
+        self.debit_to = debit_to
+        self.customer = customer
+        self.grand_total = grand_total
+        self.rounded_total = grand_total
+        self.gift_card_redemptions = []
+        self.payments = []
+        self.flags = types.SimpleNamespace(ignore_permissions=False)
+
+    def append(self, fieldname, value):
+        row = dict(value)
+        getattr(self, fieldname).append(row)
+        return row
+
+    def save(self, ignore_permissions=False):
+        return self
+
+
 class FakeJournalEntry:
     def __init__(self, payload=None):
         payload = payload or {}
@@ -88,15 +122,7 @@ def _install_stubs():
             ),
         },
         "invoices": {
-            "ACC-SINV-0001": types.SimpleNamespace(
-                doctype="Sales Invoice",
-                name="ACC-SINV-0001",
-                company="Test Company",
-                posting_date="2026-04-05",
-                pos_profile="Main POS",
-                debit_to="1310 - Debtors - TC",
-                customer="CUST-0001",
-            )
+            "ACC-SINV-0001": FakeInvoice()
         },
         "pos_profiles": {
             "Main POS": types.SimpleNamespace(
@@ -265,46 +291,58 @@ class TestGiftCardApi(unittest.TestCase):
             "2190 - Gift Card Liability - TC",
         )
 
-    def test_redeem_gift_card_records_invoice_reference(self):
+    def test_apply_invoice_gift_card_redemptions_records_invoice_rows(self):
         existing = FakeGiftCard(code="GC-0002", balance=800, status="Active")
         self.state["cards"][existing.gift_card_code] = existing
+        invoice_doc = self.state["invoices"]["ACC-SINV-0001"]
 
-        result = self.module.redeem_gift_card(
-            gift_card_code="GC-0002",
-            amount=300,
-            invoice_doctype="Sales Invoice",
-            invoice_name="ACC-SINV-0001",
-            cashier="cashier@example.com",
-            company="Test Company",
+        result = self.module.apply_invoice_gift_card_redemptions(
+            invoice_doc,
+            [{"gift_card_code": "GC-0002", "amount": 300, "cashier": "cashier@example.com"}],
         )
 
-        self.assertEqual(result["current_balance"], 500)
-        self.assertEqual(len(existing.transactions), 1)
-        self.assertEqual(existing.transactions[0]["transaction_type"], "Redeem")
-        self.assertEqual(existing.transactions[0]["reference_doctype"], "Sales Invoice")
-        self.assertEqual(existing.transactions[0]["reference_name"], "ACC-SINV-0001")
-        self.assertEqual(len(self.state["journal_entries"]), 1)
-        self.assertEqual(
-            self.state["journal_entries"][0].accounts[0]["account"],
-            "2190 - Gift Card Liability - TC",
-        )
-        self.assertEqual(
-            self.state["journal_entries"][0].accounts[1]["reference_name"],
-            "ACC-SINV-0001",
-        )
+        self.assertEqual(result, 300)
+        self.assertEqual(existing.current_balance, 500)
+        self.assertEqual(len(existing.transactions), 0)
+        self.assertEqual(len(self.state["journal_entries"]), 0)
+        self.assertEqual(len(invoice_doc.gift_card_redemptions), 1)
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["gift_card_code"], "GC-0002")
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["redeemed_amount"], 300)
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["balance_before"], 800)
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["balance_after"], 500)
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["status"], "Applied")
+        self.assertEqual(len(invoice_doc.payments), 1)
+        self.assertEqual(invoice_doc.payments[0]["account"], "2190 - Gift Card Liability - TC")
+        self.assertEqual(invoice_doc.payments[0]["amount"], 300)
 
-    def test_redeem_gift_card_blocks_inactive_card(self):
+    def test_restore_invoice_gift_card_redemptions_restores_balance(self):
+        existing = FakeGiftCard(code="GC-0002", balance=500, status="Active")
+        self.state["cards"][existing.gift_card_code] = existing
+        invoice_doc = self.state["invoices"]["ACC-SINV-0001"]
+        invoice_doc.gift_card_redemptions = [
+            {
+                "gift_card_code": "GC-0002",
+                "redeemed_amount": 300,
+                "balance_before": 800,
+                "balance_after": 500,
+                "status": "Applied",
+            }
+        ]
+
+        restored = self.module.restore_invoice_gift_card_redemptions(invoice_doc)
+
+        self.assertEqual(restored, 300)
+        self.assertEqual(existing.current_balance, 800)
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["status"], "Cancelled")
+
+    def test_apply_invoice_gift_card_redemptions_blocks_inactive_card(self):
         existing = FakeGiftCard(code="GC-0003", balance=800, status="Inactive")
         self.state["cards"][existing.gift_card_code] = existing
 
         with self.assertRaises(Exception) as ctx:
-            self.module.redeem_gift_card(
-                gift_card_code="GC-0003",
-                amount=100,
-                invoice_doctype="Sales Invoice",
-                invoice_name="ACC-SINV-0002",
-                cashier="cashier@example.com",
-                company="Test Company",
+            self.module.apply_invoice_gift_card_redemptions(
+                self.state["invoices"]["ACC-SINV-0001"],
+                [{"gift_card_code": "GC-0003", "amount": 100, "cashier": "cashier@example.com"}],
             )
 
         self.assertIn("active gift cards", str(ctx.exception))
