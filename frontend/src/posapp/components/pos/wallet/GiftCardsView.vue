@@ -1,57 +1,121 @@
 <template>
 	<v-card class="gift-cards-view pos-themed-card">
 		<div class="gift-cards-view__header">
-			<div>
-				<p class="gift-cards-view__eyebrow">{{ __("Gift Cards") }}</p>
-				<h2 class="gift-cards-view__title">{{ __("Gift Card Management") }}</h2>
-				<p class="gift-cards-view__subtitle">
-					{{ __("Check balance for any card. Supervisors can issue and top up cards here.") }}
-				</p>
+			<div class="gift-cards-view__hero">
+				<div class="gift-cards-view__hero-copy">
+					<p class="gift-cards-view__eyebrow">{{ __("Gift Cards") }}</p>
+					<h2 class="gift-cards-view__title">{{ __("Gift Card Management") }}</h2>
+					<p class="gift-cards-view__subtitle">
+						{{ __("Check balance for any card. Supervisors can issue and top up cards here.") }}
+					</p>
+				</div>
+				<div class="gift-cards-view__hero-badges">
+					<span class="gift-cards-view__badge gift-cards-view__badge--soft">
+						{{ isSupervisor ? __("Supervisor Access") : __("Cashier Access") }}
+					</span>
+					<span class="gift-cards-view__badge">
+						{{ posProfile?.company || __("No Company Selected") }}
+					</span>
+				</div>
 			</div>
 		</div>
 
 		<div class="gift-cards-view__body">
+			<div class="gift-cards-view__panel gift-cards-view__panel--hero">
+				<div class="gift-cards-view__scan-tip">
+					<div class="gift-cards-view__scan-copy">
+						<p class="gift-cards-view__section-label">{{ __("Scan-Ready") }}</p>
+						<h3>{{ __("Manual codes, barcode scans, and QR scans work in the same field") }}</h3>
+						<p>
+							{{ __("Use one workflow for balance checks, new issuance, and top ups without leaving POS.") }}
+						</p>
+					</div>
+					<div class="gift-cards-view__highlights">
+						<div class="gift-cards-view__highlight">
+							<span>{{ __("Workflow") }}</span>
+							<strong>{{ currentModeTitle }}</strong>
+						</div>
+						<div class="gift-cards-view__highlight">
+							<span>{{ __("Profile") }}</span>
+							<strong>{{ posProfile?.name || __("Unavailable") }}</strong>
+						</div>
+					</div>
+				</div>
+			</div>
+
 			<div v-if="isSupervisor" class="gift-cards-view__modes">
-				<v-btn variant="tonal" size="small" @click="mode = 'issue'">
+				<v-btn
+					:variant="mode === 'issue' ? 'flat' : 'tonal'"
+					:color="mode === 'issue' ? 'primary' : undefined"
+					size="small"
+					@click="mode = 'issue'"
+				>
 					{{ __("Issue New Card") }}
 				</v-btn>
-				<v-btn variant="tonal" size="small" @click="mode = 'top_up'">
+				<v-btn
+					:variant="mode === 'top_up' ? 'flat' : 'tonal'"
+					:color="mode === 'top_up' ? 'primary' : undefined"
+					size="small"
+					@click="mode = 'top_up'"
+				>
 					{{ __("Top Up Card") }}
 				</v-btn>
-				<v-btn variant="tonal" size="small" @click="mode = 'check'">
+				<v-btn
+					:variant="mode === 'check' ? 'flat' : 'tonal'"
+					:color="mode === 'check' ? 'primary' : undefined"
+					size="small"
+					@click="mode = 'check'"
+				>
 					{{ __("Check Balance") }}
 				</v-btn>
 			</div>
 
-			<v-text-field
-				v-model="cardCode"
-				:label="__('Gift Card Code')"
-				variant="outlined"
-				density="compact"
-			/>
+			<div class="gift-cards-view__panel">
+				<div class="gift-cards-view__form-header">
+					<div>
+						<p class="gift-cards-view__section-label">{{ currentModeLabel }}</p>
+						<h3 class="gift-cards-view__form-title">{{ currentModeTitle }}</h3>
+					</div>
+					<span class="gift-cards-view__mini-note">{{ __("Scan or paste the card code below.") }}</span>
+				</div>
 
-			<v-text-field
-				v-if="mode !== 'check'"
-				v-model="amount"
-				:label="mode === 'issue' ? __('Initial Amount') : __('Top Up Amount')"
-				variant="outlined"
-				density="compact"
-				type="number"
-				min="0"
-			/>
+				<v-text-field
+					v-model="cardCode"
+					:label="__('Gift Card Code')"
+					variant="outlined"
+					density="compact"
+				/>
 
-			<v-alert v-if="message" :type="messageType" variant="tonal" density="compact">
-				{{ message }}
-			</v-alert>
+				<v-text-field
+					v-if="mode !== 'check'"
+					v-model="amount"
+					:label="mode === 'issue' ? __('Initial Amount') : __('Top Up Amount')"
+					variant="outlined"
+					density="compact"
+					type="number"
+					min="0"
+				/>
+
+				<v-alert v-if="message" :type="messageType" variant="tonal" density="compact">
+					{{ message }}
+				</v-alert>
+			</div>
 
 			<div class="gift-cards-view__stats">
 				<div class="gift-cards-view__stat">
 					<span>{{ __("Status") }}</span>
 					<strong>{{ status || __("Unknown") }}</strong>
+					<small>{{ __("Card health after the last live lookup") }}</small>
 				</div>
 				<div class="gift-cards-view__stat">
 					<span>{{ __("Balance") }}</span>
 					<strong>{{ formatCurrency(balance) }}</strong>
+					<small>{{ __("Current redeemable value on the gift card") }}</small>
+				</div>
+				<div class="gift-cards-view__stat">
+					<span>{{ __("Access") }}</span>
+					<strong>{{ isSupervisor ? __("Issue, top up, and check") : __("Check balance only") }}</strong>
+					<small>{{ __("Supervisor permissions unlock issuance and reloads") }}</small>
 				</div>
 			</div>
 
@@ -107,6 +171,20 @@ const messageType = ref("info");
 const mode = ref("check");
 
 const isSupervisor = computed(() => Boolean(currentCashier.value?.is_supervisor));
+const currentModeLabel = computed(() =>
+	mode.value === "issue"
+		? __("Issue Workflow")
+		: mode.value === "top_up"
+			? __("Reload Workflow")
+			: __("Lookup Workflow"),
+);
+const currentModeTitle = computed(() =>
+	mode.value === "issue"
+		? __("Create and load a new prepaid card")
+		: mode.value === "top_up"
+			? __("Add more value to an existing gift card")
+			: __("Check live balance before redemption"),
+);
 
 const flt = (value) => {
 	if (typeof window !== "undefined" && typeof window.flt === "function") {
@@ -223,10 +301,51 @@ const topUpCard = async () => {
 .gift-cards-view {
 	margin: 12px;
 	border-radius: 20px;
+	overflow: hidden;
 }
 
 .gift-cards-view__header {
 	padding: 20px 20px 0;
+}
+
+.gift-cards-view__hero {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 24px;
+	border-radius: 22px;
+	background:
+		radial-gradient(circle at top right, rgba(var(--v-theme-primary), 0.18), transparent 38%),
+		linear-gradient(145deg, rgba(var(--v-theme-primary), 0.1), rgba(var(--v-theme-surface), 0.92));
+	border: 1px solid rgba(var(--v-theme-primary), 0.12);
+}
+
+.gift-cards-view__hero-copy {
+	max-width: 640px;
+}
+
+.gift-cards-view__hero-badges {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.gift-cards-view__badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 12px;
+	border-radius: 999px;
+	font-size: 0.78rem;
+	font-weight: 700;
+	background: rgba(var(--v-theme-surface), 0.88);
+	color: var(--pos-text-primary);
+	border: 1px solid rgba(var(--v-theme-primary), 0.12);
+}
+
+.gift-cards-view__badge--soft {
+	background: rgba(var(--v-theme-primary), 0.12);
 }
 
 .gift-cards-view__eyebrow {
@@ -256,15 +375,100 @@ const topUpCard = async () => {
 	padding: 20px;
 }
 
+.gift-cards-view__panel {
+	padding: 18px;
+	border-radius: 18px;
+	border: 1px solid var(--pos-border-light);
+	background: linear-gradient(180deg, rgba(var(--v-theme-surface), 0.96), var(--pos-surface-raised));
+}
+
+.gift-cards-view__panel--hero {
+	background:
+		radial-gradient(circle at top left, rgba(var(--v-theme-primary), 0.1), transparent 42%),
+		linear-gradient(180deg, rgba(var(--v-theme-surface), 0.98), var(--pos-surface-muted));
+}
+
+.gift-cards-view__scan-tip {
+	display: flex;
+	align-items: stretch;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.gift-cards-view__scan-copy h3 {
+	margin: 4px 0 8px;
+	font-size: 1.05rem;
+	color: var(--pos-text-primary);
+}
+
+.gift-cards-view__scan-copy p:last-child {
+	margin: 0;
+	color: var(--pos-text-secondary);
+}
+
+.gift-cards-view__highlights {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(140px, 1fr));
+	gap: 10px;
+}
+
+.gift-cards-view__highlight {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 12px 14px;
+	border-radius: 16px;
+	background: rgba(var(--v-theme-primary), 0.08);
+	border: 1px solid rgba(var(--v-theme-primary), 0.12);
+}
+
+.gift-cards-view__highlight span,
+.gift-cards-view__section-label {
+	font-size: 0.74rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--pos-text-secondary);
+}
+
+.gift-cards-view__highlight strong {
+	font-size: 0.96rem;
+	color: var(--pos-text-primary);
+}
+
 .gift-cards-view__modes {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 }
 
+.gift-cards-view__form-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.gift-cards-view__form-title {
+	margin: 4px 0 0;
+	font-size: 1.02rem;
+	color: var(--pos-text-primary);
+}
+
+.gift-cards-view__mini-note {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 10px;
+	border-radius: 999px;
+	background: var(--pos-surface-muted);
+	color: var(--pos-text-secondary);
+	font-size: 0.8rem;
+}
+
 .gift-cards-view__stats {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 12px;
 }
 
@@ -272,10 +476,12 @@ const topUpCard = async () => {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	padding: 12px;
-	border-radius: 14px;
-	border: 1px solid var(--pos-border-light);
-	background: var(--pos-surface-muted);
+	padding: 16px;
+	border-radius: 16px;
+	border: 1px solid rgba(var(--v-theme-primary), 0.1);
+	background:
+		linear-gradient(180deg, rgba(var(--v-theme-primary), 0.04), transparent 32%),
+		var(--pos-surface-muted);
 }
 
 .gift-cards-view__stat span {
@@ -286,13 +492,36 @@ const topUpCard = async () => {
 }
 
 .gift-cards-view__stat strong {
-	font-size: 1rem;
+	font-size: 1.02rem;
 	color: var(--pos-text-primary);
+}
+
+.gift-cards-view__stat small {
+	color: var(--pos-text-secondary);
+	font-size: 0.8rem;
+	line-height: 1.45;
 }
 
 .gift-cards-view__actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 10px;
+}
+
+@media (max-width: 960px) {
+	.gift-cards-view__hero,
+	.gift-cards-view__scan-tip,
+	.gift-cards-view__form-header {
+		flex-direction: column;
+	}
+
+	.gift-cards-view__hero-badges {
+		justify-content: flex-start;
+	}
+
+	.gift-cards-view__highlights,
+	.gift-cards-view__stats {
+		grid-template-columns: 1fr;
+	}
 }
 </style>

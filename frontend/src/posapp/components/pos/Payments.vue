@@ -687,20 +687,20 @@ const setGiftCardMode = (mode) => {
 };
 
 const getGiftCardRemainingAmount = () => {
-	const activePayment = activeGiftCardPayment.value;
+	const flexiblePayment =
+		activeGiftCardPayment.value || resolvePreferredPaymentLine(invoice_doc.value, isCashLikePayment);
 	const payments = Array.isArray(invoice_doc.value?.payments)
 		? invoice_doc.value.payments
 		: [];
 	const otherPaymentsTotal = payments.reduce((sum, payment) => {
-		if (!payment || payment === activePayment) {
+		if (!payment || payment === flexiblePayment) {
 			return sum;
 		}
 		return sum + flt(payment.amount || 0, currency_precision.value);
 	}, 0);
-	const existingGiftCardAmount = flt(giftCardRedemptions.value?.[0]?.amount || 0, currency_precision.value);
 	return Math.max(
 		flt(
-			netInvoiceSettlementAmount.value - otherPaymentsTotal + existingGiftCardAmount,
+			netInvoiceSettlementAmount.value - otherPaymentsTotal,
 			currency_precision.value,
 		),
 		0,
@@ -720,6 +720,7 @@ const clearGiftCardRedemption = () => {
 	giftCardBalance.value = 0;
 	giftCardStatus.value = "";
 	giftCardError.value = "";
+	rebalancePreferredPaymentCoverage(0);
 };
 
 const openGiftCardDialog = (payment = null) => {
@@ -813,6 +814,7 @@ const applyGiftCardRedemption = async () => {
 			cashier: currentCashier.value?.user || null,
 		},
 	];
+	rebalancePreferredPaymentCoverage(nextAmount);
 	giftCardDialogOpen.value = false;
 };
 
@@ -1081,7 +1083,7 @@ const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
 	return preferredPayment;
 };
 
-const rebalancePreferredPaymentCoverage = () => {
+const rebalancePreferredPaymentCoverage = (giftCardAmount = giftCardAppliedAmount.value) => {
 	const doc = invoice_doc.value;
 	if (
 		!doc ||
@@ -1098,6 +1100,7 @@ const rebalancePreferredPaymentCoverage = () => {
 		isCashLikePayment,
 		loyaltyAmount: invoice_doc.value?.loyalty_amount || loyalty_amount.value,
 		redeemedCustomerCredit: redeemed_customer_credit.value,
+		giftCardAmount,
 	});
 };
 
