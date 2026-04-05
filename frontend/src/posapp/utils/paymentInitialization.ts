@@ -4,6 +4,7 @@ export type PaymentLine = {
 	base_amount?: number;
 	default?: number | boolean;
 	type?: string;
+	account?: string;
 };
 
 export type PaymentInitDoc = {
@@ -12,6 +13,10 @@ export type PaymentInitDoc = {
 	grand_total?: number;
 	conversion_rate?: number;
 	is_return?: number | boolean;
+};
+
+export type PaymentProfileConfig = {
+	payments?: PaymentLine[];
 };
 
 export type PreferredPaymentRebalanceOptions = {
@@ -178,4 +183,58 @@ export const rebalancePreferredPaymentLine = (
 	}
 
 	return preferredPayment;
+};
+
+const isGiftCardMode = (payment: PaymentLine | null | undefined): boolean =>
+	String(payment?.mode_of_payment || "")
+		.trim()
+		.toLowerCase()
+		.includes("gift");
+
+export const ensureGiftCardPaymentLine = (
+	doc: PaymentInitDoc | null | undefined,
+	profile: PaymentProfileConfig | null | undefined,
+	amount: number,
+	precision = 2,
+): PaymentLine | null => {
+	if (!doc) {
+		return null;
+	}
+
+	if (!Array.isArray(doc.payments)) {
+		doc.payments = [];
+	}
+
+	let giftCardPayment =
+		doc.payments.find((payment) => isGiftCardMode(payment)) || null;
+
+	if (!giftCardPayment) {
+		const template = Array.isArray(profile?.payments)
+			? profile.payments.find((payment) => isGiftCardMode(payment))
+			: null;
+
+		if (!template) {
+			return null;
+		}
+
+		giftCardPayment = {
+			mode_of_payment: template.mode_of_payment,
+			account: template.account,
+			type: template.type,
+			default: template.default ? 1 : 0,
+			amount: 0,
+			base_amount: 0,
+		};
+		doc.payments.push(giftCardPayment);
+	}
+
+	if (!giftCardPayment) {
+		return null;
+	}
+
+	const normalizedAmount = roundToPrecision(Math.max(toNumber(amount), 0), precision);
+	const conversionRate = toNumber(doc.conversion_rate) || 1;
+	giftCardPayment.amount = normalizedAmount;
+	giftCardPayment.base_amount = roundToPrecision(normalizedAmount * conversionRate, precision);
+	return giftCardPayment;
 };
