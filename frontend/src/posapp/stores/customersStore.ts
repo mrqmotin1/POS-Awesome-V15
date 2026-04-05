@@ -9,6 +9,7 @@ import {
 	db,
 	checkDbHealth,
 	setCustomerStorage,
+	saveStoredValueSnapshot,
 	memoryInitPromise,
 	getCustomersLastSync,
 	setCustomersLastSync,
@@ -205,6 +206,24 @@ export const useCustomersStore = defineStore("customers", () => {
 
 	function setCustomerInfo(info: Record<string, any>) {
 		customerInfo.value = info || {};
+		if (info?.name) {
+			void setCustomerStorage([info]);
+		}
+		if (
+			info?.name &&
+			posProfile.value?.company &&
+			typeof info?.stored_value_balance !== "undefined"
+		) {
+			const totalCredit = Number(info.stored_value_balance || 0);
+			saveStoredValueSnapshot(info.name, posProfile.value.company, totalCredit > 0 ? [
+				{
+					type: "Snapshot",
+					credit_origin: "offline-customer-cache",
+					total_credit: totalCredit,
+					source_type: "Stored Value Snapshot",
+				},
+			] : []);
+		}
 	}
 
 	function requestCustomerRefresh() {

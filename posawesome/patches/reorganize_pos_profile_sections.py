@@ -86,6 +86,8 @@ ORDERED_CHAIN = [
     "posa_return_validity_days",
     "use_cashback",
     "use_customer_credit",
+    "posa_use_gift_cards",
+    "posa_allow_supervisor_manage_gift_cards",
     "posa_sales_persons",
     "posa_apply_customer_discount",
     "posa_allow_write_off_change",

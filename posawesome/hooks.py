@@ -80,6 +80,7 @@ after_migrate = [
     "posawesome.patches.add_dashboard_settings.execute",
     "posawesome.patches.add_dashboard_global_settings.execute",
     "posawesome.patches.reorganize_pos_profile_sections.execute",
+    "posawesome.patches.add_gift_card_pos_profile_settings.execute",
 ]
 
 # Desk Notifications
@@ -216,6 +217,8 @@ fixtures = [
                     "POS Profile-posa_force_server_items",
                     "POS Profile-posa_cash_mode_of_payment",
                     "POS Profile-use_customer_credit",
+                    "POS Profile-posa_use_gift_cards",
+                    "POS Profile-posa_allow_supervisor_manage_gift_cards",
                     "POS Profile-use_cashback",
                     "POS Profile-posa_hide_closing_shift",
                     "Customer-posa_discount",

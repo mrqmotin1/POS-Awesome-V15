@@ -37,9 +37,27 @@ from frappe.utils.background_jobs import enqueue
 def _has_post_submit_payment_work(data):
     return bool(
         flt((data or {}).get("redeemed_customer_credit"))
+        or sum(flt(row.get("amount")) for row in ((data or {}).get("gift_card_redemptions") or []))
         or flt((data or {}).get("paid_change"))
         or flt((data or {}).get("credit_change"))
     )
+
+
+def _apply_gift_card_redemptions(invoice_doc, data):
+    from posawesome.posawesome.api.gift_cards import redeem_gift_card
+
+    for row in (data or {}).get("gift_card_redemptions") or []:
+        amount = flt(row.get("amount"))
+        if amount <= 0:
+            continue
+        redeem_gift_card(
+            gift_card_code=row.get("gift_card_code"),
+            amount=amount,
+            invoice_doctype=invoice_doc.doctype,
+            invoice_name=invoice_doc.name,
+            cashier=row.get("cashier"),
+            company=invoice_doc.company,
+        )
 
 
 def _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments):
@@ -48,6 +66,7 @@ def _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, c
     receive_entries = redeeming_customer_credit(
         invoice_doc, data, is_payment_entry, total_cash, cash_account, payments
     )
+    _apply_gift_card_redemptions(invoice_doc, data)
     _create_change_payment_entries(
         invoice_doc,
         data,
@@ -736,6 +755,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
         invoice_total = flt(invoice_doc.rounded_total or invoice_doc.grand_total)
         settled_without_cash = (
             flt(data.get("redeemed_customer_credit"))
+            + sum(flt(row.get("amount")) for row in (data.get("gift_card_redemptions") or []))
             + flt(invoice_doc.get("loyalty_amount"))
             + flt(invoice_doc.get("write_off_amount"))
         )

@@ -7964,6 +7964,26 @@
 	},
 	{
 		"doctype": "Custom Field",
+		"dt": "POS Profile",
+		"fieldname": "posa_use_gift_cards",
+		"fieldtype": "Check",
+		"label": "Use Gift Cards",
+		"default": "1",
+		"insert_after": "use_customer_credit",
+		"name": "POS Profile-posa_use_gift_cards"
+	},
+	{
+		"doctype": "Custom Field",
+		"dt": "POS Profile",
+		"fieldname": "posa_allow_supervisor_manage_gift_cards",
+		"fieldtype": "Check",
+		"label": "Allow Supervisor Gift Card Management",
+		"default": "1",
+		"insert_after": "posa_use_gift_cards",
+		"name": "POS Profile-posa_allow_supervisor_manage_gift_cards"
+	},
+	{
+		"doctype": "Custom Field",
 		"dt": "User",
 		"fieldname": "posa_is_pos_supervisor",
 		"fieldtype": "Check",

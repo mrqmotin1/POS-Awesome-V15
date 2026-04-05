@@ -114,6 +114,24 @@ export function saveOfflineInvoice(entry: AnyRecord) {
 		throw e;
 	}
 
+	const replaySources = Array.isArray(cleanEntry?.data?.customer_credit_dict)
+		? cleanEntry.data.customer_credit_dict.filter(
+				(row: AnyRecord) => Number(row?.credit_to_redeem || 0) > 0,
+			)
+		: [];
+	if (
+		Number(cleanEntry?.data?.redeemed_customer_credit || 0) > 0 &&
+		cleanEntry?.invoice?.customer &&
+		replaySources.length
+	) {
+		cleanEntry.data.customer_balance_replay = {
+			customer: cleanEntry.invoice.customer,
+			redeemed_customer_credit: cleanEntry.data.redeemed_customer_credit,
+			sources: replaySources,
+			timestamp: Date.now(),
+		};
+	}
+
 	entries.push(cleanEntry);
 	memory.offline_invoices = entries;
 	persist(key);

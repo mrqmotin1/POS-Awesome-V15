@@ -25,7 +25,7 @@
 						:rules="[isNumber]"
 						:prefix="currencySymbol(currency)"
 						@focus="$emit('set-rest-amount', payment, isReturn)"
-						:readonly="isReturn"
+						:readonly="isReturn || isGiftCardPayment(payment)"
 					></v-text-field>
 				</v-col>
 				<v-col cols="12" md="5" v-if="!isMpesaC2bPayment(payment)">
@@ -36,9 +36,13 @@
 							variant="flat"
 							class="payment-method-action-btn"
 							:data-test="`payment-method-action-${payment.mode_of_payment}`"
-							@click="$emit('set-full-amount', payment, isReturn)"
+							@click="handlePrimaryAction(payment)"
 						>
-							{{ payment.mode_of_payment }}
+							{{
+								isGiftCardPayment(payment)
+									? __("Redeem / Scan")
+									: payment.mode_of_payment
+							}}
 						</v-btn>
 					</div>
 				</v-col>
@@ -101,7 +105,10 @@
 </template>
 
 <script setup>
-defineProps({
+const frappe = window.frappe;
+const __ = window.__;
+
+const props = defineProps({
 	payments: Array,
 	currency: String,
 	isReturn: Boolean,
@@ -112,19 +119,29 @@ defineProps({
 	getVisibleDenominations: Function,
 	isCashLikePayment: Function,
 	isMpesaC2bPayment: Function,
+	isGiftCardPayment: {
+		type: Function,
+		default: () => false,
+	},
 });
 
-defineEmits([
+const emit = defineEmits([
 	"update-amount",
 	"set-full-amount",
 	"set-denomination",
 	"mpesa-dialog",
 	"request-payment",
 	"set-rest-amount",
+	"open-gift-card",
 ]);
 
-const frappe = window.frappe;
-const __ = window.__;
+const handlePrimaryAction = (payment) => {
+	if (props.isGiftCardPayment(payment)) {
+		emit("open-gift-card", payment);
+		return;
+	}
+	emit("set-full-amount", payment, props.isReturn);
+};
 </script>
 
 <style scoped>
