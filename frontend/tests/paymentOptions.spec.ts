@@ -83,9 +83,9 @@ describe("PaymentOptions", () => {
 			},
 		});
 
-		expect(wrapper.text()).toContain("Use Stored Value");
-		expect(wrapper.text()).toContain("Stored Value Ready");
-		expect(wrapper.text()).toContain("Available stored value");
+		expect(wrapper.text()).toContain("Use Customer Balance");
+		expect(wrapper.text()).toContain("Available Customer Redeemable Balance");
+		expect(wrapper.text()).toContain("Available customer redeemable balance");
 		expect(wrapper.text()).toContain("Applied now");
 		expect(wrapper.text()).toContain("2 source(s)");
 	});

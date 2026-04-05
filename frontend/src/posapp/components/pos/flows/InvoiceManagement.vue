@@ -1075,8 +1075,21 @@ export default {
 			}
 		},
 		posProfile: {
-			handler() {
+			async handler(value, previousValue) {
 				this.initializeSupervisorProfileScope();
+				if (!this.invoiceManagementDialog) return;
+
+				const profileChanged =
+					value?.name !== previousValue?.name
+					|| value?.company !== previousValue?.company
+					|| value?.create_pos_invoice_instead_of_sales_invoice !== previousValue?.create_pos_invoice_instead_of_sales_invoice;
+
+				if (!profileChanged) return;
+
+				if (this.isSupervisorScope()) {
+					await this.loadSupervisorPosProfiles();
+				}
+				await this.refreshAll();
 			},
 			deep: true,
 		},
