@@ -288,6 +288,12 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			unref(options.redeemedCustomerCredit)
 		)
 			current_total_payments += unref(options.redeemedCustomerCredit)!;
+		if (options.giftCardRedemptions && Array.isArray(unref(options.giftCardRedemptions))) {
+			current_total_payments += unref(options.giftCardRedemptions).reduce(
+				(sum: number, row: any) => sum + formatFloat(row?.amount || 0, prec),
+				0,
+			);
+		}
 
 		const invoice_total = formatFloat(
 			doc.rounded_total || doc.grand_total,

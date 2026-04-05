@@ -49,7 +49,7 @@
 							<h3 class="payment-section__title">{{ __("Payment Methods") }}</h3>
 						</div>
 						<PaymentMethods
-							:payments="invoice_doc.payments"
+							:payments="visiblePaymentMethods"
 							:currency="invoice_doc.currency"
 							:isReturn="invoice_doc.is_return"
 							:requestPaymentField="request_payment_field"
@@ -67,6 +67,14 @@
 							@request-payment="request_payment"
 							@set-rest-amount="set_rest_amount"
 							@open-gift-card="openGiftCardDialog"
+						/>
+						<PaymentGiftCardSection
+							:enabled="Boolean(pos_profile?.posa_use_gift_cards)"
+							:applied-amount="giftCardAppliedAmount"
+							:card-code="giftCardRedemptions[0]?.gift_card_code || ''"
+							:format-currency="(value) => formatCurrency(value, invoice_doc.currency)"
+							@open="openGiftCardDialog()"
+							@clear="clearGiftCardRedemption"
 						/>
 					</section>
 
@@ -295,6 +303,7 @@ import PaymentSummary from "./payments/PaymentSummary.vue";
 import InvoiceTotals from "./payments/InvoiceTotals.vue";
 import PaymentActionButtons from "./payments/PaymentActionButtons.vue";
 import PaymentMethods from "./payments/PaymentMethods.vue";
+import PaymentGiftCardSection from "./payments/PaymentGiftCardSection.vue";
 import PaymentRedemption from "./payments/PaymentRedemption.vue";
 import PaymentAdditionalInfo from "./payments/PaymentAdditionalInfo.vue";
 import PaymentPurchaseOrder from "./payments/PaymentPurchaseOrder.vue";
@@ -503,6 +512,7 @@ const paymentCalculations = usePaymentCalculations({
 	redeemedCustomerCredit: redeemed_customer_credit,
 	customerCreditDict: customer_credit_dict,
 	customerInfo: customer_info,
+	giftCardRedemptions,
 	formatCurrency: (val, _curr) => formatCurrency(val, currency_precision.value),
 });
 
@@ -639,6 +649,19 @@ const isGiftCardPayment = (payment) => {
 	return String(payment?.mode_of_payment || "").trim().toLowerCase().includes("gift");
 };
 
+const visiblePaymentMethods = computed(() =>
+	(Array.isArray(invoice_doc.value?.payments) ? invoice_doc.value.payments : []).filter(
+		(payment) => !isGiftCardPayment(payment),
+	),
+);
+
+const giftCardAppliedAmount = computed(() =>
+	(Array.isArray(giftCardRedemptions.value) ? giftCardRedemptions.value : []).reduce(
+		(sum, row) => sum + flt(row?.amount || 0, currency_precision.value),
+		0,
+	),
+);
+
 const resetGiftCardState = ({ clearPayment = false } = {}) => {
 	giftCardDialogOpen.value = false;
 	giftCardCode.value = "";
@@ -674,20 +697,42 @@ const getGiftCardRemainingAmount = () => {
 		}
 		return sum + flt(payment.amount || 0, currency_precision.value);
 	}, 0);
+	const existingGiftCardAmount = flt(giftCardRedemptions.value?.[0]?.amount || 0, currency_precision.value);
 	return Math.max(
-		flt(netInvoiceSettlementAmount.value - otherPaymentsTotal, currency_precision.value),
+		flt(
+			netInvoiceSettlementAmount.value - otherPaymentsTotal + existingGiftCardAmount,
+			currency_precision.value,
+		),
 		0,
 	);
 };
 
-const openGiftCardDialog = (payment) => {
+const clearGiftCardRedemption = () => {
+	if (activeGiftCardPayment.value) {
+		activeGiftCardPayment.value.amount = 0;
+		if (activeGiftCardPayment.value.base_amount !== undefined) {
+			activeGiftCardPayment.value.base_amount = 0;
+		}
+	}
+	giftCardRedemptions.value = [];
+	giftCardCode.value = "";
+	giftCardAmount.value = 0;
+	giftCardBalance.value = 0;
+	giftCardStatus.value = "";
+	giftCardError.value = "";
+};
+
+const openGiftCardDialog = (payment = null) => {
 	activeGiftCardPayment.value = payment;
 	giftCardDialogOpen.value = true;
 	giftCardCode.value =
 		giftCardRedemptions.value[0]?.gift_card_code || "";
-	giftCardAmount.value = flt(payment?.amount || 0, currency_precision.value);
-	giftCardBalance.value = 0;
-	giftCardStatus.value = "";
+	giftCardAmount.value = flt(
+		giftCardRedemptions.value[0]?.amount || payment?.amount || 0,
+		currency_precision.value,
+	);
+	giftCardBalance.value = flt(giftCardBalance.value || 0, currency_precision.value);
+	giftCardStatus.value = giftCardStatus.value || "";
 	giftCardMode.value = "redeem";
 	giftCardError.value = "";
 };
@@ -737,9 +782,6 @@ const checkGiftCardBalance = async () => {
 };
 
 const applyGiftCardRedemption = async () => {
-	if (!activeGiftCardPayment.value) {
-		return;
-	}
 	if (!giftCardBalance.value || !giftCardStatus.value) {
 		await checkGiftCardBalance();
 		if (!giftCardBalance.value || giftCardError.value) {
@@ -758,13 +800,11 @@ const applyGiftCardRedemption = async () => {
 		return;
 	}
 
-	activeGiftCardPayment.value.amount = nextAmount;
-	if (activeGiftCardPayment.value.base_amount !== undefined) {
-		const conversionRate = invoice_doc.value?.conversion_rate || 1;
-		activeGiftCardPayment.value.base_amount = flt(
-			nextAmount * conversionRate,
-			currency_precision.value,
-		);
+	if (activeGiftCardPayment.value) {
+		activeGiftCardPayment.value.amount = 0;
+		if (activeGiftCardPayment.value.base_amount !== undefined) {
+			activeGiftCardPayment.value.base_amount = 0;
+		}
 	}
 	giftCardRedemptions.value = [
 		{

@@ -355,6 +355,13 @@ export default {
 		},
 		updateNavigationItems() {
 			const items = [...this.baseItems];
+			if (this.posProfile?.posa_use_gift_cards) {
+				items.splice(2, 0, {
+					text: "Gift Cards",
+					icon: "mdi-card-account-details-outline",
+					to: "/gift-cards",
+				});
+			}
 			if (this.currentCashier?.is_supervisor) {
 				items.splice(1, 0, {
 					text: "Awesome Dashboard",

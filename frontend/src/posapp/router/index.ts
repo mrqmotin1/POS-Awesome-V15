@@ -21,6 +21,11 @@ const routes = [
 		meta: { title: "Payments", layout: "default" },
 	},
 	{
+		path: "/gift-cards",
+		component: () => import("../components/pos/wallet/GiftCardsView.vue"),
+		meta: { title: "Gift Cards", layout: "default" },
+	},
+	{
 		path: "/dashboard",
 		component: () => import("@/posapp/components/reports/Reports.vue"),
 		meta: { title: "Awesome Dashboard", layout: "default" },
