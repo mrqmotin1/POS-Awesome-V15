@@ -81,6 +81,7 @@ after_migrate = [
     "posawesome.patches.add_dashboard_global_settings.execute",
     "posawesome.patches.reorganize_pos_profile_sections.execute",
     "posawesome.patches.add_gift_card_pos_profile_settings.execute",
+    "posawesome.patches.add_gift_card_to_workspace.execute",
 ]
 
 # Desk Notifications
