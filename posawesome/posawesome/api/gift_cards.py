@@ -251,6 +251,7 @@ def _append_invoice_gift_card_payment(invoice_doc, amount, liability_account):
 
 def apply_invoice_gift_card_redemptions(invoice_doc, rows=None):
 	rows = rows or []
+	restore_invoice_gift_card_redemptions(invoice_doc)
 	_set_child_rows(invoice_doc, "gift_card_redemptions", [])
 	_remove_invoice_gift_card_settlement(invoice_doc)
 

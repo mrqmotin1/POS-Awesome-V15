@@ -285,6 +285,9 @@ class TestGiftCardApi(unittest.TestCase):
         self.state["new_docs"].clear()
         self.state["journal_entries"].clear()
         self.state["mode_of_payments"].clear()
+        for invoice_doc in self.state["invoices"].values():
+            invoice_doc.gift_card_redemptions = []
+            invoice_doc.payments = []
 
     def test_issue_gift_card_requires_supervisor(self):
         with self.assertRaises(Exception) as ctx:
@@ -398,6 +401,25 @@ class TestGiftCardApi(unittest.TestCase):
         self.assertEqual(len(gift_mode.accounts), 1)
         self.assertEqual(gift_mode.accounts[0]["company"], "Test Company")
         self.assertEqual(gift_mode.accounts[0]["default_account"], "2190 - Gift Card Liability - TC")
+
+    def test_apply_invoice_gift_card_redemptions_is_idempotent_for_saved_drafts(self):
+        existing = FakeGiftCard(code="GC-0005", balance=500, status="Active")
+        self.state["cards"][existing.gift_card_code] = existing
+        invoice_doc = self.state["invoices"]["ACC-SINV-0001"]
+        rows = [{"gift_card_code": "GC-0005", "amount": 300, "cashier": "cashier@example.com"}]
+
+        first_result = self.module.apply_invoice_gift_card_redemptions(invoice_doc, rows)
+        second_result = self.module.apply_invoice_gift_card_redemptions(invoice_doc, rows)
+
+        self.assertEqual(first_result, 300)
+        self.assertEqual(second_result, 300)
+        self.assertEqual(existing.current_balance, 200)
+        self.assertEqual(len(invoice_doc.gift_card_redemptions), 1)
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["gift_card_code"], "GC-0005")
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["balance_before"], 500)
+        self.assertEqual(invoice_doc.gift_card_redemptions[0]["balance_after"], 200)
+        self.assertEqual(len(invoice_doc.payments), 1)
+        self.assertEqual(invoice_doc.payments[0]["amount"], 300)
 
     def test_issue_gift_card_with_initial_amount_creates_liability_entry(self):
         result = self.module.issue_gift_card(
