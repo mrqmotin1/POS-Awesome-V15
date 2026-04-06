@@ -96,6 +96,27 @@ class FakeJournalEntry:
         return self
 
 
+class FakeModeOfPayment:
+    def __init__(self, name="Gift Card", mode_type="General"):
+        self.doctype = "Mode of Payment"
+        self.name = name
+        self.mode_of_payment = name
+        self.type = mode_type
+        self.accounts = []
+        self.flags = types.SimpleNamespace(ignore_permissions=False)
+        self.saved = False
+
+    def append(self, fieldname, value):
+        target = getattr(self, fieldname)
+        row = dict(value)
+        target.append(row)
+        return row
+
+    def save(self, ignore_permissions=False):
+        self.saved = True
+        return self
+
+
 def _install_stubs():
     frappe_module = types.ModuleType("frappe")
     frappe_utils_module = types.ModuleType("frappe.utils")
@@ -106,6 +127,7 @@ def _install_stubs():
         "cards": {},
         "new_docs": [],
         "journal_entries": [],
+        "mode_of_payments": {},
         "terminal_users": {"Main POS": ["supervisor@example.com", "cashier@example.com"]},
         "user_docs": {
             "supervisor@example.com": types.SimpleNamespace(
@@ -151,11 +173,16 @@ def _install_stubs():
     frappe_module.session = types.SimpleNamespace(user="administrator@example.com")
 
     def _new_doc(doctype):
-        if doctype != "POS Gift Card":
-            raise AssertionError(f"Unexpected doctype: {doctype}")
-        doc = FakeGiftCard(code=f"GC-{len(state['new_docs']) + 1:04d}")
-        state["new_docs"].append(doc)
-        return doc
+        if doctype == "POS Gift Card":
+            doc = FakeGiftCard(code=f"GC-{len(state['new_docs']) + 1:04d}")
+            state["new_docs"].append(doc)
+            return doc
+        if doctype == "Mode of Payment":
+            doc = FakeModeOfPayment()
+            state["mode_of_payments"][doc.name] = doc
+            state["new_docs"].append(doc)
+            return doc
+        raise AssertionError(f"Unexpected doctype: {doctype}")
 
     def _get_doc(doctype, name=None):
         if isinstance(doctype, dict):
@@ -168,6 +195,10 @@ def _install_stubs():
             if name not in state["cards"]:
                 raise AssertionError(f"Unknown gift card: {name}")
             return state["cards"][name]
+        if doctype == "Mode of Payment":
+            if name not in state["mode_of_payments"]:
+                raise AssertionError(f"Unknown mode of payment: {name}")
+            return state["mode_of_payments"][name]
         if doctype == "User":
             if name not in state["user_docs"]:
                 raise AssertionError(f"Unknown user: {name}")
@@ -194,11 +225,14 @@ def _install_stubs():
     frappe_module.flags = types.SimpleNamespace(ignore_account_permission=False)
     frappe_module.db = types.SimpleNamespace(
         exists=lambda doctype, name=None: bool(
-            doctype == "POS Gift Card"
-            and (
-                (isinstance(name, dict) and name.get("gift_card_code") in state["cards"])
-                or (isinstance(name, str) and name in state["cards"])
+            (
+                doctype == "POS Gift Card"
+                and (
+                    (isinstance(name, dict) and name.get("gift_card_code") in state["cards"])
+                    or (isinstance(name, str) and name in state["cards"])
+                )
             )
+            or (doctype == "Mode of Payment" and isinstance(name, str) and name in state["mode_of_payments"])
         )
     )
 
@@ -250,6 +284,7 @@ class TestGiftCardApi(unittest.TestCase):
         self.state["cards"].clear()
         self.state["new_docs"].clear()
         self.state["journal_entries"].clear()
+        self.state["mode_of_payments"].clear()
 
     def test_issue_gift_card_requires_supervisor(self):
         with self.assertRaises(Exception) as ctx:
@@ -346,6 +381,23 @@ class TestGiftCardApi(unittest.TestCase):
             )
 
         self.assertIn("active gift cards", str(ctx.exception))
+
+    def test_apply_invoice_gift_card_redemptions_creates_mode_of_payment_account_mapping(self):
+        existing = FakeGiftCard(code="GC-0004", balance=500, status="Active")
+        self.state["cards"][existing.gift_card_code] = existing
+        invoice_doc = self.state["invoices"]["ACC-SINV-0001"]
+
+        self.module.apply_invoice_gift_card_redemptions(
+            invoice_doc,
+            [{"gift_card_code": "GC-0004", "amount": 200, "cashier": "cashier@example.com"}],
+        )
+
+        self.assertIn("Gift Card", self.state["mode_of_payments"])
+        gift_mode = self.state["mode_of_payments"]["Gift Card"]
+        self.assertEqual(gift_mode.type, "Cash")
+        self.assertEqual(len(gift_mode.accounts), 1)
+        self.assertEqual(gift_mode.accounts[0]["company"], "Test Company")
+        self.assertEqual(gift_mode.accounts[0]["default_account"], "2190 - Gift Card Liability - TC")
 
     def test_issue_gift_card_with_initial_amount_creates_liability_entry(self):
         result = self.module.issue_gift_card(

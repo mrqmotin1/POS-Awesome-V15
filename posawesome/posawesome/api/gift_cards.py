@@ -171,6 +171,52 @@ def _invoice_gift_card_child_doctype(invoice_doc):
 	return "POS Gift Card Redemption"
 
 
+def _set_doc_value(doc, key, value):
+	if isinstance(doc, dict):
+		doc[key] = value
+	else:
+		setattr(doc, key, value)
+
+
+def _ensure_gift_card_mode_of_payment_account(company, liability_account):
+	mode_of_payment_name = "Gift Card"
+	if not company or not liability_account:
+		return None
+
+	if frappe.db.exists("Mode of Payment", mode_of_payment_name):
+		mode_doc = frappe.get_doc("Mode of Payment", mode_of_payment_name)
+	else:
+		mode_doc = frappe.new_doc("Mode of Payment")
+		_set_doc_value(mode_doc, "mode_of_payment", mode_of_payment_name)
+
+	# Keep this internal payment mode aligned with ERPNext's bank/cash lookup path.
+	_set_doc_value(mode_doc, "type", "Cash")
+
+	accounts = list(_doc_value(mode_doc, "accounts") or [])
+	company = str(company).strip()
+	found = False
+	for row in accounts:
+		if str(_doc_value(row, "company") or "").strip() != company:
+			continue
+		_set_doc_value(row, "default_account", liability_account)
+		found = True
+		break
+
+	if not found:
+		mode_doc.append(
+			"accounts",
+			{
+				"company": company,
+				"default_account": liability_account,
+			},
+		)
+
+	ensure_child_doctype(mode_doc, "accounts", "Mode of Payment Account")
+	mode_doc.flags.ignore_permissions = True
+	mode_doc.save(ignore_permissions=True)
+	return mode_doc
+
+
 def _remove_invoice_gift_card_settlement(invoice_doc):
 	payments = list(_doc_value(invoice_doc, "payments") or [])
 	filtered = [
@@ -185,6 +231,8 @@ def _append_invoice_gift_card_payment(invoice_doc, amount, liability_account):
 	redeemed_amount = _to_float(amount)
 	if redeemed_amount <= 0:
 		return None
+
+	_ensure_gift_card_mode_of_payment_account(_doc_value(invoice_doc, "company"), liability_account)
 
 	conversion_rate = _to_float(_doc_value(invoice_doc, "conversion_rate") or 1) or 1
 	row = invoice_doc.append(
