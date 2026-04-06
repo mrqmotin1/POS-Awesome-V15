@@ -7,14 +7,15 @@ FIELDS = [
 		"fieldname": "posa_use_gift_cards",
 		"label": "Use Gift Cards",
 		"fieldtype": "Check",
-		"default": "1",
+		"default": "0",
 		"insert_after": "use_customer_credit",
 	},
 	{
 		"fieldname": "posa_allow_supervisor_manage_gift_cards",
 		"label": "Allow Supervisor Gift Card Management",
 		"fieldtype": "Check",
-		"default": "1",
+		"default": "0",
+		"depends_on": "eval:doc.posa_use_gift_cards==1",
 		"insert_after": "posa_use_gift_cards",
 	},
 	{
@@ -22,6 +23,7 @@ FIELDS = [
 		"label": "Gift Card Liability Account",
 		"fieldtype": "Link",
 		"options": "Account",
+		"depends_on": "eval:doc.posa_use_gift_cards==1",
 		"insert_after": "posa_allow_supervisor_manage_gift_cards",
 	},
 ]
@@ -40,6 +42,7 @@ def execute():
 					"label": field["label"],
 					"fieldtype": field["fieldtype"],
 					"default": field.get("default"),
+					"depends_on": field.get("depends_on"),
 					"options": field.get("options"),
 					"insert_after": field["insert_after"],
 				},
