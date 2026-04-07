@@ -29,6 +29,30 @@
 			></v-text-field>
 		</v-col>
 
+		<v-col cols="12">
+			<div
+				class="payment-summary-pill"
+				:class="`payment-summary-pill--${settlementState.tone}`"
+				data-test="payment-settlement-state"
+			>
+				<div class="payment-summary-pill__copy">
+					<p class="payment-summary-pill__label">{{ settlementState.title }}</p>
+					<h4 class="payment-summary-pill__amount">
+						{{ settlementState.amount }}
+					</h4>
+					<p class="payment-summary-pill__meta">
+						{{ settlementState.description }}
+					</p>
+				</div>
+				<span
+					class="payment-summary-pill__state"
+					:class="`payment-summary-pill__state--${settlementState.tone}`"
+				>
+					{{ settlementState.state }}
+				</span>
+			</div>
+		</v-col>
+
 		<v-col
 			v-if="invoice_doc && giftCardAppliedAmount > 0"
 			cols="12"
@@ -112,6 +136,39 @@ const props = defineProps({
 defineEmits(["show-paid-amount", "show-diff-payment", "show-paid-change", "update-credit-change"]);
 
 const frappe = window.frappe;
+
+const settlementState = computed(() => {
+	const diff = Number(props.diffPayment || 0);
+	const formattedAbsoluteAmount = props.formatCurrency?.(Math.abs(diff)) ?? String(Math.abs(diff));
+
+	if (diff < -0.009) {
+		return {
+			tone: "warning",
+			title: frappe._("Change Due"),
+			amount: formattedAbsoluteAmount,
+			description: frappe._("Customer has paid more than the invoice total."),
+			state: frappe._("Overpaid"),
+		};
+	}
+
+	if (diff > 0.009) {
+		return {
+			tone: "info",
+			title: frappe._("Remaining Due"),
+			amount: formattedAbsoluteAmount,
+			description: frappe._("Collect the remaining balance before finalizing payment."),
+			state: frappe._("Underpaid"),
+		};
+	}
+
+	return {
+		tone: "success",
+		title: frappe._("Exact Tender"),
+		amount: props.total_payments_display || "0",
+		description: frappe._("Payment is balanced and ready to submit."),
+		state: frappe._("Ready"),
+	};
+});
 </script>
 
 <style scoped>
@@ -141,6 +198,27 @@ const frappe = window.frappe;
 		linear-gradient(180deg, rgba(var(--v-theme-success), 0.1) 0%, rgba(var(--v-theme-success), 0.04) 100%),
 		var(--pos-surface-raised);
 	border: 1px solid rgba(var(--v-theme-success), 0.18);
+}
+
+.payment-summary-pill--info {
+	background:
+		linear-gradient(180deg, rgba(var(--v-theme-info), 0.1) 0%, rgba(var(--v-theme-info), 0.04) 100%),
+		var(--pos-surface-raised);
+	border-color: rgba(var(--v-theme-info), 0.18);
+}
+
+.payment-summary-pill--warning {
+	background:
+		linear-gradient(180deg, rgba(var(--v-theme-warning), 0.12) 0%, rgba(var(--v-theme-warning), 0.05) 100%),
+		var(--pos-surface-raised);
+	border-color: rgba(var(--v-theme-warning), 0.22);
+}
+
+.payment-summary-pill--success {
+	background:
+		linear-gradient(180deg, rgba(var(--v-theme-success), 0.1) 0%, rgba(var(--v-theme-success), 0.04) 100%),
+		var(--pos-surface-raised);
+	border-color: rgba(var(--v-theme-success), 0.18);
 }
 
 .payment-summary-pill__copy {
@@ -182,5 +260,15 @@ const frappe = window.frappe;
 	color: rgb(var(--v-theme-success));
 	font-size: 0.74rem;
 	font-weight: 700;
+}
+
+.payment-summary-pill__state--info {
+	background: rgba(var(--v-theme-info), 0.12);
+	color: rgb(var(--v-theme-info));
+}
+
+.payment-summary-pill__state--warning {
+	background: rgba(var(--v-theme-warning), 0.14);
+	color: rgb(var(--v-theme-warning));
 }
 </style>

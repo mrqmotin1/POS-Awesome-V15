@@ -267,6 +267,17 @@ const formatDraftAge = (draft) => {
 	font-weight: 700;
 }
 
+.drafts-rail__status {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: rgba(var(--v-theme-primary), 0.1);
+	color: rgb(var(--v-theme-primary));
+	font-size: 0.72rem;
+	font-weight: 700;
+}
+
 .drafts-rail__strip {
 	display: flex;
 	gap: 10px;
