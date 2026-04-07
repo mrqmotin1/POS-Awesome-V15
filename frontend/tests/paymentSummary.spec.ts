@@ -35,7 +35,7 @@ describe("PaymentSummary", () => {
 		(window as any).frappe = { _: (value: string) => value };
 	});
 
-	it("shows an underpaid banner when there is still a remaining balance", () => {
+	it("does not show the settlement state box when there is still a remaining balance", () => {
 		const wrapper = mount(PaymentSummary, {
 			props: {
 				invoice_doc: {
@@ -62,12 +62,10 @@ describe("PaymentSummary", () => {
 			},
 		});
 
-		expect(wrapper.text()).toContain("Remaining Due");
-		expect(wrapper.text()).toContain("Underpaid");
-		expect(wrapper.text()).toContain("200");
+		expect(wrapper.find('[data-test="payment-settlement-state"]').exists()).toBe(false);
 	});
 
-	it("shows an exact tender banner when the invoice is fully covered", () => {
+	it("does not show the settlement state box when the invoice is fully covered", () => {
 		const wrapper = mount(PaymentSummary, {
 			props: {
 				invoice_doc: {
@@ -94,8 +92,7 @@ describe("PaymentSummary", () => {
 			},
 		});
 
-		expect(wrapper.text()).toContain("Exact Tender");
-		expect(wrapper.text()).toContain("Ready");
+		expect(wrapper.find('[data-test="payment-settlement-state"]').exists()).toBe(false);
 	});
 
 	it("shows applied gift card details inside the payment summary", () => {
@@ -131,7 +128,6 @@ describe("PaymentSummary", () => {
 		expect(wrapper.text()).toContain("GC-0001");
 		expect(wrapper.text()).toContain("300");
 		expect(wrapper.text()).toContain("Included in settlement");
-		expect(wrapper.text()).toContain("Change Due");
-		expect(wrapper.text()).toContain("Overpaid");
+		expect(wrapper.find('[data-test="payment-settlement-state"]').exists()).toBe(false);
 	});
 });

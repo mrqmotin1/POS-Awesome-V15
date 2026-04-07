@@ -44,7 +44,7 @@ describe("PaymentMethods", () => {
 		};
 	});
 
-	it("shows quick tender actions for the default cash payment row", async () => {
+	it("does not show exact and remaining quick tender actions under the payment method button", async () => {
 		const wrapper = mount(PaymentMethods, {
 			props: {
 				payments: [
@@ -77,12 +77,10 @@ describe("PaymentMethods", () => {
 			},
 		});
 
-		expect(wrapper.text()).toContain("Exact");
-		expect(wrapper.text()).toContain("Remaining");
 		expect(wrapper.text()).toContain("500");
 		expect(wrapper.text()).toContain("1000");
 
-		expect(wrapper.get('[data-test="payment-method-exact-Cash"]').exists()).toBe(true);
-		expect(wrapper.get('[data-test="payment-method-remaining-Cash"]').exists()).toBe(true);
+		expect(wrapper.find('[data-test="payment-method-exact-Cash"]').exists()).toBe(false);
+		expect(wrapper.find('[data-test="payment-method-remaining-Cash"]').exists()).toBe(false);
 	});
 });
