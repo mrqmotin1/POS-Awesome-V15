@@ -929,9 +929,9 @@ const handlePaymentAmountChange = (payment, event) => {
 	last_payment_change_was_cash.value = isCashLikePayment(payment);
 	setFormatedCurrency(payment, "amount", null, false, event);
 
-	nextTick(() => {
-		autoBalancePayments(payment);
-	});
+	// nextTick(() => {
+	// 	autoBalancePayments(payment);
+	// });
 };
 
 const setPaymentToDenomination = (payment, amount) => {
@@ -941,9 +941,9 @@ const setPaymentToDenomination = (payment, amount) => {
 		payment.base_amount = flt(amount * conversion_rate, currency_precision.value);
 	}
 	last_payment_change_was_cash.value = isCashLikePayment(payment);
-	nextTick(() => {
-		autoBalancePayments(payment);
-	});
+	//nextTick(() => {
+	// 	autoBalancePayments(payment);
+	// });
 };
 
 // UI Feedback Methods
