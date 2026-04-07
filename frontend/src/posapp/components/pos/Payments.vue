@@ -28,6 +28,7 @@
 							:total_payments_display="total_payments_display"
 							:diff_payment_display="diff_payment_display"
 							:diff_label="diff_label"
+							:diff-payment="diff_payment"
 							:change_due="change_due"
 							:paid_change="paid_change"
 							:credit_change="credit_change"

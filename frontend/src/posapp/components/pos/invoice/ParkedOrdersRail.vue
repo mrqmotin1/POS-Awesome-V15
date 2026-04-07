@@ -14,7 +14,7 @@
 					data-test="parked-orders-view-all"
 					@click="$emit('view-all')"
 				>
-					{{ layout === "desktop" ? __("Open drawer") : __("View all") }}
+					{{ viewAllLabel || (layout === "desktop" ? __("Open drawer") : __("View all")) }}
 				</v-btn>
 			</div>
 		</div>
@@ -36,7 +36,8 @@
 				</div>
 				<div class="drafts-rail__meta">
 					<span>{{ draft.name }}</span>
-					<span>{{ draft.posting_time?.split(".")[0] || "" }}</span>
+					<span>{{ formatDraftAge(draft) }}</span>
+					<span class="drafts-rail__status">{{ draft.status || __("Draft") }}</span>
 				</div>
 			</button>
 		</div>
@@ -54,6 +55,9 @@
 					<strong>{{ draft.customer_name || __("Walk-in Customer") }}</strong>
 					<span class="drafts-rail__chip-meta">
 						{{ currencySymbol(draft.currency) }}{{ formatCurrency(draft.grand_total) }}
+					</span>
+					<span class="drafts-rail__chip-meta">
+						{{ formatDraftAge(draft) }} . {{ draft.status || __("Draft") }}
 					</span>
 				</button>
 			</div>
@@ -83,11 +87,48 @@ defineProps({
 		type: Number,
 		default: 0,
 	},
+	viewAllLabel: {
+		type: String,
+		default: "",
+	},
 });
 
 defineEmits(["resume", "view-all"]);
 
 const __ = window.__;
+
+const toDraftDate = (draft) => {
+	const datePart = String(draft?.posting_date || "").trim();
+	const timePart = String(draft?.posting_time || "")
+		.trim()
+		.replace(/\.\d+$/, "");
+	if (!datePart) return null;
+	const isoValue = timePart ? `${datePart}T${timePart}` : `${datePart}T00:00:00`;
+	const parsed = new Date(isoValue);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDraftAge = (draft) => {
+	const parsed = toDraftDate(draft);
+	if (!parsed) {
+		return draft?.posting_time?.split?.(".")?.[0] || "";
+	}
+
+	const diffMs = Date.now() - parsed.getTime();
+	if (!Number.isFinite(diffMs) || diffMs < 0) {
+		return draft?.posting_time?.split?.(".")?.[0] || "";
+	}
+
+	const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+	if (diffMinutes < 1) return __("Just now");
+	if (diffMinutes < 60) return __("{0}m ago", [diffMinutes]);
+
+	const diffHours = Math.round(diffMinutes / 60);
+	if (diffHours < 24) return __("{0}h ago", [diffHours]);
+
+	const diffDays = Math.round(diffHours / 24);
+	return __("{0}d ago", [diffDays]);
+};
 </script>
 
 <style scoped>
@@ -197,6 +238,17 @@ const __ = window.__;
 	gap: 6px 10px;
 	font-size: 0.8rem;
 	color: var(--pos-text-secondary);
+}
+
+.drafts-rail__status {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: rgba(var(--v-theme-primary), 0.1);
+	color: rgb(var(--v-theme-primary));
+	font-size: 0.72rem;
+	font-weight: 700;
 }
 
 .drafts-rail__strip {

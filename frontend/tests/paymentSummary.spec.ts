@@ -35,6 +35,69 @@ describe("PaymentSummary", () => {
 		(window as any).frappe = { _: (value: string) => value };
 	});
 
+	it("shows an underpaid banner when there is still a remaining balance", () => {
+		const wrapper = mount(PaymentSummary, {
+			props: {
+				invoice_doc: {
+					currency: "PKR",
+					is_return: false,
+				},
+				total_payments_display: "700",
+				diff_payment_display: "200",
+				diff_label: "Remaining",
+				diffPayment: 200,
+				change_due: 0,
+				paid_change: 0,
+				credit_change: 0,
+				paid_change_rules: [],
+				currencySymbol: () => "Rs",
+				formatCurrency: (value: number) => String(value),
+			},
+			global: {
+				components: {
+					VRow: BoxStub,
+					VCol: BoxStub,
+					VTextField: VTextFieldStub,
+				},
+			},
+		});
+
+		expect(wrapper.text()).toContain("Remaining Due");
+		expect(wrapper.text()).toContain("Underpaid");
+		expect(wrapper.text()).toContain("200");
+	});
+
+	it("shows an exact tender banner when the invoice is fully covered", () => {
+		const wrapper = mount(PaymentSummary, {
+			props: {
+				invoice_doc: {
+					currency: "PKR",
+					is_return: false,
+				},
+				total_payments_display: "900",
+				diff_payment_display: "0",
+				diff_label: "Remaining",
+				diffPayment: 0,
+				change_due: 0,
+				paid_change: 0,
+				credit_change: 0,
+				paid_change_rules: [],
+				currencySymbol: () => "Rs",
+				formatCurrency: (value: number) => String(value),
+			},
+			global: {
+				components: {
+					VRow: BoxStub,
+					VCol: BoxStub,
+					VTextField: VTextFieldStub,
+				},
+			},
+		});
+
+		expect(wrapper.text()).toContain("Exact Tender");
+		expect(wrapper.text()).toContain("Ready");
+	});
+
 	it("shows applied gift card details inside the payment summary", () => {
 		const wrapper = mount(PaymentSummary, {
 			props: {
@@ -45,6 +108,7 @@ describe("PaymentSummary", () => {
 				total_payments_display: "900",
 				diff_payment_display: "0",
 				diff_label: "Remaining",
+				diffPayment: -80,
 				change_due: 0,
 				paid_change: 0,
 				credit_change: 0,
@@ -67,5 +131,7 @@ describe("PaymentSummary", () => {
 		expect(wrapper.text()).toContain("GC-0001");
 		expect(wrapper.text()).toContain("300");
 		expect(wrapper.text()).toContain("Included in settlement");
+		expect(wrapper.text()).toContain("Change Due");
+		expect(wrapper.text()).toContain("Overpaid");
 	});
 });

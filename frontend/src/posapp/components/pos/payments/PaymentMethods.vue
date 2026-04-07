@@ -38,12 +38,37 @@
 							:data-test="`payment-method-action-${payment.mode_of_payment}`"
 							@click="handlePrimaryAction(payment)"
 						>
-							{{
+							{{ 
 								isGiftCardPayment(payment)
 									? __("Redeem / Scan")
 									: payment.mode_of_payment
 							}}
 						</v-btn>
+						<div
+							v-if="showQuickTenderActions(payment)"
+							class="payment-method-quick-actions"
+						>
+							<v-btn
+								size="small"
+								variant="tonal"
+								color="primary"
+								class="payment-method-quick-actions__btn"
+								:data-test="`payment-method-exact-${payment.mode_of_payment}`"
+								@click="$emit('set-full-amount', payment, isReturn)"
+							>
+								{{ __("Exact") }}
+							</v-btn>
+							<v-btn
+								size="small"
+								variant="tonal"
+								color="secondary"
+								class="payment-method-quick-actions__btn"
+								:data-test="`payment-method-remaining-${payment.mode_of_payment}`"
+								@click="$emit('set-rest-amount', payment, isReturn)"
+							>
+								{{ __("Remaining") }}
+							</v-btn>
+						</div>
 					</div>
 				</v-col>
 
@@ -142,6 +167,11 @@ const handlePrimaryAction = (payment) => {
 	}
 	emit("set-full-amount", payment, props.isReturn);
 };
+
+const showQuickTenderActions = (payment) =>
+	!props.isGiftCardPayment(payment) &&
+	props.isCashLikePayment(payment) &&
+	payment?.default === 1;
 </script>
 
 <style scoped>
@@ -212,6 +242,21 @@ const handlePrimaryAction = (payment) => {
 
 .payment-method-actions {
 	display: block;
+}
+
+.payment-method-quick-actions {
+	margin-top: var(--pos-space-2);
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pos-space-2);
+}
+
+.payment-method-quick-actions__btn {
+	flex: 1 1 0;
+	min-width: 110px;
+	border-radius: var(--pos-radius-sm);
+	text-transform: none;
+	font-weight: 700;
 }
 
 .payment-method-action-btn:hover,
