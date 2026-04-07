@@ -8,7 +8,7 @@
 				</p>
 			</div>
 			<div class="display-meta">
-				<p>{{ __("Items") }}: {{ itemCount }}</p>
+				<p>{{ __("No Of Items") }}: {{ itemCount }}</p>
 				<p>{{ __("Updated") }}: {{ updatedLabel }}</p>
 			</div>
 		</header>
@@ -19,14 +19,17 @@
 		</div>
 
 		<div v-else-if="!rows.length" class="display-empty-state">
-			<h2>{{ __("Waiting for cart items") }}</h2>
-			<p>{{ __("Items added in POS will appear here automatically.") }}</p>
+			<div>
+				<h2>{{ __("Waiting for cart items") }}</h2>
+				<p>{{ __("Items added in POS will appear here automatically.") }}</p>
+			</div>
 		</div>
 
 		<div v-else class="display-table-wrap">
 			<table class="display-table">
 				<thead>
 					<tr>
+						<th>{{ __("SL") }}</th>
 						<th>{{ __("Item") }}</th>
 						<th>{{ __("Qty") }}</th>
 						<th>{{ __("Rate") }}</th>
@@ -34,7 +37,10 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="row in rows" :key="row.id">
+					<tr v-for="(row, index) in rows" :key="row.id">
+						<td :data-column-key="'sl'">
+							<div>{{ index + 1 }}</div>
+						</td>
 						<td>{{ row.item_name }}</td>
 						<td>{{ formatQty(row.qty) }}</td>
 						<td>{{ formatCurrency(row.rate) }}</td>
@@ -185,7 +191,7 @@ const formatCurrency = (value: number) => {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	background: rgba(17, 24, 39, 0.82);
+	background: #e3e3e3;;
 	border: 1px solid rgba(148, 163, 184, 0.22);
 	border-radius: 14px;
 	padding: 16px 20px;
@@ -200,13 +206,13 @@ const formatCurrency = (value: number) => {
 
 .display-subtitle {
 	margin: 4px 0 0;
-	color: #cbd5e1;
+	color: #000000;
 	font-size: clamp(14px, 1.2vw, 18px);
 }
 
 .display-meta {
 	text-align: right;
-	color: #e2e8f0;
+	color: #000000;
 	font-size: clamp(13px, 1.1vw, 16px);
 }
 
@@ -215,10 +221,16 @@ const formatCurrency = (value: number) => {
 }
 
 .display-table-wrap {
-	overflow: auto;
+	flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* IMPORTANT */
+    max-height: calc(100vh - 140px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+	/* overflow: auto;
 	border-radius: 14px;
 	border: 1px solid rgba(148, 163, 184, 0.2);
-	background: rgba(15, 23, 42, 0.78);
+	background: #fff; */
 }
 
 .display-table {
@@ -230,45 +242,52 @@ const formatCurrency = (value: number) => {
 .display-table td {
 	padding: 14px 16px;
 	border-bottom: 1px solid rgba(148, 163, 184, 0.17);
+	color: #000000;
 	font-size: clamp(14px, 1.2vw, 20px);
 }
 
 .display-table th {
 	position: sticky;
 	top: 0;
-	background: rgba(15, 23, 42, 0.95);
+	background: red;
 	text-transform: uppercase;
 	font-size: clamp(12px, 1vw, 14px);
 	letter-spacing: 0.04em;
+	color: #e2e8f0;
 }
 
-.display-table td:nth-child(2),
 .display-table td:nth-child(3),
 .display-table td:nth-child(4),
-.display-table th:nth-child(2),
 .display-table th:nth-child(3),
-.display-table th:nth-child(4) {
+.display-table th:nth-child(4){
+	text-align: center;
+}
+
+.display-table td:nth-child(5),
+.display-table th:nth-child(5) {
 	text-align: right;
 }
 
 .display-empty-state {
 	display: grid;
+	color:  #000000;
 	place-items: center;
 	text-align: center;
 	border-radius: 14px;
-	padding: 28px;
+	/* padding: 28px; */
 	border: 1px dashed rgba(148, 163, 184, 0.35);
-	background: rgba(15, 23, 42, 0.62);
+	background: #e3e3e3;
 }
 
 .display-empty-state h2 {
 	margin: 0 0 8px;
+	color:  #000000;
 	font-size: clamp(20px, 2vw, 30px);
 }
 
 .display-empty-state p {
 	margin: 0;
-	color: #cbd5e1;
+	color: #000000;
 	font-size: clamp(14px, 1.1vw, 18px);
 }
 
@@ -276,21 +295,22 @@ const formatCurrency = (value: number) => {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	background: rgba(3, 105, 161, 0.25);
-	border: 1px solid rgba(56, 189, 248, 0.38);
+	background: #e3e3e3;
+	border: 1px solid #d0d0d0;
 	border-radius: 14px;
 	padding: 14px 20px;
 }
 
 .display-total-label {
 	font-size: clamp(16px, 1.6vw, 24px);
-	font-weight: 700;
+	font-weight: 900;
+	color: #222;
 }
 
 .display-total-value {
 	font-size: clamp(26px, 3vw, 44px);
 	font-weight: 900;
-	color: #fef08a;
+	color: blue;
 }
 
 @media (max-width: 768px) {
@@ -300,7 +320,8 @@ const formatCurrency = (value: number) => {
 	}
 
 	.display-meta {
-		text-align: left;
+		text-align: right;
+		color: #e2e8f0;
 	}
 
 	.display-table th,
