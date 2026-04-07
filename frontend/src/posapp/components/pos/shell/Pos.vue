@@ -625,6 +625,7 @@ export default {
 			handlePaymentDialogUpdate,
 			handlePaymentDialogAfterLeave,
 			discountPercentageOfferName,
+			formatCompactNumber,
 			getCurrencySymbol,
 			invoicePanel,
 			eventBus,
