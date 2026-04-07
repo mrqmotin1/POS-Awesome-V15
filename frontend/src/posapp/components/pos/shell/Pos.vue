@@ -90,33 +90,9 @@
 				cols="12"
 				class="pos dynamic-col dynamic-col--invoice"
 			>
-				<ParkedOrdersRail
-					v-if="showDesktopDraftRail"
-					class="pos-drafts-rail pos-drafts-rail--desktop"
-					:parked-orders="desktopDraftPreview"
-					:total-count="parkedOrders.length"
-					:format-currency="formatCompactNumber"
-					:currency-symbol="getCurrencySymbol"
-					layout="desktop"
-					:view-all-label="__('Manage all')"
-					@resume="resumeParkedOrder"
-					@view-all="openDraftsManager"
-				/>
 				<Invoice ref="invoicePanel"></Invoice>
 			</v-col>
 		</v-row>
-		<ParkedOrdersRail
-			v-if="showMobileDraftRail"
-			class="pos-drafts-rail pos-drafts-rail--mobile"
-			:parked-orders="mobileDraftPreview"
-			:total-count="parkedOrders.length"
-			:format-currency="formatCompactNumber"
-			:currency-symbol="getCurrencySymbol"
-			layout="mobile"
-			:view-all-label="__('Manage all')"
-			@resume="resumeParkedOrder"
-			@view-all="openDraftsManager"
-		/>
 		<div v-if="showBottomDock" ref="mobileDock" class="mobile-pos-stack">
 			<div class="mobile-sale-dock">
 				<div class="mobile-sale-dock__copy">
@@ -235,7 +211,6 @@ import NewAddress from "../customer/NewAddress.vue";
 import Variants from "../items/Variants.vue";
 import Returns from "../flows/Returns.vue";
 import MpesaPayments from "../payments/Mpesa-Payments.vue";
-import ParkedOrdersRail from "../invoice/ParkedOrdersRail.vue";
 import { inject, ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from "vue";
 import { usePosShift } from "../../../composables/pos/shared/usePosShift";
 import { useOffers } from "../../../composables/pos/shared/useOffers";
@@ -288,14 +263,6 @@ export default {
 		const showBottomDock = computed(
 			() => !dialog.value && responsive.windowWidth.value < 1024,
 		);
-		const showDesktopDraftRail = computed(
-			() => !dialog.value && responsive.isDesktop.value && parkedOrders.value.length > 0,
-		);
-		const showMobileDraftRail = computed(
-			() => !dialog.value && !responsive.isDesktop.value && parkedOrders.value.length > 0,
-		);
-		const desktopDraftPreview = computed(() => parkedOrders.value.slice(0, 3));
-		const mobileDraftPreview = computed(() => parkedOrders.value.slice(0, 6));
 		const bottomDockHeight = ref(0);
 		let mobileDockObserver = null;
 		const isEditingAdditionalDiscount = ref(false);
@@ -432,14 +399,6 @@ export default {
 		};
 		const isSelectorViewActive = (view) =>
 			compactPanel.value === "selector" && activeView.value === view;
-		const resumeParkedOrder = (draft) => {
-			compactPanel.value = "invoice";
-			invoicePanel.value?.resume_parked_order?.(draft);
-		};
-		const openDraftsManager = () => {
-			compactPanel.value = "invoice";
-			uiStore.openInvoiceManagement("drafts");
-		};
 		const getFallbackBottomSpace = () => {
 			const rawValue = responsive.responsiveStyles.value["--bottom-safe-space"];
 			const parsed = Number.parseFloat(String(rawValue || "0"));
@@ -603,11 +562,6 @@ export default {
 			usePaymentDialog,
 			useCompactPosSwitcher,
 			showBottomDock,
-			showDesktopDraftRail,
-			showMobileDraftRail,
-			parkedOrders,
-			desktopDraftPreview,
-			mobileDraftPreview,
 			layoutStyleOverrides,
 			compactPanel,
 			mobileDock,
@@ -617,8 +571,6 @@ export default {
 			showPaymentPanel,
 			triggerInvoicePay,
 			isSelectorViewActive,
-			resumeParkedOrder,
-			openDraftsManager,
 			handleAdditionalDiscountUpdate,
 			handleAdditionalDiscountFocus,
 			handleAdditionalDiscountBlur,
@@ -658,7 +610,6 @@ export default {
 		Variants,
 		MpesaPayments,
 		SalesOrders,
-		ParkedOrdersRail,
 	},
 
 	methods: {
@@ -785,14 +736,6 @@ export default {
 	flex-direction: column;
 	min-width: 0;
 	min-height: 0;
-}
-
-.pos-drafts-rail {
-	margin-bottom: var(--dynamic-sm);
-}
-
-.pos-drafts-rail--mobile {
-	margin: 0 var(--dynamic-sm) var(--dynamic-sm);
 }
 
 .mobile-pos-stack {

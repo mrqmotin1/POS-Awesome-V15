@@ -36,4 +36,18 @@
 - Reworked parked-order UX around `Drafts`: the visible copy now uses ERPNext-style drafts terminology instead of parked orders, while the store-backed draft cache and resume flow stay unchanged.
 - Moved the inline draft list out of the invoice summary flow by introducing a compact recent-drafts surface plus a reusable full drafts list component for secondary surfaces.
 - Added responsive placement for drafts: desktop now uses a right-side drawer, while non-desktop layouts use a secondary dialog surface, and verified the relocation with focused frontend regression tests plus `vue-tsc`.
+<<<<<<< HEAD
 >>>>>>> c717209f (refactor: move drafts to responsive secondary surfaces)
+=======
+- Completed the missing Phase 2 stored-value slice without adding a parallel wallet system: added a dedicated `stored_value` API wrapper over the existing customer-credit engine, exposed stored-value summary fields in customer info responses, and kept redemption sourcing on the proven credit/cashback path.
+- Added a compact customer insights surface so the selected customer now shows stored-value balance and loyalty points inline, and updated payment redemption copy to use `stored value` terminology consistently across summary and source-allocation views.
+- Verified the new Phase 2 stored-value slice with targeted frontend Vitest coverage and a dedicated backend Python test, while leaving manual release-gate walkthroughs as a separate operational check.
+- Closed the remaining code-level Phase 2 gap for reloadable gift cards: added `POS Gift Card` and `POS Gift Card Transaction` DocType scaffolding, supervisor-gated issue/top-up APIs, balance lookup, and invoice-linked redemption history.
+- Extended the payment flow with a scan-friendly gift-card dialog, gift-card payment-row treatment, supervisor-only issue/top-up actions inside POS, and submit-time payload/offline validation so gift-card redemption stays online-only.
+- Extended offline customer-balance support with stored-value snapshot caches, richer cached customer summary fields, and replay-safe redemption metadata on queued offline invoices so customer-balance redemption remains recoverable after sync.
+- Re-verified the Phase 2 closeout slices with focused frontend Vitest coverage, frontend type-check, and backend Python tests for gift cards plus invoice post-submit payment processing.
+
+## 2026-04-07
+- Removed the shell-level drafts rail from `Pos.vue` after confirming the accepted Phase 1 UX keeps drafts inside the existing invoice summary drawer/dialog surfaces rather than duplicating that surface at the POS shell level.
+- Kept the `Drafts` label unchanged, retained the faster payment quick actions and settlement-state polish, and marked Phase 1 code-level scope complete under the current accepted UX shape.
+>>>>>>> 28df2032 (fix: remove shell draft rail)
