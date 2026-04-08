@@ -22,12 +22,86 @@ export type BootstrapSnapshot = {
 	prerequisites: Record<string, BootstrapPrerequisiteState>;
 };
 
+export type BootstrapValidationMode =
+	| "normal"
+	| "limited"
+	| "confirmation_required"
+	| "invalid";
+
+export type BootstrapCapabilities = {
+	canSellOffline: boolean;
+	canApplyPricingOffline: boolean;
+	canPrintOffline: boolean;
+	canUseOffersOffline: boolean;
+	canUseCustomerDisplayOffline: boolean;
+};
+
 export type BootstrapValidationInput = {
 	buildVersion?: string | null;
 	profileName?: string | null;
 	profileModified?: string | null;
 	sessionUser?: string | null;
 };
+
+const PREREQUISITES_FOR_OFFLINE_SELL = [
+	"pos_profile",
+	"pos_opening_shift",
+	"payment_methods",
+];
+
+const PREREQUISITES_FOR_OFFLINE_PRICING = [
+	"pricing_rules_snapshot",
+	"pricing_rules_context",
+];
+
+const PREREQUISITES_FOR_OFFLINE_PRINT = [
+	"print_template",
+	"terms_and_conditions",
+];
+
+const PREREQUISITES_FOR_OFFERS = ["offers_cache", "coupons_cache"];
+
+function isReadyState(state: BootstrapPrerequisiteState | undefined) {
+	return state === "ready";
+}
+
+function collectMissingPrerequisites(
+	prerequisites: Record<string, BootstrapPrerequisiteState>,
+) {
+	return Object.entries(prerequisites)
+		.filter(([, state]) => !isReadyState(state))
+		.map(([key]) => key);
+}
+
+function hasAllReady(
+	prerequisites: Record<string, BootstrapPrerequisiteState>,
+	keys: string[],
+) {
+	return keys.every((key) => isReadyState(prerequisites[key]));
+}
+
+function deriveCapabilities(
+	prerequisites: Record<string, BootstrapPrerequisiteState>,
+): BootstrapCapabilities {
+	return {
+		canSellOffline: hasAllReady(
+			prerequisites,
+			PREREQUISITES_FOR_OFFLINE_SELL,
+		),
+		canApplyPricingOffline: hasAllReady(
+			prerequisites,
+			PREREQUISITES_FOR_OFFLINE_PRICING,
+		),
+		canPrintOffline: hasAllReady(
+			prerequisites,
+			PREREQUISITES_FOR_OFFLINE_PRINT,
+		),
+		canUseOffersOffline: hasAllReady(prerequisites, PREREQUISITES_FOR_OFFERS),
+		canUseCustomerDisplayOffline: isReadyState(
+			prerequisites.pos_opening_shift,
+		),
+	};
+}
 
 export function buildBootstrapSnapshot(
 	input: BootstrapSnapshotInput,
@@ -47,13 +121,44 @@ export function validateBootstrapSnapshot(
 	current: BootstrapValidationInput,
 ) {
 	const reasons: string[] = [];
+	const prerequisites = snapshot?.prerequisites || {};
+	const missingPrerequisites = collectMissingPrerequisites(prerequisites);
+	const capabilities = deriveCapabilities(prerequisites);
+	let mode: BootstrapValidationMode = "normal";
 
 	if ((snapshot?.build_version || null) !== (current?.buildVersion || null)) {
 		reasons.push("build_version_mismatch");
 	}
+	if ((snapshot?.profile_name || null) !== (current?.profileName || null)) {
+		reasons.push("profile_name_mismatch");
+	}
+	if (
+		(snapshot?.profile_modified || null) !== (current?.profileModified || null)
+	) {
+		reasons.push("profile_modified_mismatch");
+	}
+	if (
+		(snapshot?.opening_shift_user || null) !== (current?.sessionUser || null)
+	) {
+		reasons.push("opening_shift_user_mismatch");
+	}
+
+	if (reasons.includes("opening_shift_user_mismatch")) {
+		mode = "invalid";
+	} else if (
+		reasons.includes("build_version_mismatch") ||
+		reasons.includes("profile_name_mismatch") ||
+		reasons.includes("profile_modified_mismatch")
+	) {
+		mode = "confirmation_required";
+	} else if (missingPrerequisites.length) {
+		mode = "limited";
+	}
 
 	return {
-		mode: reasons.length ? "confirmation_required" : "normal",
+		mode,
 		reasons,
+		missingPrerequisites,
+		capabilities,
 	};
 }
