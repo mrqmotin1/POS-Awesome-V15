@@ -1,5 +1,3 @@
-from posawesome.utils import get_build_version
-
 app_name = "posawesome"
 app_title = "POS Awesome"
 app_publisher = "Youssef Restom"
@@ -13,17 +11,10 @@ app_license = "GPLv3"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/posawesome/css/posawesome.css"
-# app_include_js = "/assets/posawesome/js/posawesome.js"
-_asset_version = get_build_version()
-
-app_include_js = [
-    f"/assets/posawesome/dist/js/loader.js?v={_asset_version}",
-]
-
-app_include_css = [
-    f"/assets/posawesome/dist/js/posawesome.css?v={_asset_version}",
-]
+# POS assets are loaded on-demand from the POS page bootstrap so the Desk shell
+# does not retain stale bundles across bench builds.
+app_include_js = []
+app_include_css = []
 
 # include js, css files in header of web template
 # web_include_css = "/assets/posawesome/css/posawesome.css"
