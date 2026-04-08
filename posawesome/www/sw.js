@@ -3,9 +3,8 @@ const VERSION_URL = "/assets/posawesome/dist/js/version.json";
 const DEFAULT_CACHE_VERSION = "default";
 const MAX_CACHE_ITEMS = 1000;
 
-const PRECACHE_URLS = [
+const STATIC_PRECACHE_URLS = [
 	"/app/posapp",
-	"/assets/posawesome/dist/js/posawesome.js",
 	"/assets/posawesome/dist/js/offline/index.js",
 	"/assets/posawesome/dist/js/posapp/workers/itemWorker.js",
 	"/assets/posawesome/dist/js/libs/dexie.min.js",
@@ -13,14 +12,27 @@ const PRECACHE_URLS = [
 	"/offline.html",
 ];
 
+function buildVersionedAssetUrl(url, version) {
+	return `${url}?v=${encodeURIComponent(version || DEFAULT_CACHE_VERSION)}`;
+}
+
+function getPrecacheUrls(version) {
+	return [
+		buildVersionedAssetUrl("/assets/posawesome/dist/js/loader.js", version),
+		buildVersionedAssetUrl("/assets/posawesome/dist/js/posawesome.css", version),
+		buildVersionedAssetUrl("/assets/posawesome/dist/js/posawesome.js", version),
+		...STATIC_PRECACHE_URLS,
+	];
+}
+
 let cachedCacheName = null;
 let cacheNameInFlight = null;
 let currentVersion = null;
 
-async function precacheUrls(cacheName) {
+async function precacheUrls(cacheName, version) {
 	const cache = await caches.open(cacheName);
 	await Promise.all(
-		PRECACHE_URLS.map(async (url) => {
+		getPrecacheUrls(version).map(async (url) => {
 			try {
 				const resp = await fetch(url);
 				if (resp && resp.ok) {
@@ -103,7 +115,7 @@ async function resolveCacheVersion(forceRefresh = false) {
 	return DEFAULT_CACHE_VERSION;
 }
 
-async function getCacheName(forceRefresh = false) {
+async function getCacheName(forceRefresh = false, resolvedVersion = null) {
 	if (forceRefresh) {
 		cachedCacheName = null;
 		cacheNameInFlight = null;
@@ -115,7 +127,8 @@ async function getCacheName(forceRefresh = false) {
 		return cacheNameInFlight;
 	}
 	cacheNameInFlight = (async () => {
-		const version = await resolveCacheVersion(forceRefresh);
+		const version =
+			resolvedVersion || (await resolveCacheVersion(forceRefresh));
 		const name = `${CACHE_PREFIX}${version}`;
 		if (version !== DEFAULT_CACHE_VERSION) {
 			cachedCacheName = name;
@@ -137,8 +150,9 @@ async function enforceCacheLimit(cache) {
 }
 
 async function refreshCacheVersion(target) {
-	const activeCacheName = await getCacheName(true);
-	await precacheUrls(activeCacheName);
+	const version = await resolveCacheVersion(true);
+	const activeCacheName = await getCacheName(true, version);
+	await precacheUrls(activeCacheName, version);
 	await cleanupObsoleteCaches(activeCacheName);
 	postVersionMessage(target);
 	const clients = await self.clients.matchAll({
@@ -162,8 +176,9 @@ self.addEventListener("install", (event) => {
 	self.skipWaiting();
 	event.waitUntil(
 		(async () => {
-			const cacheName = await getCacheName();
-			await precacheUrls(cacheName);
+			const version = await resolveCacheVersion();
+			const cacheName = await getCacheName(false, version);
+			await precacheUrls(cacheName, version);
 		})(),
 	);
 });
@@ -171,7 +186,9 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
 	event.waitUntil(
 		(async () => {
-			const activeCacheName = await getCacheName();
+			const version = await resolveCacheVersion();
+			const activeCacheName = await getCacheName(false, version);
+			await precacheUrls(activeCacheName, version);
 			await cleanupObsoleteCaches(activeCacheName);
 			const cache = await caches.open(activeCacheName);
 			await enforceCacheLimit(cache);
@@ -230,6 +247,7 @@ self.addEventListener("fetch", (event) => {
 	event.respondWith(
 		(async () => {
 			const cacheName = await getCacheName();
+			const hasVersionQuery = url.searchParams.has("v");
 			try {
 				const response = await fetch(event.request);
 				const cacheableTypes = ["basic", "default", "cors"];
@@ -253,9 +271,14 @@ self.addEventListener("fetch", (event) => {
 				if (cached) {
 					return cached;
 				}
-				const fallback = await caches.match(event.request, { ignoreSearch: true });
-				if (fallback) {
-					return fallback;
+
+				if (!hasVersionQuery) {
+					const fallback = await caches.match(event.request, {
+						ignoreSearch: true,
+					});
+					if (fallback) {
+						return fallback;
+					}
 				}
 				return Response.error();
 			}

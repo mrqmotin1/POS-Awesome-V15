@@ -6,8 +6,116 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		single_column: true,
 	});
 	const pageRef = (wrapper && wrapper.page) || page;
+	const VERSION_ENDPOINT = "/assets/posawesome/dist/js/version.json";
+	const LOADER_URL = "/assets/posawesome/dist/js/loader.js";
+	const CSS_URL = "/assets/posawesome/dist/js/posawesome.css";
+	const LOADER_SCRIPT_ID = "posa-loader-script";
+	const CSS_LINK_ID = "posa-posapp-css";
 	const BOOT_RETRY_KEY = "posa_boot_retry_once";
 	const BOOT_CACHE_RECOVERY_KEY = "posa_boot_cache_recovery_once";
+	const buildVersionedAssetUrl = (assetPath, version) =>
+		version
+			? `${assetPath}?v=${encodeURIComponent(version)}`
+			: assetPath;
+	const fetchBuildVersion = async () => {
+		try {
+			const response = await fetch(`${VERSION_ENDPOINT}?t=${Date.now()}`, {
+				cache: "no-store",
+			});
+			if (!response.ok) {
+				return null;
+			}
+			const payload = await response.json();
+			const version = payload?.version || payload?.buildVersion;
+			return typeof version === "string" && version.trim().length
+				? version.trim()
+				: null;
+		} catch (error) {
+			console.warn("Unable to fetch POS build version", error);
+			return null;
+		}
+	};
+	const resetBundleLoadState = () => {
+		try {
+			delete window.__posawesomeBundlePromise;
+		} catch {
+			window.__posawesomeBundlePromise = undefined;
+		}
+	};
+	const ensureStylesheetLoaded = (version) => {
+		const requestedVersion = version || "";
+		const href = buildVersionedAssetUrl(CSS_URL, version);
+		const existingLink = document.getElementById(CSS_LINK_ID);
+		if (
+			existingLink &&
+			existingLink.getAttribute("data-build-version") === requestedVersion
+		) {
+			return;
+		}
+
+		if (existingLink) {
+			existingLink.remove();
+		}
+
+		const link = document.createElement("link");
+		link.id = CSS_LINK_ID;
+		link.rel = "stylesheet";
+		link.href = href;
+		link.setAttribute("data-build-version", requestedVersion);
+		document.head.appendChild(link);
+	};
+	const loadLoaderScript = (version) =>
+		new Promise((resolve, reject) => {
+			const requestedVersion = version || "";
+			const bundleReady = !!(frappe.PosApp && frappe.PosApp.posapp);
+			const existingPromise =
+				window.__posawesomeBundlePromise &&
+				typeof window.__posawesomeBundlePromise.then === "function";
+			const existingScript = document.getElementById(LOADER_SCRIPT_ID);
+			const existingVersion = existingScript
+				? existingScript.getAttribute("data-build-version") || ""
+				: "";
+
+			if (
+				existingScript &&
+				existingVersion === requestedVersion &&
+				(bundleReady || existingPromise)
+			) {
+				resolve();
+				return;
+			}
+
+			if (existingScript) {
+				existingScript.remove();
+			}
+			resetBundleLoadState();
+
+			const script = document.createElement("script");
+			script.id = LOADER_SCRIPT_ID;
+			script.async = true;
+			script.src = buildVersionedAssetUrl(LOADER_URL, version);
+			script.setAttribute("data-build-version", requestedVersion);
+			script.onload = () => resolve();
+			script.onerror = () =>
+				reject(
+					new Error(
+						`Failed to load POS loader script (${requestedVersion || "unversioned"})`,
+					),
+				);
+			document.head.appendChild(script);
+		});
+	const ensurePosAssetsLoaded = async () => {
+		const buildVersion = await fetchBuildVersion();
+		ensureStylesheetLoaded(buildVersion);
+		await loadLoaderScript(buildVersion);
+
+		if (
+			window.__posawesomeBundlePromise &&
+			typeof window.__posawesomeBundlePromise.then === "function"
+		) {
+			await window.__posawesomeBundlePromise;
+		}
+	};
 	const detectBootFailureCode = (error) => {
 		const message =
 			(error && error.message ? String(error.message) : String(error || ""))
@@ -175,14 +283,7 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 	};
 
 	try {
-		if (
-			typeof window !== "undefined" &&
-			window.__posawesomeBundlePromise &&
-			typeof window.__posawesomeBundlePromise.then === "function"
-		) {
-			await window.__posawesomeBundlePromise;
-		}
-
+		await ensurePosAssetsLoaded();
 		await waitForPosApp();
 	} catch (error) {
 		await handleBootstrapFailure(error);
