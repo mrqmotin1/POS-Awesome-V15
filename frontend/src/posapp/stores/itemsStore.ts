@@ -7,6 +7,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import type { Item, POSProfile } from "../types/models";
 import itemService from "../services/itemService";
+import { refreshBootstrapSnapshotFromCacheState } from "../../offline/index";
 
 // Composables
 import { useItemsCache } from "../composables/pos/items/store/useItemsCache";
@@ -85,6 +86,12 @@ export const useItemsStore = defineStore("items", () => {
 			return null;
 		}
 		return await fn(priceList);
+	};
+
+	const syncBootstrapItemReadiness = (count: number | boolean) => {
+		refreshBootstrapSnapshotFromCacheState({
+			itemsCount: count,
+		});
 	};
 
 	// Core State
@@ -356,6 +363,7 @@ export const useItemsStore = defineStore("items", () => {
 				resetCachedPagination({ enabled: false, total: 0 });
 				setItems([], { totalCount: 0 });
 				itemsLoaded.value = false;
+				syncBootstrapItemReadiness(0);
 				return;
 			}
 
@@ -371,6 +379,7 @@ export const useItemsStore = defineStore("items", () => {
 			if (resolvedCount === 0) {
 				itemsLoaded.value = false;
 				resetCachedPagination();
+				syncBootstrapItemReadiness(0);
 				return;
 			}
 
@@ -388,6 +397,7 @@ export const useItemsStore = defineStore("items", () => {
 					setItems(cachedItems, { totalCount: resolvedCount });
 					cachedPagination.value.offset = cachedItems.length;
 					itemsLoaded.value = true;
+					syncBootstrapItemReadiness(resolvedCount);
 				}
 				return;
 			}
@@ -410,6 +420,7 @@ export const useItemsStore = defineStore("items", () => {
 					? itemGroup.value
 					: "ALL";
 			itemsLoaded.value = true;
+			syncBootstrapItemReadiness(resolvedCount);
 		} catch (error) {
 			console.warn("Failed to load cached items:", error);
 			itemsLoaded.value = true;
@@ -524,6 +535,11 @@ export const useItemsStore = defineStore("items", () => {
 								},
 							);
 						}
+						if (normalizedGroup === "ALL") {
+							syncBootstrapItemReadiness(
+								Math.max(Number(storedCount || 0), cachedResult.length),
+							);
+						}
 					}
 					performanceMetrics.value.cachedRequests++;
 					updatePerformanceMetrics(startTime);
@@ -600,11 +616,21 @@ export const useItemsStore = defineStore("items", () => {
 						);
 					},
 				);
+				if (normalizedGroup === "ALL") {
+					const storedCount = await getStoredItemsCountByScopeCompat(
+						getStorageScope(),
+					).catch(() => fetchedItems.length);
+					syncBootstrapItemReadiness(
+						Math.max(Number(storedCount || 0), fetchedItems.length),
+					);
+				}
 				triggerBackgroundSync({
 					groupFilter: normalizedGroup,
 					initialBatch: fetchedItems,
 					reset: false,
 				});
+			} else if (!searchValue && normalizedGroup === "ALL") {
+				syncBootstrapItemReadiness(0);
 			}
 
 			if (fetchedItems.length > 0) {

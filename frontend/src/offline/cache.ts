@@ -1,3 +1,4 @@
+import { refreshBootstrapSnapshotFromCaches } from "./bootstrapSnapshot";
 import { memory, persist, db, checkDbHealth } from "./db";
 
 const normalizeScope = (scope: unknown): string => String(scope || "");
@@ -371,6 +372,9 @@ export function saveOffers(offers) {
 	try {
 		memory.offers_cache = offers;
 		persist("offers_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			offers: memory.offers_cache,
+		});
 	} catch (e) {
 		console.error("Failed to cache offers", e);
 	}
@@ -553,6 +557,9 @@ export function setSalesPersonsStorage(data) {
 	try {
 		memory.sales_persons_storage = JSON.parse(JSON.stringify(data));
 		persist("sales_persons_storage");
+		refreshBootstrapSnapshotFromCacheState({
+			salesPersons: memory.sales_persons_storage,
+		});
 	} catch (e) {
 		console.error("Failed to set sales persons storage", e);
 	}
@@ -564,6 +571,19 @@ export function getOpeningStorage() {
 
 export function getBootstrapSnapshot() {
 	return memory.bootstrap_snapshot || null;
+}
+
+export function refreshBootstrapSnapshotFromCacheState(cacheState = {}) {
+	try {
+		setBootstrapSnapshot(
+			refreshBootstrapSnapshotFromCaches({
+				currentSnapshot: getBootstrapSnapshot(),
+				cacheState,
+			}),
+		);
+	} catch (e) {
+		console.error("Failed to refresh bootstrap snapshot from cache state", e);
+	}
 }
 
 export function setBootstrapSnapshot(snapshot) {
@@ -699,6 +719,9 @@ export function getTaxInclusiveSetting() {
 export function setTaxInclusiveSetting(value) {
 	memory.tax_inclusive = !!value;
 	persist("tax_inclusive");
+	refreshBootstrapSnapshotFromCacheState({
+		taxInclusive: memory.tax_inclusive,
+	});
 }
 
 export function reduceCacheUsage() {
@@ -801,6 +824,12 @@ export function savePricingRulesSnapshot(
 	persist("pricing_rules_context");
 	persist("pricing_rules_last_sync");
 	persist("pricing_rules_stale_at");
+	refreshBootstrapSnapshotFromCacheState({
+		pricingSnapshotCount: Array.isArray(memory.pricing_rules_snapshot)
+			? memory.pricing_rules_snapshot.length
+			: 0,
+		pricingContext: memory.pricing_rules_context,
+	});
 }
 
 export function getCachedPricingRulesSnapshot() {
@@ -824,6 +853,10 @@ export function clearPricingRulesSnapshot() {
 	persist("pricing_rules_context");
 	persist("pricing_rules_last_sync");
 	persist("pricing_rules_stale_at");
+	refreshBootstrapSnapshotFromCacheState({
+		pricingSnapshotCount: 0,
+		pricingContext: null,
+	});
 }
 
 export function getTranslationsCache(lang) {
@@ -859,6 +892,9 @@ export function setPrintTemplate(template) {
 	try {
 		memory.print_template = template || "";
 		persist("print_template");
+		refreshBootstrapSnapshotFromCacheState({
+			printTemplate: memory.print_template,
+		});
 	} catch (e) {
 		console.error("Failed to set print template", e);
 	}
@@ -876,6 +912,9 @@ export function setTermsAndConditions(terms) {
 	try {
 		memory.terms_and_conditions = terms || "";
 		persist("terms_and_conditions");
+		refreshBootstrapSnapshotFromCacheState({
+			termsAndConditions: memory.terms_and_conditions,
+		});
 	} catch (e) {
 		console.error("Failed to set terms and conditions", e);
 	}
@@ -886,6 +925,9 @@ export function saveCoupons(coupons) {
 	try {
 		memory.coupons_cache = coupons || {};
 		persist("coupons_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			coupons: memory.coupons_cache,
+		});
 	} catch (e) {
 		console.error("Failed to save coupons", e);
 	}
@@ -898,6 +940,9 @@ export function getCachedCoupons() {
 export function clearCoupons() {
 	memory.coupons_cache = {};
 	persist("coupons_cache");
+	refreshBootstrapSnapshotFromCacheState({
+		coupons: memory.coupons_cache,
+	});
 }
 
 // Item Groups
@@ -905,6 +950,9 @@ export function saveItemGroups(groups) {
 	try {
 		memory.item_groups_cache = groups || [];
 		persist("item_groups_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			itemGroups: memory.item_groups_cache,
+		});
 	} catch (e) {
 		console.error("Failed to save item groups", e);
 	}
@@ -917,6 +965,9 @@ export function getCachedItemGroups() {
 export function clearItemGroups() {
 	memory.item_groups_cache = [];
 	persist("item_groups_cache");
+	refreshBootstrapSnapshotFromCacheState({
+		itemGroups: memory.item_groups_cache,
+	});
 }
 
 export async function getCacheUsageEstimate() {

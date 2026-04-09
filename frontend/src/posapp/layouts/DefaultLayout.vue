@@ -110,6 +110,10 @@ import { useRtl } from "../composables/core/useRtl";
 import authService from "../services/authService.js";
 import { getValidCachedOpeningForCurrentUser } from "../utils/openingCache";
 import { isManagerMode, isSessionUserManager, setManagerMode } from "../utils/useManagerMode";
+import {
+	formatBootstrapWarning,
+	shouldShowBootstrapBanner,
+} from "../utils/bootstrapWarnings";
 
 /**
  * Frappe Desk UI selectors to hide in POS view.
@@ -204,46 +208,6 @@ function buildBootstrapValidationKey(validation) {
 	});
 }
 
-function formatBootstrapWarning(code) {
-	switch (code) {
-		case "snapshot_missing":
-			return __("Offline bootstrap snapshot is missing. POS will stay open, but offline features may be limited until cache is refreshed online.");
-		case "build_version_mismatch":
-			return __("Cached offline data belongs to a different app build.");
-		case "profile_name_mismatch":
-			return __("Cached offline data belongs to a different POS profile.");
-		case "profile_modified_mismatch":
-			return __("POS profile settings changed after the offline snapshot was captured.");
-		case "opening_shift_user_mismatch":
-			return __("Cached opening shift belongs to another user and cannot be restored offline.");
-		case "pos_profile":
-			return __("POS profile cache is incomplete.");
-		case "pos_opening_shift":
-			return __("POS opening shift cache is incomplete.");
-		case "payment_methods":
-			return __("Offline payment methods are incomplete.");
-		case "pricing_rules_snapshot":
-			return __("Offline pricing rules snapshot is missing.");
-		case "pricing_rules_context":
-			return __("Offline pricing context is missing.");
-		case "print_template":
-			return __("Offline print template is missing.");
-		case "terms_and_conditions":
-			return __("Offline terms and conditions cache is missing.");
-		case "offers_cache":
-			return __("Offline offers cache is missing.");
-		case "coupons_cache":
-			return __("Offline coupons cache is missing.");
-		default:
-			return __(`Offline prerequisite needs refresh: ${String(code || "").replace(/_/g, " ")}`);
-	}
-}
-
-function shouldShowBootstrapBanner(status) {
-	const runtimeMode = status?.runtime_mode || status?.mode || "normal";
-	return runtimeMode === "limited" || runtimeMode === "invalid";
-}
-
 function buildCurrentBootstrapValidationInput() {
 	const profile = getCurrentBootstrapProfile();
 	return {
@@ -296,7 +260,11 @@ function persistBootstrapRuntime(validation, decision) {
 
 function buildBootstrapConfirmationMessage(validation) {
 	const details = Array.from(
-		new Set((validation?.reasons || []).map((code) => formatBootstrapWarning(code))),
+		new Set(
+			(validation?.reasons || []).map((code) =>
+				formatBootstrapWarning(code, __),
+			),
+		),
 	);
 
 	return [
@@ -366,7 +334,7 @@ const bootstrapWarningMessages = computed(() => {
 	return Array.from(
 		new Set(
 			(bootstrapStatus.value?.warning_codes || []).map((code) =>
-				formatBootstrapWarning(code),
+				formatBootstrapWarning(code, __),
 			),
 		),
 	);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	buildBootstrapSnapshot,
 	collectBootstrapPrerequisites,
@@ -7,8 +7,32 @@ import {
 	resolveBootstrapRuntimeState,
 	validateBootstrapSnapshot,
 } from "../src/offline/bootstrapSnapshot";
+import {
+	getBootstrapSnapshot,
+	saveCoupons,
+	saveItemGroups,
+	saveOffers,
+	setBootstrapSnapshot,
+	setPrintTemplate,
+	setTaxInclusiveSetting,
+	setTermsAndConditions,
+} from "../src/offline/cache";
+import { setStockCacheReady } from "../src/offline/stock";
+import { formatBootstrapWarning } from "../src/posapp/utils/bootstrapWarnings";
 
 describe("bootstrap snapshot", () => {
+	afterEach(() => {
+		setBootstrapSnapshot(null);
+		saveOffers([]);
+		saveCoupons({});
+		saveItemGroups([]);
+		setPrintTemplate("");
+		setTermsAndConditions("");
+		setTaxInclusiveSetting(false);
+		setStockCacheReady(false);
+		setBootstrapSnapshot(null);
+	});
+
 	it("returns confirmation_required on build mismatch", () => {
 		const snapshot = buildBootstrapSnapshot({
 			buildVersion: "build-1",
@@ -181,8 +205,17 @@ describe("bootstrap snapshot", () => {
 			},
 		);
 
+		const decision = resolveBootstrapRuntimeState(result);
+
 		expect(result.mode).toBe("limited");
 		expect(result.capabilities.canSellOffline).toBe(true);
+		expect(decision.warningCodes).toEqual(
+			expect.arrayContaining([
+				"sales_persons",
+				"item_groups",
+				"stock_cache_ready",
+			]),
+		);
 	});
 
 	it("blocks sell capability when item or customer caches are not ready", () => {
@@ -328,6 +361,98 @@ describe("bootstrap snapshot", () => {
 		expect(snapshot.prerequisites.payment_methods).toBe("ready");
 		expect(snapshot.prerequisites.items_cache_ready).toBe("ready");
 		expect(snapshot.prerequisites.customers_cache_ready).toBe("ready");
+	});
+
+	it("refreshes bootstrap snapshot from cache writers without clearing unrelated readiness", () => {
+		setBootstrapSnapshot(
+			buildBootstrapSnapshot({
+				buildVersion: "build-2",
+				profileName: "POS-1",
+				profileModified: "2026-04-08 10:00:00",
+				openingShiftName: "SHIFT-1",
+				openingShiftUser: "test@example.com",
+				prerequisites: {
+					pos_profile: "ready",
+					pos_opening_shift: "ready",
+					payment_methods: "ready",
+					items_cache_ready: "ready",
+					customers_cache_ready: "ready",
+				},
+			}),
+		);
+
+		saveOffers([{ name: "OFFER-1" }]);
+		saveCoupons({ CUSTOMER1: ["COUPON-1"] });
+		setTaxInclusiveSetting(true);
+		setPrintTemplate("<div>Receipt</div>");
+		setTermsAndConditions("Terms");
+		saveItemGroups(["ALL", "Beverages"]);
+		setStockCacheReady(false);
+
+		const snapshot = getBootstrapSnapshot();
+
+		expect(snapshot.prerequisites.payment_methods).toBe("ready");
+		expect(snapshot.prerequisites.items_cache_ready).toBe("ready");
+		expect(snapshot.prerequisites.customers_cache_ready).toBe("ready");
+		expect(snapshot.prerequisites.offers_cache).toBe("ready");
+		expect(snapshot.prerequisites.coupons_cache).toBe("ready");
+		expect(snapshot.prerequisites.tax_inclusive).toBe("ready");
+		expect(snapshot.prerequisites.print_template).toBe("ready");
+		expect(snapshot.prerequisites.terms_and_conditions).toBe("ready");
+		expect(snapshot.prerequisites.item_groups).toBe("ready");
+		expect(snapshot.prerequisites.stock_cache_ready).toBe("missing");
+	});
+
+	it("recomputes item and customer readiness on profile switch", () => {
+		const snapshot = refreshBootstrapSnapshotFromCaches({
+			currentSnapshot: buildBootstrapSnapshot({
+				buildVersion: "build-2",
+				profileName: "POS-1",
+				profileModified: "2026-04-08 10:00:00",
+				openingShiftName: "SHIFT-1",
+				openingShiftUser: "test@example.com",
+				prerequisites: {
+					pos_profile: "ready",
+					pos_opening_shift: "ready",
+					payment_methods: "ready",
+					items_cache_ready: "ready",
+					customers_cache_ready: "ready",
+				},
+			}),
+			registerData: {
+				pos_profile: {
+					name: "POS-2",
+					modified: "2026-04-09 09:00:00",
+				},
+				pos_opening_shift: {
+					name: "SHIFT-2",
+					user: "test@example.com",
+				},
+			},
+			cacheState: {
+				itemsCount: 0,
+				customersCount: 0,
+			},
+		});
+
+		expect(snapshot.profile_name).toBe("POS-2");
+		expect(snapshot.profile_modified).toBe("2026-04-09 09:00:00");
+		expect(snapshot.opening_shift_name).toBe("SHIFT-2");
+		expect(snapshot.prerequisites.pos_profile).toBe("ready");
+		expect(snapshot.prerequisites.pos_opening_shift).toBe("ready");
+		expect(snapshot.prerequisites.items_cache_ready).toBe("missing");
+		expect(snapshot.prerequisites.customers_cache_ready).toBe("missing");
+	});
+
+	it("formats expanded warnings for new prerequisite codes", () => {
+		expect(formatBootstrapWarning("items_cache_ready")).toContain("item cache");
+		expect(formatBootstrapWarning("customers_cache_ready")).toContain(
+			"customer cache",
+		);
+		expect(formatBootstrapWarning("sales_persons")).toContain("sales persons");
+		expect(formatBootstrapWarning("item_groups")).toContain("item groups");
+		expect(formatBootstrapWarning("tax_inclusive")).toContain("tax inclusive");
+		expect(formatBootstrapWarning("stock_cache_ready")).toContain("stock cache");
 	});
 
 	it("returns limited mode when snapshot is missing", () => {

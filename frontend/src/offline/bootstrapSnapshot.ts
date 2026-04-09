@@ -171,6 +171,10 @@ function hasCoupons(value: Record<string, unknown> | unknown[] | null | undefine
 	return Object.keys(value).length > 0;
 }
 
+function hasOwnKey<T extends object>(value: T | null | undefined, key: keyof T) {
+	return Object.prototype.hasOwnProperty.call(value || {}, key);
+}
+
 function deriveCapabilities(
 	prerequisites: Record<string, BootstrapPrerequisiteState>,
 ): BootstrapCapabilities {
@@ -234,6 +238,96 @@ export function collectBootstrapPrerequisites(
 		coupons_cache: hasCoupons(input?.coupons) ? "ready" : "missing",
 		stock_cache_ready: input?.stockCacheReady ? "ready" : "missing",
 	};
+}
+
+function collectBootstrapPrerequisitePatch(
+	input: BootstrapPrerequisiteCollectionInput,
+): Record<string, BootstrapPrerequisiteState> {
+	const patch: Record<string, BootstrapPrerequisiteState> = {
+		pos_profile: hasTruthyValue(input?.profileName) ? "ready" : "missing",
+		pos_opening_shift:
+			hasTruthyValue(input?.openingShiftName) &&
+			hasTruthyValue(input?.openingShiftUser)
+				? "ready"
+				: "missing",
+	};
+
+	if (hasOwnKey(input, "paymentMethods")) {
+		patch.payment_methods = hasNonEmptyArray(input?.paymentMethods)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "salesPersons")) {
+		patch.sales_persons = hasNonEmptyArray(input?.salesPersons)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "itemsCount")) {
+		patch.items_cache_ready = hasPositiveCountOrReadyFlag(input?.itemsCount)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "customersCount")) {
+		patch.customers_cache_ready = hasPositiveCountOrReadyFlag(
+			input?.customersCount,
+		)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "itemGroups")) {
+		patch.item_groups = hasNonEmptyArray(input?.itemGroups)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "pricingSnapshotCount")) {
+		patch.pricing_rules_snapshot = Number(input?.pricingSnapshotCount || 0) > 0
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "pricingContext")) {
+		patch.pricing_rules_context = hasTruthyValue(input?.pricingContext)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "taxInclusive")) {
+		patch.tax_inclusive =
+			input?.taxInclusive === null || typeof input?.taxInclusive === "undefined"
+				? "missing"
+				: "ready";
+	}
+
+	if (hasOwnKey(input, "printTemplate")) {
+		patch.print_template = hasTruthyValue(input?.printTemplate)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "termsAndConditions")) {
+		patch.terms_and_conditions = hasTruthyValue(input?.termsAndConditions)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "offers")) {
+		patch.offers_cache = hasNonEmptyArray(input?.offers) ? "ready" : "missing";
+	}
+
+	if (hasOwnKey(input, "coupons")) {
+		patch.coupons_cache = hasCoupons(input?.coupons) ? "ready" : "missing";
+	}
+
+	if (hasOwnKey(input, "stockCacheReady")) {
+		patch.stock_cache_ready = input?.stockCacheReady ? "ready" : "missing";
+	}
+
+	return patch;
 }
 
 export function buildBootstrapSnapshot(
@@ -303,7 +397,7 @@ export function refreshBootstrapSnapshotFromCaches(
 		openingShiftUser,
 		prerequisites: {
 			...(currentSnapshot?.prerequisites || {}),
-			...collectBootstrapPrerequisites({
+			...collectBootstrapPrerequisitePatch({
 				profileName,
 				openingShiftName,
 				openingShiftUser,
