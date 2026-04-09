@@ -9,7 +9,7 @@
 			<div class="offline-status-panel__header">
 				<div class="offline-status-panel__copy">
 					<div class="offline-status-panel__title">
-						{{ __("Offline & Sync") }}
+						{{ __("Offline Status") }}
 					</div>
 					<div class="offline-status-panel__subtitle">
 						{{ summaryMessage }}
@@ -115,10 +115,17 @@
 				</button>
 				<button
 					type="button"
+					data-test="offline-status-action-clear-cache"
+					@click="$emit('clear-cache')"
+				>
+					{{ __("Clear Cache") }}
+				</button>
+				<button
+					type="button"
 					data-test="offline-status-action-diagnostics"
 					@click="$emit('open-diagnostics')"
 				>
-					{{ __("View Sync Diagnostics") }}
+					{{ __("View Data Diagnostics") }}
 				</button>
 			</div>
 		</v-card>
@@ -144,6 +151,7 @@ defineEmits<{
 	(e: "toggle-offline"): void;
 	(e: "refresh-offline-data"): void;
 	(e: "rebuild-offline-data"): void;
+	(e: "clear-cache"): void;
 	(e: "open-diagnostics"): void;
 }>();
 

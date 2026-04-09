@@ -470,7 +470,7 @@ const bootstrapRecoveryMessage = computed(() => {
 		return "";
 	}
 
-	return __("If the warning persists, open Menu > Clear Cache.");
+	return __("If the warning persists, open Status > Clear Cache.");
 });
 const bootstrapWarningTooltip = computed(() => {
 	if (!bootstrapWarningActive.value) {
@@ -948,7 +948,7 @@ const handleRebuildOfflineData = async () => {
 	}
 	toastStore.show({
 		title: __("Offline rebuild guidance"),
-		detail: __("If stale data remains, open Menu > Clear Cache and reload this terminal online."),
+		detail: __("If stale data remains, open Status > Clear Cache and reload this terminal online."),
 		color: "warning",
 	});
 };

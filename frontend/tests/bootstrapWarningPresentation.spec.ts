@@ -14,7 +14,7 @@ describe("DefaultLayout bootstrap warning presentation", () => {
 		expect(source).toContain("<v-snackbar");
 		expect(source).toContain('v-model="bootstrapSnackbarVisible"');
 		expect(source).toContain('location="top center"');
-		expect(source).toContain("Menu > Clear Cache");
+		expect(source).toContain("Status > Clear Cache");
 		expect(source).not.toContain("<v-alert");
 	});
 });

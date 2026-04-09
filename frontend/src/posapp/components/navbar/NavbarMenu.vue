@@ -703,17 +703,8 @@ export default {
 				{
 					id: "tools",
 					title: __("Tools"),
-					description: __("Maintenance actions that do not belong in cashier flow."),
+					description: __("Updates and app info that stay out of the cashier flow."),
 					actions: [
-						{
-							id: "clear-cache",
-							label: __("Clear Cache"),
-							subtitle: __("Remove local data and refresh"),
-							icon: "mdi-delete-sweep-outline",
-							tone: "neutral",
-							handler: "clearCacheAction",
-							disabled: this.manualOffline || !this.networkOnline || !this.serverOnline,
-						},
 						{
 							id: "check-for-updates",
 							label: __("Check for Updates"),

@@ -30,6 +30,7 @@
 						@toggle-offline="toggleManualOfflineFromPanel"
 						@refresh-offline-data="handleRefreshOfflineDataAction"
 						@rebuild-offline-data="handleRebuildOfflineDataAction"
+						@clear-cache="handleClearCacheAction"
 						@open-diagnostics="handleOpenOfflineDiagnosticsAction"
 					/>
 				</div>
@@ -554,6 +555,11 @@ export default {
 		handleRebuildOfflineDataAction() {
 			this.closeOfflineStatusPanel();
 			this.$emit("rebuild-offline-data");
+		},
+		handleClearCacheAction() {
+			this.closeOfflineStatusPanel();
+			this.refreshCacheUsage();
+			return this.clearCache();
 		},
 		handleOpenOfflineDiagnosticsAction() {
 			this.closeOfflineStatusPanel();
