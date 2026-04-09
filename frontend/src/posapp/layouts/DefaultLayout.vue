@@ -887,6 +887,19 @@ const adjust_frappe_sidebar_offset = () => {
 	margin-bottom: 4px;
 }
 
+.bootstrap-warning :deep(.v-alert__content) {
+	align-self: stretch;
+	overflow: visible;
+	min-width: 0;
+}
+
+.bootstrap-warning-title,
+.bootstrap-warning-message {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
 .bootstrap-warning-message + .bootstrap-warning-message {
 	margin-top: 4px;
 }
