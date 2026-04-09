@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { nextTick } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { shallowMount } from "@vue/test-utils";
 
@@ -134,5 +135,55 @@ describe("Navbar supervisor access", () => {
 
 		await Promise.resolve();
 		expect((wrapper.vm as any).items.some((item: any) => item.to === "/gift-cards")).toBe(true);
+	});
+
+	it("passes a footer settings launcher to the drawer and opens the settings panel from it", async () => {
+		const employeeStore = useEmployeeStore();
+		employeeStore.setCurrentCashier({
+			user: "cashier@example.com",
+			full_name: "Main Cashier",
+			is_supervisor: true,
+		});
+
+		const wrapper = shallowMount(Navbar, {
+			props: {
+				posProfile: { name: "Main POS", posa_enable_customer_display: 1 },
+				manualOffline: false,
+				networkOnline: true,
+				serverOnline: true,
+			},
+			global: {
+				mocks: {
+					__: (value: string) => value,
+				},
+				stubs: {
+					NotificationBell: true,
+					AboutDialog: true,
+					EmployeeSwitchDialog: true,
+					OfflineInvoicesDialog: true,
+					ServerUsageGadget: true,
+					DatabaseUsageGadget: true,
+					VDialog: true,
+					VCard: true,
+					VCardTitle: true,
+					VCardText: true,
+					VSnackbar: true,
+					VBtn: true,
+					VProgressCircular: true,
+				},
+			},
+		});
+
+		await Promise.resolve();
+		(wrapper.vm as any).drawer = true;
+		await nextTick();
+
+		expect(wrapper.get('[data-test="drawer-footer-action"]').text()).toContain("Settings");
+
+		await wrapper.get('[data-test="drawer-footer-action"]').trigger("click");
+		await nextTick();
+
+		expect((wrapper.vm as any).drawer).toBe(false);
+		expect((wrapper.vm as any).settingsPanelOpen).toBe(true);
 	});
 });
