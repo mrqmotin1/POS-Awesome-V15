@@ -120,16 +120,18 @@ import {
 	syncOfflineCashMovements,
 	isOffline,
 	getLastSyncTotals,
-	getSyncResourcesByPriority,
+	getSyncResourceDefinitions,
 	getSyncResourceState,
 	listSyncResourceStates,
-	syncBootstrapConfigResource,
-	syncPriceListMetaResource,
-	syncCurrencyMatrixResource,
-	syncPaymentMethodCurrenciesResource,
 } from "../../offline/index";
 import { SyncCoordinator } from "../../offline/sync/SyncCoordinator";
 import { createOfflineSyncRuntime } from "../../offline/sync/runtime";
+import {
+	buildOfflineSyncProfile,
+	filterSupportedOfflineSyncResources,
+	filterSupportedOfflineSyncStates,
+	runSupportedOfflineSyncResource,
+} from "../../offline/sync/resourceRunner";
 import {
 	createBootstrapSnapshotFromRegisterData,
 	resolveBootstrapRuntimeState,
@@ -179,12 +181,6 @@ const __ = instance?.proxy?.__ || ((value) => value);
 const BUILD_VERSION =
 	typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : null;
 const OFFLINE_SYNC_SCHEMA_VERSION = "2026-04-09";
-const SUPPORTED_BOOT_SYNC_RESOURCE_IDS = new Set([
-	"bootstrap_config",
-	"price_list_meta",
-	"currency_matrix",
-	"payment_method_currencies",
-]);
 
 // Utils
 const { overlayVisible: globalLoading } = useLoading();
@@ -203,22 +199,20 @@ const { posProfile, lastInvoiceId, posOpeningShift } = storeToRefs(uiStore);
 const { pendingInvoicesCount } = storeToRefs(syncStore);
 const { loadProgress, customersLoaded } = storeToRefs(customersStore);
 const { itemsLoaded, loadProgress: itemsLoadProgress } = storeToRefs(itemsStore);
-const bootCriticalSyncResources = getSyncResourcesByPriority("boot_critical").filter(
-	(resource) => SUPPORTED_BOOT_SYNC_RESOURCE_IDS.has(resource.id),
+const supportedOfflineSyncResources = filterSupportedOfflineSyncResources(
+	getSyncResourceDefinitions(),
 );
 const syncCoordinator = new SyncCoordinator({
 	concurrency: 1,
-	resources: bootCriticalSyncResources,
+	resources: supportedOfflineSyncResources,
 	runResource: async (resource, trigger) =>
-		runBootCriticalOfflineSyncResource(resource, trigger),
+		runOfflineSyncResource(resource, trigger),
 	onStateChange: (states) => {
-		offlineSyncStore.setResourceStates(
-			filterSupportedBootSyncStates(states),
-		);
+		offlineSyncStore.setResourceStates(filterSupportedOfflineSyncStates(states));
 	},
 });
 const offlineSyncRuntime = createOfflineSyncRuntime({
-	canSync: canRunBootCriticalOfflineSync,
+	canSync: canRunOfflineSync,
 	runTrigger: (trigger) => syncCoordinator.runTrigger(trigger),
 });
 
@@ -371,29 +365,11 @@ function evaluateBootstrapSnapshot(options = {}) {
 	return decision;
 }
 
-function filterSupportedBootSyncStates(states = []) {
-	return (states || []).filter((state) =>
-		SUPPORTED_BOOT_SYNC_RESOURCE_IDS.has(state?.resourceId),
-	);
-}
-
 function getOfflineSyncProfile() {
-	const profile = getCurrentBootstrapProfile();
-	if (!profile?.name) {
-		return null;
-	}
-
-	return {
-		name: profile.name,
-		company: profile.company || null,
-		modified: profile.modified || null,
-		currency: profile.currency || null,
-		selling_price_list: profile.selling_price_list || null,
-		payments: Array.isArray(profile.payments) ? profile.payments : [],
-	};
+	return buildOfflineSyncProfile(getCurrentBootstrapProfile());
 }
 
-function canRunBootCriticalOfflineSync() {
+function canRunOfflineSync() {
 	return !!(
 		getOfflineSyncProfile()?.name &&
 		!getIsManualOffline() &&
@@ -414,7 +390,7 @@ async function callOfflineSyncMethod(method, args = {}) {
 		: response.message;
 }
 
-async function runBootCriticalOfflineSyncResource(resource) {
+async function runOfflineSyncResource(resource) {
 	const profile = getOfflineSyncProfile();
 	if (!profile?.name) {
 		return {
@@ -422,82 +398,19 @@ async function runBootCriticalOfflineSyncResource(resource) {
 		};
 	}
 
-	const persistedState = await getSyncResourceState(resource.id);
-	const sharedArgs = {
+	return runSupportedOfflineSyncResource({
+		resource,
 		posProfile: profile,
-		watermark: persistedState?.watermark || null,
 		schemaVersion: OFFLINE_SYNC_SCHEMA_VERSION,
-	};
-
-	switch (resource.id) {
-		case "bootstrap_config":
-			return syncBootstrapConfigResource({
-				...sharedArgs,
-				fetcher: ({ posProfile, watermark, schemaVersion }) =>
-					callOfflineSyncMethod(
-						"posawesome.posawesome.api.offline_sync.bootstrap.sync_bootstrap_config",
-						{
-							pos_profile: posProfile,
-							watermark,
-							schema_version: schemaVersion,
-						},
-					),
-			});
-		case "price_list_meta":
-			return syncPriceListMetaResource({
-				...sharedArgs,
-				fetcher: ({ posProfile, watermark, schemaVersion }) =>
-					callOfflineSyncMethod(
-						"posawesome.posawesome.api.offline_sync.bootstrap.sync_bootstrap_config",
-						{
-							pos_profile: posProfile,
-							watermark,
-							schema_version: schemaVersion,
-						},
-					),
-			});
-		case "currency_matrix":
-			return syncCurrencyMatrixResource({
-				...sharedArgs,
-				fetcher: ({
-					posProfile,
-					currencyPairs = [],
-					watermark,
-					schemaVersion,
-				}) =>
-					callOfflineSyncMethod(
-						"posawesome.posawesome.api.offline_sync.currencies.sync_currency_scope",
-						{
-							pos_profile: posProfile,
-							watermark,
-							currency_pairs: currencyPairs,
-							schema_version: schemaVersion,
-						},
-					),
-			});
-		case "payment_method_currencies":
-			return syncPaymentMethodCurrenciesResource({
-				...sharedArgs,
-				fetcher: ({ posProfile, watermark, schemaVersion }) =>
-					callOfflineSyncMethod(
-						"posawesome.posawesome.api.offline_sync.payment_methods.sync_payment_method_currencies",
-						{
-							pos_profile: posProfile,
-							watermark,
-							schema_version: schemaVersion,
-						},
-					),
-			});
-		default:
-			return {
-				status: "idle",
-			};
-	}
+		getPersistedState: getSyncResourceState,
+		getRuntimeState: (resourceId) => syncCoordinator.getResourceState(resourceId),
+		callOfflineSyncMethod,
+	});
 }
 
 async function hydrateOfflineSyncResourceStates() {
 	try {
-		const states = filterSupportedBootSyncStates(
+		const states = filterSupportedOfflineSyncStates(
 			await listSyncResourceStates(),
 		);
 		syncCoordinator.hydrateResourceStates(states);
@@ -508,7 +421,7 @@ async function hydrateOfflineSyncResourceStates() {
 
 function scheduleBootCriticalWarmSync() {
 	return offlineSyncRuntime.scheduleBootWarmSync().catch((error) => {
-		console.error("Failed to schedule boot-critical offline sync", error);
+		console.error("Failed to schedule offline sync", error);
 		return false;
 	});
 }
@@ -1030,7 +943,7 @@ const handleRebuildOfflineData = async () => {
 	evaluateBootstrapSnapshot({
 		allowPrompt: true,
 	});
-	if (canRunBootCriticalOfflineSync()) {
+	if (canRunOfflineSync()) {
 		await scheduleBootCriticalWarmSync();
 	}
 	toastStore.show({
