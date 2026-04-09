@@ -1,0 +1,120 @@
+// @vitest-environment jsdom
+
+import { describe, expect, it, vi } from "vitest";
+import { mount } from "@vue/test-utils";
+
+import NavbarSettingsPanel from "../src/posapp/components/navbar/NavbarSettingsPanel.vue";
+
+describe("NavbarSettingsPanel", () => {
+	const sections = [
+		{
+			id: "offline-sync",
+			title: "Offline & Sync",
+			description: "Offline maintenance actions.",
+			actions: [
+				{
+					id: "refresh-offline-data",
+					label: "Refresh Offline Data",
+					subtitle: "Fetch fresh prerequisite data",
+					icon: "mdi-sync",
+					tone: "info",
+				},
+				{
+					id: "clear-cache",
+					label: "Clear Cache",
+					subtitle: "Reset cached browser data",
+					icon: "mdi-broom",
+					tone: "warning",
+				},
+			],
+		},
+		{
+			id: "terminal-devices",
+			title: "Terminal & Devices",
+			description: "Terminal tools.",
+			actions: [
+				{
+					id: "open-customer-display",
+					label: "Open Customer Display",
+					subtitle: "Show the live cart",
+					icon: "mdi-monitor-eye",
+					tone: "primary",
+				},
+			],
+		},
+		{
+			id: "personal",
+			title: "Personal",
+			description: "Personal settings.",
+			actions: [
+				{
+					id: "toggle-theme",
+					label: "Toggle Theme",
+					subtitle: "Switch theme",
+					icon: "mdi-theme-light-dark",
+					tone: "secondary",
+				},
+			],
+		},
+		{
+			id: "system-diagnostics",
+			title: "System / Diagnostics",
+			description: "System-level actions.",
+			actions: [
+				{
+					id: "show-about",
+					label: "About",
+					subtitle: "View app information",
+					icon: "mdi-information-outline",
+					tone: "neutral",
+				},
+			],
+		},
+	];
+
+	const mountPanel = (attrs: Record<string, unknown> = {}) =>
+		mount(NavbarSettingsPanel, {
+			props: {
+				modelValue: true,
+				sections,
+			},
+			attrs,
+		});
+
+	it("renders grouped settings sections for offline, terminal, personal, and diagnostics actions", () => {
+		const wrapper = mountPanel();
+
+		expect(wrapper.get('[data-test="settings-panel-section-offline-sync"]').text()).toContain(
+			"Offline & Sync",
+		);
+		expect(wrapper.get('[data-test="settings-panel-section-terminal-devices"]').text()).toContain(
+			"Terminal & Devices",
+		);
+		expect(wrapper.get('[data-test="settings-panel-section-personal"]').text()).toContain("Personal");
+		expect(wrapper.get('[data-test="settings-panel-section-system-diagnostics"]').text()).toContain(
+			"System / Diagnostics",
+		);
+	});
+
+	it("emits the selected action id when a settings action is clicked", async () => {
+		const onSelectAction = vi.fn();
+		const wrapper = mountPanel({
+			onSelectAction,
+		});
+
+		await wrapper.get('[data-test="settings-panel-action-refresh-offline-data"]').trigger("click");
+
+		expect(onSelectAction).toHaveBeenCalledWith("refresh-offline-data");
+	});
+
+	it("emits close state when the close button is pressed", async () => {
+		const onUpdateModelValue = vi.fn();
+		const wrapper = mountPanel({
+			"onUpdate:modelValue": onUpdateModelValue,
+		});
+
+		await wrapper.get('[data-test="navbar-settings-panel-close"]').trigger("click");
+
+		expect(onUpdateModelValue).toHaveBeenCalledWith(false);
+	});
+});

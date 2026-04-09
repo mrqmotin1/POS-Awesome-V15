@@ -93,7 +93,14 @@
 			:company="company"
 			:company-img="companyImg"
 			:items="items"
+			:footer-action="drawerFooterAction"
+			@open-settings="openSettingsPanel"
 			@change-page="changePage"
+		/>
+		<NavbarSettingsPanel
+			v-model="settingsPanelOpen"
+			:sections="settingsSections"
+			@select-action="handleSettingsPanelAction"
 		/>
 
 		<!-- Use the modular AboutDialog component -->
@@ -147,6 +154,7 @@ import { defineAsyncComponent } from "vue";
 import NavbarAppBar from "./navbar/NavbarAppBar.vue";
 import NavbarDrawer from "./navbar/NavbarDrawer.vue";
 import NavbarMenu from "./navbar/NavbarMenu.vue";
+import NavbarSettingsPanel from "./navbar/NavbarSettingsPanel.vue";
 import NotificationBell from "./navbar/NotificationBell.vue";
 import OfflineStatusPanel from "./navbar/OfflineStatusPanel.vue";
 import StatusIndicator from "./navbar/StatusIndicator.vue";
@@ -210,6 +218,7 @@ export default {
 		NavbarAppBar,
 		NavbarDrawer,
 		NavbarMenu,
+		NavbarSettingsPanel,
 		NotificationBell,
 		OfflineStatusPanel,
 		StatusIndicator,
@@ -284,6 +293,7 @@ export default {
 			companyImg: posLogo,
 			showAboutDialog: false,
 			showOfflineInvoices: false,
+			settingsPanelOpen: false,
 			lastSyncTotalsSnapshot: { pending: 0, synced: 0, drafted: 0 },
 			syncNotificationPrimed: false,
 			employeeSwitchHandler: null,
@@ -341,6 +351,111 @@ export default {
 				bootstrapWarningActive: this.bootstrapWarningActive,
 				bootstrapWarningTooltip: this.bootstrapWarningTooltip,
 			};
+		},
+		drawerFooterAction() {
+			return {
+				id: "settings",
+				text: this.__("Settings"),
+				subtitle: this.__("Offline, terminal, and system controls"),
+				icon: "mdi-cog-outline",
+			};
+		},
+		settingsSections() {
+			const offlineActions = [
+				{
+					id: "refresh-offline-data",
+					label: this.__("Refresh Offline Data"),
+					subtitle: this.__("Fetch the latest offline prerequisite updates"),
+					icon: "mdi-sync",
+					tone: "info",
+				},
+				{
+					id: "rebuild-offline-data",
+					label: this.__("Rebuild Offline Data"),
+					subtitle: this.__("Recreate local offline prerequisites from scratch"),
+					icon: "mdi-refresh-circle",
+					tone: "warning",
+				},
+				{
+					id: "clear-cache",
+					label: this.__("Clear Cache"),
+					subtitle: this.__("Remove cached data and reload the POS app"),
+					icon: "mdi-broom",
+					tone: "warning",
+				},
+				{
+					id: "open-diagnostics",
+					label: this.__("View Data Diagnostics"),
+					subtitle: this.__("Inspect cache, sync, and prerequisite status"),
+					icon: "mdi-file-search-outline",
+					tone: "primary",
+				},
+			];
+
+			const terminalActions = [];
+			if (this.posProfile?.posa_enable_customer_display) {
+				terminalActions.push({
+					id: "open-customer-display",
+					label: this.__("Open Customer Display"),
+					subtitle: this.__("Show the active cart on a customer-facing screen"),
+					icon: "mdi-monitor-eye",
+					tone: "primary",
+				});
+			}
+
+			const personalActions = [
+				{
+					id: "toggle-theme",
+					label: this.__("Toggle Theme"),
+					subtitle: this.__("Switch the POS appearance theme"),
+					icon: "mdi-theme-light-dark",
+					tone: "secondary",
+				},
+			];
+
+			const systemActions = [
+				{
+					id: "show-about",
+					label: this.__("About"),
+					subtitle: this.__("View app information and current build details"),
+					icon: "mdi-information-outline",
+					tone: "neutral",
+				},
+				{
+					id: "logout",
+					label: this.__("Logout"),
+					subtitle: this.__("Sign out of the current POS session"),
+					icon: "mdi-logout",
+					tone: "danger",
+				},
+			];
+
+			return [
+				{
+					id: "offline-sync",
+					title: this.__("Offline & Sync"),
+					description: this.__("Keep offline prerequisites healthy and recover stale data safely."),
+					actions: offlineActions,
+				},
+				{
+					id: "terminal-devices",
+					title: this.__("Terminal & Devices"),
+					description: this.__("Tools for customer-facing screens and terminal-specific actions."),
+					actions: terminalActions,
+				},
+				{
+					id: "personal",
+					title: this.__("Personal"),
+					description: this.__("Appearance and user-level preferences for the current session."),
+					actions: personalActions,
+				},
+				{
+					id: "system-diagnostics",
+					title: this.__("System / Diagnostics"),
+					description: this.__("Low-frequency maintenance and system details."),
+					actions: systemActions,
+				},
+			].filter((section) => section.actions.length);
 		},
 	},
 	mounted() {
@@ -520,6 +635,15 @@ export default {
 			this.drawer = !this.drawer;
 			this.$emit("nav-click");
 		},
+		openSettingsPanel() {
+			this.drawer = false;
+			this.closeOfflineStatusPanel();
+			this.refreshCacheUsage();
+			this.settingsPanelOpen = true;
+		},
+		closeSettingsPanel() {
+			this.settingsPanelOpen = false;
+		},
 		goDesk() {
 			window.location.href = "/app";
 		},
@@ -565,6 +689,47 @@ export default {
 			this.closeOfflineStatusPanel();
 			this.refreshCacheUsage();
 			this.$emit("open-offline-diagnostics");
+		},
+		handleSettingsPanelAction(actionId) {
+			switch (actionId) {
+				case "refresh-offline-data":
+					this.closeSettingsPanel();
+					this.refreshCacheUsage();
+					this.$emit("refresh-offline-data");
+					break;
+				case "rebuild-offline-data":
+					this.closeSettingsPanel();
+					this.$emit("rebuild-offline-data");
+					break;
+				case "clear-cache":
+					this.closeSettingsPanel();
+					this.refreshCacheUsage();
+					void this.clearCache();
+					break;
+				case "open-diagnostics":
+					this.closeSettingsPanel();
+					this.refreshCacheUsage();
+					this.$emit("open-offline-diagnostics");
+					break;
+				case "open-customer-display":
+					this.closeSettingsPanel();
+					this.$emit("open-customer-display");
+					break;
+				case "toggle-theme":
+					this.closeSettingsPanel();
+					this.toggleTheme();
+					break;
+				case "show-about":
+					this.closeSettingsPanel();
+					this.showAboutDialog = true;
+					break;
+				case "logout":
+					this.closeSettingsPanel();
+					this.logOut();
+					break;
+				default:
+					break;
+			}
 		},
 		parseBootstrapWarningLines() {
 			return String(this.bootstrapWarningTooltip || "")
