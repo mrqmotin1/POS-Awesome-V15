@@ -15,6 +15,7 @@ import {
 import { getValidCachedOpeningForCurrentUser } from "../../../utils/openingCache";
 import { createBootstrapSnapshotFromRegisterData } from "../../../../offline/bootstrapSnapshot";
 
+declare const __BUILD_VERSION__: string;
 declare const frappe: any;
 
 type SkippedPrintedInvoice = {
@@ -79,6 +80,8 @@ export function usePosShift(openDialog?: () => void) {
 	const instance = getCurrentInstance();
 	const proxy: any = instance?.proxy;
 	const eventBus: any = proxy?.eventBus || inject("eventBus");
+	const buildVersion =
+		typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : null;
 	const toastStore = useToastStore();
 	const uiStore = useUIStore();
 
@@ -96,6 +99,7 @@ export function usePosShift(openDialog?: () => void) {
 			createBootstrapSnapshotFromRegisterData(
 				data,
 				getBootstrapSnapshot(),
+				{ buildVersion },
 			),
 		);
 

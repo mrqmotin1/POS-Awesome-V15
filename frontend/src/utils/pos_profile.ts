@@ -8,7 +8,11 @@ import {
 } from "../offline/index";
 import { createBootstrapSnapshotFromRegisterData } from "../offline/bootstrapSnapshot";
 
+declare const __BUILD_VERSION__: string;
 declare const frappe: any;
+
+const BUILD_VERSION =
+	typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : null;
 
 async function cachePrintTemplateAndTerms(profile: any) {
 	if (!profile || typeof frappe === "undefined" || !navigator.onLine) return;
@@ -58,6 +62,7 @@ function updateOpeningStorageProfile(profile: any) {
 			createBootstrapSnapshotFromRegisterData(
 				updated,
 				getBootstrapSnapshot(),
+				{ buildVersion: BUILD_VERSION },
 			),
 		);
 	}
@@ -107,6 +112,7 @@ export async function ensurePosProfile() {
 						pos_opening_shift: (getOpeningStorage() as any)?.pos_opening_shift,
 					},
 					getBootstrapSnapshot(),
+					{ buildVersion: BUILD_VERSION },
 				),
 			);
 			await cachePrintTemplateAndTerms(res.message);

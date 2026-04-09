@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildBootstrapSnapshot,
 	createBootstrapSnapshotFromRegisterData,
+	resolveBootstrapRuntimeState,
 	validateBootstrapSnapshot,
 } from "../src/offline/bootstrapSnapshot";
 
@@ -132,5 +133,100 @@ describe("bootstrap snapshot", () => {
 		expect(snapshot.opening_shift_user).toBe("test@example.com");
 		expect(snapshot.prerequisites.pos_profile).toBe("ready");
 		expect(snapshot.prerequisites.pos_opening_shift).toBe("ready");
+	});
+
+	it("stamps the current build version into register snapshot updates", () => {
+		const snapshot = createBootstrapSnapshotFromRegisterData(
+			{
+				pos_profile: {
+					name: "POS-1",
+					modified: "2026-04-08 10:00:00",
+				},
+				pos_opening_shift: {
+					name: "SHIFT-1",
+					user: "test@example.com",
+				},
+			},
+			null,
+			{
+				buildVersion: "build-2",
+			},
+		);
+
+		expect(snapshot.build_version).toBe("build-2");
+	});
+
+	it("returns limited mode when snapshot is missing", () => {
+		const result = validateBootstrapSnapshot(null, {
+			buildVersion: "build-2",
+			profileName: "Main POS",
+			profileModified: "2026-04-08 10:00:00",
+			sessionUser: "test@example.com",
+		});
+
+		expect(result.mode).toBe("limited");
+		expect(result.reasons).toContain("snapshot_missing");
+		expect(result.capabilities.canSellOffline).toBe(false);
+	});
+
+	it("requires confirmation before continuing offline on snapshot mismatch", () => {
+		const validation = validateBootstrapSnapshot(
+			buildBootstrapSnapshot({
+				buildVersion: "build-1",
+				profileName: "Main POS",
+				profileModified: "2026-04-08 10:00:00",
+				openingShiftName: "POS-OPEN-1",
+				openingShiftUser: "test@example.com",
+				prerequisites: {
+					pos_profile: "ready",
+					pos_opening_shift: "ready",
+					payment_methods: "ready",
+				},
+			}),
+			{
+				buildVersion: "build-2",
+				profileName: "Main POS",
+				profileModified: "2026-04-08 10:00:00",
+				sessionUser: "test@example.com",
+			},
+		);
+
+		const decision = resolveBootstrapRuntimeState(validation);
+
+		expect(decision.requiresConfirmation).toBe(true);
+		expect(decision.limitedMode).toBe(false);
+		expect(decision.mode).toBe("confirmation_required");
+	});
+
+	it("continues in limited mode after mismatch confirmation", () => {
+		const validation = validateBootstrapSnapshot(
+			buildBootstrapSnapshot({
+				buildVersion: "build-1",
+				profileName: "Main POS",
+				profileModified: "2026-04-08 10:00:00",
+				openingShiftName: "POS-OPEN-1",
+				openingShiftUser: "test@example.com",
+				prerequisites: {
+					pos_profile: "ready",
+					pos_opening_shift: "ready",
+					payment_methods: "ready",
+				},
+			}),
+			{
+				buildVersion: "build-2",
+				profileName: "Main POS",
+				profileModified: "2026-04-08 10:00:00",
+				sessionUser: "test@example.com",
+			},
+		);
+
+		const decision = resolveBootstrapRuntimeState(validation, {
+			continueOffline: true,
+		});
+
+		expect(decision.requiresConfirmation).toBe(false);
+		expect(decision.limitedMode).toBe(true);
+		expect(decision.mode).toBe("limited");
+		expect(decision.warningCodes).toContain("build_version_mismatch");
 	});
 });
