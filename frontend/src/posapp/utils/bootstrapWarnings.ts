@@ -51,6 +51,7 @@ export function formatBootstrapWarning(
 			return translate("Offline coupons cache is missing.");
 		case "stock_cache_ready":
 			return translate("Offline stock cache is incomplete.");
+<<<<<<< HEAD
 		case "delivery_charges_cache":
 			return translate("Offline delivery charges cache is incomplete.");
 		case "currency_options_cache":
@@ -65,6 +66,8 @@ export function formatBootstrapWarning(
 			return translate(
 				"Offline payment method currency cache is incomplete.",
 			);
+=======
+>>>>>>> 7b793f94 (feat: expand offline bootstrap prerequisite coverage)
 		default:
 			return translate(
 				`Offline prerequisite needs refresh: ${String(code || "").replace(/_/g, " ")}`,
