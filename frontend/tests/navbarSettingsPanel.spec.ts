@@ -48,6 +48,13 @@ describe("NavbarSettingsPanel", () => {
 			description: "Personal settings.",
 			actions: [
 				{
+					id: "manage-cashier-pin",
+					label: "Manage Cashier PIN",
+					subtitle: "Create or change your PIN",
+					icon: "mdi-form-textbox-password",
+					tone: "secondary",
+				},
+				{
 					id: "toggle-theme",
 					label: "Toggle Theme",
 					subtitle: "Switch theme",
@@ -109,6 +116,30 @@ describe("NavbarSettingsPanel", () => {
 		);
 		expect(wrapper.find('[data-test="settings-panel-action-refresh-offline-data"]').exists()).toBe(false);
 		expect(wrapper.find('[data-test="settings-panel-action-open-customer-display"]').exists()).toBe(true);
+	});
+
+	it("opens embedded detail mode for manage cashier pin", async () => {
+		const wrapper = mountPanel();
+
+		await wrapper.get('[data-test="settings-panel-category-personal"]').trigger("click");
+		await wrapper.get('[data-test="settings-panel-action-manage-cashier-pin"]').trigger("click");
+
+		expect(wrapper.get('[data-test="settings-panel-detail-view"]').text()).toContain(
+			"Manage Cashier PIN",
+		);
+		expect(wrapper.find('[data-test="settings-panel-action-toggle-theme"]').exists()).toBe(false);
+	});
+
+	it("returns to section overview from embedded detail mode", async () => {
+		const wrapper = mountPanel();
+
+		await wrapper.get('[data-test="settings-panel-category-personal"]').trigger("click");
+		await wrapper.get('[data-test="settings-panel-action-manage-cashier-pin"]').trigger("click");
+		await wrapper.get('[data-test="settings-panel-detail-back"]').trigger("click");
+
+		expect(wrapper.find('[data-test="settings-panel-detail-view"]').exists()).toBe(false);
+		expect(wrapper.find('[data-test="settings-panel-action-manage-cashier-pin"]').exists()).toBe(true);
+		expect(wrapper.find('[data-test="settings-panel-action-toggle-theme"]').exists()).toBe(true);
 	});
 
 	it("emits the selected action id when a settings action is clicked", async () => {
