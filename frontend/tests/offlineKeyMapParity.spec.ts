@@ -23,6 +23,15 @@ describe("offline key map parity", () => {
 		expect(KEY_TABLE_MAP.bootstrap_limited_mode).toBe("settings");
 	});
 
+	it("maps new prerequisite caches into cache storage", () => {
+		expect(KEY_TABLE_MAP.delivery_charges_cache).toBe("cache");
+		expect(KEY_TABLE_MAP.currency_options_cache).toBe("cache");
+		expect(KEY_TABLE_MAP.exchange_rate_cache).toBe("cache");
+		expect(KEY_TABLE_MAP.price_list_meta_cache).toBe("cache");
+		expect(KEY_TABLE_MAP.customer_addresses_cache).toBe("cache");
+		expect(KEY_TABLE_MAP.payment_method_currency_cache).toBe("cache");
+	});
+
 	it("keeps app db KEY_TABLE_MAP and worker KEY_TABLE_MAP in sync", () => {
 		const thisFile = fileURLToPath(import.meta.url);
 		const testsDir = path.dirname(thisFile);

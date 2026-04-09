@@ -51,6 +51,20 @@ export function formatBootstrapWarning(
 			return translate("Offline coupons cache is missing.");
 		case "stock_cache_ready":
 			return translate("Offline stock cache is incomplete.");
+		case "delivery_charges_cache":
+			return translate("Offline delivery charges cache is incomplete.");
+		case "currency_options_cache":
+			return translate("Offline currency options cache is incomplete.");
+		case "exchange_rate_cache":
+			return translate("Offline exchange rate cache is incomplete.");
+		case "price_list_meta_cache":
+			return translate("Offline price list metadata cache is incomplete.");
+		case "customer_addresses_cache":
+			return translate("Offline customer addresses cache is incomplete.");
+		case "payment_method_currency_cache":
+			return translate(
+				"Offline payment method currency cache is incomplete.",
+			);
 		default:
 			return translate(
 				`Offline prerequisite needs refresh: ${String(code || "").replace(/_/g, " ")}`,
