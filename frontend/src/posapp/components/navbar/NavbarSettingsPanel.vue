@@ -64,9 +64,9 @@
 						<div class="navbar-settings-panel__detail-icon-surface">
 							<span
 								class="navbar-settings-panel__detail-icon"
-								:class="`navbar-settings-panel__detail-icon--${getSectionTone(activeSection.id)}`"
+								:class="`navbar-settings-panel__detail-icon--${getDetailTone()}`"
 							>
-								<span :class="['mdi', getSectionIcon(activeSection.id)]" aria-hidden="true"></span>
+								<span :class="['mdi', getDetailIcon()]" aria-hidden="true"></span>
 							</span>
 						</div>
 						<div class="navbar-settings-panel__detail-copy">
@@ -74,14 +74,18 @@
 								class="navbar-settings-panel__section-title"
 								data-test="settings-panel-detail-title"
 							>
-								{{ activeSection.title }}
+								{{ activeAction ? activeAction.label : activeSection.title }}
 							</div>
 							<div class="navbar-settings-panel__section-description">
-								{{ activeSection.description }}
+								{{ activeAction ? activeAction.subtitle : activeSection.description }}
 							</div>
 						</div>
 						<div class="navbar-settings-panel__detail-chip">
-							{{ __("{0} actions", [activeSection.actions.length]) }}
+							{{
+								activeAction
+									? activeSection.title
+									: __("{0} actions", [activeSection.actions.length])
+							}}
 						</div>
 					</div>
 
@@ -89,7 +93,31 @@
 						class="navbar-settings-panel__section"
 						:data-test="`settings-panel-section-${activeSection.id}`"
 					>
-						<div class="navbar-settings-panel__section-block">
+						<div
+							v-if="activeAction"
+							class="navbar-settings-panel__section-block navbar-settings-panel__detail-view"
+							data-test="settings-panel-detail-view"
+						>
+							<button
+								type="button"
+								class="navbar-settings-panel__detail-back"
+								data-test="settings-panel-detail-back"
+								@click="clearActiveAction"
+							>
+								<span class="mdi mdi-arrow-left" aria-hidden="true"></span>
+								{{ __("Back to {0}", [activeSection.title]) }}
+							</button>
+							<div class="navbar-settings-panel__embedded-placeholder">
+								<div class="navbar-settings-panel__embedded-title">
+									{{ activeAction.label }}
+								</div>
+								<div class="navbar-settings-panel__embedded-copy">
+									{{ __("This action now opens inside the settings workspace.") }}
+								</div>
+							</div>
+						</div>
+
+						<div v-else class="navbar-settings-panel__section-block">
 							<div class="navbar-settings-panel__section-block-title">
 								{{ __("Available Actions") }}
 							</div>
@@ -102,7 +130,7 @@
 									:class="`navbar-settings-panel__action--${action.tone || 'neutral'}`"
 									:disabled="action.disabled"
 									:data-test="`settings-panel-action-${action.id}`"
-									@click="emit('select-action', action.id)"
+									@click="handleActionSelection(action)"
 								>
 									<span class="navbar-settings-panel__action-icon">
 										<span :class="['mdi', action.icon]" aria-hidden="true"></span>
@@ -115,7 +143,7 @@
 							</div>
 						</div>
 
-						<div class="navbar-settings-panel__tip-card">
+						<div v-if="!activeAction" class="navbar-settings-panel__tip-card">
 							<div class="navbar-settings-panel__tip-title">{{ __("How this section works") }}</div>
 							<div class="navbar-settings-panel__tip-copy">
 								{{ getSectionTip(activeSection.id) }}
@@ -157,6 +185,7 @@ const __ = (text, args = []) => {
 };
 
 const activeSectionId = ref("");
+const activeActionId = ref("");
 
 const SECTION_META = {
 	"offline-sync": {
@@ -185,6 +214,10 @@ const activeSection = computed(() =>
 	props.sections.find((section) => section.id === activeSectionId.value) || props.sections[0] || null,
 );
 
+const activeAction = computed(() =>
+	activeSection.value?.actions?.find((action) => action.id === activeActionId.value) || null,
+);
+
 watch(
 	() => props.sections,
 	(sections) => {
@@ -195,6 +228,7 @@ watch(
 		const stillValid = sections.some((section) => section.id === activeSectionId.value);
 		if (!stillValid) {
 			activeSectionId.value = sections[0].id;
+			activeActionId.value = "";
 		}
 	},
 	{ immediate: true, deep: true },
@@ -202,6 +236,22 @@ watch(
 
 function setActiveSection(sectionId) {
 	activeSectionId.value = sectionId;
+	activeActionId.value = "";
+}
+
+function clearActiveAction() {
+	activeActionId.value = "";
+}
+
+function handleActionSelection(action) {
+	if (!action || action.disabled) {
+		return;
+	}
+	if (action.id === "manage-cashier-pin") {
+		activeActionId.value = action.id;
+		return;
+	}
+	emit("select-action", action.id);
 }
 
 function getSectionIcon(sectionId) {
@@ -214,6 +264,14 @@ function getSectionTone(sectionId) {
 
 function getSectionTip(sectionId) {
 	return SECTION_META[sectionId]?.tip || __("Settings in this section update the POS workspace without changing the current route.");
+}
+
+function getDetailIcon() {
+	return activeAction.value?.icon || getSectionIcon(activeSection.value?.id);
+}
+
+function getDetailTone() {
+	return activeAction.value?.tone || getSectionTone(activeSection.value?.id);
 }
 </script>
 
@@ -425,6 +483,45 @@ function getSectionTip(sectionId) {
 }
 
 .navbar-settings-panel__tip-copy {
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--pos-text-secondary);
+}
+
+.navbar-settings-panel__detail-view {
+	gap: 14px;
+}
+
+.navbar-settings-panel__detail-back {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	width: fit-content;
+	border: 1px solid var(--pos-border);
+	background: rgba(25, 118, 210, 0.06);
+	color: var(--pos-text-primary);
+	border-radius: 999px;
+	padding: 8px 12px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.navbar-settings-panel__embedded-placeholder {
+	border: 1px dashed var(--pos-border);
+	border-radius: 18px;
+	padding: 18px;
+	display: grid;
+	gap: 8px;
+	background: rgba(25, 118, 210, 0.04);
+}
+
+.navbar-settings-panel__embedded-title {
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--pos-text-primary);
+}
+
+.navbar-settings-panel__embedded-copy {
 	font-size: 12px;
 	line-height: 1.5;
 	color: var(--pos-text-secondary);
