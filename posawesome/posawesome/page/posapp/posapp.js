@@ -9,27 +9,56 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 	const VERSION_ENDPOINT = "/assets/posawesome/dist/js/version.json";
 	const LOADER_URL = "/assets/posawesome/dist/js/loader.js";
 	const CSS_URL = "/assets/posawesome/dist/js/posawesome.css";
+	const OFFLINE_INDEX_URL = "/assets/posawesome/dist/js/offline/index.js";
 	const LOADER_SCRIPT_ID = "posa-loader-script";
 	const CSS_LINK_ID = "posa-posapp-css";
 	const BOOT_RETRY_KEY = "posa_boot_retry_once";
 	const BOOT_CACHE_RECOVERY_KEY = "posa_boot_cache_recovery_once";
+	let buildMetadataPromise = null;
 	const buildVersionedAssetUrl = (assetPath, version) =>
 		version
 			? `${assetPath}?v=${encodeURIComponent(version)}`
 			: assetPath;
-	const fetchBuildVersion = async () => {
-		try {
-			const response = await fetch(`${VERSION_ENDPOINT}?t=${Date.now()}`, {
-				cache: "no-store",
-			});
-			if (!response.ok) {
+	const fetchBuildMetadata = async (forceRefresh = false) => {
+		if (forceRefresh) {
+			buildMetadataPromise = null;
+		}
+		if (buildMetadataPromise) {
+			return buildMetadataPromise;
+		}
+		buildMetadataPromise = (async () => {
+			try {
+				const response = await fetch(`${VERSION_ENDPOINT}?t=${Date.now()}`, {
+					cache: "no-store",
+				});
+				if (!response.ok) {
+					return null;
+				}
+				return await response.json();
+			} catch (error) {
+				console.warn("Unable to fetch POS build metadata", error);
 				return null;
 			}
-			const payload = await response.json();
-			const version = payload?.version || payload?.buildVersion;
-			return typeof version === "string" && version.trim().length
-				? version.trim()
-				: null;
+		})();
+		return buildMetadataPromise;
+	};
+	const extractBuildVersion = (payload) => {
+		const version = payload?.version || payload?.buildVersion;
+		return typeof version === "string" && version.trim().length
+			? version.trim()
+			: null;
+	};
+	const resolveBuildAssetUrl = (payload, assetKey, fallbackPath, version = null) => {
+		const resolvedPath = payload?.assets?.[assetKey];
+		if (typeof resolvedPath === "string" && resolvedPath.trim().length) {
+			return resolvedPath.trim();
+		}
+		return buildVersionedAssetUrl(fallbackPath, version);
+	};
+	const fetchBuildVersion = async () => {
+		try {
+			const payload = await fetchBuildMetadata();
+			return extractBuildVersion(payload);
 		} catch (error) {
 			console.warn("Unable to fetch POS build version", error);
 			return null;
@@ -105,7 +134,8 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 			document.head.appendChild(script);
 		});
 	const ensurePosAssetsLoaded = async () => {
-		const buildVersion = await fetchBuildVersion();
+		const buildMetadata = await fetchBuildMetadata();
+		const buildVersion = extractBuildVersion(buildMetadata);
 		ensureStylesheetLoaded(buildVersion);
 		await loadLoaderScript(buildVersion);
 
@@ -128,7 +158,9 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 		if (
 			message.includes("failed to fetch dynamically imported module") ||
 			message.includes("loading chunk") ||
-			message.includes("chunkloaderror")
+			message.includes("chunkloaderror") ||
+			(message.includes("requested module") &&
+				message.includes("does not provide an export named"))
 		) {
 			return "posa_bundle_load_failed";
 		}
@@ -356,7 +388,16 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 								console.warn("Failed to cache tax inclusive setting", err);
 							}
 							applySetting(posa_tax_inclusive);
-							import("/assets/posawesome/dist/js/offline/index.js")
+							fetchBuildMetadata()
+								.then((payload) =>
+									import(
+										resolveBuildAssetUrl(
+											payload,
+											"offlineIndex",
+											OFFLINE_INDEX_URL,
+										),
+									),
+								)
 								.then((m) => {
 									if (m && m.setTaxInclusiveSetting) {
 										m.setTaxInclusiveSetting(posa_tax_inclusive);
@@ -379,7 +420,16 @@ frappe.pages["posapp"].on_page_load = async function (wrapper) {
 				try {
 					const val = JSON.parse(cachedValue);
 					applySetting(val);
-					import("/assets/posawesome/dist/js/offline/index.js")
+					fetchBuildMetadata()
+						.then((payload) =>
+							import(
+								resolveBuildAssetUrl(
+									payload,
+									"offlineIndex",
+									OFFLINE_INDEX_URL,
+								),
+							),
+						)
 						.then((m) => {
 							if (m && m.setTaxInclusiveSetting) {
 								m.setTaxInclusiveSetting(val);

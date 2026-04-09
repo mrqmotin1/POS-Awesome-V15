@@ -5,7 +5,6 @@ const MAX_CACHE_ITEMS = 1000;
 
 const STATIC_PRECACHE_URLS = [
 	"/app/posapp",
-	"/assets/posawesome/dist/js/offline/index.js",
 	"/assets/posawesome/dist/js/posapp/workers/itemWorker.js",
 	"/assets/posawesome/dist/js/libs/dexie.min.js",
 	"/manifest.json",
@@ -16,11 +15,19 @@ function buildVersionedAssetUrl(url, version) {
 	return `${url}?v=${encodeURIComponent(version || DEFAULT_CACHE_VERSION)}`;
 }
 
-function getPrecacheUrls(version) {
+function getPrecacheUrls(version, assets = {}) {
+	const offlineIndexUrl =
+		typeof assets.offlineIndex === "string" && assets.offlineIndex
+			? assets.offlineIndex
+			: buildVersionedAssetUrl(
+					"/assets/posawesome/dist/js/offline/index.js",
+					version,
+				);
 	return [
 		buildVersionedAssetUrl("/assets/posawesome/dist/js/loader.js", version),
 		buildVersionedAssetUrl("/assets/posawesome/dist/js/posawesome.css", version),
 		buildVersionedAssetUrl("/assets/posawesome/dist/js/posawesome.js", version),
+		offlineIndexUrl,
 		...STATIC_PRECACHE_URLS,
 	];
 }
@@ -28,11 +35,12 @@ function getPrecacheUrls(version) {
 let cachedCacheName = null;
 let cacheNameInFlight = null;
 let currentVersion = null;
+let currentAssets = {};
 
-async function precacheUrls(cacheName, version) {
+async function precacheUrls(cacheName, version, assets = {}) {
 	const cache = await caches.open(cacheName);
 	await Promise.all(
-		getPrecacheUrls(version).map(async (url) => {
+		getPrecacheUrls(version, assets).map(async (url) => {
 			try {
 				const resp = await fetch(url);
 				if (resp && resp.ok) {
@@ -62,6 +70,19 @@ function postVersionMessage(target) {
 	if (target && typeof target.postMessage === "function") {
 		target.postMessage(message);
 	}
+}
+
+function extractBuildVersion(payload) {
+	const version = payload?.version || payload?.buildVersion;
+	return typeof version === "string" && version.trim().length
+		? version.trim()
+		: DEFAULT_CACHE_VERSION;
+}
+
+function extractBuildAssets(payload) {
+	return payload?.assets && typeof payload.assets === "object"
+		? payload.assets
+		: {};
 }
 
 // Listen for version check messages
@@ -95,27 +116,32 @@ self.addEventListener("message", (event) => {
 	}
 });
 
-async function resolveCacheVersion(forceRefresh = false) {
+async function resolveBuildMetadata(forceRefresh = false) {
 	if (forceRefresh) {
 		currentVersion = null;
+		currentAssets = {};
 	}
 	try {
 		const response = await fetch(VERSION_URL, { cache: "no-store" });
 		if (response && response.ok) {
 			const payload = await response.json();
-			const version = payload?.version || payload?.buildVersion;
-			if (version) {
-				currentVersion = String(version);
-				return currentVersion;
-			}
+			currentVersion = extractBuildVersion(payload);
+			currentAssets = extractBuildAssets(payload);
+			return {
+				version: currentVersion,
+				assets: currentAssets,
+			};
 		}
 	} catch (err) {
 		console.warn("SW: failed to fetch build version", err);
 	}
-	return DEFAULT_CACHE_VERSION;
+	return {
+		version: DEFAULT_CACHE_VERSION,
+		assets: currentAssets || {},
+	};
 }
 
-async function getCacheName(forceRefresh = false, resolvedVersion = null) {
+async function getCacheName(forceRefresh = false, resolvedMetadata = null) {
 	if (forceRefresh) {
 		cachedCacheName = null;
 		cacheNameInFlight = null;
@@ -127,8 +153,9 @@ async function getCacheName(forceRefresh = false, resolvedVersion = null) {
 		return cacheNameInFlight;
 	}
 	cacheNameInFlight = (async () => {
-		const version =
-			resolvedVersion || (await resolveCacheVersion(forceRefresh));
+		const metadata =
+			resolvedMetadata || (await resolveBuildMetadata(forceRefresh));
+		const version = metadata?.version || DEFAULT_CACHE_VERSION;
 		const name = `${CACHE_PREFIX}${version}`;
 		if (version !== DEFAULT_CACHE_VERSION) {
 			cachedCacheName = name;
@@ -150,9 +177,9 @@ async function enforceCacheLimit(cache) {
 }
 
 async function refreshCacheVersion(target) {
-	const version = await resolveCacheVersion(true);
-	const activeCacheName = await getCacheName(true, version);
-	await precacheUrls(activeCacheName, version);
+	const metadata = await resolveBuildMetadata(true);
+	const activeCacheName = await getCacheName(true, metadata);
+	await precacheUrls(activeCacheName, metadata.version, metadata.assets);
 	await cleanupObsoleteCaches(activeCacheName);
 	postVersionMessage(target);
 	const clients = await self.clients.matchAll({
@@ -167,6 +194,7 @@ async function forceUnregisterServiceWorker() {
 	cachedCacheName = null;
 	cacheNameInFlight = null;
 	currentVersion = null;
+	currentAssets = {};
 	const keys = await caches.keys();
 	await Promise.all(keys.map((key) => caches.delete(key)));
 	await self.registration.unregister();
@@ -176,9 +204,9 @@ self.addEventListener("install", (event) => {
 	self.skipWaiting();
 	event.waitUntil(
 		(async () => {
-			const version = await resolveCacheVersion();
-			const cacheName = await getCacheName(false, version);
-			await precacheUrls(cacheName, version);
+			const metadata = await resolveBuildMetadata();
+			const cacheName = await getCacheName(false, metadata);
+			await precacheUrls(cacheName, metadata.version, metadata.assets);
 		})(),
 	);
 });
@@ -186,9 +214,13 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
 	event.waitUntil(
 		(async () => {
-			const version = await resolveCacheVersion();
-			const activeCacheName = await getCacheName(false, version);
-			await precacheUrls(activeCacheName, version);
+			const metadata = await resolveBuildMetadata();
+			const activeCacheName = await getCacheName(false, metadata);
+			await precacheUrls(
+				activeCacheName,
+				metadata.version,
+				metadata.assets,
+			);
 			await cleanupObsoleteCaches(activeCacheName);
 			const cache = await caches.open(activeCacheName);
 			await enforceCacheLimit(cache);
