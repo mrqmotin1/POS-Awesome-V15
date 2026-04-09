@@ -84,16 +84,31 @@ describe("NavbarSettingsPanel", () => {
 	it("renders grouped settings sections for offline, terminal, personal, and diagnostics actions", () => {
 		const wrapper = mountPanel();
 
-		expect(wrapper.get('[data-test="settings-panel-section-offline-sync"]').text()).toContain(
+		expect(wrapper.get('[data-test="settings-panel-category-offline-sync"]').text()).toContain(
 			"Offline & Sync",
 		);
-		expect(wrapper.get('[data-test="settings-panel-section-terminal-devices"]').text()).toContain(
+		expect(wrapper.get('[data-test="settings-panel-category-terminal-devices"]').text()).toContain(
 			"Terminal & Devices",
 		);
-		expect(wrapper.get('[data-test="settings-panel-section-personal"]').text()).toContain("Personal");
-		expect(wrapper.get('[data-test="settings-panel-section-system-diagnostics"]').text()).toContain(
+		expect(wrapper.get('[data-test="settings-panel-category-personal"]').text()).toContain("Personal");
+		expect(wrapper.get('[data-test="settings-panel-category-system-diagnostics"]').text()).toContain(
 			"System / Diagnostics",
 		);
+		expect(wrapper.get('[data-test="settings-panel-detail-title"]').text()).toContain("Offline & Sync");
+		expect(wrapper.find('[data-test="settings-panel-action-refresh-offline-data"]').exists()).toBe(true);
+		expect(wrapper.find('[data-test="settings-panel-action-open-customer-display"]').exists()).toBe(false);
+	});
+
+	it("switches the right pane when a different left-rail category is selected", async () => {
+		const wrapper = mountPanel();
+
+		await wrapper.get('[data-test="settings-panel-category-terminal-devices"]').trigger("click");
+
+		expect(wrapper.get('[data-test="settings-panel-detail-title"]').text()).toContain(
+			"Terminal & Devices",
+		);
+		expect(wrapper.find('[data-test="settings-panel-action-refresh-offline-data"]').exists()).toBe(false);
+		expect(wrapper.find('[data-test="settings-panel-action-open-customer-display"]').exists()).toBe(true);
 	});
 
 	it("emits the selected action id when a settings action is clicked", async () => {
