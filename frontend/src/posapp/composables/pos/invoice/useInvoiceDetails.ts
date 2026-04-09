@@ -2,6 +2,9 @@ import { ref, unref, type Ref } from "vue";
 import { formatUtils, normalizeDateForBackend } from "../../../format";
 import {
 	getSalesPersonsStorage,
+	getCachedCustomerAddresses,
+	isOffline,
+	saveCustomerAddressesCache,
 	setSalesPersonsStorage,
 } from "../../../../offline/index";
 
@@ -134,6 +137,23 @@ export function useInvoiceDetails(options: InvoiceDetailsOptions) {
 			addresses.value = [];
 			return;
 		}
+
+		const applyCachedAddresses = () => {
+			const cachedAddresses = getCachedCustomerAddresses(doc.customer);
+			if (!Array.isArray(cachedAddresses) || !cachedAddresses.length) {
+				return false;
+			}
+			const normalized = cachedAddresses
+				.map((row) => normalizeAddress(row))
+				.filter((row): row is Address => row !== null);
+			addresses.value = normalized;
+			return true;
+		};
+
+		if (isOffline() && applyCachedAddresses()) {
+			return;
+		}
+
 		frappe.call({
 			method: "posawesome.posawesome.api.customers.get_customer_addresses",
 			args: { customer: doc.customer },
@@ -145,6 +165,7 @@ export function useInvoiceDetails(options: InvoiceDetailsOptions) {
 						.map((row) => normalizeAddress(row))
 						.filter((row): row is Address => row !== null);
 					addresses.value = normalized;
+					saveCustomerAddressesCache(doc.customer, normalized);
 
 					if (
 						doc.shipping_address_name &&
@@ -155,6 +176,13 @@ export function useInvoiceDetails(options: InvoiceDetailsOptions) {
 						doc.shipping_address_name = null;
 					}
 				} else {
+					if (!applyCachedAddresses()) {
+						addresses.value = [];
+					}
+				}
+			},
+			error: function () {
+				if (!applyCachedAddresses()) {
 					addresses.value = [];
 				}
 			},

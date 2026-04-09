@@ -6,6 +6,10 @@ import { useUIStore } from "../../../stores/uiStore";
 import { useStockUtils } from "../shared/useStockUtils";
 import { useItemAddition } from "../items/useItemAddition";
 import { parseBooleanSetting } from "../../../utils/stock";
+import {
+	getCachedDeliveryCharges,
+	saveDeliveryChargesCache,
+} from "../../../../offline/index";
 import format from "../../../format";
 import { bus } from "../../../bus";
 
@@ -374,9 +378,21 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			});
 			if (r.message) {
 				delivery_charges.value = r.message;
+				saveDeliveryChargesCache(
+					pos_profile.value.name,
+					customer,
+					r.message,
+				);
 			}
 		} catch (error) {
 			console.error("Failed to fetch delivery charges", error);
+			const cachedCharges = getCachedDeliveryCharges(
+				pos_profile.value.name,
+				customer,
+			);
+			delivery_charges.value = Array.isArray(cachedCharges)
+				? cachedCharges
+				: [];
 		}
 	};
 

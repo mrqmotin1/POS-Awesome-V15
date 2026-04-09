@@ -159,6 +159,12 @@ describe("bootstrap snapshot", () => {
 			offers: [{ name: "OFFER-1" }],
 			coupons: { CUSTOMER1: ["COUPON-1"] },
 			stockCacheReady: false,
+			deliveryChargesCount: 1,
+			currencyOptionsCount: 2,
+			exchangeRateCount: 2,
+			priceListMetaReady: true,
+			customerAddressesCount: 1,
+			paymentMethodCurrencyCount: 2,
 		});
 
 		expect(prerequisites.pos_profile).toBe("ready");
@@ -176,6 +182,33 @@ describe("bootstrap snapshot", () => {
 		expect(prerequisites.offers_cache).toBe("ready");
 		expect(prerequisites.coupons_cache).toBe("ready");
 		expect(prerequisites.stock_cache_ready).toBe("missing");
+		expect(prerequisites.delivery_charges_cache).toBe("ready");
+		expect(prerequisites.currency_options_cache).toBe("ready");
+		expect(prerequisites.exchange_rate_cache).toBe("ready");
+		expect(prerequisites.price_list_meta_cache).toBe("ready");
+		expect(prerequisites.customer_addresses_cache).toBe("ready");
+		expect(prerequisites.payment_method_currency_cache).toBe("ready");
+	});
+
+	it("formats new prerequisite warning messages explicitly", () => {
+		expect(formatBootstrapWarning("delivery_charges_cache")).toContain(
+			"delivery charges",
+		);
+		expect(formatBootstrapWarning("currency_options_cache")).toContain(
+			"currency",
+		);
+		expect(formatBootstrapWarning("exchange_rate_cache")).toContain(
+			"exchange rate",
+		);
+		expect(formatBootstrapWarning("price_list_meta_cache")).toContain(
+			"price list",
+		);
+		expect(formatBootstrapWarning("customer_addresses_cache")).toContain(
+			"address",
+		);
+		expect(formatBootstrapWarning("payment_method_currency_cache")).toContain(
+			"payment method",
+		);
 	});
 
 	it("keeps sell capability available when only warning prerequisites are missing", () => {

@@ -34,6 +34,12 @@ export type BootstrapPrerequisiteCollectionInput = {
 	offers?: unknown[] | null;
 	coupons?: Record<string, unknown> | unknown[] | null;
 	stockCacheReady?: boolean | null;
+	deliveryChargesCount?: number | boolean | null;
+	currencyOptionsCount?: number | boolean | null;
+	exchangeRateCount?: number | boolean | null;
+	priceListMetaReady?: boolean | null;
+	customerAddressesCount?: number | boolean | null;
+	paymentMethodCurrencyCount?: number | boolean | null;
 };
 
 export type BootstrapSnapshot = {
@@ -237,6 +243,30 @@ export function collectBootstrapPrerequisites(
 		offers_cache: hasNonEmptyArray(input?.offers) ? "ready" : "missing",
 		coupons_cache: hasCoupons(input?.coupons) ? "ready" : "missing",
 		stock_cache_ready: input?.stockCacheReady ? "ready" : "missing",
+		delivery_charges_cache: hasPositiveCountOrReadyFlag(
+			input?.deliveryChargesCount,
+		)
+			? "ready"
+			: "missing",
+		currency_options_cache: hasPositiveCountOrReadyFlag(
+			input?.currencyOptionsCount,
+		)
+			? "ready"
+			: "missing",
+		exchange_rate_cache: hasPositiveCountOrReadyFlag(input?.exchangeRateCount)
+			? "ready"
+			: "missing",
+		price_list_meta_cache: input?.priceListMetaReady ? "ready" : "missing",
+		customer_addresses_cache: hasPositiveCountOrReadyFlag(
+			input?.customerAddressesCount,
+		)
+			? "ready"
+			: "missing",
+		payment_method_currency_cache: hasPositiveCountOrReadyFlag(
+			input?.paymentMethodCurrencyCount,
+		)
+			? "ready"
+			: "missing",
 	};
 }
 
@@ -325,6 +355,52 @@ function collectBootstrapPrerequisitePatch(
 
 	if (hasOwnKey(input, "stockCacheReady")) {
 		patch.stock_cache_ready = input?.stockCacheReady ? "ready" : "missing";
+	}
+
+	if (hasOwnKey(input, "deliveryChargesCount")) {
+		patch.delivery_charges_cache = hasPositiveCountOrReadyFlag(
+			input?.deliveryChargesCount,
+		)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "currencyOptionsCount")) {
+		patch.currency_options_cache = hasPositiveCountOrReadyFlag(
+			input?.currencyOptionsCount,
+		)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "exchangeRateCount")) {
+		patch.exchange_rate_cache = hasPositiveCountOrReadyFlag(
+			input?.exchangeRateCount,
+		)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "priceListMetaReady")) {
+		patch.price_list_meta_cache = input?.priceListMetaReady
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "customerAddressesCount")) {
+		patch.customer_addresses_cache = hasPositiveCountOrReadyFlag(
+			input?.customerAddressesCount,
+		)
+			? "ready"
+			: "missing";
+	}
+
+	if (hasOwnKey(input, "paymentMethodCurrencyCount")) {
+		patch.payment_method_currency_cache = hasPositiveCountOrReadyFlag(
+			input?.paymentMethodCurrencyCount,
+		)
+			? "ready"
+			: "missing";
 	}
 
 	return patch;

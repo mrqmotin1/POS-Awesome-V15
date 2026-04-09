@@ -254,6 +254,7 @@ import {
 	buildPaymentRouteLoadingMessage,
 	isPaymentRouteLocked as resolvePaymentRouteLocked,
 } from "../../../utils/paymentRouteReadiness";
+import { loadPaymentMethodCurrencyMap } from "../../../utils/paymentMethodCurrencyCache";
 
 const getTodayDate = () => frappe?.datetime?.nowdate?.() || new Date().toISOString().slice(0, 10);
 const formatDisplayDate = (date) => {
@@ -702,17 +703,20 @@ export default {
 
 		const loadPaymentMethodCurrencies = async () => {
 			if (!pos_profile.value?.payments?.length || !company.value) return;
-			try {
-				const modes = pos_profile.value.payments.map((p) => p.mode_of_payment).filter(Boolean);
-				// Use the shared payment utility for mode/account currency resolution.
-				const r = await frappe.call({
-					method: "posawesome.posawesome.api.payment_processing.utils.get_mode_of_payment_accounts",
-					args: { company: company.value, mode_of_payments: modes },
-				});
-				payment_method_currencies.value = { ...r.message };
-			} catch (e) {
-				console.error("Failed to load payment method currencies", e);
-			}
+			const modes = pos_profile.value.payments
+				.map((p) => p.mode_of_payment)
+				.filter(Boolean);
+			payment_method_currencies.value = await loadPaymentMethodCurrencyMap({
+				company: company.value,
+				offline: isOffline(),
+				fetcher: async () => {
+					const r = await frappe.call({
+						method: "posawesome.posawesome.api.payment_processing.utils.get_mode_of_payment_accounts",
+						args: { company: company.value, mode_of_payments: modes },
+					});
+					return { ...(r.message || {}) };
+				},
+			});
 		};
 
 		const applyOpeningData = async (data) => {
