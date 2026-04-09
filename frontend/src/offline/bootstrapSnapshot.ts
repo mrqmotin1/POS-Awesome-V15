@@ -13,6 +13,10 @@ export type BootstrapSnapshotInput = {
 	prerequisites?: Record<string, BootstrapPrerequisiteState>;
 };
 
+export type BootstrapRuntimeMetadataInput = {
+	buildVersion?: string | null;
+};
+
 export type BootstrapSnapshot = {
 	build_version: string | null;
 	profile_name: string | null;
@@ -41,6 +45,21 @@ export type BootstrapValidationInput = {
 	profileName?: string | null;
 	profileModified?: string | null;
 	sessionUser?: string | null;
+};
+
+export type BootstrapValidationResult = {
+	mode: BootstrapValidationMode;
+	reasons: string[];
+	missingPrerequisites: string[];
+	capabilities: BootstrapCapabilities;
+};
+
+export type BootstrapRuntimeDecision = {
+	mode: "normal" | "limited" | "invalid" | "confirmation_required";
+	limitedMode: boolean;
+	requiresConfirmation: boolean;
+	warningCodes: string[];
+	capabilities: BootstrapCapabilities;
 };
 
 type RegisterData = {
@@ -130,8 +149,9 @@ export function buildBootstrapSnapshot(
 export function createBootstrapSnapshotFromRegisterData(
 	registerData: RegisterData,
 	currentSnapshot: BootstrapSnapshot | null | undefined,
+	runtime: BootstrapRuntimeMetadataInput = {},
 ): BootstrapSnapshot {
-	const nextPrerequisites = {
+	const nextPrerequisites: Record<string, BootstrapPrerequisiteState> = {
 		...(currentSnapshot?.prerequisites || {}),
 		pos_profile: registerData?.pos_profile?.name ? "ready" : "missing",
 		pos_opening_shift:
@@ -142,7 +162,8 @@ export function createBootstrapSnapshotFromRegisterData(
 	};
 
 	return buildBootstrapSnapshot({
-		buildVersion: currentSnapshot?.build_version || null,
+		buildVersion:
+			runtime?.buildVersion || currentSnapshot?.build_version || null,
 		profileName: registerData?.pos_profile?.name || null,
 		profileModified: registerData?.pos_profile?.modified || null,
 		openingShiftName: registerData?.pos_opening_shift?.name || null,
@@ -154,7 +175,22 @@ export function createBootstrapSnapshotFromRegisterData(
 export function validateBootstrapSnapshot(
 	snapshot: BootstrapSnapshot | null | undefined,
 	current: BootstrapValidationInput,
-) {
+): BootstrapValidationResult {
+	if (!snapshot) {
+		return {
+			mode: "limited" as BootstrapValidationMode,
+			reasons: ["snapshot_missing"],
+			missingPrerequisites: ["bootstrap_snapshot"],
+			capabilities: {
+				canSellOffline: false,
+				canApplyPricingOffline: false,
+				canPrintOffline: false,
+				canUseOffersOffline: false,
+				canUseCustomerDisplayOffline: false,
+			},
+		};
+	}
+
 	const reasons: string[] = [];
 	const prerequisites = snapshot?.prerequisites || {};
 	const missingPrerequisites = collectMissingPrerequisites(prerequisites);
@@ -195,5 +231,65 @@ export function validateBootstrapSnapshot(
 		reasons,
 		missingPrerequisites,
 		capabilities,
+	};
+}
+
+export function resolveBootstrapRuntimeState(
+	validation: BootstrapValidationResult,
+	options: {
+		continueOffline?: boolean;
+	} = {},
+): BootstrapRuntimeDecision {
+	const warningCodes = [
+		...(validation?.reasons || []),
+		...(validation?.missingPrerequisites || []),
+	];
+
+	if (validation?.mode === "confirmation_required") {
+		if (options.continueOffline) {
+			return {
+				mode: "limited",
+				limitedMode: true,
+				requiresConfirmation: false,
+				warningCodes,
+				capabilities: validation.capabilities,
+			};
+		}
+
+		return {
+			mode: "confirmation_required",
+			limitedMode: false,
+			requiresConfirmation: true,
+			warningCodes,
+			capabilities: validation.capabilities,
+		};
+	}
+
+	if (validation?.mode === "limited") {
+		return {
+			mode: "limited",
+			limitedMode: true,
+			requiresConfirmation: false,
+			warningCodes,
+			capabilities: validation.capabilities,
+		};
+	}
+
+	if (validation?.mode === "invalid") {
+		return {
+			mode: "invalid",
+			limitedMode: false,
+			requiresConfirmation: false,
+			warningCodes,
+			capabilities: validation.capabilities,
+		};
+	}
+
+	return {
+		mode: "normal",
+		limitedMode: false,
+		requiresConfirmation: false,
+		warningCodes: [],
+		capabilities: validation.capabilities,
 	};
 }
