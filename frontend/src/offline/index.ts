@@ -10,6 +10,7 @@ export * from "./sync/resourceRegistry";
 export * from "./sync/syncState";
 export * from "./sync/SyncCoordinator";
 export * from "./sync/useSyncCoordinator";
+export * from "./sync/adapters";
 
 // Aliases for backward compatibility
 import { initPromise } from "./db";
