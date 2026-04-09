@@ -184,6 +184,29 @@ export function clearLocalStockCache() {
 	setStockCacheReady(false);
 }
 
+export function removeLocalStockEntries(itemCodes: string[]) {
+	try {
+		const normalizedCodes = Array.from(
+			new Set(
+				(Array.isArray(itemCodes) ? itemCodes : [])
+					.map((code) => String(code || "").trim())
+					.filter(Boolean),
+			),
+		);
+		if (!normalizedCodes.length) {
+			return;
+		}
+		const stockCache = memory.local_stock_cache || {};
+		normalizedCodes.forEach((code) => {
+			delete stockCache[code];
+		});
+		memory.local_stock_cache = stockCache;
+		persist("local_stock_cache");
+	} catch (e) {
+		console.error("Failed to remove local stock entries", e);
+	}
+}
+
 export function updateLocalStockWithActualQuantities(
 	invoiceItems: AnyRecord[],
 	serverItems: AnyRecord[],

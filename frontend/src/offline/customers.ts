@@ -99,6 +99,29 @@ export function getCustomerStorage() {
 	return memory.customer_storage || [];
 }
 
+function mergeCustomerStorageRows(rows: AnyRecord[]) {
+	const merged = new Map<string, AnyRecord>();
+	const existingRows = Array.isArray(memory.customer_storage)
+		? memory.customer_storage
+		: [];
+
+	existingRows.forEach((row) => {
+		if (!row?.name) {
+			return;
+		}
+		merged.set(row.name, row);
+	});
+
+	rows.forEach((row) => {
+		if (!row?.name) {
+			return;
+		}
+		merged.set(row.name, row);
+	});
+
+	return Array.from(merged.values());
+}
+
 export async function getStoredCustomer(customerName: string) {
 	try {
 		const customers = getCustomerStorage();
@@ -123,10 +146,35 @@ export async function setCustomerStorage(customers: AnyRecord[]) {
 		}));
 
 		await db.table("customers").bulkPut(clean);
-		memory.customer_storage = clean;
+		memory.customer_storage = mergeCustomerStorageRows(clean);
 		persist("customer_storage");
 	} catch (e) {
 		console.error("Failed to save customers to storage", e);
+	}
+}
+
+export async function deleteCustomerStorageByNames(names: string[]) {
+	try {
+		const normalizedNames = Array.from(
+			new Set(
+				(Array.isArray(names) ? names : [])
+					.map((name) => String(name || "").trim())
+					.filter(Boolean),
+			),
+		);
+		if (!normalizedNames.length) {
+			return;
+		}
+		await db.table("customers").bulkDelete(normalizedNames);
+		const existingRows = Array.isArray(memory.customer_storage)
+			? memory.customer_storage
+			: [];
+		memory.customer_storage = existingRows.filter(
+			(row) => !normalizedNames.includes(String(row?.name || "").trim()),
+		);
+		persist("customer_storage");
+	} catch (e) {
+		console.error("Failed to delete customers from storage", e);
 	}
 }
 

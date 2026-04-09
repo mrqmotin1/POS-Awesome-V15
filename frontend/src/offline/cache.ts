@@ -430,6 +430,47 @@ export function saveOffers(offers) {
 	}
 }
 
+export async function deleteStoredItemsByCodes(
+	itemCodes: string[] = [],
+	scope = "",
+) {
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		const normalizedCodes = Array.from(
+			new Set(
+				(Array.isArray(itemCodes) ? itemCodes : [])
+					.map((code) => String(code || "").trim())
+					.filter(Boolean),
+			),
+		);
+		if (!normalizedCodes.length) {
+			return;
+		}
+
+		if (!hasScope(scope)) {
+			await db.table("items").bulkDelete(normalizedCodes);
+			return;
+		}
+
+		const existingRows = await db
+			.table("items")
+			.where("item_code")
+			.anyOf(normalizedCodes)
+			.toArray();
+		const matchingCodes = existingRows
+			.filter((row: any) => isMatchingScope(row, scope))
+			.map((row: any) => row?.item_code)
+			.filter(Boolean);
+
+		if (matchingCodes.length) {
+			await db.table("items").bulkDelete(matchingCodes);
+		}
+	} catch (e) {
+		console.error("Failed to delete stored items by code", e);
+	}
+}
+
 export function getCachedOffers() {
 	try {
 		return memory.offers_cache || [];
@@ -482,6 +523,89 @@ export function clearPriceListCache() {
 		persist("price_list_cache");
 	} catch (e) {
 		console.error("Failed to clear price list cache", e);
+	}
+}
+
+export function mergeCachedPriceListItems(
+	priceList,
+	items: Record<string, any>[] = [],
+) {
+	try {
+		if (!priceList || !Array.isArray(items) || !items.length) {
+			return;
+		}
+		const cache = memory.price_list_cache || {};
+		const cachedEntry = cache[priceList];
+		if (!cachedEntry || !Array.isArray(cachedEntry.items)) {
+			return;
+		}
+
+		const mergedItems = Array.isArray(cachedEntry.items)
+			? [...cachedEntry.items]
+			: [];
+		const itemIndex = new Map(
+			mergedItems
+				.filter((entry) => entry?.item_code)
+				.map((entry) => [entry.item_code, entry]),
+		);
+
+		items.forEach((item) => {
+			if (!item?.item_code) {
+				return;
+			}
+			const cleanItem =
+				cloneCachePayload(item) || JSON.parse(JSON.stringify(item));
+			itemIndex.set(item.item_code, cleanItem);
+		});
+
+		cache[priceList] = {
+			items: Array.from(itemIndex.values()),
+			timestamp: Date.now(),
+		};
+		memory.price_list_cache = cache;
+		persist("price_list_cache");
+	} catch (e) {
+		console.error("Failed to merge cached price list items", e);
+	}
+}
+
+export function removeCachedPriceListItems(
+	itemCodes: string[] = [],
+	priceList: string | null = null,
+) {
+	try {
+		const normalizedCodes = new Set(
+			(Array.isArray(itemCodes) ? itemCodes : [])
+				.map((code) => String(code || "").trim())
+				.filter(Boolean),
+		);
+		if (!normalizedCodes.size) {
+			return;
+		}
+
+		const cache = memory.price_list_cache || {};
+		const targetLists = priceList
+			? [priceList]
+			: Object.keys(cache || {});
+
+		targetLists.forEach((targetPriceList) => {
+			const cachedEntry = cache[targetPriceList];
+			if (!cachedEntry || !Array.isArray(cachedEntry.items)) {
+				return;
+			}
+			cache[targetPriceList] = {
+				...cachedEntry,
+				items: cachedEntry.items.filter(
+					(entry) => !normalizedCodes.has(String(entry?.item_code || "").trim()),
+				),
+				timestamp: Date.now(),
+			};
+		});
+
+		memory.price_list_cache = cache;
+		persist("price_list_cache");
+	} catch (e) {
+		console.error("Failed to remove cached price list items", e);
 	}
 }
 
@@ -572,6 +696,56 @@ export function clearItemDetailsCache() {
 		persist("item_details_cache");
 	} catch (e) {
 		console.error("Failed to clear item details cache", e);
+	}
+}
+
+export function removeItemDetailsCacheEntries(
+	profileName,
+	itemCodes: string[] = [],
+	priceList: string | null = null,
+) {
+	try {
+		const normalizedCodes = new Set(
+			(Array.isArray(itemCodes) ? itemCodes : [])
+				.map((code) => String(code || "").trim())
+				.filter(Boolean),
+		);
+		if (!normalizedCodes.size) {
+			return;
+		}
+
+		const cache = memory.item_details_cache || {};
+		const targetProfiles = profileName
+			? [profileName]
+			: Object.keys(cache || {});
+
+		targetProfiles.forEach((targetProfile) => {
+			const profileCache = cache[targetProfile];
+			if (!profileCache || typeof profileCache !== "object") {
+				return;
+			}
+			const targetPriceLists = priceList
+				? [priceList]
+				: Object.keys(profileCache);
+
+			targetPriceLists.forEach((targetPriceList) => {
+				const priceCache = profileCache[targetPriceList];
+				if (!priceCache || typeof priceCache !== "object") {
+					return;
+				}
+				normalizedCodes.forEach((code) => {
+					delete priceCache[code];
+				});
+				profileCache[targetPriceList] = priceCache;
+			});
+
+			cache[targetProfile] = profileCache;
+		});
+
+		memory.item_details_cache = cache;
+		persist("item_details_cache");
+	} catch (e) {
+		console.error("Failed to remove item details cache entries", e);
 	}
 }
 
@@ -854,6 +1028,8 @@ export async function clearCustomerStorage() {
 		await checkDbHealth();
 		if (!db.isOpen()) await db.open();
 		await db.table("customers").clear();
+		memory.customer_storage = [];
+		persist("customer_storage");
 	} catch (e) {
 		console.error("Failed to clear customer storage", e);
 	}

@@ -12,6 +12,7 @@ import type {
 export type SyncScopedProfile = {
 	name: string;
 	company?: string | null;
+	warehouse?: string | null;
 	modified?: string | null;
 };
 
@@ -56,10 +57,11 @@ export type ResourceSyncResult = {
 	response: SyncResponse;
 };
 
-function buildScopeSignature(posProfile: SyncScopedProfile) {
+export function buildScopeSignature(posProfile: SyncScopedProfile) {
 	return JSON.stringify({
 		profile: posProfile?.name || null,
 		company: posProfile?.company || null,
+		warehouse: posProfile?.warehouse || null,
 	});
 }
 
