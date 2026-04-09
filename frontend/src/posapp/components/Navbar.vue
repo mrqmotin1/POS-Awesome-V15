@@ -20,6 +20,8 @@
 					:server-online="serverOnline"
 					:server-connecting="serverConnecting"
 					:is-ip-host="isIpHost"
+					:bootstrap-warning-active="bootstrapWarningActive"
+					:bootstrap-warning-tooltip="bootstrapWarningTooltip"
 					@retry-status="$emit('retry-status')"
 				/>
 			</template>
@@ -215,6 +217,11 @@ export default {
 		serverOnline: Boolean,
 		serverConnecting: Boolean,
 		isIpHost: Boolean,
+		bootstrapWarningActive: Boolean,
+		bootstrapWarningTooltip: {
+			type: String,
+			default: "",
+		},
 		syncTotals: {
 			type: Object,
 			default: () => ({ pending: 0, synced: 0, drafted: 0 }),

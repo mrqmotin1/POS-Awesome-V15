@@ -20,6 +20,8 @@
 				:loading-progress="loadingProgress"
 				:loading-active="loadingActive"
 				:loading-message="loadingMessage"
+				:bootstrap-warning-active="bootstrapWarningActive"
+				:bootstrap-warning-tooltip="bootstrapWarningTooltip"
 				@nav-click="handleNavClick"
 				@close-shift="handleCloseShift"
 				@print-last-invoice="handlePrintLastInvoice"
@@ -32,22 +34,35 @@
 				@refresh-cache-usage="handleRefreshCacheUsage"
 				@update-after-delete="handleUpdateAfterDelete"
 			/>
-			<v-alert
-				v-if="bootstrapWarningMessages.length"
-				:type="bootstrapAlertType"
-				variant="tonal"
-				density="comfortable"
-				class="mx-4 mt-2 bootstrap-warning"
+			<v-snackbar
+				v-model="bootstrapSnackbarVisible"
+				:timeout="8000"
+				:color="bootstrapAlertType"
+				location="top center"
+				class="bootstrap-warning-snackbar"
 			>
-				<div class="bootstrap-warning-title">{{ bootstrapWarningTitle }}</div>
-				<div
-					v-for="message in bootstrapWarningMessages"
-					:key="message"
-					class="bootstrap-warning-message"
-				>
-					{{ message }}
+				<div class="bootstrap-warning-snackbar__content">
+					<div class="bootstrap-warning-title">
+						{{ bootstrapWarningTitle }}
+					</div>
+					<div
+						v-for="message in bootstrapWarningMessages"
+						:key="message"
+						class="bootstrap-warning-message"
+					>
+						{{ message }}
+					</div>
 				</div>
-			</v-alert>
+				<template #actions>
+					<v-btn
+						variant="text"
+						class="bootstrap-warning-snackbar__close"
+						@click="bootstrapSnackbarVisible = false"
+					>
+						{{ __("Close") }}
+					</v-btn>
+				</template>
+			</v-snackbar>
 			<div class="page-content">
 				<!-- Replaced router-view with slot for layout usage -->
 				<slot />
@@ -182,6 +197,7 @@ const cacheUsageLoading = ref(false);
 const cacheUsageDetails = ref({ total: 0, indexedDB: 0, localStorage: 0 });
 const bootstrapStatus = ref(getBootstrapSnapshotStatus());
 const bootstrapLimitedMode = ref(getBootstrapLimitedMode());
+const bootstrapSnackbarVisible = ref(false);
 const confirmedBootstrapDecisionKey = ref("");
 let _sidebarObserver = null;
 let updateInterval = null;
@@ -339,6 +355,29 @@ const bootstrapWarningMessages = computed(() => {
 		),
 	);
 });
+const bootstrapWarningActive = computed(
+	() => bootstrapWarningMessages.value.length > 0,
+);
+const bootstrapWarningTooltip = computed(() => {
+	if (!bootstrapWarningActive.value) {
+		return "";
+	}
+
+	return [bootstrapWarningTitle.value, ...bootstrapWarningMessages.value]
+		.filter(Boolean)
+		.join("\n");
+});
+const bootstrapWarningSignature = computed(() => {
+	if (!bootstrapWarningActive.value) {
+		return "";
+	}
+
+	return JSON.stringify({
+		type: bootstrapAlertType.value,
+		title: bootstrapWarningTitle.value,
+		messages: bootstrapWarningMessages.value,
+	});
+});
 
 // Watchers
 watch(networkOnline, (newVal, oldVal) => {
@@ -376,6 +415,21 @@ watch(
 	loadProgress,
 	(progress) => {
 		setSourceProgress("customers", progress);
+	},
+	{ immediate: true },
+);
+
+watch(
+	bootstrapWarningSignature,
+	(nextSignature, previousSignature) => {
+		if (!nextSignature) {
+			bootstrapSnackbarVisible.value = false;
+			return;
+		}
+
+		if (nextSignature !== previousSignature) {
+			bootstrapSnackbarVisible.value = true;
+		}
 	},
 	{ immediate: true },
 );
@@ -882,15 +936,17 @@ const adjust_frappe_sidebar_offset = () => {
 	padding-top: 8px;
 }
 
+.bootstrap-warning-snackbar :deep(.v-snackbar__wrapper) {
+	max-width: min(680px, calc(100vw - 24px));
+}
+
+.bootstrap-warning-snackbar__content {
+	white-space: normal;
+}
+
 .bootstrap-warning-title {
 	font-weight: 600;
 	margin-bottom: 4px;
-}
-
-.bootstrap-warning :deep(.v-alert__content) {
-	align-self: stretch;
-	overflow: visible;
-	min-width: 0;
 }
 
 .bootstrap-warning-title,

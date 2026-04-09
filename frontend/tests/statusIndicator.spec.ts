@@ -12,6 +12,7 @@ const VBtnStub = defineComponent({
 			h(
 				"button",
 				{
+					...attrs,
 					onClick: attrs.onClick as (() => void) | undefined,
 				},
 				slots.default?.(),
@@ -22,6 +23,18 @@ const VBtnStub = defineComponent({
 const VIconStub = defineComponent({
 	setup(_, { slots }) {
 		return () => h("i", {}, slots.default?.());
+	},
+});
+
+const VTooltipStub = defineComponent({
+	setup(_, { slots }) {
+		return () =>
+			h("div", {}, [
+				slots.activator?.({
+					props: {},
+				}),
+				h("div", { class: "tooltip-content" }, slots.default?.()),
+			]);
 	},
 });
 
@@ -49,6 +62,7 @@ describe("StatusIndicator", () => {
 				components: {
 					VBtn: VBtnStub,
 					VIcon: VIconStub,
+					VTooltip: VTooltipStub,
 				},
 			},
 		});
@@ -74,11 +88,43 @@ describe("StatusIndicator", () => {
 				components: {
 					VBtn: VBtnStub,
 					VIcon: VIconStub,
+					VTooltip: VTooltipStub,
 				},
 			},
 		});
 
 		expect(wrapper.text()).toContain("Checking");
 		expect(wrapper.find('[data-test="status-checking-indicator"]').exists()).toBe(true);
+	});
+
+	it("shows a separate bootstrap warning marker and hover warning details", () => {
+		const warningMessage =
+			"Cached offline data belongs to a different app build.";
+		const wrapper = mount(StatusIndicator, {
+			props: {
+				networkOnline: true,
+				serverOnline: true,
+				serverConnecting: false,
+				isIpHost: false,
+				bootstrapWarningActive: true,
+				bootstrapWarningTooltip: warningMessage,
+			},
+			global: {
+				components: {
+					VBtn: VBtnStub,
+					VIcon: VIconStub,
+					VTooltip: VTooltipStub,
+				},
+			},
+		});
+
+		expect(
+			wrapper.find('[data-test="status-bootstrap-warning-indicator"]').exists(),
+		).toBe(true);
+		expect(wrapper.text()).toContain("Online");
+		expect(wrapper.text()).toContain(warningMessage);
+		expect(wrapper.get("button").attributes("aria-label")).toContain(
+			warningMessage,
+		);
 	});
 });
