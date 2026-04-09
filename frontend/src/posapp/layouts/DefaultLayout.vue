@@ -52,6 +52,12 @@
 					>
 						{{ message }}
 					</div>
+					<div
+						v-if="bootstrapRecoveryMessage"
+						class="bootstrap-warning-message"
+					>
+						{{ bootstrapRecoveryMessage }}
+					</div>
 				</div>
 				<template #actions>
 					<v-btn
@@ -358,12 +364,23 @@ const bootstrapWarningMessages = computed(() => {
 const bootstrapWarningActive = computed(
 	() => bootstrapWarningMessages.value.length > 0,
 );
+const bootstrapRecoveryMessage = computed(() => {
+	if (!bootstrapWarningActive.value) {
+		return "";
+	}
+
+	return __("If the warning persists, open Menu > Clear Cache.");
+});
 const bootstrapWarningTooltip = computed(() => {
 	if (!bootstrapWarningActive.value) {
 		return "";
 	}
 
-	return [bootstrapWarningTitle.value, ...bootstrapWarningMessages.value]
+	return [
+		bootstrapWarningTitle.value,
+		...bootstrapWarningMessages.value,
+		bootstrapRecoveryMessage.value,
+	]
 		.filter(Boolean)
 		.join("\n");
 });
