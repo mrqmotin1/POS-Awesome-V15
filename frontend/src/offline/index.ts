@@ -8,6 +8,8 @@ export * from "./cache";
 export * from "./sync/types";
 export * from "./sync/resourceRegistry";
 export * from "./sync/syncState";
+export * from "./sync/SyncCoordinator";
+export * from "./sync/useSyncCoordinator";
 
 // Aliases for backward compatibility
 import { initPromise } from "./db";
