@@ -935,5 +935,126 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
         )
 
 
+class TestManualPostingDatePreservation(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.frappe, cls.enqueue_calls = _install_framework_stubs()
+        _install_dependency_stubs()
+        _install_package_stubs()
+        cls.creation = _load_module()
+
+    def setUp(self):
+        self.enqueue_calls.clear()
+        self.frappe._publish_realtime_calls.clear()
+
+    def _build_invoice_doc(self, **overrides):
+        base = {
+            "doctype": "Sales Invoice",
+            "name": None,
+            "pos_profile": "Main POS",
+            "company": "Test Company",
+            "currency": "USD",
+            "posting_date": "2026-03-21",
+            "set_posting_time": 0,
+            "customer": "CUST-0001",
+            "customer_name": "Customer 1",
+            "is_return": 0,
+            "return_against": None,
+            "items": [],
+            "payments": [],
+            "taxes": [],
+            "flags": types.SimpleNamespace(ignore_pricing_rule=False, ignore_permissions=False),
+            "paid_amount": 0,
+            "base_paid_amount": 0,
+            "conversion_rate": 1,
+            "plc_conversion_rate": 1,
+            "price_list_currency": "USD",
+            "total": 0,
+            "net_total": 0,
+            "grand_total": 0,
+            "rounded_total": 0,
+            "docstatus": 0,
+            "redeem_loyalty_points": 0,
+            "loyalty_program": None,
+            "loyalty_redemption_account": None,
+            "loyalty_redemption_cost_center": None,
+            "remarks": "",
+            "update_stock": 1,
+        }
+        base.update(overrides)
+        return FakeDoc(**base)
+
+    def test_update_invoice_marks_backdated_payload_for_manual_posting(self):
+        captured_payloads = []
+        invoice_doc = self._build_invoice_doc()
+
+        def fake_get_doc(*args):
+            if len(args) == 1:
+                payload = dict(args[0])
+                captured_payloads.append(payload)
+                invoice_doc.update(payload)
+                return invoice_doc
+            return invoice_doc
+
+        self.creation.frappe.get_doc = fake_get_doc
+        self.creation.frappe.get_cached_value = lambda *args, **kwargs: 0
+        self.creation._save_draft_with_latest_timestamp = lambda doc: doc
+
+        self.creation.update_invoice(
+            json.dumps(
+                {
+                    "doctype": "Sales Invoice",
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "currency": "USD",
+                    "customer": "CUST-0001",
+                    "posting_date": "2026-03-19",
+                    "items": [],
+                    "payments": [],
+                }
+            )
+        )
+
+        self.assertEqual(captured_payloads[0]["posting_date"], "2026-03-19")
+        self.assertEqual(captured_payloads[0]["set_posting_time"], 1)
+
+    def test_submit_invoice_keeps_manual_posting_for_existing_backdated_draft(self):
+        invoice_doc = self._build_invoice_doc(
+            name="ACC-SINV-0001",
+            posting_date="2026-03-19",
+        )
+        invoice_doc.submit = lambda: setattr(invoice_doc, "docstatus", 1)
+
+        self.creation.frappe.db.exists = lambda doctype, name: name == "ACC-SINV-0001"
+        self.creation.frappe.db.get_value = lambda *args, **kwargs: 0
+        self.creation.frappe.get_value = lambda *args, **kwargs: 0
+        self.creation.frappe.get_doc = lambda *args: invoice_doc
+        self.creation._save_draft_with_latest_timestamp = lambda doc: doc
+        self.creation._apply_invoice_gift_card_settlement = lambda *args, **kwargs: None
+        self.creation._process_post_submit_payments = lambda *args, **kwargs: None
+
+        result = self.creation.submit_invoice(
+            json.dumps(
+                {
+                    "doctype": "Sales Invoice",
+                    "name": "ACC-SINV-0001",
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "currency": "USD",
+                    "customer": "CUST-0001",
+                    "posting_date": "2026-03-19",
+                    "items": [],
+                    "payments": [],
+                }
+            ),
+            json.dumps({}),
+            submit_in_background=0,
+        )
+
+        self.assertEqual(invoice_doc.posting_date, "2026-03-19")
+        self.assertEqual(invoice_doc.set_posting_time, 1)
+        self.assertEqual(result["status"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

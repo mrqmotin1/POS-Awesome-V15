@@ -270,6 +270,23 @@ def _sanitize_delivery_dates(payload):
             item["posa_delivery_date"] = _safe_date_string(item.get("posa_delivery_date"))
 
 
+def _apply_manual_posting_controls(payload):
+    if not isinstance(payload, dict):
+        return
+
+    posting_date = _safe_date_string(payload.get("posting_date"))
+    if posting_date:
+        payload["posting_date"] = posting_date
+
+    if cint(payload.get("set_posting_time")):
+        payload["set_posting_time"] = 1
+        return
+
+    today = _safe_date_string(nowdate())
+    if posting_date and today and posting_date != today:
+        payload["set_posting_time"] = 1
+
+
 def _build_fresh_invoice_payload(data, doctype):
     fresh_data = dict(data or {})
     fresh_data["doctype"] = doctype
@@ -448,6 +465,7 @@ def update_invoice(data):
     currency_cache = {}
     data = json.loads(data)
     _sanitize_delivery_dates(data)
+    _apply_manual_posting_controls(data)
     _strip_client_freebies_from_payload(data)
     # Determine doctype based on POS Profile setting
     pos_profile = data.get("pos_profile")
@@ -678,6 +696,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
     data = json.loads(data)
     invoice = json.loads(invoice)
     _sanitize_delivery_dates(invoice)
+    _apply_manual_posting_controls(invoice)
     submit_in_background = cint(submit_in_background)
     _strip_client_freebies_from_payload(invoice)
     pos_profile = invoice.get("pos_profile")
