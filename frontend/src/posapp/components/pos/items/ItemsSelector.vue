@@ -743,6 +743,8 @@ const openNewItemDialog = () => {
 };
 
 onMounted(async () => {
+	itemAvailability.initAvailability();
+
 	itemAvailability.registerCallbacks({
 		getItems: () => items.value,
 		getDisplayedItems: () => displayedItems.value,
@@ -925,6 +927,10 @@ onMounted(async () => {
 			}
 		});
 		eventBus.on("focus_item_search", requestItemSearchFocus);
+		eventBus.on(
+			"cart_quantities_updated",
+			itemAvailability.handleCartQuantitiesUpdated,
+		);
 		eventBus.on("remote_stock_adjustment", handleRemoteStockAdjustment);
 	}
 
@@ -1000,6 +1006,10 @@ onBeforeUnmount(() => {
 		eventBus.off("update_customer_price_list");
 		eventBus.off("update_buying_price_list");
 		eventBus.off("focus_item_search", requestItemSearchFocus);
+		eventBus.off(
+			"cart_quantities_updated",
+			itemAvailability.handleCartQuantitiesUpdated,
+		);
 		eventBus.off("remote_stock_adjustment", handleRemoteStockAdjustment);
 	}
 	if (props.context === "pos") {
