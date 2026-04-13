@@ -148,7 +148,6 @@ def validate_manager(username, password, required_role="Counter Manager"):
     """
     Validate manager credentials without logging out the current user.
     """
-    print("Validating manager credentials for user:", username)
     try:
         if not check_password(username, password):
             return {"success": False, "error": "Invalid password"}
