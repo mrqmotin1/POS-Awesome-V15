@@ -22,3 +22,6 @@ export function initManagerMode(): void {
 export function setManagerMode(value: boolean): void {
   isManagerMode.value = value
 }
+
+// Auto-initialize on module load — frappe.user_roles is available before any component mounts
+initManagerMode()
