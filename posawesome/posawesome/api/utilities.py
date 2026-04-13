@@ -3,7 +3,9 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-
+import frappe # type: ignore
+from frappe.utils import get_datetime # type: ignore
+from frappe.utils.password import check_password
 import frappe
 from frappe.utils import cstr, add_to_date, get_datetime
 from typing import List, Dict, Any
@@ -164,6 +166,35 @@ def set_batch_nos_for_bundels(doc, warehouse_field, throw=False):
 def get_company_domain(company):
     return frappe.get_cached_value("Company", cstr(company), "domain")
 
+
+@frappe.whitelist()
+def validate_manager(username, password, required_role="Counter Manager"):
+    """
+    Validate manager credentials without logging out the current user.
+    """
+    print("Validating manager credentials for user:", username)
+    try:
+        if not check_password(username, password):
+            return {"success": False, "error": "Invalid password"}
+
+        # Fetch the user doc
+        user = frappe.get_doc("User", username)
+        
+        # Check if user is enabled
+        if not user.enabled:
+            return {"success": False, "error": "User is disabled"}
+
+        # Check if user has the manager role
+        if required_role in [r.role for r in user.roles]:
+            return {"success": True}
+        else:
+            return {"success": False, "error": "Not authorized"}
+
+    except frappe.DoesNotExistError:
+        return {"success": False, "error": "User does not exist"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    
 
 @frappe.whitelist()
 def get_selling_price_lists():
