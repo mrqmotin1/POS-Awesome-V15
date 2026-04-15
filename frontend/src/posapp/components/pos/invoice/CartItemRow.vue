@@ -362,6 +362,7 @@
 
 <script setup>
 import { computed, nextTick, ref } from "vue";
+import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 
 defineOptions({
 	name: "CartItemRow",
@@ -492,15 +493,19 @@ const disableUomEdit = computed(
 		!!props.item.posa_is_replace,
 );
 
+const canEditDiscount = computed(
+	() => isSessionUserManager.value || isManagerMode.value,
+);
+
 const disableRateEdit = computed(
 	() =>
-		!props.posProfile.posa_allow_user_to_edit_rate ||
+		!canEditDiscount.value ||
 		!!props.item.posa_is_replace,
 );
 
 const disableDiscountEdit = computed(
 	() =>
-		!props.posProfile.posa_allow_user_to_edit_item_discount ||
+		!canEditDiscount.value ||
 		!!props.item.posa_is_replace ||
 		!!props.item.posa_offer_applied,
 );
