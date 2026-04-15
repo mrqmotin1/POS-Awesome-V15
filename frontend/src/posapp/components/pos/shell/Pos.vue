@@ -122,7 +122,7 @@
 						color="warning"
 						:prefix="getCurrencySymbol(posProfile?.currency)"
 						:disabled="
-							!posProfile?.posa_allow_user_to_edit_additional_discount ||
+							!canEditDiscount ||
 							!!discountPercentageOfferName
 						"
 						hide-details
@@ -142,7 +142,7 @@
 						density="compact"
 						color="warning"
 						:disabled="
-							!posProfile?.posa_allow_user_to_edit_additional_discount ||
+							!canEditDiscount ||
 							!!discountPercentageOfferName
 						"
 						hide-details
@@ -224,6 +224,7 @@ import { useResponsive } from "../../../composables/core/useResponsive";
 import { useRtl } from "../../../composables/core/useRtl";
 import { useUIStore } from "../../../stores/uiStore.js";
 import { useInvoiceStore } from "../../../stores/invoiceStore.js";
+import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 import { useItemsStore } from "../../../stores/itemsStore.js";
 import { storeToRefs } from "pinia";
 import { useCustomerDisplayPublisher } from "../../../composables/pos/shared/useCustomerDisplayPublisher";
@@ -245,6 +246,9 @@ export default {
 		const invoiceStore = useInvoiceStore();
 		const itemsStore = useItemsStore();
 		const __ = window.__;
+		const canEditDiscount = computed(
+			() => isSessionUserManager.value || isManagerMode.value,
+		);
 		const { activeView, posProfile, paymentDialogOpen } = storeToRefs(uiStore);
 		const {
 			invoiceDoc,

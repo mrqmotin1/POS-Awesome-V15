@@ -92,7 +92,8 @@
 									calcPrices(item, $event.target.value, $event),
 								]"
 								:disabled="
-									!pos_profile.posa_allow_user_to_edit_rate || !!item.posa_is_replace
+									!canEditDiscount ||
+									!!item.posa_is_replace
 								"
 								prepend-inner-icon="mdi-currency-usd"
 							></v-text-field>
@@ -112,7 +113,7 @@
 									calcPrices(item, $event.target.value, $event),
 								]"
 								:disabled="
-									!pos_profile.posa_allow_user_to_edit_item_discount ||
+									!canEditDiscount ||
 									!!item.posa_is_replace ||
 									!!item.posa_offer_applied
 								"
@@ -134,7 +135,7 @@
 									calcPrices(item, $event.target.value, $event),
 								]"
 								:disabled="
-									!pos_profile.posa_allow_user_to_edit_item_discount ||
+									!canEditDiscount ||
 									!!item.posa_is_replace ||
 									!!item.posa_offer_applied
 								"
@@ -430,6 +431,8 @@
 <script setup lang="ts">
 import { getDisplayableBatchOptions } from "../../../composables/pos/shared/useBatchSerial";
 import type { CartItem, POSProfile, InvoiceDoc } from "../../../types/models";
+import { computed } from "vue";
+import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 
 interface Props {
 	item: CartItem | any;
@@ -460,6 +463,10 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const canEditDiscount = computed(
+	() => isSessionUserManager.value || isManagerMode.value,
+);
 
 const emit = defineEmits<{
 	"qty-change": [item: CartItem, event: any];
