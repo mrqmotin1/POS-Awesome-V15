@@ -172,6 +172,37 @@ def validate_manager(username, password, required_role="Counter Manager"):
     
 
 @frappe.whitelist()
+def validate_manager_by_barcode(barcode, required_role="Counter Manager"):
+    """Authenticate a manager by their employee card barcode stored on the Employee doctype."""
+    print(f"Validating manager with barcode: {barcode} for role: {required_role}")
+    if not barcode:
+        return {"success": False, "error": "No barcode provided"}
+
+    employees = frappe.get_all(
+        "Employee",
+        filters={"custom_pos_manager_barcode": barcode, "status": "Active"},
+        fields=["name", "employee_name", "user_id"],
+        limit=1,
+    )
+    if not employees:
+        return {"success": False, "error": "Card not recognized"}
+
+    employee = employees[0]
+    if not employee.get("user_id"):
+        return {"success": False, "error": "Employee has no linked user account"}
+
+    roles = frappe.get_roles(employee["user_id"])
+    if required_role not in roles:
+        return {"success": False, "error": "Not authorized"}
+
+    return {
+        "success": True,
+        "username": employee["user_id"],
+        "full_name": employee["employee_name"],
+    }
+
+
+@frappe.whitelist()
 def get_selling_price_lists():
     """Return all selling price lists"""
     return frappe.get_all(
