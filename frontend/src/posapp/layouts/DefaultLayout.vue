@@ -154,6 +154,7 @@ import {
 	resolveBootstrapWarningUiState,
 	shouldLiftBootstrapWarningStartupGate,
 } from "../utils/bootstrapWarningVisibility";
+import { isManagerMode, isSessionUserManager, setManagerMode } from "../utils/useManagerMode";
 
 /**
  * Frappe Desk UI selectors to hide in POS view.
@@ -864,6 +865,7 @@ onBeforeUnmount(() => {
 		eventBus.off("data-load-progress");
 		eventBus.off("print_last_invoice");
 		eventBus.off("sync_invoices");
+		eventBus.off("clear_invoice");
 	}
 
 	window.removeEventListener("resize", adjust_frappe_sidebar_offset);
@@ -969,6 +971,13 @@ const setupEventListeners = () => {
 		// Manual trigger to sync offline invoices
 		eventBus.on("sync_invoices", () => {
 			handleSyncInvoices();
+		});
+
+		// Auto-logout temporary manager after each invoice submission
+		eventBus.on("clear_invoice", () => {
+			if (isManagerMode.value && !isSessionUserManager.value) {
+				setManagerMode(false);
+			}
 		});
 	}
 };

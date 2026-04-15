@@ -298,52 +298,87 @@
 	</v-snackbar>
 
 	<!-- Manager Login Dialog -->
-	<v-dialog v-model="showManagerLoginDialog" max-width="400" persistent>
+	<v-dialog v-model="showManagerLoginDialog" max-width="420" persistent>
 		<v-card>
 			<v-card-title class="text-h6 d-flex align-center">
-				{{ __("Login As Manager") }}
+				{{ __("Manager Login") }}
 			</v-card-title>
 
-			<v-card-text>
-				<div class="text-body-2 mb-3">
-					{{ __("Only managers can continue") }}
+			<v-tabs v-model="loginTab" color="primary" density="compact" class="px-4">
+				<v-tab :value="0" prepend-icon="mdi-barcode-scan">{{ __("Scan Card") }}</v-tab>
+				<v-tab :value="1" prepend-icon="mdi-lock">{{ __("Password") }}</v-tab>
+			</v-tabs>
+
+			<v-card-text class="pt-4">
+				<!-- Tab 0: Barcode scan -->
+				<div v-if="loginTab === 0">
+					<div class="text-body-2 mb-4 text-medium-emphasis">
+						{{ __("Scan your manager card or type the barcode and press Enter") }}
+					</div>
+					<v-text-field
+						ref="barcodeField"
+						density="compact"
+						variant="outlined"
+						color="primary"
+						:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
+						class="dark-field"
+						v-model="barcodeInput"
+						:label="__('Barcode')"
+						prepend-inner-icon="mdi-barcode-scan"
+						:loading="barcodeLoading"
+						autofocus
+						@keydown.enter.prevent="submitBarcodeLogin"
+					></v-text-field>
 				</div>
 
-				<v-text-field
-					density="compact"
-					variant="outlined"
-					color="primary"
-					:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-					class="dark-field"
-					v-model="username"
-					label="Email or Username"
-					placeholder="jane@example.com"
-					prepend-inner-icon="mdi-account"
-				></v-text-field>
+				<!-- Tab 1: Username + password -->
+				<div v-else>
+					<v-text-field
+						density="compact"
+						variant="outlined"
+						color="primary"
+						:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
+						class="dark-field mb-3"
+						v-model="username"
+						:label="__('Email or Username')"
+						placeholder="jane@example.com"
+						prepend-inner-icon="mdi-account"
+					></v-text-field>
 
-				<v-text-field
-					density="compact"
-					variant="outlined"
-					color="primary"
-					:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-					class="dark-field"
-					v-model="password"
-					:label="frappe._('Password')"
-					placeholder="•••••"
-					:type="showPassword ? 'text' : 'password'"
-					prepend-inner-icon="mdi-lock"
-					:append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-					@click:append-inner="togglePassword"
-				></v-text-field>
+					<v-text-field
+						density="compact"
+						variant="outlined"
+						color="primary"
+						:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
+						class="dark-field"
+						v-model="password"
+						:label="frappe._('Password')"
+						placeholder="•••••"
+						:type="showPassword ? 'text' : 'password'"
+						prepend-inner-icon="mdi-lock"
+						:append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+						@click:append-inner="togglePassword"
+					></v-text-field>
+				</div>
 			</v-card-text>
 
 			<v-card-actions class="pa-4 pt-0">
-				<v-btn color="grey" variant="text" @click="showManagerLoginDialog= false">
+				<v-btn color="grey" variant="text" @click="showManagerLoginDialog = false">
 					{{ __("Cancel") }}
 				</v-btn>
+				<v-spacer />
 				<v-btn
+					v-if="loginTab === 0"
 					color="primary"
-					:loading="changing"
+					:loading="barcodeLoading"
+					@click="submitBarcodeLogin"
+				>
+					{{ __("Login") }}
+				</v-btn>
+				<v-btn
+					v-else
+					color="primary"
+					:loading="loading"
 					@click="submitManagerLogin"
 				>
 					{{ __("Login") }}
@@ -395,6 +430,9 @@ export default {
 			activePanel: "main",
 			showLanguageDialog: false,
 			showManagerLoginDialog: false,
+			loginTab: 0,
+			barcodeInput: "",
+			barcodeLoading: false,
 			showPassword: false,
 			username: "",
 			password: "",
@@ -423,6 +461,15 @@ export default {
 		menuOpen(isOpen) {
 			if (!isOpen) {
 				this.activePanel = "main";
+			}
+		},
+		showManagerLoginDialog(val) {
+			if (val) {
+				this.loginTab = 0;
+				this.barcodeInput = "";
+				this.$nextTick(() => {
+					this.$refs.barcodeField && this.$refs.barcodeField.focus();
+				});
 			}
 		},
 	},
@@ -917,6 +964,40 @@ export default {
 			} else {
 				// Show login dialog
 				this.showManagerLoginDialog = true;
+			}
+		},
+
+		async submitBarcodeLogin() {
+			if (!this.barcodeInput.trim()) return;
+			this.barcodeLoading = true;
+			try {
+				const res = await frappe.call({
+					method: "posawesome.posawesome.api.utilities.validate_manager_by_barcode",
+					args: { barcode: this.barcodeInput.trim() },
+				});
+				if (res.message.success) {
+					setManagerMode(true);
+					this.showNotification(
+						`Manager ${res.message.full_name} logged in`,
+						"success"
+					);
+					this.showManagerLoginDialog = false;
+					this.barcodeInput = "";
+				} else {
+					frappe.show_alert({
+						message: res.message.error || __("Card not recognized"),
+						indicator: "red",
+					});
+					this.barcodeInput = "";
+					this.$nextTick(() => {
+						this.$refs.barcodeField && this.$refs.barcodeField.focus();
+					});
+				}
+			} catch (_err) {
+				frappe.show_alert({ message: __("Scan failed"), indicator: "red" });
+				this.barcodeInput = "";
+			} finally {
+				this.barcodeLoading = false;
 			}
 		},
 

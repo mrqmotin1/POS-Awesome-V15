@@ -2075,7 +2075,6 @@ onBeforeUnmount(() => {
 	eventBus.off("set_mpesa_payment");
 	eventBus.off("queue_submit_payment_shortcut", queueShortcutSubmit);
 	eventBus.off("submit_payment_shortcut", handleSubmitPaymentShortcut);
-	eventBus.off("clear_invoice");
 	eventBus.off("network-online");
 	eventBus.off("server-online");
 	clearBackgroundStatusCheck();
