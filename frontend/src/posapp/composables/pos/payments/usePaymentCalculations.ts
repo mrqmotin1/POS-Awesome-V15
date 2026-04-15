@@ -140,7 +140,8 @@ export function usePaymentCalculations(options: PaymentCalculationOptions) {
 		}
 
 		let diff = flt(invoice_total - total_payments.value);
-		if (doc.is_return) return diff >= 0 ? diff : 0;
+		// For returns: negative diff means more refund needed, positive means over-refunded (cap to 0)
+		if (doc.is_return) return diff > 0 ? 0 : diff;
 		return diff;
 	});
 
@@ -194,6 +195,11 @@ export function usePaymentCalculations(options: PaymentCalculationOptions) {
 	const diff_label = computed(() => {
 		const doc = unref(invoiceDoc);
 		const currency = doc ? doc.currency : "";
+		if (doc?.is_return) {
+			return diff_payment.value < 0
+				? `Remaining Refund (${currency})`
+				: `Change (${currency})`;
+		}
 		return diff_payment.value > 0
 			? `To Be Paid (${currency})`
 			: `Change (${currency})`;
