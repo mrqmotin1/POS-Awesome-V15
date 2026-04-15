@@ -1584,17 +1584,17 @@ export function useInvoiceOffers() {
 				100,
 			);
 			const discount = (total * percent) / 100;
-			invoiceStore.setDiscountAmount(discount);
+			invoiceStore.setAdditionalDiscount(discount);
 			discount_percentage_offer_name.value = offer.name;
 		} else if (offerDiscountType === "Discount Amount") {
-			invoiceStore.setDiscountAmount(
+			invoiceStore.setAdditionalDiscount(
 				parseFiniteNumber(offer?.discount_amount, 0),
 			);
 		}
 	};
 
 	const RemoveOnTotal = (_offer: any) => {
-		invoiceStore.setDiscountAmount(0);
+		invoiceStore.setAdditionalDiscount(0);
 		discount_percentage_offer_name.value = null;
 	};
 
