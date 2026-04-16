@@ -2,6 +2,139 @@
 
 All notable changes.
 
+Release 15.27.0 — April 16, 2026
+### ✨ Features
+- add /app/pos desk alias for POS Awesome 
+- add boot-critical offline sync endpoints 
+- add bootstrap cache refresh helper 
+- add bootstrap snapshot validation modes 
+- add drawer settings panel for POS actions 
+- add embedded detail mode to settings workspace 
+- add gift card management module and payment redemption entry 
+- add history repair-candidate filter and dark mode card polish 
+- add hybrid settings workspace for POS actions 
+- add invoice-level repair action for change allocations 
+- add offline sync coordinator skeleton 
+- add offline sync resource registry foundation 
+- add operational offline delta sync endpoints 
+- add operational offline sync adapters 
+- add parked orders rail and faster payment quick actions 
+- add party-based payment flows and posting date support 
+- add self-service cashier pin management and supervisor-only dashboard access 
+- add shared posting date control next to customer in pos pay 
+- add stored value summary to customer and payment flows 
+- add transaction ID reference fields and supplier price list support 
+- cache offline prerequisite datasets for delivery and currency flows 
+- complete phase 2 gift cards and offline customer balance support 
+- drafts rail placement and payment speed polish 
+- embed cashier PIN management in settings workspace 
+- enable typed and calendar-based reference date input 
+- expand bootstrap prerequisite collection 
+- expand offline bootstrap prerequisite coverage 
+- gate offline startup with bootstrap validation 
+- improve invoice management repair workflows and supervisor controls 
+- make gift card redemption inline in payments 
+- modernize stored value redemption flow 
+- move gift to sale invoice and show applied gift cards in the payment summary 
+- open invoice management directly on drafts from manage all 
+- persist offline bootstrap snapshot state 
+- persist offline resource sync state 
+- refresh bootstrap snapshot from profile and opening flows 
+- require cashier pin for shared terminal switching 
+- separate offline status actions from cashier menu 
+- show company-wide invoice management data for POS supervisors 
+- surface bootstrap warnings in status UI 
+- sync boot-critical offline resources 
+- trigger boot-critical sync on boot and resume 
+- wire operational resources into offline sync runtime 
+_Total: 43 changes_
+
+### 🐞 Bug Fixes
+- add payment print format toggle to pos profile 
+- add qz printer name copy action 
+- allocate overpayment change entries against the source invoice 
+- allow gift card redemption with prefilled default payments and polish ui / ux 
+- allow partial refunds and show all payment methods on return invoices 
+- apply batch price immediately on auto batch selection 
+- auto-create gift card mode of payment account mapping 
+- autofill full amount when switching payment methods 
+- avoid resubmitting cancelled return drafts in closing overview 
+- close drafts rail css block 
+- correct gift card view store imports for production build 
+- correct return invoice payment amounts and add refund visual indicators 
+- create missing gift card redemption fields for sales and pos invoices 
+- default payment print format from profile and respect customer-group rule 
+- discount percentage column missing path 
+- fingerprint offline runtime entry for cache-safe upgrades 
+- hide out-of-stock batch codes in batch selectors 
+- keep unrepaired change-allocation invoices visible in history 
+- make gift card profile settings opt-in by default 
+- make gift card redemption idempotent for background submit 
+- make quick actions render full-width in single column 
+- make selected payment mode buttons visually clear 
+- move gift cards to liability accounting 
+- pass frappe dict rows to change allocation repair reconciliation 
+- preserve backdated posting dates when submitting invoices 
+- preserve draft item batches when reloading invoices 
+- preserve supervisor metadata for the current cashier session 
+- prevent bootstrap warning banner text clipping 
+- prevent null profile crash on draft print 
+- reconcile paid change entries after submit for overpayments 
+- refresh invoice management on profile change and rename customer balance labels 
+- refresh item selector stock on cart and sale updates 
+- remove any annotations 
+- remove payment settlement status and quick tender shortcuts 
+- remove shell draft rail 
+- respect manual qz disconnect and profile printer default 
+- restore gift card balances on invoice cancel 
+- return drafts rail formatter from pos shell setup 
+- route drafts actions to the new drawer flow 
+- save qz printer default from setup dialog 
+- show both invoice print format doctypes in payments 
+- stabilize POS app startup after rebuilds 
+- style add POS-themed colors to payment mode buttons 
+- sync gift card settlement into invoice submission payments 
+- use shared print loader for draft invoices 
+- useinvoiceoffers changed setdiscountamount() to setadditionaldiscount() 
+- warn and skip cancelled return drafts during shift closing 
+- wire draft print save callback correctly 
+_Total: 48 changes_
+
+### 📝 Docs
+- add embedded PIN settings design spec 
+- add embedded PIN settings implementation plan 
+- add hybrid settings workspace design spec 
+- add hybrid settings workspace implementation plan 
+- add navbar settings panel design spec 
+- add navbar settings panel implementation plan 
+- add offline bootstrap implementation plan 
+- add offline bootstrap snapshot design spec 
+- add prerequisite coverage design spec 
+- add prerequisite coverage implementation plan 
+- add unified offline sync and action surfaces spec 
+- add unified offline sync implementation plan 
+_Total: 12 changes_
+
+### 🧰 Maintenance
+- cleanup doc files 
+- cleanup unnecessary files and docs 
+- remove offline rollout planning docs 
+- convert navbar menu to cashier-first quick actions and settings 
+- move cache repair actions into offline status panel 
+- move drafts to responsive secondary surfaces 
+- polish cashier pin flow and navbar identity actions 
+- remove inline drafts preview from active sale summary 
+- rename stored value labels back to customer credit 
+- simplify payment quick action to a single method button 
+- switch quick actions to a single-column menu layout 
+_Total: 11 changes_
+
+— Changelog auto-generated by semantic-release. Thanks to all contributors! 🙌
+
+# Changelog
+
+All notable changes.
+
 Release 15.26.0 — March 28, 2026
 ### ✨ Features
 - show realtime payment-processing status and defer print until final ledger state 
