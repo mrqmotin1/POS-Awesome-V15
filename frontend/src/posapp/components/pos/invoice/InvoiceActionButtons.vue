@@ -31,12 +31,12 @@
 				block
 				color="warning"
 				theme="dark"
-				prepend-icon="mdi-tray-full"
+				prepend-icon="mdi-file-document"
 				@click="$emit('load-drafts')"
 				class="white-text-btn summary-btn"
 				:loading="loadDraftsLoading"
 			>
-				{{ __("Drafts") }}
+				{{ __("Load Drafts") }}
 			</v-btn>
 		</v-col>
 		<v-col cols="12" sm="6" v-if="pos_profile.custom_allow_select_sales_order == 1">
@@ -96,7 +96,6 @@
 			<v-btn
 				block
 				color="primary"
-				theme="dark"
 				prepend-icon="mdi-printer"
 				@click="$emit('print-draft')"
 				class="summary-btn"
