@@ -304,4 +304,301 @@ describe("usePaymentSubmission", () => {
 			}),
 		);
 	});
+
+	it("includes gift card redemptions in the submit payload", async () => {
+		const invoiceService =
+			(await import("../src/posapp/services/invoiceService")).default;
+		(invoiceService.submitInvoice as any).mockResolvedValue({
+			name: "ACC-SINV-0005",
+			doctype: "Sales Invoice",
+			docstatus: 1,
+		});
+
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-0005",
+			doctype: "Sales Invoice",
+			is_return: 0,
+			items: [],
+			payments: [{ mode_of_payment: "Cash", amount: 390, type: "Cash" }],
+			rounded_total: 690,
+			grand_total: 690,
+		});
+
+		const giftCardRedemptions = ref([
+			{
+				gift_card_code: "GC-0001",
+				amount: 300,
+				cashier: "cashier@example.com",
+			},
+		]);
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 1,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Invoice"),
+			formatFloat: (value) => Number(value || 0),
+			stores: {
+				toastStore: { show: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(false),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			giftCardRedemptions,
+			diff_payment: ref(390),
+		});
+
+		await submitInvoice(false, {
+			onFinishNavigation: vi.fn(),
+			onScheduleBackgroundCheck: vi.fn(),
+		});
+
+		expect(invoiceService.submitInvoice).toHaveBeenCalledWith(
+			expect.objectContaining({
+				gift_card_redemptions: [
+					expect.objectContaining({
+						gift_card_code: "GC-0001",
+						amount: 300,
+					}),
+				],
+			}),
+			expect.objectContaining({
+				payments: [
+					expect.objectContaining({
+						mode_of_payment: "Cash",
+						amount: 390,
+					}),
+				],
+			}),
+			"Invoice",
+			expect.any(Object),
+		);
+	});
+
+	it("blocks offline invoice save when gift card redemption is present", async () => {
+		const offlineModule = await import("../src/offline/index");
+		(offlineModule.isOffline as any).mockReturnValue(true);
+
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-0006",
+			doctype: "Sales Invoice",
+			is_return: 0,
+			items: [{ item_code: "ITEM-1", qty: 1 }],
+			payments: [{ mode_of_payment: "Gift Card", amount: 300, type: "Bank" }],
+			rounded_total: 300,
+			grand_total: 300,
+		});
+
+		const giftCardRedemptions = ref([
+			{
+				gift_card_code: "GC-0002",
+				amount: 300,
+				cashier: "cashier@example.com",
+			},
+		]);
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 0,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Invoice"),
+			formatFloat: (value) => Number(value || 0),
+			stores: {
+				toastStore: { show: vi.fn() },
+				syncStore: { updatePendingCount: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(false),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			giftCardRedemptions,
+			diff_payment: ref(0),
+		});
+
+		await expect(
+			submitInvoice(false, {
+				onFinishNavigation: vi.fn(),
+			}),
+		).rejects.toThrow("Gift card redemption requires an online connection");
+
+		(offlineModule.isOffline as any).mockReturnValue(false);
+	});
+
+	it("submits gift card redemptions without requiring a gift card payment row", async () => {
+		const invoiceService =
+			(await import("../src/posapp/services/invoiceService")).default;
+		(invoiceService.submitInvoice as any).mockResolvedValue({
+			name: "ACC-SINV-0007",
+			doctype: "Sales Invoice",
+			docstatus: 1,
+		});
+
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-0007",
+			doctype: "Sales Invoice",
+			is_return: 0,
+			items: [{ item_code: "ITEM-1", qty: 1 }],
+			payments: [{ mode_of_payment: "Cash", type: "Cash", account: "1110 - Cash", amount: 0 }],
+			rounded_total: 300,
+			grand_total: 300,
+		});
+
+		const giftCardRedemptions = ref([
+			{
+				gift_card_code: "GC-ONLY",
+				amount: 300,
+				cashier: "cashier@example.com",
+			},
+		]);
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 0,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+				posa_allow_partial_payment: 0,
+				payments: [{ mode_of_payment: "Cash", type: "Cash", account: "1110 - Cash", default: 1 }],
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Invoice"),
+			formatFloat: (value) => Number(value || 0),
+			stores: {
+				toastStore: { show: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(false),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			giftCardRedemptions,
+			diff_payment: ref(0),
+		});
+
+		await expect(
+			submitInvoice(false, {
+				onFinishNavigation: vi.fn(),
+			}),
+		).resolves.not.toThrow();
+
+		expect(invoiceService.submitInvoice).toHaveBeenCalledWith(
+			expect.objectContaining({
+				gift_card_redemptions: [
+					expect.objectContaining({
+						gift_card_code: "GC-ONLY",
+						amount: 300,
+					}),
+				],
+			}),
+			expect.objectContaining({
+				payments: [
+					expect.objectContaining({
+						mode_of_payment: "Cash",
+						amount: 0,
+						account: "1110 - Cash",
+					}),
+				],
+			}),
+			"Invoice",
+			expect.any(Object),
+		);
+	});
+
+	it("allows gift card submission when no gift card mode of payment is configured", async () => {
+		const invoiceService =
+			(await import("../src/posapp/services/invoiceService")).default;
+		(invoiceService.submitInvoice as any).mockResolvedValue({
+			name: "ACC-SINV-0008",
+			doctype: "Sales Invoice",
+			docstatus: 1,
+		});
+
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-0008",
+			doctype: "Sales Invoice",
+			is_return: 0,
+			items: [{ item_code: "ITEM-1", qty: 1 }],
+			payments: [{ mode_of_payment: "Cash", amount: 0, type: "Cash" }],
+			rounded_total: 300,
+			grand_total: 300,
+		});
+
+		const giftCardRedemptions = ref([
+			{
+				gift_card_code: "GC-MISSING",
+				amount: 300,
+				cashier: "cashier@example.com",
+			},
+		]);
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 0,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+				posa_allow_partial_payment: 0,
+				payments: [{ mode_of_payment: "Cash", type: "Cash", account: "1110 - Cash", default: 1 }],
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Invoice"),
+			formatFloat: (value) => Number(value || 0),
+			stores: {
+				toastStore: { show: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(false),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			giftCardRedemptions,
+			diff_payment: ref(0),
+		});
+
+		await expect(
+			submitInvoice(false, {
+				onFinishNavigation: vi.fn(),
+			}),
+		).resolves.not.toThrow();
+
+		expect(invoiceService.submitInvoice).toHaveBeenCalledWith(
+			expect.objectContaining({
+				gift_card_redemptions: [
+					expect.objectContaining({
+						gift_card_code: "GC-MISSING",
+						amount: 300,
+					}),
+				],
+			}),
+			expect.objectContaining({
+				payments: [
+					expect.objectContaining({
+						mode_of_payment: "Cash",
+						amount: 0,
+					}),
+				],
+			}),
+			"Invoice",
+			expect.any(Object),
+		);
+	});
 });

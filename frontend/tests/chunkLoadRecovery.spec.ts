@@ -30,6 +30,11 @@ describe("chunk load recovery helpers", () => {
 		expect(
 			isDynamicImportFailure("ChunkLoadError: Loading chunk 12 failed."),
 		).toBe(true);
+		expect(
+			isDynamicImportFailure(
+				"SyntaxError: The requested module './offline/index.js' does not provide an export named 'ag'",
+			),
+		).toBe(true);
 	});
 
 	it("ignores non-chunk errors", () => {

@@ -6,6 +6,10 @@ import { useUIStore } from "../../../stores/uiStore";
 import { useStockUtils } from "../shared/useStockUtils";
 import { useItemAddition } from "../items/useItemAddition";
 import { parseBooleanSetting } from "../../../utils/stock";
+import {
+	getCachedDeliveryCharges,
+	saveDeliveryChargesCache,
+} from "../../../../offline/index";
 import format from "../../../format";
 import { bus } from "../../../bus";
 
@@ -62,7 +66,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		},
 		{
 			title: __("Discount %"),
-			key: "discount_value",
+			key: "discount_percentage",
 			align: "end",
 			required: false,
 		},
@@ -100,7 +104,11 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		try {
 			const saved = localStorage.getItem("posawesome_selected_columns");
 			if (saved) {
-				selected_columns.value = JSON.parse(saved);
+				const parsed: string[] = JSON.parse(saved);
+				// Migrate old "discount_value" key (renamed to "discount_percentage")
+				selected_columns.value = parsed.map((key) =>
+					key === "discount_value" ? "discount_percentage" : key,
+				);
 			} else if (pos_profile.value) {
 				// Default selection based on POS Profile
 				selected_columns.value = available_columns.value
@@ -108,7 +116,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 						if (col.required) return true;
 						if (col.key === "price_list_rate") return true;
 						if (
-							col.key === "discount_value" &&
+							col.key === "discount_percentage" &&
 							pos_profile.value?.posa_display_discount_percentage
 						)
 							return true;
@@ -366,9 +374,21 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			});
 			if (r.message) {
 				delivery_charges.value = r.message;
+				saveDeliveryChargesCache(
+					pos_profile.value.name,
+					customer,
+					r.message,
+				);
 			}
 		} catch (error) {
 			console.error("Failed to fetch delivery charges", error);
+			const cachedCharges = getCachedDeliveryCharges(
+				pos_profile.value.name,
+				customer,
+			);
+			delivery_charges.value = Array.isArray(cachedCharges)
+				? cachedCharges
+				: [];
 		}
 	};
 

@@ -179,7 +179,7 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
         self.created_entries.clear()
         self.reconcile_calls.clear()
 
-    def test_paid_change_entry_is_created_without_invoice_allocation(self):
+    def test_paid_change_entry_is_allocated_back_to_invoice_when_no_receive_entry_exists(self):
         invoice_doc = FakeInvoiceDoc(
             docstatus=1,
             doctype="Sales Invoice",
@@ -212,6 +212,18 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
         self.assertEqual(entry.paid_amount, 4)
         self.assertEqual(entry.received_amount, 4)
         self.assertEqual(entry.references, [])
+        self.assertEqual(len(self.reconcile_calls), 1)
+        reconcile_args = self.reconcile_calls[0]["args"]
+        self.assertEqual(len(reconcile_args), 1)
+        self.assertEqual(reconcile_args[0]["voucher_type"], "Payment Entry")
+        self.assertEqual(reconcile_args[0]["voucher_no"], entry.name)
+        self.assertEqual(reconcile_args[0]["against_voucher_type"], "Sales Invoice")
+        self.assertEqual(reconcile_args[0]["against_voucher"], "SINV-0001")
+        self.assertEqual(reconcile_args[0]["allocated_amount"], 4)
+        self.assertEqual(reconcile_args[0]["account"], "Cash")
+        self.assertEqual(reconcile_args[0]["party_type"], "Customer")
+        self.assertEqual(reconcile_args[0]["party"], "CUST-0001")
+        self.assertEqual(reconcile_args[0]["dr_or_cr"], "credit_in_account_currency")
 
     def test_paid_change_entry_reconciles_against_source_receive_payment_entry(self):
         invoice_doc = FakeInvoiceDoc(

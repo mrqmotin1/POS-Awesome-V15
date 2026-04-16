@@ -330,8 +330,8 @@ const invoiceItemMethods: Record<string, unknown> &
 	open_returns() {
 		return Dialogs.open_returns(this);
 	},
-	open_invoice_management() {
-		return Dialogs.open_invoice_management(this);
+	open_invoice_management(targetTab = "history") {
+		return Dialogs.open_invoice_management(this, targetTab);
 	},
 	close_payments() {
 		return Dialogs.close_payments(this);

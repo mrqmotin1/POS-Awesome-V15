@@ -9,15 +9,79 @@ import {
 	clearOpeningStorage,
 	setTaxTemplate,
 	isOffline,
+	getBootstrapSnapshot,
+	setBootstrapSnapshot,
 } from "../../../../offline/index";
 import { getValidCachedOpeningForCurrentUser } from "../../../utils/openingCache";
+import { createBootstrapSnapshotFromRegisterData } from "../../../../offline/bootstrapSnapshot";
 
+declare const __BUILD_VERSION__: string;
 declare const frappe: any;
+
+type SkippedPrintedInvoice = {
+	invoice?: string;
+	doctype?: string;
+	return_against?: string;
+};
+
+type ClosingShiftPreparationResponse = {
+	closing_shift?: any;
+	skipped_printed_invoices?: SkippedPrintedInvoice[];
+};
+
+const translateMessage = (value: string) => (typeof window !== "undefined" && window.__
+	? window.__(value)
+	: value);
+
+export function buildSkippedClosingInvoicesPrompt(
+	skippedInvoices: SkippedPrintedInvoice[],
+) {
+	const count = skippedInvoices.length;
+	const baseMessage = count === 1
+		? "1 printed return invoice references a cancelled invoice and will be excluded from closing."
+		: `${count} printed return invoices reference cancelled invoices and will be excluded from closing.`;
+	const details = skippedInvoices
+		.slice(0, 5)
+		.map((invoice) => {
+			const invoiceName = invoice?.invoice || translateMessage("Unknown invoice");
+			const returnAgainst = invoice?.return_against;
+			return returnAgainst
+				? `${invoiceName} (${translateMessage("Return Against")}: ${returnAgainst})`
+				: invoiceName;
+		})
+		.join(", ");
+	const detailMessage = details
+		? `${translateMessage("Invoices")}: ${details}.`
+		: "";
+	return [
+		translateMessage(baseMessage),
+		detailMessage,
+		translateMessage("The skipped invoice will remain a draft."),
+		translateMessage("Do you want to proceed?"),
+	]
+		.filter(Boolean)
+		.join(" ");
+}
+
+function normalizeClosingShiftPreparationResponse(
+	payload: any,
+): ClosingShiftPreparationResponse {
+	if (payload?.closing_shift || payload?.skipped_printed_invoices) {
+		return payload;
+	}
+
+	return {
+		closing_shift: payload,
+		skipped_printed_invoices: [],
+	};
+}
 
 export function usePosShift(openDialog?: () => void) {
 	const instance = getCurrentInstance();
 	const proxy: any = instance?.proxy;
 	const eventBus: any = proxy?.eventBus || inject("eventBus");
+	const buildVersion =
+		typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : null;
 	const toastStore = useToastStore();
 	const uiStore = useUIStore();
 
@@ -31,6 +95,13 @@ export function usePosShift(openDialog?: () => void) {
 		pos_profile.value = data.pos_profile;
 		pos_opening_shift.value = data.pos_opening_shift;
 		uiStore.setRegisterData(data);
+		setBootstrapSnapshot(
+			createBootstrapSnapshotFromRegisterData(
+				data,
+				getBootstrapSnapshot(),
+				{ buildVersion },
+			),
+		);
 
 		try {
 			frappe.realtime.emit("pos_profile_registered");
@@ -121,7 +192,25 @@ export function usePosShift(openDialog?: () => void) {
 			)
 			.then((r: any) => {
 				if (r.message) {
-					eventBus?.emit("open_ClosingDialog", r.message);
+					const response = normalizeClosingShiftPreparationResponse(r.message);
+					const closingShift = response.closing_shift;
+					const skippedPrintedInvoices = Array.isArray(response.skipped_printed_invoices)
+						? response.skipped_printed_invoices
+						: [];
+					if (!closingShift) {
+						return;
+					}
+
+					if (skippedPrintedInvoices.length) {
+						const confirmed = window.confirm(
+							buildSkippedClosingInvoicesPrompt(skippedPrintedInvoices),
+						);
+						if (!confirmed) {
+							return;
+						}
+					}
+
+					eventBus?.emit("open_ClosingDialog", closingShift);
 				}
 			});
 	}

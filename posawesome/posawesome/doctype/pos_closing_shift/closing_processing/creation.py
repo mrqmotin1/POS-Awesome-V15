@@ -19,7 +19,7 @@ def make_closing_shift_from_opening(opening_shift):
         "create_pos_invoice_instead_of_sales_invoice",
     )
     doctype = "POS Invoice" if use_pos_invoice else "Sales Invoice"
-    submit_printed_invoices(opening_shift.get("name"), doctype)
+    skipped_printed_invoices = submit_printed_invoices(opening_shift.get("name"), doctype)
     closing_shift = frappe.new_doc("POS Closing Shift")
     closing_shift.pos_opening_shift = opening_shift.get("name")
     closing_shift.period_start_date = opening_shift.get("period_start_date")
@@ -38,7 +38,7 @@ def make_closing_shift_from_opening(opening_shift):
         "posa_cash_mode_of_payment",
     ) or "Cash"
 
-    invoices = get_pos_invoices(opening_shift.get("name"), doctype)
+    invoices = get_pos_invoices(opening_shift.get("name"), doctype, submit_printed=0)
 
     pos_transactions = []
     taxes = []
@@ -176,7 +176,10 @@ def make_closing_shift_from_opening(opening_shift):
     closing_shift.set("taxes", taxes)
     closing_shift.set("pos_payments", pos_payments_table)
 
-    return closing_shift
+    return {
+        "closing_shift": closing_shift,
+        "skipped_printed_invoices": skipped_printed_invoices,
+    }
 
 
 @frappe.whitelist()

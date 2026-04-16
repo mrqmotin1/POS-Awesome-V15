@@ -21,7 +21,9 @@ export function isDynamicImportFailure(error: unknown): boolean {
 		message.includes("failed to fetch dynamically imported module") ||
 		message.includes("loading chunk") ||
 		message.includes("chunkloaderror") ||
-		message.includes("importing a module script failed")
+		message.includes("importing a module script failed") ||
+		(message.includes("requested module") &&
+			message.includes("does not provide an export named"))
 	);
 }
 

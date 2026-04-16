@@ -38,7 +38,7 @@ export function useItemsTableResponsive(
 			qty: { min: 140, max: 160, ratio: 0.12 },
 			rate: { min: 100, max: 130, ratio: 0.12 },
 			amount: { min: 100, max: 130, ratio: 0.12 },
-			discount_value: { min: 90, max: 120, ratio: 0.1 },
+			discount_percentage: { min: 90, max: 120, ratio: 0.1 },
 			discount_amount: { min: 90, max: 120, ratio: 0.11 },
 			price_list_rate: { min: 120, max: 140, ratio: 0.13 },
 			actions: { min: 80, max: 100, ratio: 0.08 },
@@ -60,7 +60,7 @@ export function useItemsTableResponsive(
 			qty: 140,
 			rate: 100,
 			amount: 100,
-			discount_value: 90,
+			discount_percentage: 90,
 			discount_amount: 90,
 			price_list_rate: 120,
 			actions: 80,
@@ -91,7 +91,7 @@ export function useItemsTableResponsive(
 					);
 				} else if (width < 650) {
 					return ![
-						"discount_value",
+						"discount_percentage",
 						"discount_amount",
 						"price_list_rate",
 						"uom",

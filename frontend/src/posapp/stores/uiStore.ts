@@ -17,8 +17,10 @@ export const useUIStore = defineStore("ui", () => {
   const paymentDialogOpen = ref(false);
 
   const invoiceManagementDialog = ref(false);
+  const invoiceManagementTargetTab = ref<string>("history");
   const draftsDialog = ref(false);
   const draftsData = ref<any[]>([]);
+  const parkedOrders = ref<any[]>([]);
 
   const ordersDialog = ref(false);
   const ordersData = ref<any[]>([]);
@@ -35,12 +37,14 @@ export const useUIStore = defineStore("ui", () => {
     paymentDialogOpen.value = false;
   };
 
-  const openInvoiceManagement = () => {
+  const openInvoiceManagement = (targetTab: string = "history") => {
+    invoiceManagementTargetTab.value = targetTab || "history";
     invoiceManagementDialog.value = true;
   };
 
   const closeInvoiceManagement = () => {
     invoiceManagementDialog.value = false;
+    invoiceManagementTargetTab.value = "history";
   };
 
   const paymentRouteTarget = ref<any | null>(null);
@@ -54,13 +58,26 @@ export const useUIStore = defineStore("ui", () => {
   };
 
   const openDrafts = (data?: any[]) => {
-    draftsData.value = data || [];
+    const nextDrafts = Array.isArray(data) ? data : [];
+    draftsData.value = nextDrafts;
+    parkedOrders.value = nextDrafts;
     draftsDialog.value = true;
   };
 
   const closeDrafts = () => {
     draftsDialog.value = false;
   };
+
+  const setDraftsData = (data?: any[]) => {
+    draftsData.value = Array.isArray(data) ? data : [];
+  };
+
+  const setParkedOrders = (data?: any[]) => {
+    parkedOrders.value = Array.isArray(data) ? data : [];
+  };
+
+  const parkedOrdersCount = computed(() => parkedOrders.value.length);
+  const hasParkedOrders = computed(() => parkedOrdersCount.value > 0);
 
   const openOrders = (data?: any[]) => {
     ordersData.value = data || [];
@@ -226,6 +243,7 @@ export const useUIStore = defineStore("ui", () => {
     activeView,
     paymentDialogOpen,
     invoiceManagementDialog,
+    invoiceManagementTargetTab,
     paymentRouteTarget,
     setActiveView,
     openPaymentDialog,
@@ -236,8 +254,13 @@ export const useUIStore = defineStore("ui", () => {
     clearPaymentRouteTarget,
     draftsDialog,
     draftsData,
+    parkedOrders,
+    parkedOrdersCount,
+    hasParkedOrders,
     openDrafts,
     closeDrafts,
+    setDraftsData,
+    setParkedOrders,
     ordersDialog,
     ordersData,
     openOrders,

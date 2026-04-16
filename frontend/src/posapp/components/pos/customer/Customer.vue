@@ -106,7 +106,6 @@
 				rounded
 			/>
 		</div>
-
 		<!-- Update customer modal -->
 		<div class="mt-4">
 			<UpdateCustomer />
@@ -268,6 +267,14 @@ export default {
 				? `${__("Loading customers...")} ${customerLoadPercent.value}%`
 				: __("Customers not found"),
 		);
+
+		const formatCustomerMetric = (value) => {
+			const numericValue = Number(value || 0);
+			return new Intl.NumberFormat(undefined, {
+				minimumFractionDigits: 0,
+				maximumFractionDigits: 2,
+			}).format(numericValue);
+		};
 
 		const searchDebounce = _.debounce((term) => {
 			customersStore.queueSearch(term || "");
@@ -540,6 +547,8 @@ export default {
 			focusCustomerSearch,
 			reload_customers,
 			networkOnline,
+			customerInfo,
+			formatCustomerMetric,
 		};
 	},
 };

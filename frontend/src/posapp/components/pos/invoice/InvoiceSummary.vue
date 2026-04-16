@@ -111,13 +111,63 @@
 			</v-col>
 		</v-row>
 	</v-card>
+
+	<v-navigation-drawer
+		v-if="showDesktopDrafts && allDrafts.length"
+		v-model="desktopDraftsDrawer"
+		location="right"
+		temporary
+		width="360"
+		class="drafts-drawer"
+	>
+		<div class="drafts-drawer__body">
+			<ParkedOrdersList
+				:parked-orders="allDrafts"
+				:format-currency="formatCurrency"
+				:currency-symbol="currencySymbol"
+				:show-manage-all="true"
+				@resume="handleResumeDraft"
+				@manage-all="handleManageAllDrafts"
+			/>
+		</div>
+	</v-navigation-drawer>
+
+	<v-dialog
+		v-else-if="allDrafts.length"
+		v-model="mobileDraftsDialog"
+		max-width="680"
+		scrollable
+		data-test="mobile-drafts-dialog"
+	>
+		<v-card class="pos-themed-card">
+			<v-card-title class="d-flex align-center justify-space-between">
+				<span>{{ __("Drafts") }}</span>
+				<v-btn variant="text" size="small" @click="mobileDraftsDialog = false">
+					{{ __("Close") }}
+				</v-btn>
+			</v-card-title>
+			<v-card-text class="pt-0">
+				<ParkedOrdersList
+					:parked-orders="allDrafts"
+					:format-currency="formatCurrency"
+					:currency-symbol="currencySymbol"
+					:show-manage-all="true"
+					@resume="handleResumeDraft"
+					@manage-all="handleManageAllDrafts"
+				/>
+			</v-card-text>
+		</v-card>
+	</v-dialog>
 </template>
 
 <script setup>
 import { computed, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { loadItemSelectorSettings } from "../../../utils/itemSelectorSettings";
 import { useResponsive } from "../../../composables/core/useResponsive";
+import { useUIStore } from "../../../stores/uiStore";
 import InvoiceActionButtons from "./InvoiceActionButtons.vue";
+import ParkedOrdersList from "./ParkedOrdersList.vue";
 
 defineOptions({
 	name: "InvoiceSummary",
@@ -152,6 +202,7 @@ const emit = defineEmits([
 	"print-draft",
 	"show-payment",
 	"open-customer-display",
+	"resume-parked-order",
 ]);
 
 const saveLoading = ref(false);
@@ -166,19 +217,25 @@ const customerDisplayLoading = ref(false);
 const isEditingAdditionalDiscount = ref(false);
 const isEditingAdditionalDiscountPercentage = ref(false);
 const additionalDiscountField = ref(null);
+const desktopDraftsDrawer = ref(false);
+const mobileDraftsDialog = ref(false);
 const responsive = useResponsive();
+const uiStore = useUIStore();
+const { parkedOrders } = storeToRefs(uiStore);
 
 const additionalDiscountDisplay = ref(normalizeDiscountDisplay(props.additional_discount));
 const additionalDiscountPercentageDisplay = ref(
 	normalizeDiscountDisplay(props.additional_discount_percentage),
 );
 const useCompactSaleDock = computed(() => responsive.windowWidth.value < 1100);
+const showDesktopDrafts = computed(() => Boolean(responsive.isDesktop.value));
 const showReturnDiscountAlert = computed(
 	() =>
 		!!props.return_discount_meta &&
 		!props.pos_profile?.posa_use_percentage_discount &&
 		!isFullReturnDiscount(props.return_discount_meta?.ratio),
 );
+const allDrafts = computed(() => (Array.isArray(parkedOrders.value) ? parkedOrders.value : []));
 
 const hide_qty_decimals = computed(() => {
 	const opts = loadItemSelectorSettings();
@@ -261,12 +318,30 @@ async function handleSaveAndClear() {
 }
 
 async function handleLoadDrafts() {
+	if (allDrafts.value.length) {
+		openDraftsSurface();
+		return;
+	}
+
 	loadDraftsLoading.value = true;
 	try {
 		await emit("load-drafts");
 	} finally {
 		loadDraftsLoading.value = false;
 	}
+}
+
+function openDraftsSurface() {
+	if (!allDrafts.value.length) {
+		return;
+	}
+
+	if (showDesktopDrafts.value) {
+		desktopDraftsDrawer.value = true;
+		return;
+	}
+
+	mobileDraftsDialog.value = true;
 }
 
 async function handleSelectOrder() {
@@ -294,6 +369,12 @@ async function handleOpenInvoiceManagement() {
 	} finally {
 		invoiceManagementLoading.value = false;
 	}
+}
+
+function handleManageAllDrafts() {
+	desktopDraftsDrawer.value = false;
+	mobileDraftsDialog.value = false;
+	emit("open-invoice-management", "drafts");
 }
 
 async function handleOpenReturns() {
@@ -332,12 +413,29 @@ async function handleOpenCustomerDisplay() {
 	}
 }
 
+function handleResumeDraft(draft) {
+	desktopDraftsDrawer.value = false;
+	mobileDraftsDialog.value = false;
+	emit("resume-parked-order", draft);
+}
+
 defineExpose({
 	focusAdditionalDiscountField,
+	handleManageAllDrafts,
+	openDraftsSurface,
 });
 </script>
 
 <style scoped>
+.drafts-drawer :deep(.v-navigation-drawer__content) {
+	padding: 12px;
+	background: var(--pos-surface-muted);
+}
+
+.drafts-drawer__body {
+	padding: 4px;
+}
+
 .cards {
 	background-color: var(--pos-card-bg) !important;
 	transition: all 0.3s ease;

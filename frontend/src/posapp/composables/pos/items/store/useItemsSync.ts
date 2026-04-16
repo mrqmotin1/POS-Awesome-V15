@@ -8,6 +8,9 @@ import {
 	setItemsLastSync,
 	getItemsLastSync,
 	saveItemDetailsCache,
+	saveItemGroups,
+	getCachedItemGroups,
+	refreshBootstrapSnapshotFromCacheState,
 } from "../../../../../offline/index";
 
 export interface BackgroundSyncState {
@@ -41,6 +44,7 @@ export function useItemsSync() {
 					}
 				});
 				itemGroups.value = groups;
+				saveItemGroups(groups);
 			} else {
 				// Fallback to API
 				const response = await itemService.getItemGroups();
@@ -51,10 +55,16 @@ export function useItemsSync() {
 						groups.push(element.name);
 					});
 					itemGroups.value = groups;
+					saveItemGroups(groups);
 				}
 			}
 		} catch (error) {
 			console.error("Failed to load item groups:", error);
+			const cachedGroups = getCachedItemGroups();
+			if (Array.isArray(cachedGroups) && cachedGroups.length > 0) {
+				itemGroups.value = cachedGroups as string[];
+				saveItemGroups(cachedGroups as string[]);
+			}
 		}
 	};
 
@@ -344,6 +354,9 @@ export function useItemsSync() {
 				itemsLoaded.value = true;
 				await updateCachedPaginationFromStorage();
 				setItemsLastSync(new Date().toISOString());
+				refreshBootstrapSnapshotFromCacheState({
+					itemsCount: loaded,
+				});
 			}
 
 			return appended;

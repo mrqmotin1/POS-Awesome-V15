@@ -30,6 +30,14 @@ export const KEY_TABLE_MAP: Record<string, string> = {
 	offline_cash_movements: "queue",
 	item_details_cache: "cache",
 	customer_storage: "cache",
+	stored_value_snapshot_cache: "cache",
+	gift_card_snapshot_cache: "cache",
+	delivery_charges_cache: "cache",
+	currency_options_cache: "cache",
+	exchange_rate_cache: "cache",
+	price_list_meta_cache: "cache",
+	customer_addresses_cache: "cache",
+	payment_method_currency_cache: "cache",
 	local_stock_cache: "local_stock",
 	coupons_cache: "coupons",
 	item_groups_cache: "item_groups",
@@ -42,6 +50,9 @@ export const KEY_TABLE_MAP: Record<string, string> = {
 	cache_ready: "settings",
 	stock_cache_ready: "settings",
 	manual_offline: "settings",
+	bootstrap_snapshot: "settings",
+	bootstrap_snapshot_status: "settings",
+	bootstrap_limited_mode: "settings",
 	schema_signature: "settings",
 	items_last_sync: "sync_state",
 	customers_last_sync: "sync_state",
@@ -106,6 +117,14 @@ export const memory: AnyRecord = {
 	uom_cache: {},
 	offers_cache: [],
 	customer_balance_cache: {},
+	stored_value_snapshot_cache: {},
+	gift_card_snapshot_cache: {},
+	delivery_charges_cache: {},
+	currency_options_cache: {},
+	exchange_rate_cache: {},
+	price_list_meta_cache: {},
+	customer_addresses_cache: {},
+	payment_method_currency_cache: {},
 	local_stock_cache: {},
 	stock_cache_ready: false,
 	customer_storage: [],
@@ -128,6 +147,9 @@ export const memory: AnyRecord = {
 	print_template: "",
 	terms_and_conditions: "",
 	cache_ready: false,
+	bootstrap_snapshot: null,
+	bootstrap_snapshot_status: null,
+	bootstrap_limited_mode: false,
 };
 
 export const initPromise = new Promise<void>((resolve) => {
@@ -298,6 +320,9 @@ export async function clearAllCache() {
 	memory.manual_offline = false;
 	memory.item_groups_cache = [];
 	memory.coupons_cache = {};
+	memory.bootstrap_snapshot = null;
+	memory.bootstrap_snapshot_status = null;
+	memory.bootstrap_limited_mode = false;
 }
 
 export async function forceClearAllCache() {
@@ -311,6 +336,9 @@ export async function forceClearAllCache() {
 	memory.print_template = "";
 	memory.terms_and_conditions = "";
 	memory.cache_ready = false;
+	memory.bootstrap_snapshot = null;
+	memory.bootstrap_snapshot_status = null;
+	memory.bootstrap_limited_mode = false;
 }
 
 export async function checkDbHealth() {

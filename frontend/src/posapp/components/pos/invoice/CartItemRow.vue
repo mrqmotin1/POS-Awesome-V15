@@ -195,7 +195,7 @@
 		</td>
 
 		<!-- Discount % (Optional) -->
-		<td v-if="showDiscountPercent" class="text-center" :data-column-key="'discount_value'">
+		<td v-if="showDiscountPercent" class="text-center" :data-column-key="'discount_percentage'">
 			<div class="posa-cart-table__editor-box">
 				<div
 					v-if="!isEditingDiscountPercent"

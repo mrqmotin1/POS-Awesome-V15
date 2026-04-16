@@ -99,6 +99,29 @@ export function getCustomerStorage() {
 	return memory.customer_storage || [];
 }
 
+function mergeCustomerStorageRows(rows: AnyRecord[]) {
+	const merged = new Map<string, AnyRecord>();
+	const existingRows = Array.isArray(memory.customer_storage)
+		? memory.customer_storage
+		: [];
+
+	existingRows.forEach((row) => {
+		if (!row?.name) {
+			return;
+		}
+		merged.set(row.name, row);
+	});
+
+	rows.forEach((row) => {
+		if (!row?.name) {
+			return;
+		}
+		merged.set(row.name, row);
+	});
+
+	return Array.from(merged.values());
+}
+
 export async function getStoredCustomer(customerName: string) {
 	try {
 		const customers = getCustomerStorage();
@@ -118,13 +141,145 @@ export async function setCustomerStorage(customers: AnyRecord[]) {
 			email_id: c.email_id,
 			primary_address: c.primary_address,
 			tax_id: c.tax_id,
+			stored_value_balance: c.stored_value_balance || 0,
+			stored_value_sources: c.stored_value_sources || 0,
 		}));
 
 		await db.table("customers").bulkPut(clean);
-		memory.customer_storage = clean;
+		memory.customer_storage = mergeCustomerStorageRows(clean);
 		persist("customer_storage");
 	} catch (e) {
 		console.error("Failed to save customers to storage", e);
+	}
+}
+
+export async function deleteCustomerStorageByNames(names: string[]) {
+	try {
+		const normalizedNames = Array.from(
+			new Set(
+				(Array.isArray(names) ? names : [])
+					.map((name) => String(name || "").trim())
+					.filter(Boolean),
+			),
+		);
+		if (!normalizedNames.length) {
+			return;
+		}
+		await db.table("customers").bulkDelete(normalizedNames);
+		const existingRows = Array.isArray(memory.customer_storage)
+			? memory.customer_storage
+			: [];
+		memory.customer_storage = existingRows.filter(
+			(row) => !normalizedNames.includes(String(row?.name || "").trim()),
+		);
+		persist("customer_storage");
+	} catch (e) {
+		console.error("Failed to delete customers from storage", e);
+	}
+}
+
+function getStoredValueSnapshotKey(customer: string, company: string) {
+	return `${String(company || "").trim()}::${String(customer || "").trim()}`;
+}
+
+export function saveStoredValueSnapshot(
+	customer: string,
+	company: string,
+	sources: AnyRecord[],
+) {
+	try {
+		const key = getStoredValueSnapshotKey(customer, company);
+		if (!key.trim() || !Array.isArray(sources)) {
+			return;
+		}
+		const cleanSources = JSON.parse(JSON.stringify(sources));
+		const availableAmount = cleanSources.reduce(
+			(sum: number, row: AnyRecord) => sum + Number(row?.total_credit || 0),
+			0,
+		);
+		const cache = memory.stored_value_snapshot_cache || {};
+		cache[key] = {
+			customer,
+			company,
+			sources: cleanSources,
+			available_amount: availableAmount,
+			source_count: cleanSources.length,
+			timestamp: Date.now(),
+		};
+		memory.stored_value_snapshot_cache = cache;
+		persist("stored_value_snapshot_cache");
+	} catch (e) {
+		console.error("Failed to cache stored value snapshot", e);
+	}
+}
+
+export function getCachedStoredValueSnapshot(customer: string, company: string) {
+	try {
+		const key = getStoredValueSnapshotKey(customer, company);
+		const cache = memory.stored_value_snapshot_cache || {};
+		const cachedData = cache[key];
+		if (cachedData) {
+			const isValid =
+				Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000;
+			return isValid ? cachedData : null;
+		}
+		return null;
+	} catch (e) {
+		console.error("Failed to get cached stored value snapshot", e);
+		return null;
+	}
+}
+
+export function clearStoredValueSnapshotCache() {
+	try {
+		memory.stored_value_snapshot_cache = {};
+		persist("stored_value_snapshot_cache");
+	} catch (e) {
+		console.error("Failed to clear stored value snapshot cache", e);
+	}
+}
+
+export function saveGiftCardSnapshot(giftCardCode: string, snapshot: AnyRecord) {
+	try {
+		const code = String(giftCardCode || "").trim().toUpperCase();
+		if (!code) {
+			return;
+		}
+		const cache = memory.gift_card_snapshot_cache || {};
+		cache[code] = {
+			...JSON.parse(JSON.stringify(snapshot || {})),
+			timestamp: Date.now(),
+		};
+		memory.gift_card_snapshot_cache = cache;
+		persist("gift_card_snapshot_cache");
+	} catch (e) {
+		console.error("Failed to cache gift card snapshot", e);
+	}
+}
+
+export function getCachedGiftCardSnapshot(giftCardCode: string) {
+	try {
+		const code = String(giftCardCode || "").trim().toUpperCase();
+		const cache = memory.gift_card_snapshot_cache || {};
+		const cachedData = cache[code];
+		if (cachedData) {
+			const isValid =
+				Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000;
+			return isValid ? cachedData : null;
+		}
+		return null;
+	} catch (e) {
+		console.error("Failed to get cached gift card snapshot", e);
+		return null;
+	}
+}
+
+export function clearGiftCardSnapshotCache() {
+	try {
+		memory.gift_card_snapshot_cache = {};
+		persist("gift_card_snapshot_cache");
+	} catch (e) {
+		console.error("Failed to clear gift card snapshot cache", e);
 	}
 }
 

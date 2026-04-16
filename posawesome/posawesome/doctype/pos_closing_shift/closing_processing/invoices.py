@@ -99,7 +99,21 @@ def delete_draft_invoices(pos_opening_shift, pos_profile):
         for invoice in data:
             frappe.delete_doc(doctype, invoice.name, force=1)
 
+def _get_cancelled_return_against(invoice_doc, doctype):
+    if not invoice_doc.get("is_return"):
+        return None
+
+    return_against = invoice_doc.get("return_against")
+    if not return_against:
+        return None
+
+    if frappe.db.get_value(doctype, return_against, "docstatus") == 2:
+        return return_against
+
+    return None
+
 def submit_printed_invoices(pos_opening_shift, doctype):
+    skipped_invoices = []
     invoices_list = frappe.get_all(
         doctype,
         filters={
@@ -110,7 +124,26 @@ def submit_printed_invoices(pos_opening_shift, doctype):
     )
     for invoice in invoices_list:
         invoice_doc = frappe.get_doc(doctype, invoice.name)
+        cancelled_return_against = _get_cancelled_return_against(invoice_doc, doctype)
+        if cancelled_return_against:
+            skipped_invoices.append(
+                frappe._dict(
+                    {
+                        "invoice": invoice_doc.name,
+                        "doctype": doctype,
+                        "return_against": cancelled_return_against,
+                    }
+                )
+            )
+            frappe.log_error(
+                title="POS Closing Shift Skipped Invalid Return Draft",
+                message=_(
+                    "Skipped printed draft invoice {0} during close shift because Return Against {1} is cancelled."
+                ).format(invoice_doc.name, cancelled_return_against),
+            )
+            continue
         invoice_doc.submit()
+    return skipped_invoices
 
 def consolidate_closing_shift_invoices(closing_shift_doc):
     if frappe.db.get_value(

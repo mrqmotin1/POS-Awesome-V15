@@ -1,3 +1,20 @@
+export const getDisplayableBatchOptions = (batchList: any): any[] => {
+	if (!Array.isArray(batchList)) {
+		return [];
+	}
+
+	return batchList.filter((batch) => {
+		if (!batch?.batch_no) {
+			return false;
+		}
+
+		const rawAvailableQty =
+			batch.available_qty ?? batch.batch_qty ?? batch.original_batch_qty;
+		const availableQty = Number(rawAvailableQty);
+		return Number.isFinite(availableQty) && availableQty > 0;
+	});
+};
+
 export function useBatchSerial() {
 	const normalizeSerialSelection = (item: any) => {
 		if (!Array.isArray(item.serial_no_selected)) {
@@ -255,12 +272,11 @@ export function useBatchSerial() {
 				update,
 			});
 
-			const hasPriceListRate =
-				item.price_list_rate !== undefined &&
-				item.price_list_rate !== null &&
-				Number(item.price_list_rate) !== 0;
-			const shouldApplyBatchPrice =
-				batch_to_use.batch_price && (update || !hasPriceListRate);
+			const hasBatchPrice =
+				batch_to_use.batch_price !== undefined &&
+				batch_to_use.batch_price !== null &&
+				batch_to_use.batch_price !== "";
+			const shouldApplyBatchPrice = hasBatchPrice;
 
 			if (shouldApplyBatchPrice) {
 				// Store batch price in base currency
@@ -350,5 +366,6 @@ export function useBatchSerial() {
 		setSerialNo,
 		setBatchQty,
 		getBatchAvailability,
+		getDisplayableBatchOptions,
 	};
 }

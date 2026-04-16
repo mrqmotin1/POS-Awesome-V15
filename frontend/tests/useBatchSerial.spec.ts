@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { useBatchSerial } from "../src/posapp/composables/pos/shared/useBatchSerial";
+import {
+	getDisplayableBatchOptions,
+	useBatchSerial,
+} from "../src/posapp/composables/pos/shared/useBatchSerial";
 
 describe("useBatchSerial.setSerialNo", () => {
 	it("does not force qty to zero when no serial is selected", () => {
@@ -64,6 +67,21 @@ describe("useBatchSerial.setSerialNo", () => {
 });
 
 describe("useBatchSerial.setBatchQty", () => {
+	it("returns only batches with stock greater than zero for display", () => {
+		expect(
+			getDisplayableBatchOptions([
+				{ batch_no: "B-AVAILABLE", available_qty: 3 },
+				{ batch_no: "B-ZERO", available_qty: 0 },
+				{ batch_no: "B-NEGATIVE", available_qty: -2 },
+				{ batch_no: "B-FALLBACK", batch_qty: 4 },
+				{ batch_no: "B-FALLBACK-ZERO", batch_qty: 0 },
+			]),
+		).toEqual([
+			{ batch_no: "B-AVAILABLE", available_qty: 3 },
+			{ batch_no: "B-FALLBACK", batch_qty: 4 },
+		]);
+	});
+
 	it("ignores expired batches and picks next non-expired batch", () => {
 		const { setBatchQty } = useBatchSerial();
 		const context: any = {
@@ -101,5 +119,50 @@ describe("useBatchSerial.setBatchQty", () => {
 		expect(item.batch_no_data.map((b: any) => b.batch_no)).toEqual([
 			"B-VALID",
 		]);
+	});
+
+	it("applies batch price immediately during auto batch selection", () => {
+		const { setBatchQty } = useBatchSerial();
+		const context: any = {
+			items: [],
+			pos_profile: { currency: "USD" },
+			price_list_currency: "USD",
+			selected_currency: "USD",
+			exchange_rate: 1,
+			currency_precision: 2,
+			flt: (value: any) => Number(value),
+			forceUpdate: vi.fn(),
+		};
+
+		const item: any = {
+			item_code: "ITEM-BATCH-PRICE",
+			qty: 2,
+			has_batch_no: 1,
+			has_serial_no: 0,
+			rate: 15,
+			price_list_rate: 15,
+			base_rate: 15,
+			base_price_list_rate: 15,
+			batch_no_data: [
+				{
+					batch_no: "B-FEFO",
+					batch_qty: 8,
+					batch_price: 12,
+					is_expired: false,
+				},
+			],
+		};
+
+		setBatchQty(item, null, false, context);
+
+		expect(item.batch_no).toBe("B-FEFO");
+		expect(item.batch_price).toBe(12);
+		expect(item.base_batch_price).toBe(12);
+		expect(item.rate).toBe(12);
+		expect(item.price_list_rate).toBe(12);
+		expect(item.base_rate).toBe(12);
+		expect(item.base_price_list_rate).toBe(12);
+		expect(item.amount).toBe(24);
+		expect(item.base_amount).toBe(24);
 	});
 });

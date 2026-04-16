@@ -1,5 +1,3 @@
-from posawesome.utils import get_build_version
-
 app_name = "posawesome"
 app_title = "POS Awesome"
 app_publisher = "Youssef Restom"
@@ -13,17 +11,10 @@ app_license = "GPLv3"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/posawesome/css/posawesome.css"
-# app_include_js = "/assets/posawesome/js/posawesome.js"
-_asset_version = get_build_version()
-
-app_include_js = [
-    f"/assets/posawesome/dist/js/loader.js?v={_asset_version}",
-]
-
-app_include_css = [
-    f"/assets/posawesome/dist/js/posawesome.css?v={_asset_version}",
-]
+# POS assets are loaded on-demand from the POS page bootstrap so the Desk shell
+# does not retain stale bundles across bench builds.
+app_include_js = []
+app_include_css = []
 
 # include js, css files in header of web template
 # web_include_css = "/assets/posawesome/css/posawesome.css"
@@ -80,6 +71,9 @@ after_migrate = [
     "posawesome.patches.add_dashboard_settings.execute",
     "posawesome.patches.add_dashboard_global_settings.execute",
     "posawesome.patches.reorganize_pos_profile_sections.execute",
+    "posawesome.patches.add_gift_card_pos_profile_settings.execute",
+    "posawesome.patches.add_gift_card_invoice_redemption_fields.execute",
+    "posawesome.patches.add_gift_card_to_workspace.execute",
 ]
 
 # Desk Notifications
@@ -109,11 +103,13 @@ doc_events = {
         "validate": "posawesome.posawesome.api.invoice.validate",
         "before_submit": "posawesome.posawesome.api.invoice.before_submit",
         "before_cancel": "posawesome.posawesome.api.invoice.before_cancel",
+        "on_cancel": "posawesome.posawesome.api.invoice.on_cancel",
     },
     "POS Invoice": {
         "validate": "posawesome.posawesome.api.invoice.validate",
         "before_submit": "posawesome.posawesome.api.invoice.before_submit",
         "before_cancel": "posawesome.posawesome.api.invoice.before_cancel",
+        "on_cancel": "posawesome.posawesome.api.invoice.on_cancel",
     },
     "Customer": {
         "validate": "posawesome.posawesome.api.customer.validate",
@@ -216,6 +212,10 @@ fixtures = [
                     "POS Profile-posa_force_server_items",
                     "POS Profile-posa_cash_mode_of_payment",
                     "POS Profile-use_customer_credit",
+                    "POS Profile-posa_use_gift_cards",
+                    "POS Profile-posa_allow_supervisor_manage_gift_cards",
+                    "Sales Invoice-gift_card_redemptions",
+                    "POS Invoice-gift_card_redemptions",
                     "POS Profile-use_cashback",
                     "POS Profile-posa_hide_closing_shift",
                     "Customer-posa_discount",
@@ -289,6 +289,7 @@ fixtures = [
                     "POS Profile-posa_display_item_code",
                     "POS Profile-posa_allow_zero_rated_items",
                     "POS Profile-posa_allow_print_draft_invoices",
+                    "POS Profile-posa_allow_select_print_format_in_payments",
                     "Address-posa_delivery_charges",
                     "Sales Invoice-posa_delivery_charges",
                     "Sales Invoice-posa_delivery_charges_rate",
@@ -345,6 +346,8 @@ fixtures = [
                     "POS Settings-posa_dashboard_low_stock_alert_threshold",
                     "POS Invoice-posa_return_valid_upto",
                     "Sales Invoice-posa_return_valid_upto",
+                    "User-posa_pos_pin",
+                    "User-posa_is_pos_supervisor",
                 ),
             ]
         ],

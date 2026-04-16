@@ -12,6 +12,7 @@ from erpnext.accounts.doctype.loyalty_program.loyalty_program import (
 )
 from frappe.utils.caching import redis_cache
 from .utils import fetch_sales_person_names
+from .stored_value import get_stored_value_summary
 
 
 def get_customer_groups(pos_profile):
@@ -145,7 +146,7 @@ def get_customers_count(pos_profile):
 
 
 @frappe.whitelist()
-def get_customer_info(customer=None):
+def get_customer_info(customer=None, company=None):
     customer = cstr(customer or "").strip()
     if not customer:
         return {}
@@ -192,6 +193,15 @@ def get_customer_info(customer=None):
         )
         res["loyalty_points"] = lp_details.get("loyalty_points")
         res["conversion_factor"] = lp_details.get("conversion_factor")
+
+    company = cstr(company or "").strip()
+    if company:
+        stored_value = get_stored_value_summary(customer=customer.name, company=company)
+        res["stored_value_balance"] = stored_value.get("available_amount", 0)
+        res["stored_value_sources"] = stored_value.get("source_count", 0)
+    else:
+        res["stored_value_balance"] = 0
+        res["stored_value_sources"] = 0
 
     addresses = frappe.db.sql(
         """

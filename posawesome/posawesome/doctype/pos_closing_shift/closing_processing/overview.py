@@ -53,7 +53,7 @@ def get_closing_shift_overview(pos_opening_shift):
         "create_pos_invoice_instead_of_sales_invoice",
     )
     doctype = "POS Invoice" if use_pos_invoice else "Sales Invoice"
-    invoices = get_pos_invoices(opening_shift_doc.name, doctype)
+    invoices = get_pos_invoices(opening_shift_doc.name, doctype, submit_printed=0)
 
     total_invoices = len(invoices)
     company_currency_total = 0

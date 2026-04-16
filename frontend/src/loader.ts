@@ -54,7 +54,9 @@ function isDynamicImportFailure(error: unknown): boolean {
 		normalized.includes("failed to fetch dynamically imported module") ||
 		normalized.includes("loading chunk") ||
 		normalized.includes("chunkloaderror") ||
-		normalized.includes("importing a module script failed")
+		normalized.includes("importing a module script failed") ||
+		(normalized.includes("requested module") &&
+			normalized.includes("does not provide an export named"))
 	);
 }
 

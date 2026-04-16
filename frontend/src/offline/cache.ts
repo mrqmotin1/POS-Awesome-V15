@@ -1,3 +1,4 @@
+import { refreshBootstrapSnapshotFromCaches } from "./bootstrapSnapshot";
 import { memory, persist, db, checkDbHealth } from "./db";
 
 const normalizeScope = (scope: unknown): string => String(scope || "");
@@ -134,6 +135,56 @@ const toCloneSafeValue = <T>(input: T): T | null => {
 	} catch {
 		return null;
 	}
+};
+
+const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+const normalizeCacheKeyPart = (value: unknown): string =>
+	String(value ?? "")
+		.trim()
+		.toLowerCase();
+
+const buildScopedCacheKey = (...parts: unknown[]): string =>
+	parts.map((part) => normalizeCacheKeyPart(part)).join("::");
+
+const isFreshCacheEntry = (entry: any, ttlMs = DEFAULT_CACHE_TTL_MS) => {
+	if (!entry || typeof entry !== "object") {
+		return false;
+	}
+	const timestamp = Number(entry.timestamp || 0);
+	if (!timestamp) {
+		return false;
+	}
+	return Date.now() - timestamp < ttlMs;
+};
+
+const cloneCachePayload = <T>(value: T): T | null => toCloneSafeValue(value);
+
+const estimateSerializedBytes = (value: unknown) => {
+	try {
+		const serialized =
+			typeof value === "string" ? value : JSON.stringify(value);
+		if (!serialized) {
+			return 0;
+		}
+		if (typeof TextEncoder !== "undefined") {
+			return new TextEncoder().encode(serialized).length;
+		}
+		return serialized.length * 2;
+	} catch {
+		return 0;
+	}
+};
+
+type ExchangeRateCacheEntry = {
+	profileName?: string;
+	company?: string;
+	fromCurrency?: string;
+	toCurrency?: string;
+	rateDate?: string;
+	date?: string;
+	exchange_rate?: number;
+	[key: string]: unknown;
 };
 
 // --- Generic getters and setters for cached data ----------------------------
@@ -371,8 +422,52 @@ export function saveOffers(offers) {
 	try {
 		memory.offers_cache = offers;
 		persist("offers_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			offers: memory.offers_cache,
+		});
 	} catch (e) {
 		console.error("Failed to cache offers", e);
+	}
+}
+
+export async function deleteStoredItemsByCodes(
+	itemCodes: string[] = [],
+	scope = "",
+) {
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		const normalizedCodes = Array.from(
+			new Set(
+				(Array.isArray(itemCodes) ? itemCodes : [])
+					.map((code) => String(code || "").trim())
+					.filter(Boolean),
+			),
+		);
+		if (!normalizedCodes.length) {
+			return;
+		}
+
+		if (!hasScope(scope)) {
+			await db.table("items").bulkDelete(normalizedCodes);
+			return;
+		}
+
+		const existingRows = await db
+			.table("items")
+			.where("item_code")
+			.anyOf(normalizedCodes)
+			.toArray();
+		const matchingCodes = existingRows
+			.filter((row: any) => isMatchingScope(row, scope))
+			.map((row: any) => row?.item_code)
+			.filter(Boolean);
+
+		if (matchingCodes.length) {
+			await db.table("items").bulkDelete(matchingCodes);
+		}
+	} catch (e) {
+		console.error("Failed to delete stored items by code", e);
 	}
 }
 
@@ -428,6 +523,89 @@ export function clearPriceListCache() {
 		persist("price_list_cache");
 	} catch (e) {
 		console.error("Failed to clear price list cache", e);
+	}
+}
+
+export function mergeCachedPriceListItems(
+	priceList,
+	items: Record<string, any>[] = [],
+) {
+	try {
+		if (!priceList || !Array.isArray(items) || !items.length) {
+			return;
+		}
+		const cache = memory.price_list_cache || {};
+		const cachedEntry = cache[priceList];
+		if (!cachedEntry || !Array.isArray(cachedEntry.items)) {
+			return;
+		}
+
+		const mergedItems = Array.isArray(cachedEntry.items)
+			? [...cachedEntry.items]
+			: [];
+		const itemIndex = new Map(
+			mergedItems
+				.filter((entry) => entry?.item_code)
+				.map((entry) => [entry.item_code, entry]),
+		);
+
+		items.forEach((item) => {
+			if (!item?.item_code) {
+				return;
+			}
+			const cleanItem =
+				cloneCachePayload(item) || JSON.parse(JSON.stringify(item));
+			itemIndex.set(item.item_code, cleanItem);
+		});
+
+		cache[priceList] = {
+			items: Array.from(itemIndex.values()),
+			timestamp: Date.now(),
+		};
+		memory.price_list_cache = cache;
+		persist("price_list_cache");
+	} catch (e) {
+		console.error("Failed to merge cached price list items", e);
+	}
+}
+
+export function removeCachedPriceListItems(
+	itemCodes: string[] = [],
+	priceList: string | null = null,
+) {
+	try {
+		const normalizedCodes = new Set(
+			(Array.isArray(itemCodes) ? itemCodes : [])
+				.map((code) => String(code || "").trim())
+				.filter(Boolean),
+		);
+		if (!normalizedCodes.size) {
+			return;
+		}
+
+		const cache = memory.price_list_cache || {};
+		const targetLists = priceList
+			? [priceList]
+			: Object.keys(cache || {});
+
+		targetLists.forEach((targetPriceList) => {
+			const cachedEntry = cache[targetPriceList];
+			if (!cachedEntry || !Array.isArray(cachedEntry.items)) {
+				return;
+			}
+			cache[targetPriceList] = {
+				...cachedEntry,
+				items: cachedEntry.items.filter(
+					(entry) => !normalizedCodes.has(String(entry?.item_code || "").trim()),
+				),
+				timestamp: Date.now(),
+			};
+		});
+
+		memory.price_list_cache = cache;
+		persist("price_list_cache");
+	} catch (e) {
+		console.error("Failed to remove cached price list items", e);
 	}
 }
 
@@ -521,6 +699,56 @@ export function clearItemDetailsCache() {
 	}
 }
 
+export function removeItemDetailsCacheEntries(
+	profileName,
+	itemCodes: string[] = [],
+	priceList: string | null = null,
+) {
+	try {
+		const normalizedCodes = new Set(
+			(Array.isArray(itemCodes) ? itemCodes : [])
+				.map((code) => String(code || "").trim())
+				.filter(Boolean),
+		);
+		if (!normalizedCodes.size) {
+			return;
+		}
+
+		const cache = memory.item_details_cache || {};
+		const targetProfiles = profileName
+			? [profileName]
+			: Object.keys(cache || {});
+
+		targetProfiles.forEach((targetProfile) => {
+			const profileCache = cache[targetProfile];
+			if (!profileCache || typeof profileCache !== "object") {
+				return;
+			}
+			const targetPriceLists = priceList
+				? [priceList]
+				: Object.keys(profileCache);
+
+			targetPriceLists.forEach((targetPriceList) => {
+				const priceCache = profileCache[targetPriceList];
+				if (!priceCache || typeof priceCache !== "object") {
+					return;
+				}
+				normalizedCodes.forEach((code) => {
+					delete priceCache[code];
+				});
+				profileCache[targetPriceList] = priceCache;
+			});
+
+			cache[targetProfile] = profileCache;
+		});
+
+		memory.item_details_cache = cache;
+		persist("item_details_cache");
+	} catch (e) {
+		console.error("Failed to remove item details cache entries", e);
+	}
+}
+
 export function saveTaxTemplate(name, doc) {
 	try {
 		const cache = memory.tax_template_cache || {};
@@ -553,6 +781,9 @@ export function setSalesPersonsStorage(data) {
 	try {
 		memory.sales_persons_storage = JSON.parse(JSON.stringify(data));
 		persist("sales_persons_storage");
+		refreshBootstrapSnapshotFromCacheState({
+			salesPersons: memory.sales_persons_storage,
+		});
 	} catch (e) {
 		console.error("Failed to set sales persons storage", e);
 	}
@@ -560,6 +791,62 @@ export function setSalesPersonsStorage(data) {
 
 export function getOpeningStorage() {
 	return memory.pos_opening_storage || null;
+}
+
+export function getBootstrapSnapshot() {
+	return memory.bootstrap_snapshot || null;
+}
+
+export function refreshBootstrapSnapshotFromCacheState(cacheState = {}) {
+	try {
+		setBootstrapSnapshot(
+			refreshBootstrapSnapshotFromCaches({
+				currentSnapshot: getBootstrapSnapshot(),
+				cacheState,
+			}),
+		);
+	} catch (e) {
+		console.error("Failed to refresh bootstrap snapshot from cache state", e);
+	}
+}
+
+export function setBootstrapSnapshot(snapshot) {
+	try {
+		memory.bootstrap_snapshot = snapshot
+			? JSON.parse(JSON.stringify(snapshot))
+			: null;
+		persist("bootstrap_snapshot");
+	} catch (e) {
+		console.error("Failed to set bootstrap snapshot", e);
+	}
+}
+
+export function getBootstrapSnapshotStatus() {
+	return memory.bootstrap_snapshot_status || null;
+}
+
+export function setBootstrapSnapshotStatus(status) {
+	try {
+		memory.bootstrap_snapshot_status = status
+			? JSON.parse(JSON.stringify(status))
+			: null;
+		persist("bootstrap_snapshot_status");
+	} catch (e) {
+		console.error("Failed to set bootstrap snapshot status", e);
+	}
+}
+
+export function getBootstrapLimitedMode() {
+	return !!memory.bootstrap_limited_mode;
+}
+
+export function setBootstrapLimitedMode(state) {
+	try {
+		memory.bootstrap_limited_mode = !!state;
+		persist("bootstrap_limited_mode");
+	} catch (e) {
+		console.error("Failed to set bootstrap limited mode", e);
+	}
 }
 
 function cloneOpeningData(data: any) {
@@ -656,6 +943,9 @@ export function getTaxInclusiveSetting() {
 export function setTaxInclusiveSetting(value) {
 	memory.tax_inclusive = !!value;
 	persist("tax_inclusive");
+	refreshBootstrapSnapshotFromCacheState({
+		taxInclusive: memory.tax_inclusive,
+	});
 }
 
 export function reduceCacheUsage() {
@@ -664,6 +954,12 @@ export function reduceCacheUsage() {
 	memory.uom_cache = {};
 	memory.offers_cache = [];
 	memory.customer_balance_cache = {};
+	memory.delivery_charges_cache = {};
+	memory.currency_options_cache = {};
+	memory.exchange_rate_cache = {};
+	memory.price_list_meta_cache = {};
+	memory.customer_addresses_cache = {};
+	memory.payment_method_currency_cache = {};
 	memory.local_stock_cache = {};
 	memory.stock_cache_ready = false;
 	memory.coupons_cache = {};
@@ -673,6 +969,12 @@ export function reduceCacheUsage() {
 	persist("uom_cache");
 	persist("offers_cache");
 	persist("customer_balance_cache");
+	persist("delivery_charges_cache");
+	persist("currency_options_cache");
+	persist("exchange_rate_cache");
+	persist("price_list_meta_cache");
+	persist("customer_addresses_cache");
+	persist("payment_method_currency_cache");
 	persist("local_stock_cache");
 	persist("stock_cache_ready");
 	persist("coupons_cache");
@@ -726,6 +1028,8 @@ export async function clearCustomerStorage() {
 		await checkDbHealth();
 		if (!db.isOpen()) await db.open();
 		await db.table("customers").clear();
+		memory.customer_storage = [];
+		persist("customer_storage");
 	} catch (e) {
 		console.error("Failed to clear customer storage", e);
 	}
@@ -758,6 +1062,12 @@ export function savePricingRulesSnapshot(
 	persist("pricing_rules_context");
 	persist("pricing_rules_last_sync");
 	persist("pricing_rules_stale_at");
+	refreshBootstrapSnapshotFromCacheState({
+		pricingSnapshotCount: Array.isArray(memory.pricing_rules_snapshot)
+			? memory.pricing_rules_snapshot.length
+			: 0,
+		pricingContext: memory.pricing_rules_context,
+	});
 }
 
 export function getCachedPricingRulesSnapshot() {
@@ -781,6 +1091,10 @@ export function clearPricingRulesSnapshot() {
 	persist("pricing_rules_context");
 	persist("pricing_rules_last_sync");
 	persist("pricing_rules_stale_at");
+	refreshBootstrapSnapshotFromCacheState({
+		pricingSnapshotCount: 0,
+		pricingContext: null,
+	});
 }
 
 export function getTranslationsCache(lang) {
@@ -816,6 +1130,9 @@ export function setPrintTemplate(template) {
 	try {
 		memory.print_template = template || "";
 		persist("print_template");
+		refreshBootstrapSnapshotFromCacheState({
+			printTemplate: memory.print_template,
+		});
 	} catch (e) {
 		console.error("Failed to set print template", e);
 	}
@@ -833,6 +1150,9 @@ export function setTermsAndConditions(terms) {
 	try {
 		memory.terms_and_conditions = terms || "";
 		persist("terms_and_conditions");
+		refreshBootstrapSnapshotFromCacheState({
+			termsAndConditions: memory.terms_and_conditions,
+		});
 	} catch (e) {
 		console.error("Failed to set terms and conditions", e);
 	}
@@ -843,6 +1163,9 @@ export function saveCoupons(coupons) {
 	try {
 		memory.coupons_cache = coupons || {};
 		persist("coupons_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			coupons: memory.coupons_cache,
+		});
 	} catch (e) {
 		console.error("Failed to save coupons", e);
 	}
@@ -855,6 +1178,9 @@ export function getCachedCoupons() {
 export function clearCoupons() {
 	memory.coupons_cache = {};
 	persist("coupons_cache");
+	refreshBootstrapSnapshotFromCacheState({
+		coupons: memory.coupons_cache,
+	});
 }
 
 // Item Groups
@@ -862,6 +1188,9 @@ export function saveItemGroups(groups) {
 	try {
 		memory.item_groups_cache = groups || [];
 		persist("item_groups_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			itemGroups: memory.item_groups_cache,
+		});
 	} catch (e) {
 		console.error("Failed to save item groups", e);
 	}
@@ -874,14 +1203,316 @@ export function getCachedItemGroups() {
 export function clearItemGroups() {
 	memory.item_groups_cache = [];
 	persist("item_groups_cache");
+	refreshBootstrapSnapshotFromCacheState({
+		itemGroups: memory.item_groups_cache,
+	});
+}
+
+export function saveDeliveryChargesCache(
+	profileName,
+	customer,
+	deliveryCharges,
+) {
+	try {
+		const key = buildScopedCacheKey(profileName, customer);
+		if (!key || !Array.isArray(deliveryCharges)) {
+			return;
+		}
+		const cache = memory.delivery_charges_cache || {};
+		cache[key] = {
+			data: cloneCachePayload(deliveryCharges) || [],
+			timestamp: Date.now(),
+		};
+		memory.delivery_charges_cache = cache;
+		persist("delivery_charges_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			deliveryChargesCount: Object.keys(memory.delivery_charges_cache || {})
+				.length,
+		});
+	} catch (e) {
+		console.error("Failed to save delivery charges cache", e);
+	}
+}
+
+export function getCachedDeliveryCharges(
+	profileName,
+	customer,
+	ttlMs = DEFAULT_CACHE_TTL_MS,
+) {
+	try {
+		const key = buildScopedCacheKey(profileName, customer);
+		const entry = (memory.delivery_charges_cache || {})[key];
+		if (!isFreshCacheEntry(entry, ttlMs)) {
+			return null;
+		}
+		return cloneCachePayload(entry.data) || [];
+	} catch (e) {
+		console.error("Failed to get cached delivery charges", e);
+		return null;
+	}
+}
+
+export function saveCurrencyOptionsCache(profileName, currencies) {
+	try {
+		const key = buildScopedCacheKey(profileName);
+		if (!key || !Array.isArray(currencies)) {
+			return;
+		}
+		const cache = memory.currency_options_cache || {};
+		cache[key] = {
+			data: cloneCachePayload(currencies) || [],
+			timestamp: Date.now(),
+		};
+		memory.currency_options_cache = cache;
+		persist("currency_options_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			currencyOptionsCount: Object.keys(memory.currency_options_cache || {})
+				.length,
+		});
+	} catch (e) {
+		console.error("Failed to save currency options cache", e);
+	}
+}
+
+export function getCachedCurrencyOptions(
+	profileName,
+	ttlMs = DEFAULT_CACHE_TTL_MS,
+) {
+	try {
+		const key = buildScopedCacheKey(profileName);
+		const entry = (memory.currency_options_cache || {})[key];
+		if (!isFreshCacheEntry(entry, ttlMs)) {
+			return null;
+		}
+		return cloneCachePayload(entry.data) || [];
+	} catch (e) {
+		console.error("Failed to get cached currency options", e);
+		return null;
+	}
+}
+
+export function saveExchangeRateCache(entry: ExchangeRateCacheEntry = {}) {
+	try {
+		const key = buildScopedCacheKey(
+			entry.profileName,
+			entry.company,
+			entry.fromCurrency,
+			entry.toCurrency,
+			entry.rateDate || entry.date,
+		);
+		if (!key || !entry.fromCurrency || !entry.toCurrency) {
+			return;
+		}
+		const cache = memory.exchange_rate_cache || {};
+		cache[key] = {
+			data: cloneCachePayload(entry) || {},
+			timestamp: Date.now(),
+		};
+		memory.exchange_rate_cache = cache;
+		persist("exchange_rate_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			exchangeRateCount: Object.keys(memory.exchange_rate_cache || {}).length,
+		});
+	} catch (e) {
+		console.error("Failed to save exchange rate cache", e);
+	}
+}
+
+export function getCachedExchangeRate(
+	entry: ExchangeRateCacheEntry = {},
+	ttlMs = DEFAULT_CACHE_TTL_MS,
+) {
+	try {
+		const key = buildScopedCacheKey(
+			entry.profileName,
+			entry.company,
+			entry.fromCurrency,
+			entry.toCurrency,
+			entry.rateDate || entry.date,
+		);
+		const cachedEntry = (memory.exchange_rate_cache || {})[key];
+		if (!isFreshCacheEntry(cachedEntry, ttlMs)) {
+			return null;
+		}
+		return cloneCachePayload(cachedEntry.data) || null;
+	} catch (e) {
+		console.error("Failed to get cached exchange rate", e);
+		return null;
+	}
+}
+
+export function savePriceListMetaCache(profileName, metadata) {
+	try {
+		const key = buildScopedCacheKey(profileName);
+		if (!key || !metadata || typeof metadata !== "object") {
+			return;
+		}
+		const cache = memory.price_list_meta_cache || {};
+		cache[key] = {
+			data: cloneCachePayload(metadata) || {},
+			timestamp: Date.now(),
+		};
+		memory.price_list_meta_cache = cache;
+		persist("price_list_meta_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			priceListMetaReady:
+				Object.keys(memory.price_list_meta_cache || {}).length > 0,
+		});
+	} catch (e) {
+		console.error("Failed to save price list metadata cache", e);
+	}
+}
+
+export function getCachedPriceListMeta(
+	profileName,
+	ttlMs = DEFAULT_CACHE_TTL_MS,
+) {
+	try {
+		const key = buildScopedCacheKey(profileName);
+		const entry = (memory.price_list_meta_cache || {})[key];
+		if (!isFreshCacheEntry(entry, ttlMs)) {
+			return null;
+		}
+		return cloneCachePayload(entry.data) || null;
+	} catch (e) {
+		console.error("Failed to get cached price list metadata", e);
+		return null;
+	}
+}
+
+export function saveCustomerAddressesCache(customer, addresses) {
+	try {
+		const key = buildScopedCacheKey(customer);
+		if (!key || !Array.isArray(addresses)) {
+			return;
+		}
+		const cache = memory.customer_addresses_cache || {};
+		cache[key] = {
+			data: cloneCachePayload(addresses) || [],
+			timestamp: Date.now(),
+		};
+		memory.customer_addresses_cache = cache;
+		persist("customer_addresses_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			customerAddressesCount: Object.keys(
+				memory.customer_addresses_cache || {},
+			).length,
+		});
+	} catch (e) {
+		console.error("Failed to save customer addresses cache", e);
+	}
+}
+
+export function getCachedCustomerAddresses(
+	customer,
+	ttlMs = DEFAULT_CACHE_TTL_MS,
+) {
+	try {
+		const key = buildScopedCacheKey(customer);
+		const entry = (memory.customer_addresses_cache || {})[key];
+		if (!isFreshCacheEntry(entry, ttlMs)) {
+			return null;
+		}
+		return cloneCachePayload(entry.data) || [];
+	} catch (e) {
+		console.error("Failed to get cached customer addresses", e);
+		return null;
+	}
+}
+
+export function savePaymentMethodCurrencyCache(company, mapping) {
+	try {
+		const key = buildScopedCacheKey(company);
+		if (!key || !mapping || typeof mapping !== "object") {
+			return;
+		}
+		const cache = memory.payment_method_currency_cache || {};
+		cache[key] = {
+			data: cloneCachePayload(mapping) || {},
+			timestamp: Date.now(),
+		};
+		memory.payment_method_currency_cache = cache;
+		persist("payment_method_currency_cache");
+		refreshBootstrapSnapshotFromCacheState({
+			paymentMethodCurrencyCount: Object.keys(
+				memory.payment_method_currency_cache || {},
+			).length,
+		});
+	} catch (e) {
+		console.error("Failed to save payment method currency cache", e);
+	}
+}
+
+export function getCachedPaymentMethodCurrencyMap(
+	company,
+	ttlMs = DEFAULT_CACHE_TTL_MS,
+) {
+	try {
+		const key = buildScopedCacheKey(company);
+		const entry = (memory.payment_method_currency_cache || {})[key];
+		if (!isFreshCacheEntry(entry, ttlMs)) {
+			return null;
+		}
+		return cloneCachePayload(entry.data) || null;
+	} catch (e) {
+		console.error("Failed to get cached payment method currency cache", e);
+		return null;
+	}
 }
 
 export async function getCacheUsageEstimate() {
-	// Basic implementation since we removed core.js dependency
+	let indexedDB = 0;
+	let localStorageUsage = 0;
+
+	if (typeof localStorage !== "undefined") {
+		for (let index = 0; index < localStorage.length; index += 1) {
+			const key = localStorage.key(index);
+			if (!key) {
+				continue;
+			}
+			localStorageUsage += estimateSerializedBytes(key);
+			localStorageUsage += estimateSerializedBytes(
+				localStorage.getItem(key) || "",
+			);
+		}
+	}
+
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) {
+			await db.open();
+		}
+		for (const table of db.tables) {
+			await table.each((row) => {
+				indexedDB += estimateSerializedBytes(row);
+			});
+		}
+	} catch (e) {
+		console.error("Failed to estimate IndexedDB cache usage", e);
+	}
+
+	const total = indexedDB + localStorageUsage;
+	let percentage = 0;
+
+	try {
+		const estimatedQuota =
+			typeof navigator !== "undefined" &&
+			navigator.storage &&
+			typeof navigator.storage.estimate === "function"
+				? await navigator.storage.estimate()
+				: null;
+		const quota = Number(estimatedQuota?.quota || 50 * 1024 * 1024);
+		if (quota > 0) {
+			percentage = Math.min(100, Math.round((total / quota) * 100));
+		}
+	} catch {
+		percentage = 0;
+	}
+
 	return {
-		total: 0,
-		localStorage: 0,
-		indexedDB: 0,
-		percentage: 0,
+		total,
+		localStorage: localStorageUsage,
+		indexedDB,
+		percentage,
 	};
 }

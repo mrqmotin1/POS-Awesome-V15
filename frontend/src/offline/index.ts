@@ -5,6 +5,12 @@ export * from "./customers";
 export * from "./payments";
 export * from "./cash_movements";
 export * from "./cache";
+export * from "./sync/types";
+export * from "./sync/resourceRegistry";
+export * from "./sync/syncState";
+export * from "./sync/SyncCoordinator";
+export * from "./sync/useSyncCoordinator";
+export * from "./sync/adapters";
 
 // Aliases for backward compatibility
 import { initPromise } from "./db";

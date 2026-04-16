@@ -126,21 +126,32 @@
 
 				<div :class="['profile-section', isRtl ? 'rtl-profile-section' : 'ltr-profile-section']">
 					<v-chip
+						v-if="cashierChipLabel"
 						variant="outlined"
 						:class="[
-							'profile-chip pos-themed-card',
+							'profile-chip cashier-chip pos-themed-card',
 							isRtl ? 'rtl-profile-chip' : 'ltr-profile-chip',
 						]"
+						data-test="cashier-chip"
+						tabindex="0"
+						role="button"
+						@click="$emit('open-employee-switch')"
+						@keydown.enter="$emit('open-employee-switch')"
 					>
 						<v-icon
 							:start="!isRtl"
 							:end="isRtl"
 							:class="['pos-text-primary', isRtl ? 'rtl-profile-icon' : 'ltr-profile-icon']"
 						>
-							mdi-account-circle
+							mdi-account-switch-outline
 						</v-icon>
-						<span :class="['pos-text-primary', isRtl ? 'rtl-profile-text' : 'ltr-profile-text']">
-							{{ displayName }}
+						<span :class="['profile-chip__content', isRtl ? 'rtl-profile-text' : 'ltr-profile-text']">
+							<span class="pos-text-primary profile-chip__title">
+								{{ cashierChipLabel }}
+							</span>
+							<span v-if="cashierChipMeta" class="profile-chip__meta">
+								{{ cashierChipMeta }}
+							</span>
 						</span>
 					</v-chip>
 				</div>
@@ -273,6 +284,10 @@ export default {
 			type: String,
 			default: "Loading app data...",
 		},
+		cashierName: {
+			type: String,
+			default: "",
+		},
 	},
 	computed: {
 		appBarColor() {
@@ -295,6 +310,22 @@ export default {
 			}
 
 			return "User";
+		},
+
+		cashierChipLabel() {
+			return this.cashierName || this.displayName;
+		},
+
+		cashierChipMeta() {
+			if (!this.cashierName) {
+				return "";
+			}
+
+			if (this.displayName && this.displayName !== this.cashierName) {
+				return this.displayName;
+			}
+
+			return "";
 		},
 
 		// Mobile breakpoint detection
@@ -343,7 +374,7 @@ export default {
 			}
 		},
 	},
-	emits: ["nav-click", "go-desk", "show-offline-invoices"],
+	emits: ["nav-click", "go-desk", "show-offline-invoices", "open-employee-switch"],
 };
 </script>
 
@@ -680,6 +711,25 @@ export default {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+}
+
+.profile-chip__content {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	min-width: 0;
+}
+
+.profile-chip__title {
+	font-weight: 600;
+	line-height: 1.1;
+}
+
+.profile-chip__meta {
+	font-size: 0.72rem;
+	line-height: 1.1;
+	color: var(--pos-text-secondary);
+	white-space: nowrap;
 }
 
 .profile-chip:hover {

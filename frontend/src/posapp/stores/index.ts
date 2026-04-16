@@ -9,6 +9,7 @@ export const pinia = createPinia();
 
 // Export stores
 export { useCustomersStore } from "./customersStore";
+export { useEmployeeStore } from "./employeeStore";
 export { useItemsStore } from "./itemsStore";
 export { useInvoiceStore } from "./invoiceStore";
 export { useUpdateStore, formatBuildVersion } from "./updateStore";
