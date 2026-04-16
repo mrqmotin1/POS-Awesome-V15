@@ -5,7 +5,6 @@
 from __future__ import unicode_literals
 import frappe # type: ignore
 from frappe.utils import get_datetime # type: ignore
-from frappe.utils.password import check_password
 import frappe
 from frappe.utils import cstr, add_to_date, get_datetime
 from typing import List, Dict, Any
@@ -165,66 +164,6 @@ def set_batch_nos_for_bundels(doc, warehouse_field, throw=False):
 
 def get_company_domain(company):
     return frappe.get_cached_value("Company", cstr(company), "domain")
-
-
-@frappe.whitelist()
-def validate_manager(username, password, required_role="Counter Manager"):
-    """
-    Validate manager credentials without logging out the current user.
-    """
-    try:
-        if not check_password(username, password):
-            return {"success": False, "error": "Invalid password"}
-
-        # Fetch the user doc
-        user = frappe.get_doc("User", username)
-        
-        # Check if user is enabled
-        if not user.enabled:
-            return {"success": False, "error": "User is disabled"}
-
-        # Check if user has the manager role
-        if required_role in [r.role for r in user.roles]:
-            return {"success": True}
-        else:
-            return {"success": False, "error": "Not authorized"}
-
-    except frappe.DoesNotExistError:
-        return {"success": False, "error": "User does not exist"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-    
-
-@frappe.whitelist()
-def validate_manager_by_barcode(barcode, required_role="Counter Manager"):
-    """Authenticate a manager by their employee card barcode stored on the Employee doctype."""
-    print(f"Validating manager with barcode: {barcode} for role: {required_role}")
-    if not barcode:
-        return {"success": False, "error": "No barcode provided"}
-
-    employees = frappe.get_all(
-        "Employee",
-        filters={"custom_pos_manager_barcode": barcode, "status": "Active"},
-        fields=["name", "employee_name", "user_id"],
-        limit=1,
-    )
-    if not employees:
-        return {"success": False, "error": "Card not recognized"}
-
-    employee = employees[0]
-    if not employee.get("user_id"):
-        return {"success": False, "error": "Employee has no linked user account"}
-
-    roles = frappe.get_roles(employee["user_id"])
-    if required_role not in roles:
-        return {"success": False, "error": "Not authorized"}
-
-    return {
-        "success": True,
-        "username": employee["user_id"],
-        "full_name": employee["employee_name"],
-    }
-
 
 @frappe.whitelist()
 def get_selling_price_lists():
