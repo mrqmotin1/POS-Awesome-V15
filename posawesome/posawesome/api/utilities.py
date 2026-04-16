@@ -3,7 +3,8 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-
+import frappe # type: ignore
+from frappe.utils import get_datetime # type: ignore
 import frappe
 from frappe.utils import cstr, add_to_date, get_datetime
 from typing import List, Dict, Any
@@ -139,7 +140,6 @@ def set_batch_nos_for_bundels(doc, warehouse_field, throw=False):
 
 def get_company_domain(company):
     return frappe.get_cached_value("Company", cstr(company), "domain")
-
 
 @frappe.whitelist()
 def get_selling_price_lists():

@@ -54,7 +54,7 @@
 							color="warning"
 							:prefix="currencySymbol(pos_profile.currency)"
 							:disabled="
-								!pos_profile.posa_allow_user_to_edit_additional_discount ||
+								!canEditDiscount ||
 								!!discount_percentage_offer_name
 							"
 							class="summary-field summary-field--dock"
@@ -76,7 +76,7 @@
 							density="compact"
 							color="warning"
 							:disabled="
-								!pos_profile.posa_allow_user_to_edit_additional_discount ||
+								!canEditDiscount ||
 								!!discount_percentage_offer_name
 							"
 							class="summary-field summary-field--dock"
@@ -115,6 +115,7 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
+import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 import { loadItemSelectorSettings } from "../../../utils/itemSelectorSettings";
 import { useResponsive } from "../../../composables/core/useResponsive";
 import InvoiceActionButtons from "./InvoiceActionButtons.vue";
@@ -171,6 +172,9 @@ const responsive = useResponsive();
 const additionalDiscountDisplay = ref(normalizeDiscountDisplay(props.additional_discount));
 const additionalDiscountPercentageDisplay = ref(
 	normalizeDiscountDisplay(props.additional_discount_percentage),
+);
+const canEditDiscount = computed(
+	() => isSessionUserManager.value || isManagerMode.value,
 );
 const useCompactSaleDock = computed(() => responsive.windowWidth.value < 1100);
 const showReturnDiscountAlert = computed(

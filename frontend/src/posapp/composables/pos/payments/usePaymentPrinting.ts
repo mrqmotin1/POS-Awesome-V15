@@ -88,6 +88,13 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 		win.document.close();
 		win.focus();
 		win.print();
+		win.close(); // Auto-close after printing
+		setTimeout(() => {
+            if (!win.closed) {
+                win.close();
+                console.log("✅ Preview auto-closed (timeout)");
+            }
+        }, 1000);
 	};
 
 	const loadPrintPage = async (input: { doc?: any; doctype?: string } = {}) => {
@@ -166,6 +173,8 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 						printFormat: print_format || "Standard",
 						letterhead: profile.letter_head || null,
 						noLetterhead: letter_head,
+						printerName: profile.custom_pos_printer || null,
+						
 					});
 					return;
 				} catch (error) {
