@@ -801,7 +801,7 @@ export default {
 			this.barcodeLoading = true;
 			try {
 				const res = await frappe.call({
-					method: "posawesome.posawesome.api.utilities.validate_manager_by_barcode",
+					method: "posawesome.posawesome.api.validate_manager.validate_manager",
 					args: { barcode: this.barcodeInput.trim() },
 				});
 				if (res.message.success) {
@@ -839,7 +839,7 @@ export default {
 			this.loading = true
 			try {
 				const res = await frappe.call({
-				method: "posawesome.posawesome.api.utilities.validate_manager",
+				method: "posawesome.posawesome.api.validate_manager.validate_manager",
 				args: {
 					username: this.username,
 					password: this.password
