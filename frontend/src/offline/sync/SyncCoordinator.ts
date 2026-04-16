@@ -47,6 +47,21 @@ function createInitialState(resourceId: SyncResourceId): SyncResourceState {
 	};
 }
 
+/**
+ * Orchestrates offline background synchronisation for all registered resources.
+ *
+ * Resources are processed in priority order (`boot_critical` → `warm` → `lazy`) with
+ * configurable concurrency. Each trigger run is deduplicated — a second call for the
+ * same trigger while one is already in flight returns the existing Promise.
+ *
+ * @example
+ * ```ts
+ * import { createDefaultSyncCoordinator } from "@/offline";
+ *
+ * const coordinator = createDefaultSyncCoordinator();
+ * coordinator.runTrigger("boot");
+ * ```
+ */
 export class SyncCoordinator {
 	private readonly concurrency: number;
 
@@ -75,17 +90,28 @@ export class SyncCoordinator {
 		}
 	}
 
+	/**
+	 * Returns a snapshot of the current state for a single resource,
+	 * or `null` if the resource ID is not registered.
+	 */
 	getResourceState(resourceId: SyncResourceId) {
 		const state = this.resourceStates.get(resourceId);
 		return state ? { ...state } : null;
 	}
 
+	/**
+	 * Returns snapshots of the current state for all registered resources.
+	 */
 	getResourceStates() {
 		return Array.from(this.resourceStates.values()).map((state) => ({
 			...state,
 		}));
 	}
 
+	/**
+	 * Replaces in-memory resource states with the supplied values, then emits a state-change
+	 * notification. Used to restore persisted state after a page reload.
+	 */
 	hydrateResourceStates(states: SyncResourceState[]) {
 		for (const state of states || []) {
 			if (!state?.resourceId || !this.resourceStates.has(state.resourceId)) {
@@ -99,6 +125,13 @@ export class SyncCoordinator {
 		this.emitStateChange();
 	}
 
+	/**
+	 * Runs all resources that subscribe to `trigger`, in priority order.
+	 * If a run for the same trigger is already in flight, returns the existing Promise
+	 * instead of starting a second one.
+	 *
+	 * @param trigger - The event that initiated this sync pass.
+	 */
 	async runTrigger(trigger: SyncTrigger) {
 		const inFlight = this.inFlightTriggers.get(trigger);
 		if (inFlight) {
@@ -210,6 +243,10 @@ export class SyncCoordinator {
 	}
 }
 
+/**
+ * Creates a {@link SyncCoordinator} pre-loaded with the full default resource registry.
+ * This is the standard factory used by `useSyncCoordinator` at app startup.
+ */
 export function createDefaultSyncCoordinator() {
 	return new SyncCoordinator({
 		resources: getSyncResourcesForTrigger("boot").length

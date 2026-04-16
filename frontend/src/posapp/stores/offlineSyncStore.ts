@@ -1,3 +1,36 @@
+/**
+ * UI-facing state store for the offline status panel and sync resource display.
+ *
+ * This store is the data model for the offline status panel component. It does not
+ * drive sync itself — that is `SyncCoordinator`'s responsibility. The coordinator
+ * calls `setSummary`, `setBootstrapWarning`, and `setResourceStates` to push state
+ * into this store; the panel reads it reactively.
+ *
+ * **Interfaces**
+ * - `OfflineStatusSummary` — network/server connectivity flags, pending invoice
+ *   count, and cache usage breakdown (total, IndexedDB, localStorage).
+ * - `OfflineBootstrapWarning` — banner shown when boot-critical resources fail to
+ *   sync; contains a `title` and an array of human-readable `messages`.
+ *
+ * **Computed display properties**
+ * - `connectivityLabel` — `"Online"` | `"Offline"` | `"Limited"` | `"Checking"`.
+ * - `connectivityTone` — matching severity token (`"success"` | `"danger"` | `"warning"`).
+ * - `attentionResources` — resource states filtered to `"stale"`, `"error"`, or
+ *   `"limited"` statuses, each decorated with its human-readable `label` from
+ *   `RESOURCE_LABELS`.
+ * - `sortedResources` — attention resources first (in their natural order), then
+ *   remaining resources; used directly by the resource list in the panel.
+ * - `summaryMessage` — single-sentence status string shown below the connectivity
+ *   badge.
+ *
+ * **`setResourceStates` filtering**
+ * Pure-idle states with no history (`lastSyncedAt`, `watermark`, `lastError`, or
+ * `schemaVersion` all absent) are dropped to reduce noise in the panel.
+ *
+ * **`getSyncResourceLabel(resourceId)`**
+ * Exported standalone helper that maps a `SyncResourceId` to its display label via
+ * `RESOURCE_LABELS`; falls back to the raw ID string for unknown resources.
+ */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 

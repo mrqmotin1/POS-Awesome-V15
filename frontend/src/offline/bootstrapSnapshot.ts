@@ -1,3 +1,31 @@
+/**
+ * Offline bootstrap snapshot — validation and runtime-mode resolution.
+ *
+ * The bootstrap snapshot is a lightweight record stored in IndexedDB that captures the
+ * state of all offline caches at the time of the last full sync. On every page load,
+ * `validateBootstrapSnapshot` compares the snapshot against the current session to
+ * decide whether the POS can operate offline.
+ *
+ * **Mode resolution rules:**
+ * - `"normal"` — all blocking prerequisites are present and the session matches.
+ * - `"limited"` — one or more prerequisites from `PREREQUISITES_FOR_OFFLINE_SELL` are missing.
+ * - `"confirmation_required"` — snapshot is present but belongs to a different build,
+ *   profile, or profile revision; user must confirm to continue.
+ * - `"invalid"` — opening shift was created by a different user; cannot be restored.
+ *
+ * Optional prerequisites (offers, delivery charges, currencies, print template, etc.) do
+ * **not** affect the mode — their absence is a valid empty/not-configured state.
+ *
+ * @module offline/bootstrapSnapshot
+ */
+
+/**
+ * Readiness state of a single offline prerequisite.
+ * - `"ready"` — data is present and current.
+ * - `"missing"` — data was not found in the cache.
+ * - `"stale"` — data exists but has exceeded its TTL.
+ * - `"error"` — an error occurred while populating the cache.
+ */
 export type BootstrapPrerequisiteState =
 	| "ready"
 	| "missing"
@@ -205,6 +233,13 @@ function deriveCapabilities(
 	};
 }
 
+/**
+ * Derives a full prerequisite-state map from live cache data.
+ * Called after a sync pass to produce the prerequisites stored in the snapshot.
+ *
+ * @param input - Current counts and flags for every cacheable resource.
+ * @returns A record mapping each prerequisite key to its readiness state.
+ */
 export function collectBootstrapPrerequisites(
 	input: BootstrapPrerequisiteCollectionInput,
 ): Record<string, BootstrapPrerequisiteState> {
@@ -406,6 +441,10 @@ function collectBootstrapPrerequisitePatch(
 	return patch;
 }
 
+/**
+ * Constructs a {@link BootstrapSnapshot} from a plain input object.
+ * All fields default to `null` when not supplied.
+ */
 export function buildBootstrapSnapshot(
 	input: BootstrapSnapshotInput,
 ): BootstrapSnapshot {
@@ -419,6 +458,15 @@ export function buildBootstrapSnapshot(
 	};
 }
 
+/**
+ * Creates or updates a bootstrap snapshot immediately after the `/api/method/posawesome.…/get_register_data`
+ * response is received. Only the profile and opening-shift prerequisites are updated;
+ * cache-based prerequisites are preserved from `currentSnapshot`.
+ *
+ * @param registerData - Response from the register-data RPC call.
+ * @param currentSnapshot - Existing snapshot (if any) to merge from.
+ * @param runtime - Optional metadata overrides (e.g. build version).
+ */
 export function createBootstrapSnapshotFromRegisterData(
 	registerData: RegisterData,
 	currentSnapshot: BootstrapSnapshot | null | undefined,
@@ -445,6 +493,13 @@ export function createBootstrapSnapshotFromRegisterData(
 	});
 }
 
+/**
+ * Rebuilds the bootstrap snapshot from the latest cache state.
+ * Called after any sync adapter completes to ensure the snapshot reflects current data.
+ *
+ * Prerequisites are updated incrementally — only keys present in `input.cacheState` are
+ * patched; existing keys not mentioned are preserved from `currentSnapshot`.
+ */
 export function refreshBootstrapSnapshotFromCaches(
 	input: BootstrapSnapshotRefreshInput,
 ): BootstrapSnapshot {
@@ -483,6 +538,21 @@ export function refreshBootstrapSnapshotFromCaches(
 	});
 }
 
+/**
+ * Validates a stored {@link BootstrapSnapshot} against the current session context.
+ *
+ * Returns a {@link BootstrapValidationResult} whose `mode` reflects the severity:
+ * - `"normal"` — fully ready.
+ * - `"limited"` — one or more **blocking** prerequisites (`PREREQUISITES_FOR_OFFLINE_SELL`) are missing.
+ * - `"confirmation_required"` — snapshot exists but version/profile mismatch detected.
+ * - `"invalid"` — opening shift belongs to a different user.
+ *
+ * Optional prerequisites (offers, delivery charges, currencies, print templates, etc.)
+ * do **not** affect the mode — their absence is a valid empty/not-configured state.
+ *
+ * @param snapshot - Snapshot read from IndexedDB. Pass `null` if none exists.
+ * @param current - Session context to compare against (build version, profile, user).
+ */
 export function validateBootstrapSnapshot(
 	snapshot: BootstrapSnapshot | null | undefined,
 	current: BootstrapValidationInput,
@@ -553,6 +623,18 @@ export function validateBootstrapSnapshot(
 	};
 }
 
+/**
+ * Converts a {@link BootstrapValidationResult} into an actionable {@link BootstrapRuntimeDecision}
+ * used by `DefaultLayout.vue` to control the offline warning banner and the `limitedMode` flag.
+ *
+ * `warningCodes` in the returned decision contains only **blocking** missing prerequisites
+ * and mismatch reasons — optional missing prerequisites are excluded to avoid noise in the
+ * operator-facing warning messages.
+ *
+ * @param validation - Output of {@link validateBootstrapSnapshot}.
+ * @param options.continueOffline - When `true`, a `"confirmation_required"` result is
+ *   downgraded to `"limited"` (the user has already confirmed they want to proceed).
+ */
 export function resolveBootstrapRuntimeState(
 	validation: BootstrapValidationResult,
 	options: {

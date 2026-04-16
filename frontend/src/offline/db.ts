@@ -1,3 +1,41 @@
+/**
+ * Storage primitives for the POS offline layer.
+ *
+ * This module provides the two foundations that all other offline-layer modules
+ * (`cache.ts`, domain queues, sync adapters) are built on:
+ *
+ * **Dexie / IndexedDB (`db`)**
+ * `db` is a Dexie instance named `"posawesome_offline"`. `BASE_SCHEMA` defines its
+ * tables — items, customers, domain queues, caches, settings, and sync state.
+ * `KEY_TABLE_MAP` routes each logical key name to the correct physical table;
+ * keys not listed fall through to a `keyval` catch-all. Multiple schema versions
+ * are declared to maintain upgrade compatibility without structural changes.
+ *
+ * **In-memory store (`memory`)**
+ * `memory` is a plain object that holds all cache values in RAM for synchronous
+ * access. `initPromise` populates it at startup by reading each key from Dexie
+ * first, then falling back to `localStorage` (prefix `posa_`), then retaining
+ * the default value declared in the object literal. Await `initPromise` before
+ * reading any `memory` value in application code.
+ *
+ * **Persist write path (`persist`)**
+ * `persist(key)` is the single write path for all `memory` entries. On each call
+ * it writes to the Dexie table determined by `KEY_TABLE_MAP`, mirrors that write
+ * to the `keyval` catch-all table, and serializes the value to `localStorage`
+ * under `posa_<key>`. Keys in `LARGE_KEYS` are excluded from the localStorage
+ * step to avoid storage-quota exhaustion. When a Web Worker is available
+ * (`persistWorker`), the Dexie and localStorage writes are offloaded to avoid
+ * blocking the main thread during heavy sync passes.
+ *
+ * **Relationship to the rest of the offline layer**
+ * `cache.ts` reads and writes through `memory`, calling `persist(key)` on every
+ * mutation. For large, searchable datasets (`items`, `customers`) it also issues
+ * `db` table queries directly. Domain queue modules (`invoices`, `payments`, etc.)
+ * and sync adapters import `db`, `memory`, and `persist` from this file.
+ * `checkDbHealth` is called defensively before every IndexedDB operation
+ * elsewhere in the layer; it will reopen, or delete and recreate, the database
+ * on detected corruption.
+ */
 import Dexie from "dexie/dist/dexie.mjs";
 
 type AnyRecord = Record<string, any>;
