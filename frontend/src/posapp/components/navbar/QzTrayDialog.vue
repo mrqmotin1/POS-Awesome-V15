@@ -39,7 +39,7 @@
 					</v-btn>
 				</div>
 
-				<v-select
+				<!-- <v-select
 					v-model="selectedPrinter"
 					:items="printerOptions"
 					:label="__('Printer')"
@@ -48,7 +48,7 @@
 					density="compact"
 					clearable
 					:disabled="loadingPrinters"
-				/>
+				/> -->
 				<div class="d-flex flex-wrap align-center justify-space-between ga-2 mt-3">
 					<div class="text-caption text-medium-emphasis">
 						{{
