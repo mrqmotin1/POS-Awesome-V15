@@ -54,7 +54,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			sortable: false,
 			key: "sl",
 			required: true,
-			width: "50px",
+			width: "15px",
 		},
 		{
 			title: __("Name"),
@@ -70,7 +70,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			key: "price_list_rate",
 			align: "end",
 			required: false,
-			width: "120px",
+			width: "80px",
 		},
 		{
 			title: __("Discount %"),

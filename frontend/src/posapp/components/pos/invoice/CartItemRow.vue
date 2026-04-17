@@ -699,7 +699,7 @@ function closeDiscountAmountEdit() {
 
 /* Add minimal padding for table cells as per ItemsTable.vue styles */
 td {
-	padding: 16px 12px;
+	padding: 8px 6px;
 	vertical-align: middle;
 	height: 60px;
 	text-align: center;
