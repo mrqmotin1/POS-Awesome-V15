@@ -38,10 +38,10 @@
 		>
 			<v-col
 				v-show="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'items'"
-				:xl="useCompactPosSwitcher ? 12 : 5"
-				:lg="useCompactPosSwitcher ? 12 : 5"
-				:md="useCompactPosSwitcher ? 12 : 5"
-				:sm="useCompactPosSwitcher ? 12 : 5"
+				:xl="useCompactPosSwitcher ? 12 : 4"
+				:lg="useCompactPosSwitcher ? 12 : 4"
+				:md="useCompactPosSwitcher ? 12 : 4"
+				:sm="useCompactPosSwitcher ? 12 : 4"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
@@ -49,10 +49,10 @@
 			</v-col>
 			<v-col
 				v-show="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'offers'"
-				:xl="useCompactPosSwitcher ? 12 : 5"
-				:lg="useCompactPosSwitcher ? 12 : 5"
-				:md="useCompactPosSwitcher ? 12 : 5"
-				:sm="useCompactPosSwitcher ? 12 : 5"
+				:xl="useCompactPosSwitcher ? 12 : 4"
+				:lg="useCompactPosSwitcher ? 12 : 4"
+				:md="useCompactPosSwitcher ? 12 : 4"
+				:sm="useCompactPosSwitcher ? 12 : 4"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
@@ -60,25 +60,21 @@
 			</v-col>
 			<v-col
 				v-show="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'coupons'"
-				:xl="useCompactPosSwitcher ? 12 : 5"
-				:lg="useCompactPosSwitcher ? 12 : 5"
-				:md="useCompactPosSwitcher ? 12 : 5"
-				:sm="useCompactPosSwitcher ? 12 : 5"
+				:xl="useCompactPosSwitcher ? 12 : 4"
+				:lg="useCompactPosSwitcher ? 12 : 4"
+				:md="useCompactPosSwitcher ? 12 : 4"
+				:sm="useCompactPosSwitcher ? 12 : 4"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
 				<PosCoupons></PosCoupons>
 			</v-col>
 			<v-col
-				v-if="
-					(!useCompactPosSwitcher || compactPanel === 'selector') &&
-					activeView === 'payment' &&
-					!usePaymentDialog
-				"
-				:xl="useCompactPosSwitcher ? 12 : 5"
-				:lg="useCompactPosSwitcher ? 12 : 5"
-				:md="useCompactPosSwitcher ? 12 : 5"
-				:sm="useCompactPosSwitcher ? 12 : 5"
+				v-if="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'payment' && !usePaymentDialog"
+				:xl="useCompactPosSwitcher ? 12 : 4"
+				:lg="useCompactPosSwitcher ? 12 : 4"
+				:md="useCompactPosSwitcher ? 12 : 4"
+				:sm="useCompactPosSwitcher ? 12 : 4"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
@@ -87,10 +83,10 @@
 
 			<v-col
 				v-show="!useCompactPosSwitcher || compactPanel === 'invoice'"
-				:xl="useCompactPosSwitcher ? 12 : 7"
-				:lg="useCompactPosSwitcher ? 12 : 7"
-				:md="useCompactPosSwitcher ? 12 : 7"
-				:sm="useCompactPosSwitcher ? 12 : 7"
+				:xl="useCompactPosSwitcher ? 12 : 8"
+				:lg="useCompactPosSwitcher ? 12 : 8"
+				:md="useCompactPosSwitcher ? 12 : 8"
+				:sm="useCompactPosSwitcher ? 12 : 8"
 				cols="12"
 				class="pos dynamic-col dynamic-col--invoice"
 			>
