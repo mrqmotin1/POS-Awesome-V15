@@ -151,9 +151,8 @@ export const useItemsSelectorSettings = ({
 		if (typeof opts.hide_zero_rate_items === "boolean") {
 			vm.hide_zero_rate_items = opts.hide_zero_rate_items;
 		}
-		if (typeof opts.show_last_invoice_rate === "boolean") {
-			vm.show_last_invoice_rate = opts.show_last_invoice_rate;
-		}
+		// show_last_invoice_rate is always disabled
+		vm.show_last_invoice_rate = false;
 		if (typeof opts.enable_background_sync === "boolean") {
 			vm.enable_background_sync = opts.enable_background_sync;
 		}

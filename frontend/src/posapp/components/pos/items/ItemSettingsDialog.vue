@@ -131,7 +131,7 @@ const form = reactive({
 	new_line: false,
 	hide_qty_decimals: false,
 	hide_zero_rate_items: false,
-	show_last_invoice_rate: true,
+	show_last_invoice_rate: false,
 	enable_background_sync: true,
 	background_sync_interval: 30,
 	enable_custom_items_per_page: false,

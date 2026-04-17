@@ -339,7 +339,7 @@ const localStorageAvailable = ref(true);
 // Settings Refs
 const hide_qty_decimals = ref(false);
 const hide_zero_rate_items = ref(false);
-const show_last_invoice_rate = ref(true);
+const show_last_invoice_rate = ref(false);
 const enable_background_sync = ref(true);
 const background_sync_interval = ref(30);
 const enable_custom_items_per_page = ref(false);
@@ -353,7 +353,7 @@ const temp_hide_zero_rate_items = ref(false);
 const temp_enable_custom_items_per_page = ref(false);
 const temp_items_per_page = ref(50);
 const temp_force_server_items = ref(false);
-const temp_show_last_invoice_rate = ref(true);
+const temp_show_last_invoice_rate = ref(false);
 const temp_enable_background_sync = ref(true);
 const temp_background_sync_interval = ref(30);
 
