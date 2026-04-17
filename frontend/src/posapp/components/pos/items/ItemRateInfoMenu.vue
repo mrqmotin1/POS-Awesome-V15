@@ -2,6 +2,11 @@
 	<v-menu
 		location="bottom end"
 		offset="8"
+		open-on-hover
+		:open-on-click="true"
+		:open-on-focus="true"
+		:open-delay="80"
+		:close-delay="160"
 		:close-on-content-click="true"
 		content-class="item-rate-info-menu-content"
 	>
