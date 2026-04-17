@@ -34,9 +34,9 @@
 				<div class="invoice-sections">
 					<div class="invoice-top-grid">
 						<v-card flat class="invoice-section-card pos-themed-card">
-							<div class="invoice-section-heading">
+							<!-- <div class="invoice-section-heading">
 								<h3 class="invoice-section-heading__title">{{ __("Customer Details") }}</h3>
-							</div>
+							</div> -->
 							<InvoiceCustomerSection
 								ref="customerSection"
 								:pos_profile="pos_profile"
@@ -147,9 +147,9 @@
 					</div>
 
 					<v-card flat class="invoice-section-card invoice-items-card pos-themed-card">
-						<div class="invoice-section-heading">
+						<!-- <div class="invoice-section-heading">
 							<h3 class="invoice-section-heading__title">{{ __("Invoice Items") }}</h3>
-						</div>
+						</div> -->
 						<div class="items-table-wrapper">
 							<InvoiceItemsActionToolbar
 								ref="actionToolbar"
