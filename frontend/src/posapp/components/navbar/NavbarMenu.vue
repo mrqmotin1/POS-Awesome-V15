@@ -513,16 +513,6 @@ export default {
 					tone: "primary",
 					handler: "openEmployeeSwitch",
 				},
-				this.isSessionUserNotManager
-					? {
-							id: "manager-login",
-							label: this.isManagerMode ? __("Manager Logout") : __("Manager Login"),
-							subtitle: __("Only managers can continue"),
-							icon: this.isManagerMode ? "mdi-logout" : "mdi-login",
-							tone: "info",
-							handler: "managerLogin",
-						}
-					: null,
 				{
 					id: "lock-screen",
 					label: __("Lock Screen"),
@@ -558,6 +548,14 @@ export default {
 					icon: "mdi-sync",
 					tone: "info",
 					handler: "syncInvoices",
+				},
+				{
+					id: "manager-login",
+					label: this.isManagerMode ? __("Manager Logout") : __("Manager Login"),
+					subtitle: this.isManagerMode ? __("Exit manager mode") : __("Authenticate as manager"),
+					icon: this.isManagerMode ? "mdi-shield-off-outline" : "mdi-shield-account-outline",
+					tone: "warning",
+					handler: "managerLogin",
 				},
 				!this.posProfile?.posa_hide_closing_shift
 					? {
