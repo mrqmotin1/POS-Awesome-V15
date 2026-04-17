@@ -134,7 +134,7 @@ defineEmits(["update:modelValue", "update:itemsView", "open-offers", "open-coupo
 	margin-bottom: calc(var(--bottom-safe-space) + 6px) !important;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
 	.cards {
 		position: static;
 	}
