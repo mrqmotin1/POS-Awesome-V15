@@ -532,6 +532,14 @@ export default {
 							tone: "info",
 							handler: "syncInvoices",
 						},
+						{
+							id: "manager-login",
+							label: this.isManagerMode ? __("Manager Logout") : __("Manager Login"),
+							subtitle: this.isManagerMode ? __("Exit manager mode") : __("Authenticate as manager"),
+							icon: this.isManagerMode ? "mdi-shield-off-outline" : "mdi-shield-account-outline",
+							tone: "warning",
+							handler: "managerLogin",
+						},
 				!this.posProfile?.posa_hide_closing_shift
 					? {
 							id: "close-shift",
@@ -774,6 +782,10 @@ export default {
 				case "showAboutAction":
 					this.closeMenu();
 					this.$emit("show-about");
+					break;
+				case "managerLogin":
+					this.closeMenu();
+					this.handleManagerLogin();
 					break;
 				case "logoutAction":
 					this.closeMenu();
