@@ -14,7 +14,7 @@
 				overflow: 'auto',
 			}"
 			:class="[
-				'cards my-0 py-0 mt-3 resizable invoice-main-card',
+				'cards my-0 py-0 mt-3 resizable invoice-main-card invoice-main-card-custom',
 				'pos-themed-card',
 				{ 'return-mode': isReturnInvoice },
 			]"
@@ -1128,7 +1128,7 @@ export default {
 	overflow: auto;
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1023px) {
 	.invoice-shell {
 		padding-bottom: calc(var(--bottom-safe-space) + var(--dynamic-xs));
 	}
@@ -1140,6 +1140,13 @@ export default {
 	flex: 0 0 auto;
 	overflow: auto !important;
 	min-width: 0;
+}
+
+@media (max-width: 1023px) {
+	.invoice-main-card-custom {
+		height: max-content !important;
+		max-height: none !important;
+	}
 }
 
 /* Style for selected checkbox button */

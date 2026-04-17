@@ -231,7 +231,7 @@ const additionalDiscountPercentageDisplay = ref(
 const canEditDiscount = computed(
 	() => isSessionUserManager.value || isManagerMode.value,
 );
-const useCompactSaleDock = computed(() => responsive.windowWidth.value < 1100);
+const useCompactSaleDock = computed(() => responsive.windowWidth.value < 1024);
 const showDesktopDrafts = computed(() => Boolean(responsive.isDesktop.value));
 const showReturnDiscountAlert = computed(
 	() =>
@@ -540,7 +540,7 @@ defineExpose({
 	}
 }
 
-@media (max-width: 1099px) {
+@media (max-width: 1023px) {
 	.sticky-summary-card--dock-safe {
 		margin-bottom: calc(var(--bottom-safe-space) + 12px);
 	}

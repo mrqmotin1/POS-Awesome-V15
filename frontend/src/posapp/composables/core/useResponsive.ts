@@ -8,10 +8,10 @@ export function useResponsive() {
 
 	const isPhone = computed(() => windowWidth.value < 768);
 	const isTablet = computed(
-		() => windowWidth.value >= 768 && windowWidth.value < 1100,
+		() => windowWidth.value >= 768 && windowWidth.value < 1024,
 	);
-	const isDesktop = computed(() => windowWidth.value >= 1100);
-	const isCompact = computed(() => windowWidth.value < 1100);
+	const isDesktop = computed(() => windowWidth.value >= 1024);
+	const isCompact = computed(() => windowWidth.value < 1024);
 	const isShortViewport = computed(() => windowHeight.value < 760);
 
 	const widthScale = computed(() => windowWidth.value / baseWidth.value);
@@ -63,7 +63,7 @@ export function useResponsive() {
 		let bottomSafeSpace = 24;
 		if (windowWidth.value < 600) {
 			bottomSafeSpace = isShortViewport.value ? 176 : 196;
-		} else if (windowWidth.value < 1100) {
+		} else if (windowWidth.value < 1024) {
 			bottomSafeSpace = isShortViewport.value ? 112 : 132;
 		}
 
