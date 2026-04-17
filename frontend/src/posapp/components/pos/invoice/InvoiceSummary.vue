@@ -640,7 +640,7 @@ defineExpose({
 	}
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
 	.sticky-summary-card--dock-safe {
 		margin-bottom: calc(var(--bottom-safe-space) + 12px);
 	}

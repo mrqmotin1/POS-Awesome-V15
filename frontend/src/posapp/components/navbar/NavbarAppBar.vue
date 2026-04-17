@@ -1105,7 +1105,7 @@ export default {
 }
 
 /* Tablet optimizations */
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1024px) {
 	.pos-navbar-actions-section {
 		gap: 6px;
 	}

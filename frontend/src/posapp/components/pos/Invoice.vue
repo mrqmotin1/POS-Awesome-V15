@@ -1259,7 +1259,7 @@ export default {
 	overflow: auto;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
 	.invoice-shell {
 		padding-bottom: calc(var(--bottom-safe-space) + var(--dynamic-xs));
 	}
@@ -1273,7 +1273,7 @@ export default {
 	min-width: 0;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
 	.invoice-main-card-custom {
 		height: max-content !important;
 		max-height: none !important;
