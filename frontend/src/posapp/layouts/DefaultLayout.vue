@@ -114,6 +114,7 @@ import {
 	purgeOldQueueEntries,
 	initPromise,
 	memoryInitPromise,
+	ensureOfflineQueueReady,
 	toggleManualOffline,
 	isManualOffline as getIsManualOffline,
 	syncOfflineInvoices,
@@ -814,6 +815,7 @@ const setupNetworkListeners = () => {
 const initializeData = async () => {
 	await initPromise;
 	await memoryInitPromise;
+	await ensureOfflineQueueReady();
 	await hydrateOfflineSyncResourceStates();
 	checkDbHealth().catch(() => {});
 	// Offline-first bootstrap: hydrate register state from IndexedDB before server checks.
