@@ -44,6 +44,7 @@
 				<CartItemRow
 					:item="item"
 					:index="index"
+					:visible-columns="finalVisibleColumns"
 					:posProfile="pos_profile"
 					:isReturnInvoice="isReturnInvoice"
 					:invoiceType="invoiceType"
@@ -55,11 +56,7 @@
 					:isNegative="memoizedIsNegative"
 					:hideQtyDecimals="hide_qty_decimals"
 					:isRTL="isRtl"
-					:showUom="isColumnVisible('uom')"
-					:showPriceListRate="isColumnVisible('price_list_rate')"
-					:showDiscountPercent="isColumnVisible('discount_percentage')"
-					:showDiscountAmount="isColumnVisible('discount_amount')"
-					:showOffer="isColumnVisible('posa_is_offer')"
+					:is-expanded="isItemExpanded(item.posa_row_id)"
 					@update-qty="handleQtyUpdate"
 					@minus-click="handleMinusClick"
 					@add-one="addOne"
@@ -70,6 +67,7 @@
 					@open-name-dialog="openNameDialog"
 					@reset-item-name="resetItemName"
 					@toggle-offer="toggleOffer"
+					@toggle-expand="handleToggleExpand(internalItem, toggleExpand)"
 					@remove-item="removeItem"
 					@click="handleRowClick($event, item, toggleExpand, internalItem)"
 				/>
@@ -80,7 +78,7 @@
 				<ItemsTableExpandedRow
 					:item="item"
 					:is-expanded="isItemExpanded(item.posa_row_id)"
-					:colspan="responsiveHeaders.length + 1"
+					:colspan="finalVisibleColumns.length"
 					:pos_profile="pos_profile"
 					:invoice-type="invoiceType"
 					:is-return-invoice="isReturnInvoice"
@@ -137,7 +135,10 @@ import ItemsTableExpandedRow from "./ItemsTableExpandedRow.vue";
 
 import { useItemsTableSearch } from "../../../composables/pos/items/useItemsTableSearch";
 import { useItemsTableDragDrop } from "../../../composables/pos/items/useItemsTableDragDrop";
-import { useItemsTableResponsive } from "../../../composables/pos/items/useItemsTableResponsive";
+import {
+	DATA_TABLE_EXPAND_COLUMN,
+	useItemsTableResponsive,
+} from "../../../composables/pos/items/useItemsTableResponsive";
 import { useItemsTableMerge } from "../../../composables/pos/items/useItemsTableMerge";
 import { useItemsTableNameEdit } from "../../../composables/pos/items/useItemsTableNameEdit";
 import { useFormatters } from "../../../composables/core/useFormatters";
@@ -234,7 +235,6 @@ const memoizedIsNegative = computed(() => {
 const {
 	breakpoint,
 	responsiveHeaders,
-	isColumnVisible,
 	containerStyles,
 	containerClasses,
 	tableClasses,
@@ -246,6 +246,11 @@ const {
 const dynamicHeaderProps = computed(() => ({
 	class: `responsive-header container-${breakpoint.value}`,
 }));
+
+const finalVisibleColumns = computed(() => [
+	...responsiveHeaders.value,
+	DATA_TABLE_EXPAND_COLUMN,
+]);
 
 const virtualScrollConfig = computed(() => {
 	const itemCount = items.value?.length || 0;
@@ -334,6 +339,12 @@ const handleDiscountAmountUpdate = (item: any, newDiscount: any) => {
 };
 
 const handleRowClick = (event: any, item: any, toggleExpand: any, internalItem: any) => {
+	if (toggleExpand) {
+		toggleExpand(internalItem);
+	}
+};
+
+const handleToggleExpand = (internalItem: any, toggleExpand: any) => {
 	if (toggleExpand) {
 		toggleExpand(internalItem);
 	}
