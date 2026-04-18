@@ -7,6 +7,7 @@
 			:pending-invoices="pendingInvoices"
 			:loading-progress="loadingProgress"
 			:loading-active="loadingActive"
+			:loading-indeterminate="loadingIndeterminate"
 			:loading-message="loadingMessage"
 			@nav-click="handleNavClick"
 			@go-desk="goDesk"
@@ -276,6 +277,10 @@ export default {
 			default: 0,
 		},
 		loadingActive: {
+			type: Boolean,
+			default: false,
+		},
+		loadingIndeterminate: {
 			type: Boolean,
 			default: false,
 		},
