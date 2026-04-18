@@ -5,6 +5,8 @@ let db;
 const BASE_SCHEMA = {
 	keyval: "&key",
 	queue: "&key",
+	write_queue:
+		"++queue_id,entity_type,status,created_at,last_attempt_at,retry_count,&idempotency_key,[entity_type+status]",
 	cache: "&key",
 	items: "&item_code,item_name,item_group,*barcodes,*name_keywords,*serials,*batches",
 	item_prices: "&[price_list+item_code],price_list,item_code",
@@ -151,6 +153,7 @@ const SCHEMA_SIGNATURE = JSON.stringify(BASE_SCHEMA);
 			}
 		});
 	db.version(10).stores(BASE_SCHEMA);
+	db.version(11).stores(BASE_SCHEMA);
 	try {
 		await db.open();
 	} catch (err) {

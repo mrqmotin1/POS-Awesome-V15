@@ -169,7 +169,7 @@ export function usePosPaySubmission({
 
 			if (isOffline()) {
 				try {
-					saveOfflinePayment({ args: { payload } });
+					await saveOfflinePayment({ args: { payload } });
 					eventBus.emit("show_message", {
 						title: __("Payment saved offline"),
 						color: "warning",

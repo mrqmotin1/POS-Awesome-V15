@@ -675,7 +675,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 				throw new Error(__("Gift card redemption requires an online connection"));
 			}
 			try {
-				saveOfflineInvoice({ data, invoice: doc });
+				await saveOfflineInvoice({ data, invoice: doc });
 				stores?.syncStore?.updatePendingCount();
 				stores?.toastStore?.show({
 					title: __("Invoice saved offline"),
