@@ -398,15 +398,15 @@ export async function claimRetryableQueueEntries(entityType: OfflineEntityType) 
 	await ensureOfflineQueueReady();
 
 	const table = db.table(WRITE_QUEUE_TABLE);
-	const entries = (await table
-		.where("entity_type")
-		.equals(entityType)
-		.sortBy("created_at")) as OfflineQueueEntry[];
-
 	const claimed: OfflineQueueEntry[] = [];
 	const claimTimestamp = nowIso();
 
 	await db.transaction("rw", table, async () => {
+		const entries = (await table
+			.where("entity_type")
+			.equals(entityType)
+			.sortBy("created_at")) as OfflineQueueEntry[];
+
 		for (const entry of entries) {
 			if (!isRetryableStatus(entry.status)) {
 				continue;
@@ -491,12 +491,13 @@ export async function updateQueuedPayloads(
 ) {
 	await ensureOfflineQueueReady();
 	const table = db.table(WRITE_QUEUE_TABLE);
-	const entries = (await table
-		.where("entity_type")
-		.equals(entityType)
-		.sortBy("created_at")) as OfflineQueueEntry[];
 
 	await db.transaction("rw", table, async () => {
+		const entries = (await table
+			.where("entity_type")
+			.equals(entityType)
+			.sortBy("created_at")) as OfflineQueueEntry[];
+
 		for (const entry of entries) {
 			if (!isActiveStatus(entry.status)) {
 				continue;
