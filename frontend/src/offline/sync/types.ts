@@ -106,8 +106,41 @@ export interface SyncResourceState {
 	lastError: string | null;
 	/** Number of consecutive failures since the last success. Reset on success. */
 	consecutiveFailures: number;
+	/** ISO-8601 timestamp of the last sync attempt, successful or not. */
+	lastAttemptAt?: string | null;
+	/** ISO-8601 timestamp when the next retry becomes eligible after backoff. */
+	nextRetryAt?: string | null;
+	/** Cooldown/backoff duration applied after the last failure. */
+	cooldownMs?: number | null;
+	/** Trigger that last touched this resource state. */
+	lastTrigger?: SyncTrigger | null;
 	/** Serialised representation of the scope at last sync. Used to detect profile/company changes. */
 	scopeSignature: string | null;
 	/** Schema version of the stored data. Used to trigger a full resync after data-model changes. */
 	schemaVersion: string | null;
+}
+
+export interface SyncTriggerResourceSummary {
+	resourceId: SyncResourceId;
+	priority: SyncResourcePriority;
+	status: SyncLifecycleState;
+	skipped: boolean;
+	error: string | null;
+}
+
+export interface SyncTriggerRunSummary {
+	trigger: SyncTrigger;
+	startedAt: string;
+	finishedAt: string;
+	resourcesTotal: number;
+	succeeded: number;
+	failed: number;
+	skipped: number;
+	bootCriticalFailures: number;
+	errors: Array<{
+		resourceId: SyncResourceId;
+		priority: SyncResourcePriority;
+		message: string;
+	}>;
+	resources: SyncTriggerResourceSummary[];
 }

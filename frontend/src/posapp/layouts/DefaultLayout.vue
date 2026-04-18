@@ -184,6 +184,7 @@ const __ = instance?.proxy?.__ || ((value) => value);
 const BUILD_VERSION =
 	typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : null;
 const OFFLINE_SYNC_SCHEMA_VERSION = "2026-04-09";
+const OFFLINE_SYNC_TIMER_INTERVAL_MS = 60_000;
 
 // Utils
 const { overlayVisible: globalLoading } = useLoading();
@@ -217,6 +218,7 @@ const syncCoordinator = new SyncCoordinator({
 const offlineSyncRuntime = createOfflineSyncRuntime({
 	canSync: canRunOfflineSync,
 	runTrigger: (trigger) => syncCoordinator.runTrigger(trigger),
+	timerIntervalMs: OFFLINE_SYNC_TIMER_INTERVAL_MS,
 });
 
 // State
@@ -424,14 +426,14 @@ async function hydrateOfflineSyncResourceStates() {
 
 function scheduleBootCriticalWarmSync() {
 	return offlineSyncRuntime.scheduleBootWarmSync().catch((error) => {
-		console.error("Failed to schedule offline sync", error);
+		console.error("Failed to schedule offline sync", error, syncCoordinator.getLastRunSummary());
 		return false;
 	});
 }
 
 function triggerOnlineResumeSync() {
 	return offlineSyncRuntime.triggerOnlineResumeSync().catch((error) => {
-		console.error("Failed to trigger online resume sync", error);
+		console.error("Failed to trigger online resume sync", error, syncCoordinator.getLastRunSummary());
 		return false;
 	});
 }
@@ -590,6 +592,7 @@ onMounted(() => {
 	window.addEventListener("resize", adjust_frappe_sidebar_offset);
 	// initLoadingSources move to setup to catch early store readiness
 	initializeData();
+	offlineSyncRuntime.startTimerSync();
 	setupNetworkListeners(); // Local function wrapper
 	setupEventListeners();
 	handleRefreshCacheUsage();
@@ -610,6 +613,7 @@ onBeforeUnmount(() => {
 		clearInterval(updateInterval);
 		updateInterval = null;
 	}
+	offlineSyncRuntime.stopTimerSync();
 	if (eventBus) {
 		eventBus.off("data-loaded");
 		eventBus.off("register_pos_profile");
@@ -958,12 +962,25 @@ const handleRebuildOfflineData = async () => {
 
 const handleOpenOfflineDiagnostics = () => {
 	handleRefreshCacheUsage();
+	const lastRunSummary = syncCoordinator.getLastRunSummary();
+	const syncSummary =
+		lastRunSummary && lastRunSummary.resourcesTotal
+			? __("Last sync: {0} | ok: {1} | failed: {2} | skipped: {3}", [
+					lastRunSummary.trigger,
+					lastRunSummary.succeeded,
+					lastRunSummary.failed,
+					lastRunSummary.skipped,
+			  ])
+			: __("No sync trigger has run yet in this session.");
 	toastStore.show({
 		title: __("Offline diagnostics"),
-		detail: __("Pending sales: {0} | Cache usage: {1}%", [
+		detail: `${__(
+			"Pending sales: {0} | Cache usage: {1}%",
+			[
 			pendingInvoicesCount.value || 0,
 			Math.round(cacheUsage.value || 0),
-		]),
+			],
+		)}\n${syncSummary}`,
 		color: bootstrapWarningActive.value ? "warning" : "info",
 	});
 };
