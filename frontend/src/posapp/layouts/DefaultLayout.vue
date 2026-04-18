@@ -19,6 +19,7 @@
 				:cache-usage-details="cacheUsageDetails"
 				:loading-progress="loadingProgress"
 				:loading-active="loadingActive"
+				:loading-indeterminate="loadingIndeterminate"
 				:loading-message="loadingMessage"
 				:bootstrap-warning-active="visibleBootstrapWarningActive"
 				:bootstrap-warning-tooltip="visibleBootstrapWarningTooltip"
@@ -189,7 +190,7 @@ const OFFLINE_SYNC_SCHEMA_VERSION = "2026-04-09";
 const OFFLINE_SYNC_TIMER_INTERVAL_MS = 60_000;
 
 // Utils
-const { overlayVisible: globalLoading } = useLoading();
+const { overlayVisible: globalLoading, getScopeState } = useLoading();
 const { get_closing_data } = usePosShift();
 const syncStore = useSyncStore();
 const customersStore = useCustomersStore();
@@ -468,9 +469,25 @@ function triggerOperatorRefreshSync(options = {}) {
 }
 
 // Computed
-const loadingProgress = computed(() => loadingState.progress);
-const loadingActive = computed(() => loadingState.active);
-const loadingMessage = computed(() => loadingState.message);
+const routeLoadingState = getScopeState("route");
+const loadingActive = computed(
+	() => loadingState.active || routeLoadingState.value.count > 0,
+);
+const loadingIndeterminate = computed(
+	() => !loadingState.active && routeLoadingState.value.count > 0,
+);
+const loadingMessage = computed(() => {
+	if (loadingState.active) {
+		return loadingState.message;
+	}
+	return routeLoadingState.value.message || __("Loading view...");
+});
+const loadingProgress = computed(() => {
+	if (loadingState.active) {
+		return loadingState.progress;
+	}
+	return 0;
+});
 const bootstrapAlertType = computed(() =>
 	bootstrapStatus.value?.primary_warning?.severity === "error" ||
 	bootstrapStatus.value?.runtime_mode === "invalid"
