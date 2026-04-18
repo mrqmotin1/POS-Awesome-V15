@@ -553,5 +553,3 @@ export function getQueuedPayloadSnapshots(entityType: OfflineEntityType) {
 export function getQueuedPayloadCount(entityType: OfflineEntityType) {
 	return (memory[getMemoryKey(entityType)] || []).length;
 }
-
-void ensureOfflineQueueReady();
