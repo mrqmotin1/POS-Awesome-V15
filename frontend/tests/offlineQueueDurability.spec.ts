@@ -8,10 +8,12 @@ import {
 	db,
 	getOfflineCashMovements,
 	getOfflineInvoices,
+	getOfflinePayments,
 	initPromise,
 	memory,
 	saveOfflineCashMovement,
 	saveOfflineInvoice,
+	saveOfflinePayment,
 	syncOfflineCashMovements,
 } from "../src/offline/index";
 import { migrateLegacyOfflineQueues } from "../src/offline/writeQueue";
@@ -24,6 +26,8 @@ describe("offline write queue durability", () => {
 		await db.table("keyval").clear();
 		localStorage.clear();
 		memory.offline_invoices = [];
+		memory.offline_customers = [];
+		memory.offline_payments = [];
 		memory.offline_cash_movements = [];
 		vi.spyOn(console, "error").mockImplementation(() => {});
 		(globalThis as any).frappe = {
@@ -83,6 +87,54 @@ describe("offline write queue durability", () => {
 		expect(queued).toHaveLength(1);
 		expect(dbRows).toHaveLength(1);
 		expect(dbRows[0]?.idempotency_key).toContain("cm-fixed-001");
+	});
+
+	it("prevents duplicate queue entries for the same idempotent invoice", async () => {
+		const entry = {
+			invoice: {
+				name: "OFFLINE-SINV-DEDUP-1",
+				customer: "CUST-DEDUP",
+				posa_client_request_id: "inv-fixed-queue-001",
+				items: [{ item_code: "ITEM-1", item_name: "Item 1", qty: 1 }],
+			},
+			data: {
+				idempotency_key: "inv-fixed-queue-001",
+			},
+		};
+
+		await saveOfflineInvoice(entry);
+		await saveOfflineInvoice(entry);
+
+		const queued = getOfflineInvoices();
+		const dbRows = await db.table("write_queue").toArray();
+
+		expect(queued).toHaveLength(1);
+		expect(dbRows).toHaveLength(1);
+		expect(dbRows[0]?.idempotency_key).toBe("invoice:inv-fixed-queue-001");
+	});
+
+	it("prevents duplicate queue entries for the same idempotent payment", async () => {
+		const entry = {
+			args: {
+				payload: {
+					customer: "CUST-001",
+					company: "Test Company",
+					currency: "USD",
+					client_request_id: "pay-fixed-queue-001",
+					payment_methods: [{ mode_of_payment: "Cash", amount: 25 }],
+				},
+			},
+		};
+
+		await saveOfflinePayment(entry);
+		await saveOfflinePayment(entry);
+
+		const queued = getOfflinePayments();
+		const dbRows = await db.table("write_queue").toArray();
+
+		expect(queued).toHaveLength(1);
+		expect(dbRows).toHaveLength(1);
+		expect(dbRows[0]?.idempotency_key).toBe("payment:pay-fixed-queue-001");
 	});
 
 	it("tracks retry metadata and moves exhausted entries to dead letter", async () => {
