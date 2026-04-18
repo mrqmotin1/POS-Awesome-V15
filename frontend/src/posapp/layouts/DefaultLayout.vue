@@ -218,6 +218,7 @@ const syncCoordinator = new SyncCoordinator({
 });
 const offlineSyncRuntime = createOfflineSyncRuntime({
 	canSync: canRunOfflineSync,
+	canRunTimerSync: canRunTimerOfflineSync,
 	runTrigger: (trigger) => syncCoordinator.runTrigger(trigger),
 	timerIntervalMs: OFFLINE_SYNC_TIMER_INTERVAL_MS,
 });
@@ -382,6 +383,14 @@ function canRunOfflineSync() {
 		getOfflineSyncProfile()?.name &&
 		!getIsManualOffline() &&
 		navigator.onLine
+	);
+}
+
+function canRunTimerOfflineSync() {
+	return !!(
+		canRunOfflineSync() &&
+		serverOnline.value &&
+		!serverConnecting.value
 	);
 }
 
