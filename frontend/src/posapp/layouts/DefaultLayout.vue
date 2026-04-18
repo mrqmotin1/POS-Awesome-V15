@@ -20,9 +20,9 @@
 				:loading-progress="loadingProgress"
 				:loading-active="loadingActive"
 				:loading-message="loadingMessage"
-				:bootstrap-warning-active="bootstrapWarningActive"
-				:bootstrap-warning-tooltip="bootstrapWarningTooltip"
-				:bootstrap-capabilities="bootstrapCapabilitySummaries"
+				:bootstrap-warning-active="visibleBootstrapWarningActive"
+				:bootstrap-warning-tooltip="visibleBootstrapWarningTooltip"
+				:bootstrap-capabilities="visibleBootstrapCapabilitySummaries"
 				@nav-click="handleNavClick"
 				@close-shift="handleCloseShift"
 				@print-last-invoice="handlePrintLastInvoice"
@@ -47,20 +47,20 @@
 			>
 				<div class="bootstrap-warning-snackbar__content">
 					<div class="bootstrap-warning-title">
-						{{ bootstrapWarningTitle }}
+						{{ visibleBootstrapWarningTitle }}
 					</div>
 					<div
-						v-for="message in bootstrapWarningMessages"
+						v-for="message in visibleBootstrapWarningMessages"
 						:key="message"
 						class="bootstrap-warning-message"
 					>
 						{{ message }}
 					</div>
 					<div
-						v-if="bootstrapRecoveryMessage"
+						v-if="visibleBootstrapRecoveryMessage"
 						class="bootstrap-warning-message"
 					>
-						{{ bootstrapRecoveryMessage }}
+						{{ visibleBootstrapRecoveryMessage }}
 					</div>
 				</div>
 				<template #actions>
@@ -155,6 +155,10 @@ import {
 	shouldShowBootstrapBanner,
 } from "../utils/bootstrapWarnings";
 import { listenForBootstrapSnapshotUpdates } from "../utils/bootstrapRuntimeEvents";
+import {
+	resolveBootstrapWarningUiState,
+	shouldLiftBootstrapWarningStartupGate,
+} from "../utils/bootstrapWarningVisibility";
 
 /**
  * Frappe Desk UI selectors to hide in POS view.
@@ -246,6 +250,8 @@ const bootstrapStatus = ref(getBootstrapSnapshotStatus());
 const bootstrapLimitedMode = ref(getBootstrapLimitedMode());
 const bootstrapSnackbarVisible = ref(false);
 const confirmedBootstrapDecisionKey = ref("");
+const initialBootstrapSyncSettled = ref(false);
+const startupBootstrapWarningsReady = ref(false);
 let _sidebarObserver = null;
 let updateInterval = null;
 let removeBootstrapSnapshotListener = null;
@@ -532,15 +538,41 @@ const bootstrapWarningTooltip = computed(() => {
 		.filter(Boolean)
 		.join("\n");
 });
+const bootstrapWarningUiState = computed(() =>
+	resolveBootstrapWarningUiState({
+		startupWarningsReady: startupBootstrapWarningsReady.value,
+		warningActive: bootstrapWarningActive.value,
+		warningTooltip: bootstrapWarningTooltip.value,
+		capabilitySummaries: bootstrapCapabilitySummaries.value,
+	}),
+);
+const visibleBootstrapWarningActive = computed(
+	() => bootstrapWarningUiState.value.active,
+);
+const visibleBootstrapWarningTooltip = computed(
+	() => bootstrapWarningUiState.value.tooltip,
+);
+const visibleBootstrapCapabilitySummaries = computed(
+	() => bootstrapWarningUiState.value.capabilitySummaries,
+);
+const visibleBootstrapWarningTitle = computed(() =>
+	visibleBootstrapWarningActive.value ? bootstrapWarningTitle.value : "",
+);
+const visibleBootstrapWarningMessages = computed(() =>
+	visibleBootstrapWarningActive.value ? bootstrapWarningMessages.value : [],
+);
+const visibleBootstrapRecoveryMessage = computed(() =>
+	visibleBootstrapWarningActive.value ? bootstrapRecoveryMessage.value : "",
+);
 const bootstrapWarningSignature = computed(() => {
-	if (!bootstrapWarningActive.value) {
+	if (!visibleBootstrapWarningActive.value) {
 		return "";
 	}
 
 	return JSON.stringify({
 		type: bootstrapAlertType.value,
-		title: bootstrapWarningTitle.value,
-		messages: bootstrapWarningMessages.value,
+		title: visibleBootstrapWarningTitle.value,
+		messages: visibleBootstrapWarningMessages.value,
 	});
 });
 
@@ -595,6 +627,25 @@ watch(
 		if (nextSignature !== previousSignature) {
 			bootstrapSnackbarVisible.value = true;
 		}
+	},
+	{ immediate: true },
+);
+
+watch(
+	() => [loadingActive.value, initialBootstrapSyncSettled.value],
+	([isLoading, isBootstrapSettled]) => {
+		const shouldLift = shouldLiftBootstrapWarningStartupGate({
+			loadingActive: Boolean(isLoading),
+			initialBootstrapSettled: Boolean(isBootstrapSettled),
+			startupGateLifted: startupBootstrapWarningsReady.value,
+		});
+
+		if (!shouldLift || startupBootstrapWarningsReady.value) {
+			return;
+		}
+
+		startupBootstrapWarningsReady.value = true;
+		evaluateBootstrapSnapshot({ allowPrompt: false });
 	},
 	{ immediate: true },
 );
@@ -789,7 +840,8 @@ const initializeData = async () => {
 	evaluateBootstrapSnapshot({
 		allowPrompt: manualOffline.value || !navigator.onLine,
 	});
-	void scheduleBootCriticalWarmSync();
+	await scheduleBootCriticalWarmSync();
+	initialBootstrapSyncSettled.value = true;
 
 	markSourceLoaded("init");
 
@@ -1032,7 +1084,7 @@ const handleOpenOfflineDiagnostics = () => {
 			Math.round(cacheUsage.value || 0),
 			],
 		)}\n${syncSummary}`,
-		color: bootstrapWarningActive.value ? "warning" : "info",
+		color: visibleBootstrapWarningActive.value ? "warning" : "info",
 	});
 };
 
