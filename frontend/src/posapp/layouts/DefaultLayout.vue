@@ -154,6 +154,7 @@ import {
 	formatBootstrapWarning,
 	shouldShowBootstrapBanner,
 } from "../utils/bootstrapWarnings";
+import { listenForBootstrapSnapshotUpdates } from "../utils/bootstrapRuntimeEvents";
 
 /**
  * Frappe Desk UI selectors to hide in POS view.
@@ -247,6 +248,7 @@ const bootstrapSnackbarVisible = ref(false);
 const confirmedBootstrapDecisionKey = ref("");
 let _sidebarObserver = null;
 let updateInterval = null;
+let removeBootstrapSnapshotListener = null;
 
 // Event Bus
 const eventBus = instance?.proxy?.eventBus;
@@ -440,6 +442,8 @@ function scheduleBootCriticalWarmSync() {
 	return offlineSyncRuntime.scheduleBootWarmSync().catch((error) => {
 		console.error("Failed to schedule offline sync", error, syncCoordinator.getLastRunSummary());
 		return false;
+	}).finally(() => {
+		evaluateBootstrapSnapshot({ allowPrompt: false });
 	});
 }
 
@@ -447,6 +451,8 @@ function triggerOnlineResumeSync() {
 	return offlineSyncRuntime.triggerOnlineResumeSync().catch((error) => {
 		console.error("Failed to trigger online resume sync", error, syncCoordinator.getLastRunSummary());
 		return false;
+	}).finally(() => {
+		evaluateBootstrapSnapshot({ allowPrompt: false });
 	});
 }
 
@@ -615,6 +621,9 @@ watch(
 // Lifecycle Hooks
 onMounted(() => {
 	pollForFrappeNav();
+	removeBootstrapSnapshotListener = listenForBootstrapSnapshotUpdates(() => {
+		evaluateBootstrapSnapshot({ allowPrompt: false });
+	});
 
 	window.addEventListener("resize", adjust_frappe_sidebar_offset);
 	// initLoadingSources move to setup to catch early store readiness
@@ -639,6 +648,10 @@ onBeforeUnmount(() => {
 	if (updateInterval) {
 		clearInterval(updateInterval);
 		updateInterval = null;
+	}
+	if (removeBootstrapSnapshotListener) {
+		removeBootstrapSnapshotListener();
+		removeBootstrapSnapshotListener = null;
 	}
 	offlineSyncRuntime.stopTimerSync();
 	if (eventBus) {
@@ -962,6 +975,7 @@ const handleRefreshOfflineData = async () => {
 	if (!getIsManualOffline() && navigator.onLine) {
 		await handleRetryStatus();
 		await triggerOnlineResumeSync();
+		evaluateBootstrapSnapshot({ allowPrompt: false });
 	}
 	toastStore.show({
 		title: __("Offline data status refreshed"),
@@ -979,6 +993,7 @@ const handleRebuildOfflineData = async () => {
 	});
 	if (canRunOfflineSync()) {
 		await scheduleBootCriticalWarmSync();
+		evaluateBootstrapSnapshot({ allowPrompt: false });
 	}
 	toastStore.show({
 		title: __("Offline rebuild guidance"),
