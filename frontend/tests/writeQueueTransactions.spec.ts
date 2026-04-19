@@ -249,6 +249,100 @@ describe("write queue transaction safety", () => {
 		expect(memory.offline_invoices).toHaveLength(1);
 	});
 
+	it("coalesces repeated customer updates by replacing the queued payload in place", async () => {
+		const {
+			module,
+			rows,
+			memory,
+			firstTxStates,
+			addTxStates,
+			putTxStates,
+		} = await loadWriteQueueModule([
+			{
+				queue_id: 21,
+				entity_type: "customer",
+				payload: { args: { customer_id: "CUST-001", note: "old" } },
+				created_at: "2026-04-18T12:00:00.000Z",
+				last_attempt_at: "2026-04-18T12:05:00.000Z",
+				retry_count: 2,
+				status: "failed",
+				idempotency_key: "customer:update:CUST-001",
+				last_error: "retry me",
+			},
+		]);
+
+		const queued = await module.enqueueWriteQueueEntry("customer", {
+			args: {
+				customer_id: "CUST-001",
+				note: "new",
+			},
+		});
+
+		expect(firstTxStates).toEqual([true]);
+		expect(addTxStates).toEqual([]);
+		expect(putTxStates).toEqual([true]);
+		expect(queued.queue_id).toBe(21);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.payload.args.note).toBe("new");
+		expect(rows[0]?.status).toBe("pending");
+		expect(rows[0]?.retry_count).toBe(0);
+		expect(rows[0]?.last_attempt_at).toBeNull();
+		expect(memory.offline_customers[0]?.args?.note).toBe("new");
+	});
+
+	it("does not overwrite a synced row when the claimed lease token is stale", async () => {
+		const { module, rows } = await loadWriteQueueModule([
+			{
+				queue_id: 31,
+				entity_type: "invoice",
+				payload: { invoice: { name: "INV-031" } },
+				created_at: "2026-04-18T13:00:00.000Z",
+				last_attempt_at: "2026-04-18T13:10:00.000Z",
+				retry_count: 1,
+				status: "syncing",
+				idempotency_key: "invoice:31",
+				last_error: null,
+			},
+		]);
+
+		const updated = await module.markWriteQueueEntrySynced(
+			"invoice",
+			31,
+			"2026-04-18T13:09:00.000Z",
+		);
+
+		expect(updated).toBe(false);
+		expect(rows[0]?.status).toBe("syncing");
+		expect(rows[0]?.last_attempt_at).toBe("2026-04-18T13:10:00.000Z");
+	});
+
+	it("does not overwrite a failed row when the claimed lease token is stale", async () => {
+		const { module, rows } = await loadWriteQueueModule([
+			{
+				queue_id: 41,
+				entity_type: "payment",
+				payload: { args: { payload: { client_request_id: "pay-041" } } },
+				created_at: "2026-04-18T14:00:00.000Z",
+				last_attempt_at: "2026-04-18T14:05:00.000Z",
+				retry_count: 1,
+				status: "syncing",
+				idempotency_key: "payment:pay-041",
+				last_error: null,
+			},
+		]);
+
+		const updated = await module.markWriteQueueEntryFailed(
+			"payment",
+			41,
+			new Error("stale attempt"),
+			"2026-04-18T14:04:00.000Z",
+		);
+
+		expect(updated).toBe(false);
+		expect(rows[0]?.status).toBe("syncing");
+		expect(rows[0]?.retry_count).toBe(1);
+	});
+
 	it("updates queued payloads with the ordered entity read inside the rw transaction", async () => {
 		const { module, rows, memory, sortByTxStates, putTxStates } =
 			await loadWriteQueueModule([
@@ -307,5 +401,29 @@ describe("write queue transaction safety", () => {
 			"old-c-updated",
 		);
 		expect(memory.offline_customers).toHaveLength(2);
+	});
+
+	it("returns defensive copies for queued payload snapshots", async () => {
+		const { module, memory } = await loadWriteQueueModule([
+			{
+				queue_id: 51,
+				entity_type: "invoice",
+				payload: { invoice: { name: "INV-051" } },
+				created_at: "2026-04-18T15:00:00.000Z",
+				last_attempt_at: null,
+				retry_count: 0,
+				status: "pending",
+				idempotency_key: "invoice:51",
+				last_error: null,
+			},
+		]);
+
+		await module.refreshQueueMemory("invoice");
+		const snapshots = module.getQueuedPayloadSnapshots("invoice");
+		snapshots[0].status = "mutated";
+		snapshots[0].invoice.name = "INV-MUTATED";
+
+		expect(memory.offline_invoices[0]?.status).toBe("pending");
+		expect(memory.offline_invoices[0]?.invoice?.name).toBe("INV-051");
 	});
 });

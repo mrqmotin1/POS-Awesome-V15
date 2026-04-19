@@ -194,4 +194,28 @@ describe("sw updater runtime safety", () => {
 
 		expect(updateStore.reloading).toBe(false);
 	});
+
+	it("continues startup update checks when ensureActiveVersion gets malformed data", async () => {
+		const { registration } = await loadUpdaterHarness({
+			controllerResponses: [{ type: "BAD_VERSION_INFO" }],
+		});
+
+		await vi.runAllTimersAsync();
+
+		expect(registration.update).toHaveBeenCalledTimes(1);
+	});
+
+	it("ignores malformed unsolicited service worker version messages", async () => {
+		const { updateStore, serviceWorker } = await loadUpdaterHarness();
+
+		serviceWorker.dispatchEvent(
+			new MessageEvent("message", {
+				data: { type: "SW_VERSION_INFO", version: "" },
+			}),
+		);
+		await Promise.resolve();
+
+		expect(updateStore.setCurrentVersion).not.toHaveBeenCalledWith("", expect.anything());
+		expect(updateStore.currentVersion).toBe("build-1000");
+	});
 });

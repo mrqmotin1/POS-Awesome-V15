@@ -237,7 +237,11 @@ export async function syncOfflineInvoices() {
 					},
 				});
 				synced += 1;
-				await markWriteQueueEntrySynced(INVOICE_ENTITY, Number(entry.queue_id));
+				await markWriteQueueEntrySynced(
+					INVOICE_ENTITY,
+					Number(entry.queue_id),
+					entry.last_attempt_at,
+				);
 			} catch (error) {
 				console.error("Failed to submit invoice, saving as draft", error);
 				try {
@@ -246,13 +250,18 @@ export async function syncOfflineInvoices() {
 						args: { data: queuedInvoice.invoice },
 					});
 					drafted += 1;
-					await markWriteQueueEntrySynced(INVOICE_ENTITY, Number(entry.queue_id));
+					await markWriteQueueEntrySynced(
+						INVOICE_ENTITY,
+						Number(entry.queue_id),
+						entry.last_attempt_at,
+					);
 				} catch (draftError) {
 					console.error("Failed to save invoice as draft", draftError);
 					await markWriteQueueEntryFailed(
 						INVOICE_ENTITY,
 						Number(entry.queue_id),
 						draftError,
+						entry.last_attempt_at,
 					);
 				}
 			}
