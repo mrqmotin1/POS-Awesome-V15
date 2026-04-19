@@ -125,17 +125,30 @@ function manageOverlay() {
 	const { delay, minVisible } = config.overlay;
 
 	if (shouldShowOverlay) {
+		if (hideTimer) {
+			clearTimeout(hideTimer);
+			hideTimer = null;
+		}
+
 		if (!overlayVisible.value) {
-			if (hideTimer) clearTimeout(hideTimer);
+			if (delayTimer) {
+				clearTimeout(delayTimer);
+				delayTimer = null;
+			}
+
 			delayTimer = setTimeout(() => {
 				overlayVisible.value = true;
 				overlayShownAt = Date.now();
+				delayTimer = null;
 			}, delay);
 		}
 		return;
 	}
 
-	if (delayTimer) clearTimeout(delayTimer);
+	if (delayTimer) {
+		clearTimeout(delayTimer);
+		delayTimer = null;
+	}
 	if (!overlayVisible.value) {
 		return;
 	}
@@ -144,6 +157,7 @@ function manageOverlay() {
 	const remaining = Math.max(minVisible - elapsed, 0);
 	hideTimer = setTimeout(() => {
 		overlayVisible.value = false;
+		hideTimer = null;
 	}, remaining);
 }
 

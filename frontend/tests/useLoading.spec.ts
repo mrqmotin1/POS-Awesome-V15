@@ -101,4 +101,24 @@ describe("useLoading scoped orchestration", () => {
 		await expect(failingPromise).rejects.toThrow("request failed");
 		expect(getScopeState("api").value.count).toBe(0);
 	});
+
+	it("keeps the overlay visible when blocking loading restarts within minVisible", async () => {
+		const { overlayVisible } = useLoading();
+
+		start("bootstrap");
+		await vi.advanceTimersByTimeAsync(150);
+
+		expect(overlayVisible.value).toBe(true);
+
+		stop("bootstrap");
+		await vi.advanceTimersByTimeAsync(200);
+
+		start("bootstrap");
+		await vi.advanceTimersByTimeAsync(250);
+
+		expect(overlayVisible.value).toBe(true);
+
+		stop("bootstrap");
+		await vi.runAllTimersAsync();
+	});
 });

@@ -311,6 +311,13 @@ def get_last_buying_rate(supplier, item_codes, company=None):
         except Exception:
             item_codes = [item_codes]
 
+    if isinstance(item_codes, str):
+        item_codes = [item_codes]
+    elif isinstance(item_codes, (list, tuple, set)):
+        item_codes = list(item_codes)
+    else:
+        item_codes = [item_codes]
+
     if not item_codes:
         return {}
 

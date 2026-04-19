@@ -28,6 +28,8 @@ async function loadWriteQueueModule(seedRows: SeedEntry[]) {
 	};
 	let txActive = false;
 	const sortByTxStates: boolean[] = [];
+	const firstTxStates: boolean[] = [];
+	const addTxStates: boolean[] = [];
 	const putTxStates: boolean[] = [];
 
 	const writeQueueTable = {
@@ -44,9 +46,10 @@ async function loadWriteQueueModule(seedRows: SeedEntry[]) {
 						)
 						.map((row) => clone(row));
 				}),
-				first: vi.fn(async () =>
-					rows.find((row) => String((row as any)[field]) === value),
-				),
+				first: vi.fn(async () => {
+					firstTxStates.push(txActive);
+					return rows.find((row) => String((row as any)[field]) === value);
+				}),
 			})),
 		})),
 		put: vi.fn(async (entry: SeedEntry) => {
@@ -63,8 +66,11 @@ async function loadWriteQueueModule(seedRows: SeedEntry[]) {
 			clone(rows.find((row) => row.queue_id === queueId)),
 		),
 		add: vi.fn(async (entry: SeedEntry) => {
-			rows.push(clone(entry));
-			return entry.queue_id;
+			addTxStates.push(txActive);
+			const queueId =
+				entry.queue_id ?? Math.max(0, ...rows.map((row) => row.queue_id || 0)) + 1;
+			rows.push(clone({ ...entry, queue_id: queueId }));
+			return queueId;
 		}),
 		delete: vi.fn(async (queueId: number) => {
 			const index = rows.findIndex((row) => row.queue_id === queueId);
@@ -133,6 +139,8 @@ async function loadWriteQueueModule(seedRows: SeedEntry[]) {
 		rows,
 		memory,
 		sortByTxStates,
+		firstTxStates,
+		addTxStates,
 		putTxStates,
 	};
 }
@@ -214,6 +222,31 @@ describe("write queue transaction safety", () => {
 		expect(claimed[1]?.last_error).toBe("Recovered stale sync lease");
 		expect(rows.find((entry) => entry.queue_id === 3)?.status).toBe("syncing");
 		expect(memory.offline_invoices).toHaveLength(5);
+	});
+
+	it("checks idempotency and inserts inside one rw transaction before refreshing memory", async () => {
+		const {
+			module,
+			rows,
+			memory,
+			sortByTxStates,
+			firstTxStates,
+			addTxStates,
+		} = await loadWriteQueueModule([]);
+
+		const created = await module.enqueueWriteQueueEntry("invoice", {
+			invoice: {
+				name: "INV-TX-001",
+				posa_client_request_id: "inv-tx-001",
+			},
+		});
+
+		expect(firstTxStates).toEqual([true]);
+		expect(addTxStates).toEqual([true]);
+		expect(sortByTxStates[0]).toBe(false);
+		expect(created.idempotency_key).toBe("invoice:inv-tx-001");
+		expect(rows).toHaveLength(1);
+		expect(memory.offline_invoices).toHaveLength(1);
 	});
 
 	it("updates queued payloads with the ordered entity read inside the rw transaction", async () => {

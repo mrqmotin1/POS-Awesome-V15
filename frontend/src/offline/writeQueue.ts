@@ -318,31 +318,33 @@ async function enqueueWriteQueueEntryInternal(
 		options.idempotencyKey || deriveIdempotencyKey(entityType, normalizedPayload);
 
 	const table = db.table(WRITE_QUEUE_TABLE);
-	const existing = (await table
-		.where("idempotency_key")
-		.equals(idempotencyKey)
-		.first()) as OfflineQueueEntry | undefined;
+	const queuedEntry = await db.transaction("rw", table, async () => {
+		const existing = (await table
+			.where("idempotency_key")
+			.equals(idempotencyKey)
+			.first()) as OfflineQueueEntry | undefined;
 
-	if (existing) {
-		await refreshQueueMemory(entityType);
-		return existing;
-	}
+		if (existing) {
+			return existing;
+		}
 
-	const entry: OfflineQueueEntry = {
-		entity_type: entityType,
-		payload: normalizedPayload,
-		created_at: nowIso(),
-		last_attempt_at: null,
-		retry_count: 0,
-		status: "pending",
-		idempotency_key: idempotencyKey,
-		last_error: null,
-	};
+		const entry: OfflineQueueEntry = {
+			entity_type: entityType,
+			payload: normalizedPayload,
+			created_at: nowIso(),
+			last_attempt_at: null,
+			retry_count: 0,
+			status: "pending",
+			idempotency_key: idempotencyKey,
+			last_error: null,
+		};
 
-	const queueId = await table.add(entry);
-	const createdEntry = { ...entry, queue_id: queueId };
+		const queueId = await table.add(entry);
+		return { ...entry, queue_id: queueId };
+	});
+
 	await refreshQueueMemory(entityType);
-	return createdEntry;
+	return queuedEntry;
 }
 
 export async function enqueueWriteQueueEntry(

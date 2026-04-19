@@ -12,21 +12,110 @@ from posawesome.posawesome.api.idempotency import (
     normalize_client_request_id,
 )
 
+
+def _amounts_match(left, right):
+    return abs(flt(left) - flt(right)) < 0.0001
+
+
+def _get_entry_amount(entry):
+    return flt(entry.get("paid_amount")) or flt(entry.get("received_amount"))
+
+
+def _partition_payment_methods(existing_entries, payment_methods):
+    unmatched_entries = list(existing_entries or [])
+    matched_entries = []
+    missing_payment_methods = []
+
+    for payment_method in payment_methods or []:
+        amount = flt(payment_method.get("amount"))
+        if not amount:
+            continue
+
+        mode_of_payment = payment_method.get("mode_of_payment")
+        matched_index = next(
+            (
+                index
+                for index, entry in enumerate(unmatched_entries)
+                if cint(entry.get("docstatus")) == 1
+                and entry.get("mode_of_payment") == mode_of_payment
+                and _amounts_match(_get_entry_amount(entry), amount)
+            ),
+            None,
+        )
+
+        if matched_index is None:
+            missing_payment_methods.append(payment_method)
+            continue
+
+        matched_entries.append(unmatched_entries.pop(matched_index))
+
+    return matched_entries, missing_payment_methods, unmatched_entries
+
+
+def _partition_completed_mpesa_payments(selected_mpesa_payments, customer):
+    completed_entries = []
+    pending_payments = []
+
+    for mpesa_payment in selected_mpesa_payments or []:
+        payment_name = mpesa_payment.get("name")
+        if not payment_name:
+            pending_payments.append(mpesa_payment)
+            continue
+
+        try:
+            mpesa_doc = frappe.get_doc("Mpesa Payment Register", payment_name)
+            linked_customer = getattr(mpesa_doc, "customer", None)
+            payment_entry_name = getattr(mpesa_doc, "payment_entry", None)
+            if (
+                cint(getattr(mpesa_doc, "docstatus", 0)) == 1
+                and payment_entry_name
+                and (not linked_customer or linked_customer == customer)
+            ):
+                completed_entries.append(frappe.get_doc("Payment Entry", payment_entry_name))
+                continue
+        except Exception:
+            pass
+
+        pending_payments.append(mpesa_payment)
+
+    return completed_entries, pending_payments
+
+
+def _partition_completed_reconciliations(selected_payments):
+    completed_docs = []
+    pending_payments = []
+
+    for payment in selected_payments or []:
+        payment_name = payment.get("name")
+        if not payment_name:
+            pending_payments.append(payment)
+            continue
+
+        is_credit_note = cint(payment.get("is_credit_note")) or payment.get("voucher_type") == "Sales Invoice"
+        doctype = "Sales Invoice" if is_credit_note else "Payment Entry"
+
+        try:
+            payment_doc = frappe.get_doc(doctype, payment_name)
+            if is_credit_note:
+                if _amounts_match(abs(flt(getattr(payment_doc, "outstanding_amount", 0))), 0):
+                    completed_docs.append(payment_doc)
+                    continue
+            elif flt(getattr(payment_doc, "unallocated_amount", 0)) <= 0:
+                completed_docs.append(payment_doc)
+                continue
+        except Exception:
+            pass
+
+        pending_payments.append(payment)
+
+    return completed_docs, pending_payments
+
+
 @frappe.whitelist()
 def process_pos_payment(payload):
     data = json.loads(payload)
     data = frappe._dict(data)
     client_request_id = normalize_client_request_id(data.get("client_request_id"))
-
-    existing_entries = find_payment_entries_by_client_request_id(client_request_id)
-    if existing_entries:
-        return {
-            "new_payments_entry": existing_entries,
-            "all_payments_entry": existing_entries,
-            "reconciled_payments": [],
-            "errors": [],
-            "replayed": True,
-        }
 
     if not data.pos_profile.get("posa_use_pos_awesome_payments"):
         frappe.throw(_("POS Awesome Payments is not enabled for this POS Profile"))
@@ -61,6 +150,46 @@ def process_pos_payment(payload):
     allow_reconcile_payments = data.pos_profile.get("posa_allow_reconcile_payments")
     allow_mpesa_reconcile_payments = data.pos_profile.get("posa_allow_mpesa_reconcile_payments")
     posting_date = data.get("posting_date") or nowdate()
+    selected_mpesa_payments = list(data.selected_mpesa_payments or [])
+    selected_payments = list(data.selected_payments or [])
+    payment_methods = list(data.payment_methods or [])
+    existing_entries = find_payment_entries_by_client_request_id(client_request_id)
+    matched_existing_entries, pending_payment_methods, unmatched_existing_entries = _partition_payment_methods(
+        existing_entries,
+        payment_methods,
+    )
+    completed_mpesa_entries, pending_mpesa_payments = ([], [])
+    if allow_mpesa_reconcile_payments and data.total_selected_mpesa_payments > 0:
+        completed_mpesa_entries, pending_mpesa_payments = _partition_completed_mpesa_payments(
+            selected_mpesa_payments,
+            customer,
+        )
+    else:
+        pending_mpesa_payments = selected_mpesa_payments
+
+    completed_reconciliations, pending_selected_payments = ([], [])
+    if allow_reconcile_payments and data.total_selected_payments > 0:
+        completed_reconciliations, pending_selected_payments = _partition_completed_reconciliations(
+            selected_payments
+        )
+    else:
+        pending_selected_payments = selected_payments
+
+    cached_entries = list(matched_existing_entries) + completed_mpesa_entries + completed_reconciliations
+    if (
+        existing_entries
+        and not pending_payment_methods
+        and not unmatched_existing_entries
+        and not pending_mpesa_payments
+        and not pending_selected_payments
+    ):
+        return {
+            "new_payments_entry": matched_existing_entries,
+            "all_payments_entry": cached_entries,
+            "reconciled_payments": [],
+            "errors": [],
+            "replayed": True,
+        }
 
     # prepare invoice list once so allocations can update remaining amounts
     remaining_invoices = []
@@ -91,17 +220,17 @@ def process_pos_payment(payload):
     add_remaining_invoices(data.selected_invoices)
 
     new_payments_entry = []
-    all_payments_entry = []
+    all_payments_entry = list(cached_entries)
     reconciled_payments = []
     errors = []
 
     # first process mpesa payments
     if (
         allow_mpesa_reconcile_payments
-        and len(data.selected_mpesa_payments) > 0
+        and len(pending_mpesa_payments) > 0
         and data.total_selected_mpesa_payments > 0
     ):
-        for mpesa_payment in data.selected_mpesa_payments:
+        for mpesa_payment in pending_mpesa_payments:
             try:
                 new_mpesa_payment = submit_mpesa_payment(mpesa_payment.get("name"), customer)
                 new_payments_entry.append(new_mpesa_payment)
@@ -110,8 +239,8 @@ def process_pos_payment(payload):
                 errors.append(str(e))
 
     # then reconcile selected payments with invoices
-    if allow_reconcile_payments and len(data.selected_payments) > 0 and data.total_selected_payments > 0:
-        for pay in data.selected_payments:
+    if allow_reconcile_payments and len(pending_selected_payments) > 0 and data.total_selected_payments > 0:
+        for pay in pending_selected_payments:
             payment_name = pay.get("name")
             is_credit_note = cint(pay.get("is_credit_note")) or pay.get("voucher_type") == "Sales Invoice"
 
@@ -304,8 +433,8 @@ def process_pos_payment(payload):
                 )
 
     # then process the new payments and allocate invoices
-    if allow_make_new_payments and len(data.payment_methods) > 0 and data.total_payment_methods > 0:
-        for payment_method in data.payment_methods:
+    if allow_make_new_payments and len(pending_payment_methods) > 0 and data.total_payment_methods > 0:
+        for payment_method in pending_payment_methods:
             try:
                 amount = flt(payment_method.get("amount"))
                 if not amount:

@@ -107,11 +107,11 @@ export function refreshSnapshotFromSync({
 			},
 		},
 		cacheState: ({
+			...cacheState,
 			profileName: posProfile?.name || null,
 			paymentMethods: Array.isArray(posProfile?.payments)
 				? posProfile.payments
 				: cacheState?.paymentMethods,
-			...cacheState,
 		} as any),
 	});
 	setBootstrapSnapshot(nextSnapshot);

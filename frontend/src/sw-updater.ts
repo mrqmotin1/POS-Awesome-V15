@@ -89,6 +89,60 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 	let hasRequestedInitialVersion = false;
 	let reloadScheduled = false;
 
+	function clearReloadState() {
+		reloadScheduled = false;
+		updateStore.reloading = false;
+	}
+
+	function warnVersionFailure(message: string, err: unknown) {
+		console.warn(message, err);
+	}
+
+	function fallbackAfterVersionFailure(
+		message: string,
+		err: unknown,
+		options: { forceReload?: boolean } = {},
+	) {
+		warnVersionFailure(message, err);
+		clearReloadState();
+
+		if (!options.forceReload) {
+			return;
+		}
+
+		try {
+			window.location.reload();
+		} catch (reloadErr) {
+			console.warn(
+				"Failed to reload after service worker updater fallback",
+				reloadErr,
+			);
+		}
+	}
+
+	function parseVersionInfoPayload(payload: any) {
+		if (!payload) {
+			throw new Error("Service worker version request timed out");
+		}
+
+		if (payload.type !== "SW_VERSION_INFO") {
+			throw new Error("Service worker returned an unexpected version response");
+		}
+
+		const version =
+			typeof payload.version === "string" ? payload.version.trim() : "";
+		if (!version) {
+			throw new Error("Service worker returned an invalid version payload");
+		}
+
+		const numericTimestamp = Number(payload.timestamp);
+
+		return {
+			version,
+			timestamp: Number.isFinite(numericTimestamp) ? numericTimestamp : null,
+		};
+	}
+
 	navigator.serviceWorker.addEventListener("message", (event) => {
 		const data: any = event.data || {};
 		if (data.type === "SW_VERSION_INFO") {
@@ -108,7 +162,13 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 		});
 
 	navigator.serviceWorker.addEventListener("controllerchange", () => {
-		void handleControllerChange();
+		handleControllerChange().catch((err) => {
+			fallbackAfterVersionFailure(
+				"Unhandled service worker controllerchange failure",
+				err,
+				{ forceReload: reloadScheduled },
+			);
+		});
 	});
 
 	async function ensureActiveVersion() {
@@ -150,30 +210,36 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 		const payload: any = await postMessageToController({
 			type: "CHECK_VERSION",
 		});
-		if (payload?.type === "SW_VERSION_INFO") {
-			handleActiveVersion(payload.version, payload.timestamp);
-		}
-		return payload;
+		const parsed = parseVersionInfoPayload(payload);
+		handleActiveVersion(parsed.version, parsed.timestamp);
+		return parsed;
 	}
 
 	async function handleControllerChange() {
-		if (!reloadScheduled) {
-			await requestVersionFromController();
-			return;
-		}
+		try {
+			if (!reloadScheduled) {
+				await requestVersionFromController();
+				return;
+			}
 
-		updateStore.reloading = true;
-		await requestVersionFromController();
+			updateStore.reloading = true;
+			await requestVersionFromController();
+		} catch (err) {
+			fallbackAfterVersionFailure(
+				"Failed to process service worker controllerchange",
+				err,
+				{ forceReload: reloadScheduled },
+			);
+		}
 	}
 
 	async function refreshControllerCacheVersion() {
 		const payload: any = await postMessageToController({
 			type: "REFRESH_CACHE_VERSION",
 		});
-		if (payload?.type === "SW_VERSION_INFO") {
-			handleActiveVersion(payload.version, payload.timestamp);
-		}
-		return payload;
+		const parsed = parseVersionInfoPayload(payload);
+		handleActiveVersion(parsed.version, parsed.timestamp);
+		return parsed;
 	}
 
 	async function checkWaitingWorker(registration: ServiceWorkerRegistration) {
@@ -252,7 +318,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 		return pendingVersionRequest;
 	}
 
-	function handleActiveVersion(version: string, timestamp: number) {
+	function handleActiveVersion(version: string, timestamp: number | null) {
 		if (!version) return;
 		if (timestamp) {
 			cachedVersionInfo = {
@@ -275,8 +341,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 		}
 
 		if (decision.clearReloadState) {
-			reloadScheduled = false;
-			updateStore.reloading = false;
+			clearReloadState();
 		}
 
 		if (decision.syncCurrentVersion) {
@@ -328,19 +393,29 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 				return;
 			}
 
-			const refreshedPayload = await refreshControllerCacheVersion();
-			if (refreshedPayload?.type === "SW_VERSION_INFO") {
+			try {
+				await refreshControllerCacheVersion();
 				return;
+			} catch (err) {
+				warnVersionFailure(
+					"Failed to refresh controller cache version after update",
+					err,
+				);
 			}
 
-			const currentPayload = await requestVersionFromController();
-			if (!currentPayload) {
-				reloadScheduled = false;
-				updateStore.reloading = false;
+			try {
+				await requestVersionFromController();
+				return;
+			} catch (err) {
+				fallbackAfterVersionFailure(
+					"Failed to confirm active service worker version after update",
+					err,
+					{ forceReload: true },
+				);
 			}
 		} catch (err) {
 			console.warn("Failed to trigger service worker update", err);
-			updateStore.reloading = false;
+			clearReloadState();
 		}
 	}
 }

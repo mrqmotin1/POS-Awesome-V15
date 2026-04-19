@@ -8118,6 +8118,7 @@
 		"fieldname": "posa_client_request_id",
 		"fieldtype": "Data",
 		"label": "POSA Client Request ID",
+		"no_copy": 1,
 		"read_only": 1,
 		"unique": 1,
 		"insert_after": "posa_is_printed",
@@ -8129,6 +8130,7 @@
 		"fieldname": "posa_client_request_id",
 		"fieldtype": "Data",
 		"label": "POSA Client Request ID",
+		"no_copy": 1,
 		"read_only": 1,
 		"unique": 1,
 		"insert_after": "posa_is_printed",
@@ -8140,7 +8142,9 @@
 		"fieldname": "posa_client_request_id",
 		"fieldtype": "Data",
 		"label": "POSA Client Request ID",
+		"no_copy": 1,
 		"read_only": 1,
+		"unique": 1,
 		"insert_after": "reference_no",
 		"name": "Payment Entry-posa_client_request_id"
 	}

@@ -385,7 +385,9 @@ const couponsCount = computed(() => uiStore.couponsCount || 0);
 const active_price_list = computed(
 	() => itemsIntegration.active_price_list.value || pos_profile.value?.selling_price_list,
 );
-const isPosSupervisor = computed(() => Boolean(currentCashier.value?.is_supervisor));
+const isPosSupervisor = computed(() =>
+	parseBooleanSetting(currentCashier.value?.is_supervisor),
+);
 
 const isReturnInvoice = computed(() => {
 	return !!invoiceStore.invoiceDoc?.is_return;
@@ -536,7 +538,9 @@ const { getLastBuyingRate, scheduleLastBuyingRateRefresh, clearLastBuyingRateCac
 	pos_profile: () => pos_profile.value,
 	supplier: () => selectedSupplier.value,
 	displayedItems: () => displayedItems.value,
-	show_last_buying_rate: () => show_last_invoice_rate.value && isPosSupervisor.value,
+	show_last_buying_rate: () =>
+		show_last_invoice_rate.value
+		&& parseBooleanSetting(currentCashier.value?.is_supervisor),
 });
 
 const getLastRateForContext = (item: any) => {

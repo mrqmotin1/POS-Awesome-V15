@@ -47,4 +47,22 @@ describe("sync-driven bootstrap snapshot refresh", () => {
 		expect(snapshot.prerequisites.payment_methods).toBe("ready");
 		expect(cacheMocks.setBootstrapSnapshot).toHaveBeenCalledWith(snapshot);
 	});
+
+	it("prefers synced profile payments over stale cache payment methods", () => {
+		const snapshot = refreshSnapshotFromSync({
+			posProfile: {
+				name: "POS-1",
+				modified: "2026-04-08 10:00:00",
+				payments: [{ mode_of_payment: "Cash" }],
+			},
+			cacheState: {
+				paymentMethods: [],
+				itemsCount: 10,
+				customersCount: 5,
+			},
+		});
+
+		expect(snapshot.prerequisites.payment_methods).toBe("ready");
+		expect(cacheMocks.setBootstrapSnapshot).toHaveBeenCalledWith(snapshot);
+	});
 });

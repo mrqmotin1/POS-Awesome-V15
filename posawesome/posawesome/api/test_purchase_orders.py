@@ -121,8 +121,15 @@ def _load_module():
 class TestPurchaseOrdersApi(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
+		cls.orig_sys_modules = sys.modules.copy()
 		_install_stubs()
 		cls.module = _load_module()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.module = None
+		sys.modules.clear()
+		sys.modules.update(cls.orig_sys_modules)
 
 	def test_get_last_buying_rate_works_without_supplier(self):
 		result = self.module.get_last_buying_rate(None, ["ITEM-001"])
@@ -138,6 +145,17 @@ class TestPurchaseOrdersApi(unittest.TestCase):
 		self.assertEqual(result["ITEM-001"]["rate"], 44)
 		self.assertEqual(result["ITEM-001"]["invoice"], "PINV-SUP-1")
 		self.assertEqual(result["ITEM-001"]["supplier"], "SUP-001")
+
+	def test_get_last_buying_rate_wraps_json_scalar_item_code_before_tuple_lookup(self):
+		self.module.frappe.db.sql_calls.clear()
+
+		result = self.module.get_last_buying_rate(None, '"ITEM-001"')
+
+		self.assertEqual(result["ITEM-001"]["rate"], 41)
+		purchase_invoice_sql = next(
+			call for call in self.module.frappe.db.sql_calls if "FROM `tabPurchase Invoice Item`" in call[0]
+		)
+		self.assertEqual(purchase_invoice_sql[1][0], ("ITEM-001",))
 
 
 if __name__ == "__main__":
