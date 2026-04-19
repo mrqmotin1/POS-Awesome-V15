@@ -143,7 +143,7 @@ export const useItemsStore = defineStore("items", () => {
 		itemGroups,
 		loadItemGroups,
 		persistItemsToStorage,
-		backgroundLoadItemDetails,
+		primeItemDetailsCache,
 		cancelBackgroundSync,
 		refreshModifiedItems: syncRefreshModifiedItems,
 		backgroundSyncItems: syncBackgroundSyncItems,
@@ -555,6 +555,7 @@ export const useItemsStore = defineStore("items", () => {
 				return [];
 			}
 			const requestProfile = JSON.parse(JSON.stringify(posProfile.value));
+			const effectivePriceList = priceList || activePriceList.value;
 			if (forceServer) {
 				requestProfile.posa_use_server_cache = 0;
 				requestProfile.posa_force_reload_items = 1;
@@ -562,7 +563,7 @@ export const useItemsStore = defineStore("items", () => {
 
 			const args: any = {
 				pos_profile: JSON.stringify(requestProfile),
-				price_list: priceList || activePriceList.value,
+				price_list: effectivePriceList,
 				item_group:
 					normalizedGroup !== "ALL"
 						? normalizedGroup.toLowerCase()
@@ -634,11 +635,13 @@ export const useItemsStore = defineStore("items", () => {
 			}
 
 			if (fetchedItems.length > 0) {
-				backgroundLoadItemDetails(
+				// `get_items` already returns detail-enriched rows. Seed the offline
+				// detail cache from that response and keep the visible-item refresh path
+				// as the single place that decides whether a live recheck is still needed.
+				primeItemDetailsCache(
 					fetchedItems,
 					posProfile.value,
-					activePriceList.value,
-					getItemByCode,
+					effectivePriceList,
 				);
 			}
 
@@ -879,13 +882,6 @@ export const useItemsStore = defineStore("items", () => {
 			if (safePage.length < cachedPagination.value.pageSize) {
 				cachedPagination.value.offset = cachedPagination.value.total;
 			}
-
-			backgroundLoadItemDetails(
-				safePage,
-				posProfile.value,
-				activePriceList.value,
-				getItemByCode,
-			);
 
 			return safePage;
 		} catch (error) {

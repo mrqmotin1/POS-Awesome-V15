@@ -8,6 +8,7 @@ import {
 	setItemsLastSync,
 	getItemsLastSync,
 	saveItemDetailsCache,
+	saveItemUOMs,
 	saveItemGroups,
 	getCachedItemGroups,
 	refreshBootstrapSnapshotFromCacheState,
@@ -93,6 +94,35 @@ export function useItemsSync() {
 		} catch (error) {
 			console.error("Failed to persist items batch:", error);
 		}
+	};
+
+	const primeItemDetailsCache = (
+		itemList: Item[],
+		posProfile: POSProfile | null,
+		activePriceList: string,
+	) => {
+		if (!Array.isArray(itemList) || itemList.length === 0 || !posProfile?.name) {
+			return;
+		}
+
+		const detailItems = itemList.filter(
+			(item): item is Item => Boolean(item?.item_code),
+		);
+		if (!detailItems.length) {
+			return;
+		}
+
+		saveItemDetailsCache(
+			posProfile.name,
+			typeof activePriceList === "string" ? activePriceList : "",
+			detailItems,
+		);
+
+		detailItems.forEach((item) => {
+			if (Array.isArray(item.item_uoms) && item.item_uoms.length > 0) {
+				saveItemUOMs(item.item_code, item.item_uoms);
+			}
+		});
 	};
 
 	const backgroundLoadItemDetails = async (
@@ -323,6 +353,7 @@ export function useItemsSync() {
 					break;
 				}
 
+				primeItemDetailsCache(batch, posProfile, activePriceList);
 				await saveItemsBulk(batch, scope);
 				setItems(batch, { append: true });
 				appended.push(...batch);
@@ -381,6 +412,7 @@ export function useItemsSync() {
 		itemGroups,
 		loadItemGroups,
 		persistItemsToStorage,
+		primeItemDetailsCache,
 		backgroundLoadItemDetails,
 		cancelBackgroundSync,
 		refreshModifiedItems,
