@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+	LOADING_SCOPE_IDS,
 	start,
 	stop,
 	setScopeMeta,
+	clearScopeMeta,
 	startBootstrapLoading,
 	stopBootstrapLoading,
 	withActionLoading,
@@ -16,7 +18,7 @@ describe("useLoading scoped orchestration", () => {
 		vi.useFakeTimers();
 		stop("bootstrap");
 		stop("route");
-		stop("api");
+		stop(LOADING_SCOPE_IDS.action);
 	});
 
 	it("shows the overlay only for blocking bootstrap loads", async () => {
@@ -96,10 +98,12 @@ describe("useLoading scoped orchestration", () => {
 			{ message: "Saving invoice..." },
 		);
 
-		expect(getScopeState("api").value.count).toBe(1);
-		expect(getScopeState("api").value.message).toBe("Saving invoice...");
+		expect(getScopeState(LOADING_SCOPE_IDS.action).value.count).toBe(1);
+		expect(getScopeState(LOADING_SCOPE_IDS.action).value.message).toBe(
+			"Saving invoice...",
+		);
 		await expect(failingPromise).rejects.toThrow("request failed");
-		expect(getScopeState("api").value.count).toBe(0);
+		expect(getScopeState(LOADING_SCOPE_IDS.action).value.count).toBe(0);
 	});
 
 	it("keeps the overlay visible when blocking loading restarts within minVisible", async () => {
@@ -120,5 +124,38 @@ describe("useLoading scoped orchestration", () => {
 
 		stop("bootstrap");
 		await vi.runAllTimersAsync();
+	});
+
+	it("uses section defaults when the shared section scope id is started directly", async () => {
+		const { getScopeState } = useLoading();
+
+		start(LOADING_SCOPE_IDS.section);
+
+		expect(getScopeState(LOADING_SCOPE_IDS.section).value.kind).toBe("section");
+		expect(getScopeState(LOADING_SCOPE_IDS.section).value.message).toBe(
+			"Loading section...",
+		);
+		expect(getScopeState(LOADING_SCOPE_IDS.section).value.blocking).toBe(false);
+
+		stop(LOADING_SCOPE_IDS.section);
+	});
+
+	it("resets active scope meta back to defaults when clearing metadata", async () => {
+		const { getScopeState } = useLoading();
+
+		start("bootstrap", {
+			message: "Custom bootstrap",
+			blocking: false,
+			progress: 55,
+		});
+		clearScopeMeta("bootstrap");
+
+		expect(getScopeState("bootstrap").value.count).toBe(1);
+		expect(getScopeState("bootstrap").value.kind).toBe("bootstrap");
+		expect(getScopeState("bootstrap").value.blocking).toBe(true);
+		expect(getScopeState("bootstrap").value.message).toBe("Loading app data...");
+		expect(getScopeState("bootstrap").value.progress).toBeNull();
+
+		stop("bootstrap");
 	});
 });

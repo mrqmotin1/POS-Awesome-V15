@@ -95,6 +95,7 @@ export async function syncOfflineCashMovements() {
 			await markWriteQueueEntrySynced(
 				CASH_MOVEMENT_ENTITY,
 				Number(entry.queue_id),
+				entry.last_attempt_at,
 			);
 		} catch (error) {
 			console.error("Failed to sync offline cash movement", error);
@@ -102,6 +103,7 @@ export async function syncOfflineCashMovements() {
 				CASH_MOVEMENT_ENTITY,
 				Number(entry.queue_id),
 				error,
+				entry.last_attempt_at,
 			);
 		}
 	}

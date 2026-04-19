@@ -146,14 +146,29 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 	navigator.serviceWorker.addEventListener("message", (event) => {
 		const data: any = event.data || {};
 		if (data.type === "SW_VERSION_INFO") {
-			handleActiveVersion(data.version, data.timestamp);
+			try {
+				const parsed = parseVersionInfoPayload(data);
+				handleActiveVersion(parsed.version, parsed.timestamp);
+			} catch (err) {
+				warnVersionFailure(
+					"Ignoring malformed service worker version message",
+					err,
+				);
+			}
 		}
 	});
 
 	navigator.serviceWorker.ready
 		.then(async (registration) => {
 			monitorRegistration(registration);
-			await ensureActiveVersion();
+			try {
+				await ensureActiveVersion();
+			} catch (err) {
+				warnVersionFailure(
+					"Failed to ensure active service worker version during startup",
+					err,
+				);
+			}
 			await checkWaitingWorker(registration);
 			registration.update().catch(() => {});
 		})

@@ -91,7 +91,11 @@ export async function syncOfflineCustomers() {
 				args: queuedCustomer.args,
 			});
 			synced += 1;
-			await markWriteQueueEntrySynced(CUSTOMER_ENTITY, Number(entry.queue_id));
+			await markWriteQueueEntrySynced(
+				CUSTOMER_ENTITY,
+				Number(entry.queue_id),
+				entry.last_attempt_at,
+			);
 
 			if (
 				result &&
@@ -110,6 +114,7 @@ export async function syncOfflineCustomers() {
 				CUSTOMER_ENTITY,
 				Number(entry.queue_id),
 				error,
+				entry.last_attempt_at,
 			);
 		}
 	}
