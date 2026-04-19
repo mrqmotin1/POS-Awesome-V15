@@ -7,7 +7,7 @@ export const LOADING_SCOPE_IDS = {
 	bootstrap: "bootstrap",
 	route: "route",
 	section: "section",
-	action: "api",
+	action: "action",
 	background: "background",
 } as const;
 
@@ -52,7 +52,13 @@ const DEFAULT_SCOPE_CONFIG: Record<string, Omit<LoadingScopeState, "count">> = {
 		message: "Loading view...",
 		progress: null,
 	},
-	api: {
+	section: {
+		kind: "section",
+		blocking: false,
+		message: "Loading section...",
+		progress: null,
+	},
+	action: {
 		kind: "action",
 		blocking: false,
 		message: "Processing request...",
@@ -120,6 +126,16 @@ function hasBlockingLoaders() {
 	);
 }
 
+function matchesDefaultScopeState(id: string, loader: LoadingScopeState) {
+	const defaults = getDefaultScopeConfig(id);
+	return (
+		loader.kind === defaults.kind &&
+		loader.blocking === defaults.blocking &&
+		loader.message === defaults.message &&
+		loader.progress === defaults.progress
+	);
+}
+
 function manageOverlay() {
 	const shouldShowOverlay = hasBlockingLoaders();
 	const { delay, minVisible } = config.overlay;
@@ -130,12 +146,12 @@ function manageOverlay() {
 			hideTimer = null;
 		}
 
-		if (!overlayVisible.value) {
-			if (delayTimer) {
-				clearTimeout(delayTimer);
-				delayTimer = null;
-			}
+		if (delayTimer) {
+			clearTimeout(delayTimer);
+			delayTimer = null;
+		}
 
+		if (!overlayVisible.value) {
 			delayTimer = setTimeout(() => {
 				overlayVisible.value = true;
 				overlayShownAt = Date.now();
@@ -244,6 +260,9 @@ export function setScopeMeta(id: string, options: LoadingScopeOptions = {}) {
 	const existing = loaders.value.get(id);
 	const next = resolveScopeState(id, options, existing);
 	next.count = existing?.count || 0;
+	if (!existing && next.count === 0 && matchesDefaultScopeState(id, next)) {
+		return;
+	}
 	loaders.value.set(id, next);
 	manageOverlay();
 }
@@ -255,7 +274,10 @@ export function clearScopeMeta(id: string) {
 	}
 
 	if (existing.count > 0) {
-		loaders.value.set(id, resolveScopeState(id, {}, { ...existing }));
+		const next = resolveScopeState(id);
+		next.count = existing.count;
+		loaders.value.set(id, next);
+		manageOverlay();
 		return;
 	}
 

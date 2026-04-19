@@ -233,6 +233,24 @@ function deriveIdempotencyKey(
 	return `${entityType}:${hashString(stableStringify(payload))}`;
 }
 
+function isCustomerUpdateKey(entityType: OfflineEntityType, idempotencyKey: string) {
+	return entityType === "customer" && idempotencyKey.startsWith("customer:update:");
+}
+
+function buildCoalescedQueueEntry(
+	existing: OfflineQueueEntry,
+	payload: AnyRecord,
+): OfflineQueueEntry {
+	return {
+		...existing,
+		payload,
+		status: "pending",
+		retry_count: 0,
+		last_attempt_at: null,
+		last_error: null,
+	};
+}
+
 function toPublicSnapshot(entry: OfflineQueueEntry) {
 	return {
 		...cloneSerializable(entry.payload),
@@ -325,6 +343,14 @@ async function enqueueWriteQueueEntryInternal(
 			.first()) as OfflineQueueEntry | undefined;
 
 		if (existing) {
+			if (isCustomerUpdateKey(entityType, idempotencyKey)) {
+				const coalescedEntry = buildCoalescedQueueEntry(
+					existing,
+					normalizedPayload,
+				);
+				await table.put(coalescedEntry);
+				return coalescedEntry;
+			}
 			return existing;
 		}
 
@@ -437,54 +463,84 @@ export async function claimRetryableQueueEntries(entityType: OfflineEntityType) 
 	return claimed;
 }
 
+async function updateClaimedQueueEntry(
+	entityType: OfflineEntityType,
+	queueId: number,
+	expectedLastAttemptAt: string | null | undefined,
+	updater: (current: OfflineQueueEntry) => OfflineQueueEntry,
+) {
+	const table = db.table(WRITE_QUEUE_TABLE);
+	const updated = await db.transaction("rw", table, async () => {
+		const current = (await table.get(queueId)) as OfflineQueueEntry | undefined;
+		if (!current) {
+			return false;
+		}
+
+		if (
+			current.entity_type !== entityType ||
+			current.status !== "syncing" ||
+			current.last_attempt_at !== (expectedLastAttemptAt ?? null)
+		) {
+			return false;
+		}
+
+		await table.put(updater(current));
+		return true;
+	});
+
+	if (updated) {
+		await refreshQueueMemory(entityType);
+	}
+
+	return updated;
+}
+
 export async function markWriteQueueEntrySynced(
 	entityType: OfflineEntityType,
 	queueId: number,
+	expectedLastAttemptAt: string | null | undefined,
 ) {
 	await ensureOfflineQueueReady();
 
-	const table = db.table(WRITE_QUEUE_TABLE);
-	const current = (await table.get(queueId)) as OfflineQueueEntry | undefined;
-	if (!current) {
-		return;
-	}
-
-	await table.put({
-		...current,
-		status: "synced",
-		last_error: null,
-		last_attempt_at: current.last_attempt_at || nowIso(),
-	});
-
-	await refreshQueueMemory(entityType);
+	return updateClaimedQueueEntry(
+		entityType,
+		queueId,
+		expectedLastAttemptAt,
+		(current) => ({
+			...current,
+			status: "synced",
+			last_error: null,
+			last_attempt_at: current.last_attempt_at || expectedLastAttemptAt || nowIso(),
+		}),
+	);
 }
 
 export async function markWriteQueueEntryFailed(
 	entityType: OfflineEntityType,
 	queueId: number,
 	error: unknown,
+	expectedLastAttemptAt: string | null | undefined,
 ) {
 	await ensureOfflineQueueReady();
 
-	const table = db.table(WRITE_QUEUE_TABLE);
-	const current = (await table.get(queueId)) as OfflineQueueEntry | undefined;
-	if (!current) {
-		return;
-	}
+	return updateClaimedQueueEntry(
+		entityType,
+		queueId,
+		expectedLastAttemptAt,
+		(current) => {
+			const nextRetryCount = Number(current.retry_count || 0) + 1;
+			const nextStatus: OfflineQueueStatus =
+				nextRetryCount >= MAX_RETRY_COUNT ? "dead_letter" : "failed";
 
-	const nextRetryCount = Number(current.retry_count || 0) + 1;
-	const nextStatus: OfflineQueueStatus =
-		nextRetryCount >= MAX_RETRY_COUNT ? "dead_letter" : "failed";
-
-	await table.put({
-		...current,
-		status: nextStatus,
-		retry_count: nextRetryCount,
-		last_attempt_at: nowIso(),
-		last_error: toErrorMessage(error),
-	});
-
-	await refreshQueueMemory(entityType);
+			return {
+				...current,
+				status: nextStatus,
+				retry_count: nextRetryCount,
+				last_attempt_at: nowIso(),
+				last_error: toErrorMessage(error),
+			};
+		},
+	);
 }
 
 export async function updateQueuedPayloads(
@@ -550,7 +606,10 @@ export async function ensureOfflineQueueReady() {
 }
 
 export function getQueuedPayloadSnapshots(entityType: OfflineEntityType) {
-	return memory[getMemoryKey(entityType)] || [];
+	const snapshots = memory[getMemoryKey(entityType)];
+	return Array.isArray(snapshots)
+		? snapshots.map((snapshot) => cloneSerializable(snapshot))
+		: [];
 }
 
 export function getQueuedPayloadCount(entityType: OfflineEntityType) {

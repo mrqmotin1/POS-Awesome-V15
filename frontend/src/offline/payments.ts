@@ -89,13 +89,18 @@ export async function syncOfflinePayments() {
 				args: entry.payload.args,
 			});
 			synced += 1;
-			await markWriteQueueEntrySynced(PAYMENT_ENTITY, Number(entry.queue_id));
+			await markWriteQueueEntrySynced(
+				PAYMENT_ENTITY,
+				Number(entry.queue_id),
+				entry.last_attempt_at,
+			);
 		} catch (error) {
 			console.error("Failed to submit payment", error);
 			await markWriteQueueEntryFailed(
 				PAYMENT_ENTITY,
 				Number(entry.queue_id),
 				error,
+				entry.last_attempt_at,
 			);
 		}
 	}

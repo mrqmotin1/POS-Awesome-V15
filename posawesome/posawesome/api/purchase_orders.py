@@ -109,6 +109,28 @@ def _resolve_supplier_buying_price_list(supplier):
     return _resolve_buying_price_list()
 
 
+def _normalize_item_codes(item_codes):
+    normalized = []
+
+    def visit(value):
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                visit(item)
+            return
+
+        if isinstance(value, str):
+            code = value.strip()
+            if code:
+                normalized.append(code)
+            return
+
+        if isinstance(value, int) and not isinstance(value, bool):
+            normalized.append(value)
+
+    visit(item_codes)
+    return normalized
+
+
 def _upsert_item_price(item_code, price_list, rate, uom=None, buying=False, selling=False):
     if not price_list or rate is None:
         return None
@@ -311,12 +333,7 @@ def get_last_buying_rate(supplier, item_codes, company=None):
         except Exception:
             item_codes = [item_codes]
 
-    if isinstance(item_codes, str):
-        item_codes = [item_codes]
-    elif isinstance(item_codes, (list, tuple, set)):
-        item_codes = list(item_codes)
-    else:
-        item_codes = [item_codes]
+    item_codes = _normalize_item_codes(item_codes)
 
     if not item_codes:
         return {}
@@ -326,7 +343,7 @@ def get_last_buying_rate(supplier, item_codes, company=None):
 
     if resolved_supplier:
         buying_price_list = _resolve_supplier_buying_price_list(resolved_supplier)
-        price_list_rates = frappe.get_all(
+        price_list_rates = frappe.get_list(
             "Item Price",
             filters={
                 "price_list": buying_price_list,
@@ -364,19 +381,33 @@ def get_last_buying_rate(supplier, item_codes, company=None):
     last_pi_items = frappe.db.sql(
         f"""
         SELECT
-            pii.item_code,
-            pii.rate,
-            pii.uom,
-            pi.currency,
-            pi.name AS invoice,
-            pi.posting_date,
-            pi.supplier
-        FROM `tabPurchase Invoice Item` pii
-        JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
-        WHERE pi.docstatus = 1
-          AND pii.item_code IN %s
-          {supplier_clause}
-        ORDER BY pi.posting_date DESC, pi.creation DESC
+            ranked.item_code,
+            ranked.rate,
+            ranked.uom,
+            ranked.currency,
+            ranked.invoice,
+            ranked.posting_date,
+            ranked.supplier
+        FROM (
+            SELECT
+                pii.item_code,
+                pii.rate,
+                pii.uom,
+                pi.currency,
+                pi.name AS invoice,
+                pi.posting_date,
+                pi.supplier,
+                ROW_NUMBER() OVER (
+                    PARTITION BY pii.item_code
+                    ORDER BY pi.posting_date DESC, pi.creation DESC
+                ) AS rn
+            FROM `tabPurchase Invoice Item` pii
+            JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
+            WHERE pi.docstatus = 1
+              AND pii.item_code IN %s
+              {supplier_clause}
+        ) ranked
+        WHERE ranked.rn = 1
         """,
         tuple(params),
         as_dict=True,

@@ -80,11 +80,17 @@ def _install_stubs():
 
 	def fake_get_all(doctype, filters=None, fields=None, **kwargs):
 		if doctype == "Item Price":
+			raise AssertionError("Item Price lookups should use frappe.get_list")
+		return []
+
+	def fake_get_list(doctype, filters=None, fields=None, **kwargs):
+		if doctype == "Item Price":
 			return []
 		return []
 
 	frappe_module.db = _Db()
 	frappe_module.get_all = fake_get_all
+	frappe_module.get_list = fake_get_list
 	sys.modules["frappe"] = frappe_module
 
 	frappe_utils = types.ModuleType("frappe.utils")
@@ -140,11 +146,17 @@ class TestPurchaseOrdersApi(unittest.TestCase):
 		self.assertEqual(result["ITEM-001"]["supplier"], "SUP-XYZ")
 
 	def test_get_last_buying_rate_prefers_supplier_specific_history(self):
+		self.module.frappe.db.sql_calls.clear()
+
 		result = self.module.get_last_buying_rate("SUP-001", ["ITEM-001"])
 
 		self.assertEqual(result["ITEM-001"]["rate"], 44)
 		self.assertEqual(result["ITEM-001"]["invoice"], "PINV-SUP-1")
 		self.assertEqual(result["ITEM-001"]["supplier"], "SUP-001")
+		purchase_invoice_sql = next(
+			call for call in self.module.frappe.db.sql_calls if "FROM `tabPurchase Invoice Item`" in call[0]
+		)
+		self.assertIn("ROW_NUMBER() OVER", purchase_invoice_sql[0])
 
 	def test_get_last_buying_rate_wraps_json_scalar_item_code_before_tuple_lookup(self):
 		self.module.frappe.db.sql_calls.clear()
@@ -156,6 +168,16 @@ class TestPurchaseOrdersApi(unittest.TestCase):
 			call for call in self.module.frappe.db.sql_calls if "FROM `tabPurchase Invoice Item`" in call[0]
 		)
 		self.assertEqual(purchase_invoice_sql[1][0], ("ITEM-001",))
+
+	def test_get_last_buying_rate_ignores_invalid_decoded_item_code_shapes(self):
+		self.module.frappe.db.sql_calls.clear()
+
+		result = self.module.get_last_buying_rate(None, '{"bad": "shape"}')
+
+		self.assertEqual(result, {})
+		self.assertFalse(
+			any("FROM `tabPurchase Invoice Item`" in call[0] for call in self.module.frappe.db.sql_calls)
+		)
 
 
 if __name__ == "__main__":
