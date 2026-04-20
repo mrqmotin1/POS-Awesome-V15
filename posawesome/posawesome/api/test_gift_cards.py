@@ -151,6 +151,7 @@ def _install_stubs():
                 name="Main POS",
                 company="Test Company",
                 cost_center="Main - TC",
+                posa_use_gift_cards=1,
                 posa_default_source_account="1110 - Cash - TC",
                 posa_gift_card_liability_account="2190 - Gift Card Liability - TC",
             )
@@ -285,6 +286,10 @@ class TestGiftCardApi(unittest.TestCase):
         self.state["new_docs"].clear()
         self.state["journal_entries"].clear()
         self.state["mode_of_payments"].clear()
+        profile_doc = self.state["pos_profiles"]["Main POS"]
+        profile_doc.posa_use_gift_cards = 1
+        profile_doc.posa_default_source_account = "1110 - Cash - TC"
+        profile_doc.posa_gift_card_liability_account = "2190 - Gift Card Liability - TC"
         for invoice_doc in self.state["invoices"].values():
             invoice_doc.gift_card_redemptions = []
             invoice_doc.payments = []
@@ -352,6 +357,49 @@ class TestGiftCardApi(unittest.TestCase):
         self.assertEqual(len(invoice_doc.payments), 1)
         self.assertEqual(invoice_doc.payments[0]["account"], "2190 - Gift Card Liability - TC")
         self.assertEqual(invoice_doc.payments[0]["amount"], 300)
+
+    def test_apply_invoice_gift_card_redemptions_skips_validation_when_gift_cards_disabled_and_no_rows(self):
+        profile_doc = self.state["pos_profiles"]["Main POS"]
+        profile_doc.posa_use_gift_cards = 0
+        profile_doc.posa_gift_card_liability_account = ""
+        invoice_doc = self.state["invoices"]["ACC-SINV-0001"]
+
+        result = self.module.apply_invoice_gift_card_redemptions(invoice_doc, [])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(invoice_doc.gift_card_redemptions, [])
+        self.assertEqual(invoice_doc.payments, [])
+
+    def test_apply_invoice_gift_card_redemptions_skips_validation_when_enabled_but_no_rows(self):
+        profile_doc = self.state["pos_profiles"]["Main POS"]
+        profile_doc.posa_use_gift_cards = 1
+        profile_doc.posa_gift_card_liability_account = ""
+        invoice_doc = self.state["invoices"]["ACC-SINV-0001"]
+
+        result = self.module.apply_invoice_gift_card_redemptions(
+            invoice_doc,
+            [{"gift_card_code": "GC-EMPTY", "amount": 0}],
+        )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(invoice_doc.gift_card_redemptions, [])
+        self.assertEqual(invoice_doc.payments, [])
+
+    def test_apply_invoice_gift_card_redemptions_requires_liability_account_when_redemption_is_attempted(self):
+        existing = FakeGiftCard(code="GC-0006", balance=300, status="Active")
+        self.state["cards"][existing.gift_card_code] = existing
+        profile_doc = self.state["pos_profiles"]["Main POS"]
+        profile_doc.posa_use_gift_cards = 1
+        profile_doc.posa_gift_card_liability_account = ""
+        invoice_doc = self.state["invoices"]["ACC-SINV-0001"]
+
+        with self.assertRaises(Exception) as ctx:
+            self.module.apply_invoice_gift_card_redemptions(
+                invoice_doc,
+                [{"gift_card_code": "GC-0006", "amount": 100, "cashier": "cashier@example.com"}],
+            )
+
+        self.assertIn("gift card liability account", str(ctx.exception))
 
     def test_restore_invoice_gift_card_redemptions_restores_balance(self):
         existing = FakeGiftCard(code="GC-0002", balance=500, status="Active")

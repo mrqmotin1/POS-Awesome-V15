@@ -255,6 +255,16 @@ def apply_invoice_gift_card_redemptions(invoice_doc, rows=None):
 	_set_child_rows(invoice_doc, "gift_card_redemptions", [])
 	_remove_invoice_gift_card_settlement(invoice_doc)
 
+	valid_rows = []
+	for row in rows:
+		redeem_amount = _to_float((row or {}).get("amount"))
+		if redeem_amount <= 0:
+			continue
+		valid_rows.append((row or {}, redeem_amount))
+
+	if not valid_rows:
+		return 0.0
+
 	total_redeemed = 0
 	normalized_rows = []
 	cashier = None
@@ -262,13 +272,9 @@ def apply_invoice_gift_card_redemptions(invoice_doc, rows=None):
 	profile_doc = _get_profile_doc(_doc_value(invoice_doc, "pos_profile"))
 	liability_account = _resolve_liability_account(profile_doc)
 
-	for row in rows:
-		redeem_amount = _to_float((row or {}).get("amount"))
-		if redeem_amount <= 0:
-			continue
-
-		gift_card_code = (row or {}).get("gift_card_code")
-		cashier = (row or {}).get("cashier") or cashier
+	for row, redeem_amount in valid_rows:
+		gift_card_code = row.get("gift_card_code")
+		cashier = row.get("cashier") or cashier
 		gift_card_doc = _get_gift_card(gift_card_code)
 		if company and _doc_value(gift_card_doc, "company") != company:
 			frappe.throw(frappe._("Gift card does not belong to company {0}.").format(company))
