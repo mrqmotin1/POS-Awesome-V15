@@ -33,6 +33,8 @@ import {
 	scheduleChunkRecoveryStateReset,
 } from "./utils/chunkLoadRecovery";
 import { finalizePendingBundleActivation } from "./utils/bundleVersionActivation";
+import { reconcileBuildChangeOnStartup } from "./utils/buildCacheReconciler";
+import { initPromise, isOffline } from "../offline";
 import "../sw-updater"; // Initialize service worker auto-updater
 import App from "./App.vue";
 // @ts-ignore
@@ -41,6 +43,8 @@ import {
 	initLongTaskObserver,
 	isPerfEnabled,
 } from "./utils/perf.js";
+
+declare const __BUILD_VERSION__: string;
 
 attachProfilerHelpers();
 
@@ -72,6 +76,23 @@ frappe.PosApp.posapp = class {
 
 	make_body() {
 		this.$el = this.$parent.find(".main-section");
+		void this.initializeApp();
+	}
+
+	async initializeApp() {
+		const buildVersion =
+			typeof __BUILD_VERSION__ !== "undefined" ? __BUILD_VERSION__ : null;
+
+		try {
+			await initPromise;
+			await reconcileBuildChangeOnStartup({
+				runtimeBuildVersion: buildVersion,
+				isOnline: !isOffline(),
+			});
+		} catch (error) {
+			console.error("Failed to reconcile build caches before POS app mount", error);
+		}
+
 		// Vuetify instance is now imported from plugins/vuetify.ts
 		this.app = createApp(App);
 		const { router, history } = createPosAppRouter();
