@@ -239,6 +239,15 @@ const formatDraftAge = (draft) => {
 	font-size: 0.8rem;
 	color: var(--pos-text-secondary);
 }
+.drafts-rail__chip-card {
+	min-width: 180px;
+	max-width: 220px;
+}
+
+.drafts-rail__chip-meta {
+	font-size: 0.8rem;
+	color: var(--pos-text-secondary);
+}
 
 .drafts-rail__status {
 	display: inline-flex;

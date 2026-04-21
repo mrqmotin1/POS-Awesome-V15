@@ -5,6 +5,13 @@ import { nextTick } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { shallowMount } from "@vue/test-utils";
 
+vi.mock("../src/posapp/utils/useManagerMode", () => ({
+	initManagerMode: vi.fn(),
+	isManagerMode: { value: false },
+	isSessionUserManager: { value: false },
+	setManagerMode: vi.fn(),
+}));
+
 vi.mock("../src/posapp/composables/core/useRtl", () => ({
 	useRtl: () => ({
 		isRtl: false,
