@@ -238,6 +238,7 @@ const formatDraftAge = (draft) => {
 	gap: 6px 10px;
 	font-size: 0.8rem;
 	color: var(--pos-text-secondary);
+}
 .drafts-rail__strip {
 	display: flex;
 	gap: 10px;

@@ -108,6 +108,8 @@
 </template>
 
 <script setup>
+import { computed } from "vue";
+
 const props = defineProps({
 	invoice_doc: Object,
 	total_payments_display: String,
