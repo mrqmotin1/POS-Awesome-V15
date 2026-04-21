@@ -148,10 +148,7 @@ import {
 import { useRtl } from "../composables/core/useRtl";
 import authService from "../services/authService.js";
 import { getValidCachedOpeningForCurrentUser } from "../utils/openingCache";
-<<<<<<< HEAD
 import { isManagerMode, isSessionUserManager, setManagerMode } from "../utils/useManagerMode";
-=======
->>>>>>> 7b793f94 (feat: expand offline bootstrap prerequisite coverage)
 import {
 	formatBootstrapWarning,
 	shouldShowBootstrapBanner,
