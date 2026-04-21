@@ -75,14 +75,15 @@ export function buildFinalVisibleColumns(
 
 const calculateColumnWidth = (header: TableHeader, width: number) => {
 	const baseWidths: Record<string, { min: number; max: number; ratio: number }> = {
-		item_name: { min: 200, max: 250, ratio: 0.3 },
-		qty: { min: 140, max: 160, ratio: 0.12 },
-		rate: { min: 100, max: 130, ratio: 0.12 },
-		amount: { min: 100, max: 130, ratio: 0.12 },
+		isl: { min: 10, max: 15, ratio: 0.03 },
+		item_name: { min: 100, max: 100, ratio: 0.3 },
+		qty: { min: 80, max: 100, ratio: 0.12 },
+		rate: { min: 100, max: 120, ratio: 0.12 },
+		amount: { min: 100, max: 120, ratio: 0.12 },
 		discount_percentage: { min: 90, max: 120, ratio: 0.1 },
 		discount_amount: { min: 90, max: 120, ratio: 0.11 },
 		price_list_rate: { min: 120, max: 140, ratio: 0.13 },
-		actions: { min: 80, max: 100, ratio: 0.08 },
+		actions: { min: 50, max: 80, ratio: 0.08 },
 		posa_is_offer: { min: 70, max: 90, ratio: 0.06 },
 	};
 
@@ -97,14 +98,15 @@ const calculateColumnWidth = (header: TableHeader, width: number) => {
 
 const calculateMinColumnWidth = (header: TableHeader) => {
 	const minWidths: Record<string, number> = {
-		item_name: 200,
-		qty: 140,
-		rate: 100,
+		sl: 15,
+		item_name: 100,
+		qty: 80,
+		rate: 80,
 		amount: 100,
 		discount_percentage: 90,
 		discount_amount: 90,
 		price_list_rate: 120,
-		actions: 80,
+		actions: 50,
 		posa_is_offer: 70,
 	};
 	return minWidths[header.key] || 80;
