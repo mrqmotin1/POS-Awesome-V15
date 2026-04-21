@@ -88,6 +88,17 @@
 			</v-col>
 
 			<v-col cols="12" :md="useCompactSaleDock ? 12 : 5" class="invoice-summary-actions">
+				<ParkedOrdersRail
+					v-if="allDrafts.length"
+					:parked-orders="allDrafts"
+					:format-currency="formatCurrency"
+					:currency-symbol="currencySymbol"
+					:layout="showDesktopDrafts ? 'desktop' : 'mobile'"
+					:total-count="allDrafts.length"
+					@resume="handleResumeDraft"
+					@view-all="openDraftsSurface"
+					class="mb-3"
+				/>
 				<InvoiceActionButtons
 					:pos_profile="pos_profile"
 					:saveLoading="saveLoading"
