@@ -460,6 +460,13 @@ export default {
 				});
 			}
 		},
+		isManagerMode(val) {
+			if (!val) {
+				this.username = "";
+				this.password = "";
+				this.barcodeInput = "";
+			}
+		},
 		menuOpen(isOpen) {
 			if (!isOpen) {
 				this.activePanel = "main";
@@ -721,6 +728,16 @@ export default {
 					tone: "info",
 					handler: "syncInvoices",
 				},
+				this.isSessionUserNotManager
+					? {
+							id: "manager-login",
+							label: __("Manager Login"),
+							subtitle: __("Authenticate as manager"),
+							icon: "mdi-shield-account-outline",
+							tone: "warning",
+							handler: "managerLogin",
+						}
+					: null,
 				!this.posProfile?.posa_hide_closing_shift
 					? {
 							id: "close-shift",

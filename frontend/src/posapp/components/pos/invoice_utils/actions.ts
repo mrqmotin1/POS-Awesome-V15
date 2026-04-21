@@ -1,4 +1,5 @@
 import { useItemAddition } from "../../../composables/pos/items/useItemAddition";
+import { setManagerMode, isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 import { get_invoice_doc, get_invoice_items, get_payments } from "./document";
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency";
 import { applyReturnDiscountProration } from "./item_updates";
@@ -200,6 +201,10 @@ export async function save_and_clear_invoice(context: any) {
 		});
 	} else {
 		clearInvoice(context);
+		// Auto-logout manager after invoice is saved so the next sale starts without elevated access
+		if (isManagerMode.value && !isSessionUserManager.value) {
+			setManagerMode(false);
+		}
 		if (context.eventBus) {
 			context.eventBus.emit("focus_item_search");
 		}
