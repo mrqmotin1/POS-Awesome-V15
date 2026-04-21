@@ -87,8 +87,8 @@
 
 			<v-col cols="12" :md="useCompactSaleDock ? 12 : 5" class="invoice-summary-actions">
 				<ParkedOrdersRail
-					v-if="visibleDrafts.length"
-					:parked-orders="visibleDrafts"
+					v-if="allDrafts.length"
+					:parked-orders="allDrafts"
 					:format-currency="formatCurrency"
 					:currency-symbol="currencySymbol"
 					:layout="showDesktopDrafts ? 'desktop' : 'mobile'"
