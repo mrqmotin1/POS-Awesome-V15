@@ -472,6 +472,13 @@ export default {
 				});
 			}
 		},
+		isManagerMode(val) {
+			if (!val) {
+				this.username = "";
+				this.password = "";
+				this.barcodeInput = "";
+			}
+		},
 	},
 	computed: {
 		canChangeLanguage() {
