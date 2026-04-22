@@ -1,7 +1,7 @@
 import { ref, getCurrentInstance, inject } from "vue";
 import { useToastStore } from "../../../stores/toastStore.js";
 import { useUIStore } from "../../../stores/uiStore.js";
-import { useInvoiceStore } from "../../../stores/invoiceStore";
+import { useInvoiceStore } from "../../../stores/invoiceStore.js";
 import {
 	initPromise,
 	checkDbHealth,
@@ -178,13 +178,12 @@ export function usePosShift(openDialog?: () => void) {
 	}
 
 	function get_closing_data() {
-		const cachedOpeningShift = (getOpeningStorage() as any)
-			?.pos_opening_shift;
+		// Always prefer the shared store (updated by all usePosShift instances and
+		// handleRegisterPosData), then fall back to the local ref, then localStorage.
+		const storeOpeningShift = uiStore.posOpeningShift;
+		const cachedOpeningShift = (getOpeningStorage() as any)?.pos_opening_shift;
 		const resolvedShift =
-			uiStore.posOpeningShift ||
-			pos_opening_shift.value ||
-			cachedOpeningShift ||
-			null;
+			storeOpeningShift || pos_opening_shift.value || cachedOpeningShift || null;
 		if (!resolvedShift) {
 			return Promise.resolve();
 		}
