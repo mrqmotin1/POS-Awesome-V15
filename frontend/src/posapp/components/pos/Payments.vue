@@ -157,7 +157,7 @@
 						/>
 					</section>
 
-					<section class="payment-section payment-section--settlement">
+					<section v-if="pos_profile?.use_customer_credit" class="payment-section payment-section--settlement">
 						<div class="payment-section__header">
 							<h3 class="payment-section__title">{{ __("Credit and Output") }}</h3>
 						</div>
