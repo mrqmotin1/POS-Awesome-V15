@@ -115,12 +115,12 @@
 							:currencySymbol="currencySymbol"
 							:formatCurrency="formatCurrency"
 						/>
-						<div class="payment-section__subsection">
+						<!-- <div class="payment-section__subsection">
 							<h3 class="payment-section__title payment-section__title--subsection">
 								{{ __("Fulfillment Details") }}
 							</h3>
-						</div>
-						<PaymentAdditionalInfo
+						</div> -->
+						<!-- <PaymentAdditionalInfo
 							:invoice-doc="invoice_doc"
 							:pos-profile="pos_profile"
 							:invoice-type="invoiceType"
@@ -143,7 +143,7 @@
 								}
 							"
 							@new-address="new_address"
-						/>
+						/> -->
 						<PaymentPurchaseOrder
 							:invoice-doc="invoice_doc"
 							:pos-profile="pos_profile"
@@ -212,7 +212,7 @@
 					</section>
 
 					<section class="payment-section payment-section--meta">
-						<div class="payment-section__header">
+						<!-- <div class="payment-section__header">
 							<h3 class="payment-section__title">{{ __("Sales Person and Print") }}</h3>
 						</div>
 						<PaymentSelectionFields
@@ -226,7 +226,7 @@
 							"
 							@update:sales-person="sales_person = $event"
 							@update:print-format="print_format = $event"
-						/>
+						/> -->
 					</section>
 				</div>
 			</div>
