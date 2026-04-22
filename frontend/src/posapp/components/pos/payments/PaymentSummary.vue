@@ -29,6 +29,30 @@
 			></v-text-field>
 		</v-col>
 
+		<!-- <v-col cols="12">
+			<div
+				class="payment-summary-pill"
+				:class="`payment-summary-pill--${settlementState.tone}`"
+				data-test="payment-settlement-state"
+			>
+				<div class="payment-summary-pill__copy">
+					<p class="payment-summary-pill__label">{{ settlementState.title }}</p>
+					<h4 class="payment-summary-pill__amount">
+						{{ settlementState.amount }}
+					</h4>
+					<p class="payment-summary-pill__meta">
+						{{ settlementState.description }}
+					</p>
+				</div>
+				<span
+					class="payment-summary-pill__state"
+					:class="`payment-summary-pill__state--${settlementState.tone}`"
+				>
+					{{ settlementState.state }}
+				</span>
+			</div>
+		</v-col> -->
+
 		<v-col v-if="invoice_doc && giftCardAppliedAmount > 0" cols="12">
 			<div class="payment-summary-pill payment-summary-pill--gift-card">
 				<div class="payment-summary-pill__copy">
