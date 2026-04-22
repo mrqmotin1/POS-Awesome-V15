@@ -212,11 +212,11 @@
 					/>
 				</section>
 
-				<section class="payment-section payment-section--meta">
-					<!-- <div class="payment-section__header">
+				<!-- <section class="payment-section payment-section--meta">
+					<div class="payment-section__header">
 						<h3 class="payment-section__title">{{ __("Sales Person and Print") }}</h3>
-					</div> -->
-					<!-- <PaymentSelectionFields
+					</div>
+					<PaymentSelectionFields
 						:sales-persons="sales_persons"
 						:sales-person="sales_person"
 						:readonly="readonly"
@@ -227,8 +227,8 @@
 						"
 						@update:sales-person="sales_person = $event"
 						@update:print-format="print_format = $event"
-					/> -->
-				</section>
+					/>
+				</section> -->
 			</div>
 		</div>
 		</v-card>
