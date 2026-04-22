@@ -1583,4 +1583,38 @@ export default {
 	opacity: 0.9;
 	font-size: 0.95rem;
 }
+
+/* Target 1024px screens specifically */
+@media screen and (max-width: 1024px) {
+    .items-table-wrapper {
+        /* 1. Make it sticky and fixed in size */
+        position: sticky;
+        top: 00px; /* Adjust this value if you have a top navbar */
+        
+        /* 2. Set a fixed height based on the 768px screen height */
+        /* calc(100vh - 100px) leaves room for headers/margins. Adjust the 100px as needed */
+        height: calc(100vh - 100px); 
+        max-height: 360px; /* Hard cap for 768px screens */
+        
+        display: flex;
+        flex-direction: column;
+        
+        /* Prevent the wrapper itself from scrolling or expanding */
+        overflow: hidden; 
+        z-index: 10;
+    }
+
+    /* 3. Override your previous :deep rules to ALLOW scrolling inside */
+    :deep(.items-table-wrapper .posa-items-table-container),
+    :deep(.items-table-wrapper .v-data-table__wrapper),
+    :deep(.items-table-wrapper .v-table__wrapper) {
+        flex: 1 1 auto !important; /* Allow the table to fill remaining space in wrapper */
+        height: 100% !important; /* Constrain it to the wrapper's fixed height */
+        max-height: 100% !important;
+        
+        /* Turn ON internal scrolling */
+        overflow-y: auto !important; 
+        overflow-x: hidden !important; 
+    }
+}
 </style>
