@@ -1232,7 +1232,7 @@ export default {
 }
 
 .invoice-top-grid {
-	display: grid;
+	/* display: grid; */
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: var(--dynamic-sm);
 	flex: 0 0 auto;
