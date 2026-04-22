@@ -201,26 +201,12 @@ const invoiceWatchers: Record<string, unknown> & ThisType<InvoiceWatchersVm> = {
 		if (!this.additional_discount || this.additional_discount == 0) {
 			this.additional_discount_percentage = 0;
 		} else if (this.pos_profile.posa_use_percentage_discount) {
-			// Prevent division by zero which causes NaN
-			const baseTotal =
-				this.Total && this.Total !== 0
-					? this.isReturnInvoice
-						? Math.abs(this.Total)
-						: this.Total
-					: 0;
-
-			if (baseTotal) {
-				let computedPercentage =
-					(this.additional_discount / baseTotal) * 100;
-
-				if (this.isReturnInvoice) {
-					computedPercentage = -Math.abs(computedPercentage);
-				}
-
-				this.additional_discount_percentage = computedPercentage;
-			} else {
-				this.additional_discount_percentage = 0;
-			}
+			// In percentage mode the percentage is the source of truth — additional_discount
+			// is always derived FROM it via update_discount_umount. Back-calculating the
+			// percentage from the amount creates a floating-point round-trip that turns 5%
+			// into 4.9999999... whenever Total changes. The percentage is set directly from
+			// user input or from the return doc, so no back-calculation is needed here.
+			return;
 		} else {
 			this.additional_discount_percentage = 0;
 		}
