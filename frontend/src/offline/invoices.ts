@@ -56,11 +56,17 @@ export function validateStockForOfflineInvoice(items: AnyRecord[]) {
 
 		const itemCode = item.item_code;
 		const requestedQty = Math.abs(item.qty || 0);
-		const currentStock = stockCache[itemCode]?.actual_qty || 0;
 
 		if (!blockSaleBeyondAvailableQty) {
 			return;
 		}
+
+		const cacheEntry = stockCache[itemCode];
+		if (!cacheEntry) {
+			// No stock data in cache — allow the sale rather than blocking on unknown stock
+			return;
+		}
+		const currentStock = cacheEntry.actual_qty || 0;
 
 		if (currentStock - requestedQty < 0) {
 			invalidItems.push({
