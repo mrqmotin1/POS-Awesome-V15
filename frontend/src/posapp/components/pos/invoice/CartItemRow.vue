@@ -2,12 +2,12 @@
 	<tr class="posa-cart-item-row" v-memo="memoDeps">
 		<template v-for="column in visibleColumns" :key="column.key">
 			<!-- SL Column -->
-			<td v-if="column.key === 'sl'" class="text-center" :data-column-key="'sl'">
+			<td v-if="column.key === 'sl'" class="text-start" :data-column-key="'sl'">
 				<div>{{ index + 1 }}</div>
 			</td>
 
 			<!-- Item Name Column -->
-			<td v-else-if="column.key === 'item_name'" class="text-start" :data-column-key="'item_name'">
+			<td v-else-if="column.key === 'item_name'" class="text-center" :data-column-key="'item_name'">
 				<div class="d-flex flex-column justify-center h-100">
 				<div class="d-flex align-center">
 					<span>{{ item.item_name }}</span>
@@ -338,7 +338,7 @@
 			</td>
 
 			<!-- Amount Column -->
-			<td v-else-if="column.key === 'amount'" class="text-center" :data-column-key="'amount'">
+			<td v-else-if="column.key === 'amount'" class="text-end" :data-column-key="'amount'">
 				<div class="currency-display right-aligned">
 					<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
 					<span
@@ -368,7 +368,7 @@
 			</td>
 
 			<!-- Actions -->
-			<td v-else-if="column.key === 'actions'" class="text-center" :data-column-key="'actions'">
+			<td v-else-if="column.key === 'actions'" class="text-end" :data-column-key="'actions'">
 				<v-btn
 					:disabled="!!item.posa_is_replace"
 					size="small"

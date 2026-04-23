@@ -75,7 +75,7 @@ export function buildFinalVisibleColumns(
 
 const calculateColumnWidth = (header: TableHeader, width: number) => {
 	const baseWidths: Record<string, { min: number; max: number; ratio: number }> = {
-		isl: { min: 10, max: 15, ratio: 0.03 },
+		sl: { min: 10, max: 15, ratio: 0.03 },
 		item_name: { min: 100, max: 100, ratio: 0.3 },
 		qty: { min: 80, max: 100, ratio: 0.12 },
 		rate: { min: 100, max: 120, ratio: 0.12 },
@@ -88,7 +88,7 @@ const calculateColumnWidth = (header: TableHeader, width: number) => {
 	};
 
 	const config = baseWidths[header.key] || {
-		min: 80,
+		min: 65,
 		max: 150,
 		ratio: 0.1,
 	};
@@ -109,7 +109,7 @@ const calculateMinColumnWidth = (header: TableHeader) => {
 		actions: 50,
 		posa_is_offer: 70,
 	};
-	return minWidths[header.key] || 80;
+	return minWidths[header.key] || 65;
 };
 
 export function useItemsTableResponsive(
