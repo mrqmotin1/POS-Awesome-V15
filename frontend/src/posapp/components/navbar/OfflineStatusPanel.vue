@@ -62,7 +62,7 @@
 					class="offline-status-panel__resources"
 				>
 					<div
-						v-for="capability in capabilitySummaries"
+						v-for="capability in visibleCapabilities"
 						:key="capability.id"
 						class="offline-status-panel__resource"
 						:data-test="`offline-capability-${capability.id}`"
@@ -210,6 +210,8 @@ const {
 const connectivityActionLabel = computed(() =>
 	summary.value.manualOffline ? __("Go Online") : __("Go Offline"),
 );
+
+const visibleCapabilities = computed(() => [] as typeof capabilitySummaries.value);
 
 const chipColor = computed(() => {
 	switch (connectivityTone.value) {

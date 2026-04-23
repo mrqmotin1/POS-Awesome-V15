@@ -1,7 +1,7 @@
 <template>
 	<div v-if="payments && payments.length" class="payment-methods">
 		<div v-for="payment in payments" :key="payment.name" class="payment-method-card">
-			<div class="payment-method-card__header">
+			<!-- <div class="payment-method-card__header">
 				<div>
 					<p class="payment-method-card__label">{{ frappe._("Method") }}</p>
 					<h4 class="payment-method-card__title">{{ payment.mode_of_payment }}</h4>
@@ -14,7 +14,7 @@
 						{{ __("Default") }}
 					</span>
 				</div>
-			</div>
+			</div> -->
 
 			<v-row class="payments ma-0" dense>
 				<v-col cols="12" md="7" v-if="!isMpesaC2bPayment(payment)">
@@ -53,7 +53,7 @@
 							v-if="showQuickTenderActions(payment)"
 							class="payment-method-quick-actions"
 						>
-							<v-btn
+							<!-- <v-btn
 								size="small"
 								variant="tonal"
 								color="primary"
@@ -72,7 +72,7 @@
 								@click="$emit('set-rest-amount', payment, isReturn)"
 							>
 								{{ __("Remaining") }}
-							</v-btn>
+							</v-btn> -->
 						</div>
 					</div>
 				</v-col>

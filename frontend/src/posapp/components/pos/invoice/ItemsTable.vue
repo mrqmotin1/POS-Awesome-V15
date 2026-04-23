@@ -35,7 +35,7 @@
 					<div class="posa-cart-empty-state__icon-wrap">
 						<v-icon :icon="emptyStateIcon" size="42" class="posa-cart-empty-state__icon" />
 					</div>
-					<div class="posa-cart-empty-state__title">{{ emptyStateTitle }}</div>
+					<!-- <div class="posa-cart-empty-state__title">{{ emptyStateTitle }}</div> -->
 					<div v-if="hasItemSearch" class="posa-cart-empty-state__subtitle">{{ emptyStateSubtitle }}</div>
 				</div>
 			</template>

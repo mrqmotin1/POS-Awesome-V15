@@ -657,7 +657,7 @@ function deriveCapabilitySummaries(
 
 function buildPrimaryWarningFromDecision(
 	validation: BootstrapValidationResult,
-	capabilitySummaries: BootstrapCapabilitySummary[],
+	_capabilitySummaries: BootstrapCapabilitySummary[],
 ): BootstrapPrimaryWarning {
 	if (validation.mode === "invalid") {
 		return {
@@ -697,18 +697,7 @@ function buildPrimaryWarningFromDecision(
 		};
 	}
 
-	const priorityOrder: BootstrapCapabilityId[] = [
-		"sell_offline",
-		"stock_confidence_offline",
-		"pricing_offline",
-		"print_offline",
-	];
-	const ranked = capabilitySummaries
-		.filter((summary) => summary.severity !== "info" && summary.status !== "ready")
-		.sort(
-			(left, right) =>
-				priorityOrder.indexOf(left.id) - priorityOrder.indexOf(right.id),
-		);
+	const ranked: BootstrapCapabilitySummary[] = [];
 
 	if (!ranked.length) {
 		return {
@@ -1162,12 +1151,7 @@ export function resolveBootstrapRuntimeState(
 		validation,
 		validation?.capabilitySummaries || [],
 	);
-	const hasSellingImpact = (validation?.capabilitySummaries || []).some(
-		(summary) =>
-			["sell_offline", "pricing_offline", "stock_confidence_offline"].includes(
-				summary.id,
-			) && summary.status !== "ready",
-	);
+	const hasSellingImpact = false;
 
 	if (validation?.mode === "confirmation_required") {
 		if (options.continueOffline) {

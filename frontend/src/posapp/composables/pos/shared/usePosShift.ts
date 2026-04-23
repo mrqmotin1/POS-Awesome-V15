@@ -1,6 +1,7 @@
 import { ref, getCurrentInstance, inject } from "vue";
 import { useToastStore } from "../../../stores/toastStore.js";
 import { useUIStore } from "../../../stores/uiStore.js";
+import { useInvoiceStore } from "../../../stores/invoiceStore.js";
 import {
 	initPromise,
 	checkDbHealth,
@@ -177,18 +178,19 @@ export function usePosShift(openDialog?: () => void) {
 	}
 
 	function get_closing_data() {
-		const cachedOpeningShift = (getOpeningStorage() as any)
-			?.pos_opening_shift;
-		if (!pos_opening_shift.value && cachedOpeningShift) {
-			pos_opening_shift.value = cachedOpeningShift;
-		}
-		if (!pos_opening_shift.value) {
+		// Always prefer the shared store (updated by all usePosShift instances and
+		// handleRegisterPosData), then fall back to the local ref, then localStorage.
+		const storeOpeningShift = uiStore.posOpeningShift;
+		const cachedOpeningShift = (getOpeningStorage() as any)?.pos_opening_shift;
+		const resolvedShift =
+			storeOpeningShift || pos_opening_shift.value || cachedOpeningShift || null;
+		if (!resolvedShift) {
 			return Promise.resolve();
 		}
 		return frappe
 			.call(
 				"posawesome.posawesome.doctype.pos_closing_shift.pos_closing_shift.make_closing_shift_from_opening",
-				{ opening_shift: pos_opening_shift.value },
+				{ opening_shift: resolvedShift },
 			)
 			.then((r: any) => {
 				if (r.message) {
@@ -229,7 +231,9 @@ export function usePosShift(openDialog?: () => void) {
 				if (r.message) {
 					pos_profile.value = null;
 					pos_opening_shift.value = null;
+					uiStore.posOpeningShift = null;
 					clearOpeningStorage();
+					useInvoiceStore().clear();
 					toastStore.show({
 						title: "POS Shift Closed",
 						color: "success",

@@ -1,12 +1,12 @@
 <template>
 	<tr class="posa-cart-item-row" v-memo="memoDeps">
 		<!-- SL Column -->
-		<td class="text-center" :data-column-key="'sl'">
+		<td class="text-start" :data-column-key="'sl'">
 			<div>{{ index + 1 }}</div>
 		</td>
 
 		<!-- Item Name Column -->
-		<td class="text-start" :data-column-key="'item_name'">
+		<td class="text-center" :data-column-key="'item_name'">
 			<div class="d-flex flex-column justify-center h-100">
 				<div class="d-flex align-center">
 					<span>{{ item.item_name }}</span>
@@ -88,7 +88,7 @@
 		<!-- Quantity Column -->
 		<td v-if="column.key === 'qty'" class="text-center" :data-column-key="'qty'">
 			<div class="posa-cart-table__qty-counter" :class="{ 'rtl-layout': isRTL }">
-				<v-btn
+				<!-- <v-btn
 					:disabled="disableDecrement"
 					size="small"
 					variant="flat"
@@ -97,7 +97,7 @@
 					:aria-label="__('Decrease quantity')"
 				>
 					<v-icon size="small">mdi-minus</v-icon>
-				</v-btn>
+				</v-btn> -->
 				<div
 					v-if="!isEditingQty"
 					class="posa-cart-table__qty-display amount-value number-field-rtl"
@@ -130,7 +130,7 @@
 					type="number"
 					:disabled="disableInput"
 				></v-text-field>
-				<v-btn
+				<!-- <v-btn
 					:disabled="disableIncrement"
 					size="small"
 					variant="flat"
@@ -139,7 +139,7 @@
 					:aria-label="__('Increase quantity')"
 				>
 					<v-icon size="small">mdi-plus</v-icon>
-				</v-btn>
+				</v-btn> -->
 			</div>
 		</td>
 
@@ -312,7 +312,7 @@
 					@keydown.enter.prevent="openRateEdit"
 					@keydown.space.prevent="openRateEdit"
 				>
-					<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
+					<!-- <span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span> -->
 					<span class="amount-value" :class="{ 'negative-number': isNegative(item.rate) }">
 						{{ formatCurrency(item.rate) }}
 					</span>
@@ -335,9 +335,9 @@
 		</td>
 
 		<!-- Amount Column -->
-		<td v-else-if="column.key === 'amount'" class="text-center" :data-column-key="'amount'">
+		<td v-else-if="column.key === 'amount'" class="text-end" :data-column-key="'amount'">
 			<div class="currency-display right-aligned">
-				<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
+				<!-- <span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span> -->
 				<span class="amount-value" :class="{ 'negative-number': isNegative(item.qty * item.rate) }">
 					{{ formatCurrency(item.qty * item.rate) }}
 				</span>
@@ -763,6 +763,7 @@ td {
     font-family: inherit; /* Inherits the SF Pro / Segoe UI font */
     margin-top: 2px;    /* Small gap between name and barcode */
     line-height: 1;
+	padding-bottom: 5px;
 }
 
 /* Ensure the cell content is centered vertically */

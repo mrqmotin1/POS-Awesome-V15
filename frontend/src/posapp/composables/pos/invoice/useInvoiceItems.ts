@@ -1,4 +1,4 @@
-/**
+ /**
  * Cart item management: column preferences, quantity editing, and delivery charges.
  *
  * **Column visibility**
@@ -78,7 +78,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 	const available_columns = ref([
 		{
 			title: __("SL"),
-			align: "center",
+			align: "start",
 			sortable: false,
 			key: "sl",
 			required: true,
@@ -86,7 +86,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		},
 		{
 			title: __("Name"),
-			align: "start",
+			align: "center",
 			sortable: true,
 			key: "item_name",
 			required: true,
@@ -113,7 +113,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			required: false,
 		},
 		{ title: __("Rate"), key: "rate", align: "center", required: true },
-		{ title: __("Amount"), key: "amount", align: "center", required: true },
+		{ title: __("Amount"), key: "amount", align: "end", required: true },
 		{
 			title: __("Offer?"),
 			key: "posa_is_offer",
@@ -123,7 +123,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		{
 			title: __("Actions"),
 			key: "actions",
-			align: "center",
+			align: "end",
 			required: true,
 			sortable: false,
 		},

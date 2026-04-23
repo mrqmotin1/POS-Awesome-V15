@@ -117,12 +117,12 @@
 							:currencySymbol="currencySymbol"
 							:formatCurrency="formatCurrency"
 						/>
-						<div class="payment-section__subsection">
+						<!-- <div class="payment-section__subsection">
 							<h3 class="payment-section__title payment-section__title--subsection">
 								{{ __("Fulfillment Details") }}
 							</h3>
-						</div>
-						<PaymentAdditionalInfo
+						</div> -->
+						<!-- <PaymentAdditionalInfo
 							:invoice-doc="invoice_doc"
 							:pos-profile="pos_profile"
 							:invoice-type="invoiceType"
@@ -145,7 +145,7 @@
 								}
 							"
 							@new-address="new_address"
-						/>
+						/> -->
 						<PaymentPurchaseOrder
 							:invoice-doc="invoice_doc"
 							:pos-profile="pos_profile"
@@ -159,7 +159,7 @@
 						/>
 					</section>
 
-					<section class="payment-section payment-section--settlement">
+					<section v-if="pos_profile?.use_customer_credit" class="payment-section payment-section--settlement">
 						<div class="payment-section__header">
 							<h3 class="payment-section__title">{{ __("Credit and Output") }}</h3>
 						</div>
@@ -212,7 +212,7 @@
 					/>
 				</section>
 
-				<section class="payment-section payment-section--meta">
+				<!-- <section class="payment-section payment-section--meta">
 					<div class="payment-section__header">
 						<h3 class="payment-section__title">{{ __("Sales Person and Print") }}</h3>
 					</div>
@@ -228,7 +228,7 @@
 						@update:sales-person="sales_person = $event"
 						@update:print-format="print_format = $event"
 					/>
-				</section>
+				</section> -->
 			</div>
 		</div>
 		</v-card>

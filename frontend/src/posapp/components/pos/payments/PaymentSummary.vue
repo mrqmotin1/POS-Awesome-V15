@@ -29,7 +29,7 @@
 			></v-text-field>
 		</v-col>
 
-		<v-col cols="12">
+		<!-- <v-col cols="12">
 			<div
 				class="payment-summary-pill"
 				:class="`payment-summary-pill--${settlementState.tone}`"
@@ -51,7 +51,7 @@
 					{{ settlementState.state }}
 				</span>
 			</div>
-		</v-col>
+		</v-col> -->
 
 		<v-col
 			v-if="invoice_doc && giftCardAppliedAmount > 0"
