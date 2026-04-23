@@ -74,18 +74,20 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 		if (!invoice) return;
 		const html = await renderOfflineInvoiceHTML(invoice);
 		const win = window.open("", "_blank");
-		if (!win) return;
+		if (!win) {
+			frappe?.msgprint(__("Print blocked by browser. Please allow popups for this site and try again."));
+			return;
+		}
 		win.document.write(html);
 		win.document.close();
 		win.focus();
 		win.print();
-		win.close(); // Auto-close after printing
+		win.close();
 		setTimeout(() => {
-            if (!win.closed) {
-                win.close();
-                console.log("✅ Preview auto-closed (timeout)");
-            }
-        }, 1000);
+			if (!win.closed) {
+				win.close();
+			}
+		}, 1000);
 	};
 
 	const loadPrintPage = async (input: { doc?: any; doctype?: string } = {}) => {
