@@ -417,7 +417,7 @@
 	align-items: center;
 	justify-content: center;
 	gap: 4px;
-	padding: 4px 8px;
+	padding: 8px 12px;
 	border-radius: 6px;
 	border: 1px solid var(--pos-primary-variant);
 	/* Match Qty border strength */
@@ -831,4 +831,61 @@
 	width: 100% !important;
 	border: none !important;
 	background: transparent !important;
+}
+
+/* =================================================================
+   1024×768 LAYOUT OVERRIDES
+   Only applied on screens up to 1024px wide.
+   Larger screens use the original design above unchanged.
+   ================================================================= */
+@media (max-width: 1024px) {
+	.posa-cart-table table {
+		table-layout: fixed !important;
+	}
+
+	.posa-cart-table td {
+		height: auto;
+		min-height: 60px;
+	}
+
+	.posa-cart-table th {
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		word-break: break-word;
+	}
+
+	.posa-cart-table th .v-data-table-header__content {
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		word-break: break-word;
+	}
+
+	.posa-cart-table__qty-counter {
+		min-width: 80px;
+		max-width: 110px;
+		flex-shrink: 1;
+		background: transparent;
+		border-radius: 0;
+		border: none;
+	}
+
+	.posa-cart-table td[data-column-key="item_name"] {
+		white-space: normal;
+		word-break: break-word;
+		overflow: visible;
+		height: auto;
+		min-height: 60px;
+	}
+
+	.posa-cart-table td[data-column-key="item_name"] .barcode-display {
+		text-align: center;
+		width: 100%;
+		display: block;
+	}
+	.posa-cart-table__qty-display {
+	min-width: 30px;
+	max-width: 60px;
+	}
 }
