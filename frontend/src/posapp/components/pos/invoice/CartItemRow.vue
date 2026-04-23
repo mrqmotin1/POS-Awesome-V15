@@ -315,7 +315,7 @@
 						@keydown.enter.prevent="openRateEdit"
 						@keydown.space.prevent="openRateEdit"
 					>
-						<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
+						<!-- <span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span> -->
 						<span class="amount-value" :class="{ 'negative-number': isNegative(item.rate) }">
 							{{ formatCurrency(item.rate) }}
 						</span>
@@ -340,7 +340,7 @@
 			<!-- Amount Column -->
 			<td v-else-if="column.key === 'amount'" class="text-end" :data-column-key="'amount'">
 				<div class="currency-display right-aligned">
-					<span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span>
+					<!-- <span class="currency-symbol">{{ currencySymbol(displayCurrency) }}</span> -->
 					<span
 						class="amount-value"
 						:class="{ 'negative-number': isNegative(item.qty * item.rate) }"
@@ -368,7 +368,7 @@
 			</td>
 
 			<!-- Actions -->
-			<td v-else-if="column.key === 'actions'" class="text-end" :data-column-key="'actions'">
+			<td v-else-if="column.key === 'actions'" class="text-center" :data-column-key="'actions'">
 				<v-btn
 					:disabled="!!item.posa_is_replace"
 					size="small"
@@ -748,6 +748,7 @@ td {
     font-family: inherit; /* Inherits the SF Pro / Segoe UI font */
     margin-top: 2px;    /* Small gap between name and barcode */
     line-height: 1;
+	padding-bottom: 5px;
 }
 
 /* Ensure the cell content is centered vertically */

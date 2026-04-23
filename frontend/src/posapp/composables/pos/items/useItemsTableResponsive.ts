@@ -74,24 +74,35 @@ export function buildFinalVisibleColumns(
 }
 
 const calculateColumnWidth = (header: TableHeader, width: number) => {
-	const baseWidths: Record<string, { min: number; max: number; ratio: number }> = {
-		sl: { min: 10, max: 15, ratio: 0.03 },
-		item_name: { min: 100, max: 100, ratio: 0.3 },
-		qty: { min: 80, max: 100, ratio: 0.12 },
-		rate: { min: 100, max: 120, ratio: 0.12 },
-		amount: { min: 100, max: 120, ratio: 0.12 },
-		discount_percentage: { min: 90, max: 120, ratio: 0.1 },
-		discount_amount: { min: 90, max: 120, ratio: 0.11 },
-		price_list_rate: { min: 120, max: 140, ratio: 0.13 },
-		actions: { min: 50, max: 80, ratio: 0.08 },
+	// Two sets of widths: compact for ~1024×768 (container < 600px), standard for larger screens.
+	const compactWidths: Record<string, { min: number; max: number; ratio: number }> = {
+		sl: { min: 50, max: 60, ratio: 0.04 },
+		item_name: { min: 120, max: 160, ratio: 0.28 },
+		qty: { min: 90, max: 120, ratio: 0.15 },
+		rate: { min: 100, max: 120, ratio: 0.13 },
+		amount: { min: 100, max: 110, ratio: 0.13 },
+		discount_percentage: { min: 80, max: 110, ratio: 0.10 },
+		discount_amount: { min: 80, max: 110, ratio: 0.11 },
+		price_list_rate: { min: 90, max: 130, ratio: 0.13 },
+		actions: { min: 80, max: 80, ratio: 0.09 },
 		posa_is_offer: { min: 70, max: 90, ratio: 0.06 },
 	};
 
-	const config = baseWidths[header.key] || {
-		min: 65,
-		max: 150,
-		ratio: 0.1,
+	const standardWidths: Record<string, { min: number; max: number; ratio: number }> = {
+		sl: { min: 10, max: 15, ratio: 0.03 },
+		item_name: { min: 100, max: 100, ratio: 0.3 },
+			qty: { min: 80, max: 100, ratio: 0.12 },
+			rate: { min: 100, max: 120, ratio: 0.12 },
+			amount: { min: 100, max: 120, ratio: 0.12 },
+			discount_percentage: { min: 90, max: 120, ratio: 0.1 },
+			discount_amount: { min: 90, max: 120, ratio: 0.11 },
+			price_list_rate: { min: 120, max: 140, ratio: 0.13 },
+			actions: { min: 50, max: 80, ratio: 0.08 },
+			posa_is_offer: { min: 70, max: 90, ratio: 0.06 },
 	};
+
+	const baseWidths = width < 1025 ? compactWidths : standardWidths;
+	const config = baseWidths[header.key] || { min: 65, max: 150, ratio: 0.1 };
 	const calculatedWidth = width * config.ratio;
 	return Math.max(config.min, Math.min(config.max, calculatedWidth));
 };
