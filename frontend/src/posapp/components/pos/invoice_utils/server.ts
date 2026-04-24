@@ -10,12 +10,13 @@ function isNetworkError(error: any): boolean {
 	// Native fetch / other errors
 	if (error.name === "NetworkError") return true;
 	const msg = typeof error.message === "string" ? error.message : "";
-	return (
-		msg.includes("ERR_INTERNET_DISCONNECTED") ||
-		msg.includes("Failed to fetch") ||
-		msg.includes("Network Error") ||
-		msg.includes("ERR_NETWORK_CHANGED")
-	);
+	return true;
+	// (
+	// 	msg.includes("ERR_INTERNET_DISCONNECTED") ||
+	// 	msg.includes("Failed to fetch") ||
+	// 	msg.includes("Network Error") ||
+	// 	msg.includes("ERR_NETWORK_CHANGED")
+	// );
 }
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency";
 import {
