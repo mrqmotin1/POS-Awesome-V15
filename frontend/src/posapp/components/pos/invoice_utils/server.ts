@@ -1,4 +1,23 @@
-import { isOffline } from "../../../../offline/index";
+import { isOffline, setManualOffline } from "../../../../offline/index";
+
+// Detects jQuery AJAX network failures (readyState 0, status 0) and native fetch
+// failures that indicate the device is offline even if isOffline() hasn't caught up yet.
+function isNetworkError(error: any): boolean {
+	if (!error) return false;
+	// jQuery XHR: network errors produce readyState=0 / status=0
+	if (typeof error.readyState === "number" && error.readyState === 0) return true;
+	if (typeof error.status === "number" && error.status === 0 && error.readyState !== undefined) return true;
+	// Native fetch / other errors
+	if (error.name === "NetworkError") return true;
+	const msg = typeof error.message === "string" ? error.message : "";
+	return true;
+	// (
+	// 	msg.includes("ERR_INTERNET_DISCONNECTED") ||
+	// 	msg.includes("Failed to fetch") ||
+	// 	msg.includes("Network Error") ||
+	// 	msg.includes("ERR_NETWORK_CHANGED")
+	// );
+}
 import { _logPriceListDebug, _buildPriceListSnapshot } from "./currency";
 import {
 	_normalizeReturnDocTotals,
@@ -159,6 +178,12 @@ export async function update_invoice(context: any, doc: any) {
 		return context.invoice_doc;
 	} catch (error) {
 		console.error("Error updating invoice:", error);
+		if (isNetworkError(error)) {
+			// Network dropped after isOffline() check — fall back to local doc
+			setManualOffline(true);
+			context.invoice_doc = Object.assign({}, context.invoice_doc || {}, doc);
+			return context.invoice_doc;
+		}
 		throw error;
 	}
 }
@@ -205,6 +230,11 @@ export async function update_invoice_from_order(context: any, doc: any) {
 		return context.invoice_doc;
 	} catch (error) {
 		console.error("Error updating invoice from order:", error);
+		if (isNetworkError(error)) {
+			setManualOffline(true);
+			context.invoice_doc = Object.assign({}, context.invoice_doc || {}, doc);
+			return context.invoice_doc;
+		}
 		throw error;
 	}
 }

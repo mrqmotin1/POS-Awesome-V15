@@ -206,7 +206,6 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
 		})
 		.join("");
 	
-	console.log("Generated items HTML for offline invoice--------", itemsRows);
     // Calculate Payments safely from the invoice object
     const payments = invoice.payments || [];
     const cashTotal = payments
@@ -391,15 +390,17 @@ async function enrichItemsWithBarcodes(items: any[]) {
 export default async function renderOfflineInvoiceHTML(invoice: any) {
 	if (!invoice) return "";
 
+	// Clone before the first await so reactive Vue mutations (e.g. invoice cleared
+	// after submit navigation) cannot affect the data we render.
+	const invoiceClone = JSON.parse(JSON.stringify(invoice));
+
 	await memoryInitPromise;
-	console.log("Rendering offline invoice with data:", invoice);
-	console.log("Invoice items:", invoice.items);
 	const template = normaliseTemplate(getPrintTemplate());
 	const terms = getTermsAndConditions();
 	const doc = {
-		...invoice,
-		terms: invoice.terms || terms,
-		terms_and_conditions: invoice.terms_and_conditions || terms,
+		...invoiceClone,
+		terms: invoiceClone.terms || terms,
+		terms_and_conditions: invoiceClone.terms_and_conditions || terms,
 	};
 
 	doc.paid_amount = computePaidAmount(doc);

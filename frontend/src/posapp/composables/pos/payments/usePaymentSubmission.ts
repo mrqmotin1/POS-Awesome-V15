@@ -680,6 +680,8 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			}
 			try {
 				await saveOfflineInvoice({ data, invoice: doc });
+				const offlineItems = Array.isArray(doc.items) ? doc.items : [];
+				stockCoordinator.applyInvoiceConsumption(offlineItems, { source: "invoice" });
 				stores?.syncStore?.updatePendingCount();
 				stores?.toastStore?.show({
 					title: __("Invoice saved offline"),
