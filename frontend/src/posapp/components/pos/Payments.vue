@@ -596,7 +596,7 @@ const {
 							waitForPostSubmitPayments: Boolean(printOptions.waitForPostSubmitPayments),
 							waitForInvoiceProcessing: Boolean(printOptions.waitForInvoiceProcessing),
 						});
-					} else if (isOffline()) {
+					} else if (isOffline() || !doc?.name) {
 						printOfflineInvoice(doc);
 					} else {
 						loadPrintPage({
@@ -1617,7 +1617,7 @@ const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {})
 							waitForPostSubmitPayments: Boolean(printOptions.waitForPostSubmitPayments),
 							waitForInvoiceProcessing: Boolean(printOptions.waitForInvoiceProcessing),
 						});
-					} else if (isOffline()) {
+					} else if (isOffline() || !doc?.name) {
 						printOfflineInvoice(doc);
 					} else {
 						loadPrintPage({
