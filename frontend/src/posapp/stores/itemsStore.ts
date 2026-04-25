@@ -15,6 +15,10 @@ import { useItemsSearch } from "../composables/pos/items/store/useItemsSearch";
 import { useItemsSync } from "../composables/pos/items/store/useItemsSync";
 import { useItemsPagination } from "../composables/pos/items/store/useItemsPagination";
 import { useItemsMetrics } from "../composables/pos/items/store/useItemsMetrics";
+import {
+	buildLoadItemsRequest,
+	type LoadItemsOptions,
+} from "./items/loadItemsRequest";
 
 export const useItemsStore = defineStore("items", () => {
 	type OfflineModule = Record<string, any>;
@@ -456,23 +460,7 @@ export const useItemsStore = defineStore("items", () => {
 		});
 	};
 
-	const loadItems = async (
-		options: {
-			forceServer?: boolean;
-			searchValue?: string;
-			groupFilter?: string;
-			priceList?: string | null;
-			limit?: number | null;
-		} = {},
-	) => {
-		const {
-			forceServer = false,
-			searchValue = "",
-			groupFilter = "ALL",
-			priceList = null,
-			limit = null,
-		} = options;
-
+	const loadItems = async (options: LoadItemsOptions = {}) => {
 		const startTime = performance.now();
 		const currentRequestToken = ++requestToken.value;
 		let cacheKey: string | null = null;
@@ -481,10 +469,29 @@ export const useItemsStore = defineStore("items", () => {
 			isLoading.value = true;
 			performanceMetrics.value.totalRequests++;
 
-			const normalizedGroup =
-				typeof groupFilter === "string" && groupFilter.length > 0
-					? groupFilter
-					: "ALL";
+			const {
+				forceServer,
+				searchValue,
+				normalizedGroup,
+				priceList,
+				effectivePriceList,
+				isInitialBootstrapRequest,
+				args,
+			} = buildLoadItemsRequest({
+				options,
+				posProfile: posProfile.value,
+				activePriceList: activePriceList.value,
+				customer: customer.value,
+				itemCount: items.value.length,
+				totalItemCount: totalItemCount.value,
+				limitSearchEnabled: limitSearchEnabled.value,
+				resolvePageSize,
+				resolveLimitSearchSize: () =>
+					resolveLimitSearchSize(
+						posProfile.value,
+						limitSearchEnabled.value,
+					),
+			});
 
 			cacheKey = generateCacheKey(
 				searchValue,
@@ -492,26 +499,6 @@ export const useItemsStore = defineStore("items", () => {
 				priceList,
 				getCacheScope(),
 			);
-
-			const isInitialBootstrapRequest =
-				!forceServer &&
-				!limitSearchEnabled.value &&
-				!searchValue &&
-				normalizedGroup === "ALL" &&
-				items.value.length === 0 &&
-				totalItemCount.value === 0;
-
-			const resolvedLimit =
-				Number.isFinite(limit) && limit! > 0
-					? limit!
-					: isInitialBootstrapRequest
-						? resolvePageSize()
-					: limitSearchEnabled.value
-						? resolveLimitSearchSize(
-								posProfile.value,
-								limitSearchEnabled.value,
-							)
-						: null;
 
 			const canReadFromCache = !forceServer && !limitSearchEnabled.value;
 
@@ -560,35 +547,9 @@ export const useItemsStore = defineStore("items", () => {
 			const abortController = new AbortController();
 			abortControllers.value.set(cacheKey, abortController);
 
-			if (!posProfile.value) {
+			if (!args || !posProfile.value) {
 				console.warn("Attempted to load items without POS Profile");
 				return [];
-			}
-			const requestProfile = JSON.parse(JSON.stringify(posProfile.value));
-			const effectivePriceList = priceList || activePriceList.value;
-			if (forceServer) {
-				requestProfile.posa_use_server_cache = 0;
-				requestProfile.posa_force_reload_items = 1;
-			}
-
-			const args: any = {
-				pos_profile: JSON.stringify(requestProfile),
-				price_list: effectivePriceList,
-				item_group:
-					normalizedGroup !== "ALL"
-						? normalizedGroup.toLowerCase()
-						: "",
-				search_value: searchValue || "",
-				customer: customer.value,
-				include_image: 1,
-				item_groups:
-					posProfile.value?.item_groups?.map(
-						(g: any) => g.item_group,
-					) || [],
-			};
-
-			if (Number.isFinite(resolvedLimit) && resolvedLimit! > 0) {
-				args.limit = resolvedLimit;
 			}
 
 			const fetchedItems = await itemService.getItems(

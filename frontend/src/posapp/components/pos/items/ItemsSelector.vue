@@ -231,6 +231,7 @@ import { useItemsSelectorScannerBridge } from "../../../composables/pos/items/us
 import { useItemsSelectorPriceListSync } from "../../../composables/pos/items/useItemsSelectorPriceListSync";
 import { useItemsSelectorPanelSizing } from "../../../composables/pos/items/useItemsSelectorPanelSizing";
 import { useItemsSelectorQuantity } from "../../../composables/pos/items/useItemsSelectorQuantity";
+import { useItemsSelectorDisplayBindings } from "../../../composables/pos/items/useItemsSelectorDisplayBindings";
 
 import { useCustomersStore } from "../../../stores/customersStore";
 import { useToastStore } from "../../../stores/toastStore";
@@ -239,10 +240,6 @@ import { useInvoiceStore } from "../../../stores/invoiceStore";
 import { useEmployeeStore } from "../../../stores/employeeStore";
 
 import { parseBooleanSetting } from "../../../utils/stock";
-import {
-	buildSelectorRowProps,
-	createItemHighlightMatcher,
-} from "../../../utils/itemSelectorHighlightBindings";
 import { createItemSearchFocusClearGuard } from "../../../utils/itemSearchFocusClearGuard";
 
 const props = defineProps({
@@ -382,10 +379,6 @@ const {
 });
 
 const flyConfig = reactive({ speed: 0.6, easing: "ease-in-out" });
-const headerProps = reactive({
-	"sort-icon": "mdi-arrow-up",
-	class: "pos-table-header",
-});
 
 // 3. Computed Properties
 const pos_profile = computed(() => (itemsIntegration.posProfile.value || {}) as any);
@@ -1012,16 +1005,23 @@ watch(isPosSupervisor, (isSupervisor) => {
 });
 
 // 9. Template Bindings & Direct Exports
-const ratePrecision = itemDisplay.ratePrecision;
-const format_currency = itemDisplay.format_currency;
-const format_number = itemDisplay.format_number;
-const currencySymbol = itemDisplay.currencySymbol;
-const headers = computed(() => itemDisplay.headers.value);
-const memoizedFormatCurrency = computed(() => itemDisplay.memoizedFormatCurrency.value);
-const memoizedFormatNumber = computed(() => itemDisplay.memoizedFormatNumber.value);
-
-const isItemHighlighted = createItemHighlightMatcher(itemSelection);
-const isNegative = (val) => val < 0;
+const {
+	ratePrecision,
+	format_currency,
+	format_number,
+	currencySymbol,
+	headers,
+	memoizedFormatCurrency,
+	memoizedFormatNumber,
+	isItemHighlighted,
+	isNegative,
+	headerProps,
+	getItemRowClass,
+	getItemRowProps,
+} = useItemsSelectorDisplayBindings({
+	itemDisplay,
+	itemSelection,
+});
 
 const {
 	scannerLocked,
@@ -1102,10 +1102,6 @@ const select_item = (e, item) => itemSelection.handleItemSelection(e, item);
 const click_item_row = (e, data) => itemSelection.handleRowClick(e, data);
 const onVirtualRangeUpdate = (s, e, vs, ve) => itemsLoader.onVirtualRangeUpdate(s, e, vs, ve);
 const onListScroll = (e) => handleListScroll(e);
-
-const getItemRowClass = (item) => itemSelection.getItemRowClass(item);
-
-const getItemRowProps = (item) => buildSelectorRowProps(itemSelection, item);
 
 defineExpose({
 	search_input,

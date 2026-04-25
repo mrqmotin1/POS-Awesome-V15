@@ -9,6 +9,10 @@ import type {
 	POSProfile,
 	StoredCustomer,
 } from "../types/models";
+import {
+	customerMatchesSearchTerm,
+	normalizeCustomerSearchTerm,
+} from "./customers/customerSearch";
 // @ts-ignore
 import {
 	db,
@@ -50,13 +54,6 @@ function setStoredCustomerScope(scope: string): void {
 		return;
 	}
 	localStorage.removeItem(CUSTOMER_SCOPE_STORAGE_KEY);
-}
-
-function normalizeSearchTerm(term: string | null | undefined): string {
-	if (typeof term !== "string") {
-		return "";
-	}
-	return term.trim();
 }
 
 function normalizeProfile(profile: unknown): POSProfile | null {
@@ -292,35 +289,11 @@ export const useCustomersStore = defineStore("customers", () => {
 		await ensureDatabase();
 
 		let collection = db.table("customers");
-		const normalizedTerm = normalizeSearchTerm(searchTerm.value);
+		const normalizedTerm = normalizeCustomerSearchTerm(searchTerm.value);
 		if (normalizedTerm) {
-			const searchParts = normalizedTerm
-				.toLowerCase()
-				.split(/\s+/)
-				.filter(Boolean);
-			collection = collection.filter((customer: CustomerSummary) => {
-				if (!customer) {
-					return false;
-				}
-
-				const values = [
-					customer.customer_name,
-					customer.name,
-					customer.mobile_no,
-					customer.email_id,
-					customer.tax_id,
-				]
-					.filter((value) => value !== null && value !== undefined)
-					.map((value) => String(value).toLowerCase());
-
-				if (!searchParts.length) {
-					return true;
-				}
-
-				return searchParts.every((part) =>
-					values.some((value) => value.includes(part)),
-				);
-			});
+			collection = collection.filter((customer: CustomerSummary) =>
+				customerMatchesSearchTerm(customer, normalizedTerm),
+			);
 		}
 
 		const offset = page.value * PAGE_SIZE;
@@ -345,14 +318,14 @@ export const useCustomersStore = defineStore("customers", () => {
 
 	async function searchCustomers(term = "", append = false) {
 		if (!append) {
-			searchTerm.value = normalizeSearchTerm(term);
+			searchTerm.value = normalizeCustomerSearchTerm(term);
 			resetPagination();
 		}
 		return performSearch({ append });
 	}
 
 	async function queueSearch(term: string) {
-		const normalized = normalizeSearchTerm(term);
+		const normalized = normalizeCustomerSearchTerm(term);
 		if (isCustomerBackgroundLoading.value) {
 			pendingCustomerSearch.value = normalized;
 			return null;
