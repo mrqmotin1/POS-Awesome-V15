@@ -227,6 +227,7 @@ import { useScanProcessor } from "../../../composables/pos/items/useScanProcesso
 import { useItemCurrency } from "../../../composables/pos/items/useItemCurrency";
 import { startItemsSelectorInitialization } from "../../../composables/pos/items/useItemsSelectorInitialization";
 import { registerItemsSelectorEvents } from "../../../composables/pos/items/useItemsSelectorEvents";
+import { registerItemsSelectorTypeToSearch } from "../../../composables/pos/items/useItemsSelectorTypeToSearch";
 
 import { useCustomersStore } from "../../../stores/customersStore";
 import { useToastStore } from "../../../stores/toastStore";
@@ -283,6 +284,7 @@ const initTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 const initError = ref<unknown>(null);
 let stopItemInitializationWatcher: (() => void) | null = null;
 let cleanupItemsSelectorEvents: (() => void) | null = null;
+let cleanupTypeToSearch: (() => void) | null = null;
 
 const responsive = useResponsive();
 const rtl = useRtl();
@@ -969,9 +971,15 @@ onMounted(async () => {
 	});
 
 	window.addEventListener("resize", checkItemContainerOverflow);
-	if (props.context === "pos") {
-		document.addEventListener("keydown", handleGlobalTypeToSearchKeydown, true);
-	}
+	cleanupTypeToSearch = registerItemsSelectorTypeToSearch({
+		getContext: () => props.context,
+		activeView,
+		cameraScannerActive: scannerInput.cameraScannerActive,
+		prepareSearchInjection,
+		revealItemSearchView,
+		requestForegroundItemSearchFocus,
+		appendSearchCharacter,
+	});
 	nextTick(() => {
 		checkItemContainerOverflow();
 		scheduleCardMetricsUpdate();
@@ -987,9 +995,8 @@ onBeforeUnmount(() => {
 	if (itemWorker.value) itemWorker.value.terminate();
 	cleanupItemsSelectorEvents?.();
 	cleanupItemsSelectorEvents = null;
-	if (props.context === "pos") {
-		document.removeEventListener("keydown", handleGlobalTypeToSearchKeydown, true);
-	}
+	cleanupTypeToSearch?.();
+	cleanupTypeToSearch = null;
 	itemSearchFocusClearGuard.dispose();
 	window.removeEventListener("resize", checkItemContainerOverflow);
 });
@@ -1081,55 +1088,6 @@ const selectorCardStyle = computed<CSSProperties>(() => ({
 }));
 const itemSearchFocusClearGuard = createItemSearchFocusClearGuard();
 
-const SEARCH_TRIGGER_KEY_PATTERN = /^[A-Za-z0-9\-._/\\]$/;
-
-const isEditableElement = (element: Element | null | undefined) => {
-	if (!(element instanceof HTMLElement)) {
-		return false;
-	}
-	const contentEditable = element.getAttribute("contenteditable");
-	if (
-		element.isContentEditable ||
-		(typeof element.contentEditable === "string" &&
-			element.contentEditable.toLowerCase() !== "inherit") ||
-		(contentEditable !== null && contentEditable.toLowerCase() !== "false")
-	) {
-		return true;
-	}
-	const tagName = element.tagName;
-	if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
-		return true;
-	}
-	return Boolean(
-		element.closest(
-			"input, textarea, select, [contenteditable='true'], [contenteditable=''], [contenteditable='plaintext-only']",
-		),
-	);
-};
-
-const isTypeToSearchKey = (event: KeyboardEvent) => {
-	if (!event || event.defaultPrevented || event.repeat) {
-		return false;
-	}
-	if (event.ctrlKey || event.metaKey || event.altKey) {
-		return false;
-	}
-	return SEARCH_TRIGGER_KEY_PATTERN.test(event.key || "");
-};
-
-const hasVisibleDialog = () => {
-	if (typeof document === "undefined") {
-		return false;
-	}
-	const dialogs = document.querySelectorAll("[role='dialog']");
-	return Array.from(dialogs).some((dialog) => {
-		if (!(dialog instanceof HTMLElement)) {
-			return false;
-		}
-		return Boolean(dialog.offsetWidth || dialog.offsetHeight || dialog.getClientRects().length);
-	});
-};
-
 // Proxy functions for template
 const esc_event = () => clearSearch();
 const onEnter = (e) => itemsSelectorSearch.onEnter(e);
@@ -1182,26 +1140,6 @@ scannerInput.setInputHandlers?.({
 	clear: clearSearch,
 	focus: requestForegroundItemSearchFocus,
 });
-const handleGlobalTypeToSearchKeydown = (event: KeyboardEvent) => {
-	if (!isTypeToSearchKey(event)) {
-		return;
-	}
-	if (
-		props.context !== "pos" ||
-		activeView.value === "payment" ||
-		scannerInput.cameraScannerActive.value ||
-		hasVisibleDialog() ||
-		isEditableElement(document.activeElement)
-	) {
-		return;
-	}
-	event.preventDefault();
-	event.stopPropagation();
-	prepareSearchInjection();
-	revealItemSearchView();
-	requestForegroundItemSearchFocus();
-	appendSearchCharacter(event.key);
-};
 const handleItemSearchFocus = () => {
 	if (!itemSearchFocusClearGuard.shouldClearSearchOnFocus()) {
 		requestItemSearchFocus();
