@@ -71,6 +71,28 @@
 				persistent-placeholder
 			></v-text-field>
 		</v-col>
+		<v-col cols="12">
+			<div class="discount-context-card">
+				<div class="discount-context-card__icon">
+					<v-icon icon="mdi-information-outline" size="18" />
+				</div>
+				<div class="discount-context-card__copy">
+					<strong>{{ frappe._("Discount clarity") }}</strong>
+					<span>
+						{{
+							frappe._(
+								"Item and rate discounts are already included in item rates and Net Total.",
+							)
+						}}
+						{{
+							frappe._(
+								"Additional Discount is the separate invoice-level discount.",
+							)
+						}}
+					</span>
+				</div>
+			</div>
+		</v-col>
 		<v-col cols="12" sm="6">
 			<v-text-field
 				density="compact"
@@ -174,5 +196,50 @@ const totalDiscountAmount = computed(
 .invoice-totals-grid :deep(.v-field) {
 	border-radius: var(--pos-radius-sm);
 	background: var(--pos-surface-raised);
+}
+
+.discount-context-card {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--pos-space-2);
+	padding: 10px 12px;
+	border-radius: var(--pos-radius-sm);
+	background:
+		linear-gradient(
+			135deg,
+			rgba(var(--v-theme-info), 0.12),
+			rgba(var(--v-theme-info), 0.04)
+		),
+		var(--pos-surface-raised);
+	border: 1px solid rgba(var(--v-theme-info), 0.22);
+	color: var(--pos-text-primary);
+}
+
+.discount-context-card__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	background: rgba(var(--v-theme-info), 0.14);
+	color: rgb(var(--v-theme-info));
+	flex: 0 0 auto;
+}
+
+.discount-context-card__copy {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 0.82rem;
+	line-height: 1.35;
+	color: var(--pos-text-secondary);
+}
+
+.discount-context-card__copy strong {
+	font-size: 0.78rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--pos-text-primary);
 }
 </style>

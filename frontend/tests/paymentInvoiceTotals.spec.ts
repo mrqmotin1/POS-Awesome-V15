@@ -12,6 +12,18 @@ const BoxStub = defineComponent({
 	},
 });
 
+const VIconStub = defineComponent({
+	props: {
+		icon: {
+			type: String,
+			default: "",
+		},
+	},
+	setup(props) {
+		return () => h("span", {}, props.icon);
+	},
+});
+
 const VTextFieldStub = defineComponent({
 	name: "VTextFieldStub",
 	props: {
@@ -57,6 +69,7 @@ describe("InvoiceTotals", () => {
 				components: {
 					VRow: BoxStub,
 					VCol: BoxStub,
+					VIcon: VIconStub,
 					VTextField: VTextFieldStub,
 				},
 			},
@@ -66,5 +79,11 @@ describe("InvoiceTotals", () => {
 		expect(wrapper.find('[data-label="Additional Discount"]').text()).toContain("50");
 		expect(wrapper.find('[data-label="Total Discount"]').text()).toContain("170");
 		expect(wrapper.find('[data-label="Discount Amount"]').exists()).toBe(false);
+		expect(wrapper.text()).toContain(
+			"Item and rate discounts are already included in item rates and Net Total.",
+		);
+		expect(wrapper.text()).toContain(
+			"Additional Discount is the separate invoice-level discount.",
+		);
 	});
 });
