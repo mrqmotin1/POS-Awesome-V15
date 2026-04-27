@@ -157,7 +157,7 @@
 						/>
 					</section>
 
-					<section v-if="pos_profile?.use_customer_credit" class="payment-section payment-section--settlement">
+					<section v-if="pos_profile?.posa_allow_credit_sale" class="payment-section payment-section--settlement">
 						<div class="payment-section__header">
 							<h3 class="payment-section__title">{{ __("Credit and Output") }}</h3>
 						</div>
@@ -197,6 +197,7 @@
 							@get-available-credit="get_available_credit"
 						/>
 						<PaymentCustomerCreditDetails
+							v-if="pos_profile?.use_customer_credit"
 							:invoice-doc="invoice_doc"
 							:available-customer-credit="available_customer_credit"
 							:redeem-customer-credit="redeem_customer_credit"
