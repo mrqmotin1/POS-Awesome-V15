@@ -16,13 +16,6 @@
 			:row-props="rowProps"
 			@scroll.passive="handleListScroll"
 		>
-			<template v-slot:item.item_name="{ item }">
-				<v-tooltip :text="item.item_name" location="top" open-delay="400">
-					<template #activator="{ props: tooltipProps }">
-						<span v-bind="tooltipProps" class="item-name-cell">{{ item.item_name }}</span>
-					</template>
-				</v-tooltip>
-			</template>
 			<template v-slot:item.rate="{ item }">
 				<div v-if="context !== 'purchase'">
 					<div class="text-primary rate-cell-primary">
@@ -309,5 +302,10 @@ defineExpose({ scrollToIndex, getTableElement, tableRef });
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	letter-spacing: 0.01em;
+}
+
+:deep(.item-name-col) {
+	white-space: normal !important;
+	word-break: break-word;
 }
 </style>

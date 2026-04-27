@@ -7,6 +7,7 @@ export interface TableHeader {
     align?: "start" | "center" | "end";
     sortable?: boolean;
     width?: string;
+    cellProps?: Record<string, any> | ((_data: any) => Record<string, any>);
 }
 
 /**
@@ -24,6 +25,7 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
                 align: "start",
                 sortable: true,
                 width: "40%",
+                cellProps: { class: "item-name-col" },
             },
             {
                 title: __("Buying Price"),
@@ -48,6 +50,7 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
             align: "start",
             sortable: true,
             key: "item_name",
+            cellProps: { class: "item-name-col" },
         },
         {
             title: __("Code"),
