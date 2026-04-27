@@ -56,7 +56,7 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
             key: "item_code",
         },
         { title: __("Rate"), key: "rate", align: "start" },
-        { title: __("Available QTY"), key: "actual_qty", align: "start" },
+        { title: __("AVL. QTY"), key: "actual_qty", align: "start" },
         // { title: __("UOM"), key: "stock_uom", align: "start" },
     ];
 
