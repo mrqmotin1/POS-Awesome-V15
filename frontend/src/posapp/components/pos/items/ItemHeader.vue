@@ -82,6 +82,12 @@
 						<div class="search-sync-progress__meta">
 							<span class="search-sync-progress__label">
 								{{ syncStatus || __("Syncing items in background") }}
+								<span
+									v-if="normalizedSyncItemsCount > 0"
+									class="search-sync-progress__count"
+								>
+									{{ syncItemsCountLabel }}
+								</span>
 							</span>
 							<span class="search-sync-progress__value">
 								{{ clampedSyncProgress }}%
@@ -177,6 +183,7 @@ const props = defineProps({
 	syncStatus: { type: String, default: "" },
 	showSyncProgress: { type: Boolean, default: false },
 	syncProgress: { type: Number, default: 0 },
+	syncItemsCount: { type: Number, default: 0 },
 	context: { type: String, default: "pos" },
 });
 
@@ -206,6 +213,21 @@ const clampedSyncProgress = computed(() => {
 		return 0;
 	}
 	return Math.min(100, Math.round(normalized));
+});
+const normalizedSyncItemsCount = computed(() => {
+	const normalized = Number(props.syncItemsCount);
+	if (!Number.isFinite(normalized) || normalized <= 0) {
+		return 0;
+	}
+	return Math.round(normalized);
+});
+const translate = (value) =>
+	typeof globalThis.__ === "function" ? globalThis.__(value) : value;
+const syncItemsCountLabel = computed(() => {
+	const count = normalizedSyncItemsCount.value;
+	const itemLabel =
+		count === 1 ? translate("item synced") : translate("items synced");
+	return `${count.toLocaleString()} ${itemLabel}`;
 });
 
 defineExpose({
@@ -263,8 +285,18 @@ defineExpose({
 }
 
 .search-sync-progress__label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
 	font-weight: 600;
 	letter-spacing: 0.01em;
+}
+
+.search-sync-progress__count {
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+	opacity: 0.82;
 }
 
 .search-sync-progress__value {

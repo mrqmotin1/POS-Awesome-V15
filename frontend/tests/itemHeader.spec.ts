@@ -91,6 +91,7 @@ describe("ItemHeader", () => {
 				enableBackgroundSync: true,
 				showSyncProgress: true,
 				syncProgress: 42,
+				syncItemsCount: 128,
 				syncStatus: "Syncing offline catalog...",
 			},
 			global: {
@@ -115,5 +116,6 @@ describe("ItemHeader", () => {
 		const progressBar = wrapper.get('[data-test="item-search-sync-bar"]');
 		expect(progressBar.attributes("data-model-value")).toBe("42");
 		expect(wrapper.text()).toContain("Syncing offline catalog...");
+		expect(wrapper.text()).toContain("128 items synced");
 	});
 });

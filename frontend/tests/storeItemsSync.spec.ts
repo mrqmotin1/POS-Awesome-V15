@@ -55,6 +55,7 @@ describe("store useItemsSync background progress", () => {
 			})
 			.mockImplementationOnce(async () => {
 				expect(sync.loadProgress.value).toBe(67);
+				expect((sync as any).syncedItemsCount?.value).toBe(2);
 				return { message: [] };
 			});
 		(globalThis as any).frappe = { call: frappeCall };
@@ -78,6 +79,7 @@ describe("store useItemsSync background progress", () => {
 		);
 
 		expect(sync.loadProgress.value).toBe(100);
+		expect((sync as any).syncedItemsCount?.value).toBe(2);
 		expect(setItems).toHaveBeenCalledWith(
 			[
 				{ item_code: "ITEM-2", item_name: "Item 2" },

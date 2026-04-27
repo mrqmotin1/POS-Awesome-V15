@@ -36,6 +36,7 @@
 						:sync-status="syncStatus"
 						:show-sync-progress="showSearchSyncProgress"
 						:sync-progress="syncProgressValue"
+						:sync-items-count="syncItemsCount"
 						:context="context"
 						@esc="esc_event"
 						@enter="onEnter"
@@ -433,6 +434,7 @@ const {
 	loading,
 	isBackgroundLoading,
 	loadProgress,
+	syncedItemsCount,
 } = itemsIntegration;
 
 const displayedItems = computed(() => {
@@ -487,6 +489,14 @@ const syncProgressValue = computed(() => {
 		return 0;
 	}
 	return Math.min(100, Math.round(progress));
+});
+
+const syncItemsCount = computed(() => {
+	const count = Number(syncedItemsCount.value || 0);
+	if (!Number.isFinite(count) || count <= 0) {
+		return 0;
+	}
+	return Math.round(count);
 });
 
 const showSearchSyncProgress = computed(

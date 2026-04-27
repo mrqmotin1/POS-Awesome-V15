@@ -31,6 +31,7 @@ export function useItemsSync() {
 	const isLoading = ref(false);
 	const isBackgroundLoading = ref(false);
 	const loadProgress = ref(0);
+	const syncedItemsCount = ref(0);
 	const requestToken = ref(0);
 	const abortControllers = ref(new Map<string, AbortController>());
 	const backgroundSyncState = ref<BackgroundSyncState>({
@@ -138,6 +139,7 @@ export function useItemsSync() {
 		backgroundSyncState.value.running = false;
 		isBackgroundLoading.value = false;
 		loadProgress.value = 0;
+		syncedItemsCount.value = 0;
 	};
 
 	const refreshModifiedItems = async (
@@ -240,6 +242,7 @@ export function useItemsSync() {
 		backgroundSyncState.value.running = true;
 		isBackgroundLoading.value = true;
 		loadProgress.value = 0;
+		syncedItemsCount.value = 0;
 
 		const appended: Item[] = [];
 		const DEFAULT_PAGE_SIZE = 200;
@@ -318,6 +321,7 @@ export function useItemsSync() {
 				appended.push(...batch);
 				loaded += batch.length;
 				syncedCount += batch.length;
+				syncedItemsCount.value = syncedCount;
 				lastItemName =
 					batch[batch.length - 1]?.item_name || lastItemName;
 
@@ -373,6 +377,7 @@ export function useItemsSync() {
 		isLoading,
 		isBackgroundLoading,
 		loadProgress,
+		syncedItemsCount,
 		requestToken,
 		abortControllers,
 		backgroundSyncState,
