@@ -69,29 +69,30 @@
 				readonly
 				:prefix="currencySymbol(invoice_doc.currency)"
 				persistent-placeholder
-			></v-text-field>
-		</v-col>
-		<v-col cols="12">
-			<div class="discount-context-card">
-				<div class="discount-context-card__icon">
-					<v-icon icon="mdi-information-outline" size="18" />
-				</div>
-				<div class="discount-context-card__copy">
-					<strong>{{ frappe._("Discount clarity") }}</strong>
-					<span>
-						{{
-							frappe._(
-								"Item and rate discounts are already included in item rates and Net Total.",
-							)
-						}}
-						{{
-							frappe._(
-								"Additional Discount is the separate invoice-level discount.",
-							)
-						}}
-					</span>
-				</div>
-			</div>
+			>
+				<template #append-inner>
+					<v-tooltip
+						location="top"
+						max-width="320"
+						open-on-click
+						open-on-focus
+						open-on-hover
+						:text="discountHelpText"
+					>
+						<template #activator="{ props: tooltipProps }">
+							<button
+								v-bind="tooltipProps"
+								type="button"
+								class="discount-help-trigger"
+								:aria-label="frappe._('Discount clarity')"
+								@click.stop
+							>
+								<v-icon icon="mdi-information-outline" size="18" />
+							</button>
+						</template>
+					</v-tooltip>
+				</template>
+			</v-text-field>
 		</v-col>
 		<v-col cols="12" sm="6">
 			<v-text-field
@@ -180,6 +181,11 @@ const totalDiscountAmount = computed(
 		Math.abs(toNumber(props.itemDiscountTotal)) +
 		Math.abs(toNumber(props.invoice_doc?.discount_amount)),
 );
+
+const discountHelpText = computed(
+	() =>
+		`${frappe._("Item and rate discounts are already included in item rates and Net Total.")} ${frappe._("Additional Discount is the separate invoice-level discount.")}`,
+);
 </script>
 
 <style scoped>
@@ -198,48 +204,26 @@ const totalDiscountAmount = computed(
 	background: var(--pos-surface-raised);
 }
 
-.discount-context-card {
-	display: flex;
-	align-items: flex-start;
-	gap: var(--pos-space-2);
-	padding: 10px 12px;
-	border-radius: var(--pos-radius-sm);
-	background:
-		linear-gradient(
-			135deg,
-			rgba(var(--v-theme-info), 0.12),
-			rgba(var(--v-theme-info), 0.04)
-		),
-		var(--pos-surface-raised);
-	border: 1px solid rgba(var(--v-theme-info), 0.22);
-	color: var(--pos-text-primary);
-}
-
-.discount-context-card__icon {
+.discount-help-trigger {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
+	width: 24px;
+	height: 24px;
+	margin-inline-start: 2px;
 	border-radius: 999px;
-	background: rgba(var(--v-theme-info), 0.14);
+	border: 0;
+	background: transparent;
 	color: rgb(var(--v-theme-info));
-	flex: 0 0 auto;
+	cursor: help;
+	transition:
+		background-color 140ms ease,
+		color 140ms ease;
 }
 
-.discount-context-card__copy {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	font-size: 0.82rem;
-	line-height: 1.35;
-	color: var(--pos-text-secondary);
-}
-
-.discount-context-card__copy strong {
-	font-size: 0.78rem;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--pos-text-primary);
+.discount-help-trigger:hover,
+.discount-help-trigger:focus-visible {
+	background: rgba(var(--v-theme-info), 0.14);
+	outline: none;
 }
 </style>

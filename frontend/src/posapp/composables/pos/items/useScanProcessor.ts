@@ -193,8 +193,9 @@ export function useScanProcessor(context: ScanProcessorContext) {
 			const barcodeMatch = newItem.item_barcode.find(
 				(b: any) => b.barcode === scannedCode,
 			);
-			if (barcodeMatch && barcodeMatch.posa_uom) {
-				newItem.uom = barcodeMatch.posa_uom;
+			const matchedUom = barcodeMatch?.posa_uom || barcodeMatch?.uom;
+			if (barcodeMatch && matchedUom) {
+				newItem.uom = matchedUom;
 
 				// Try fetching the rate for this UOM from the active price list
 				try {
@@ -203,14 +204,14 @@ export function useScanProcessor(context: ScanProcessorContext) {
 						args: {
 							item_code: newItem.item_code,
 							price_list: active_price_list.value,
-							uom: barcodeMatch.posa_uom,
+							uom: matchedUom,
 						},
 					});
 
 					const uomInfo =
 						newItem.item_uoms &&
 						newItem.item_uoms.find(
-							(u: any) => u.uom === barcodeMatch.posa_uom,
+							(u: any) => u.uom === matchedUom,
 						);
 					const conversionFactor =
 						uomInfo && uomInfo.conversion_factor

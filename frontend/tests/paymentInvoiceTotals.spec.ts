@@ -20,7 +20,23 @@ const VIconStub = defineComponent({
 		},
 	},
 	setup(props) {
-		return () => h("span", {}, props.icon);
+		return () => h("span", { class: "v-icon-stub" }, props.icon);
+	},
+});
+
+const VTooltipStub = defineComponent({
+	props: {
+		text: {
+			type: String,
+			default: "",
+		},
+	},
+	setup(props, { slots }) {
+		return () =>
+			h("div", { class: "v-tooltip-stub", "data-tooltip": props.text }, [
+				slots.activator?.({ props: { "aria-label": props.text } }),
+				slots.default?.(),
+			]);
 	},
 });
 
@@ -36,9 +52,12 @@ const VTextFieldStub = defineComponent({
 			default: "",
 		},
 	},
-	setup(props) {
+	setup(props, { slots }) {
 		return () =>
-			h("div", { "data-label": props.label }, String(props.modelValue ?? ""));
+			h("div", { "data-label": props.label }, [
+				h("span", String(props.modelValue ?? "")),
+				slots["append-inner"]?.(),
+			]);
 	},
 });
 
@@ -70,6 +89,7 @@ describe("InvoiceTotals", () => {
 					VRow: BoxStub,
 					VCol: BoxStub,
 					VIcon: VIconStub,
+					VTooltip: VTooltipStub,
 					VTextField: VTextFieldStub,
 				},
 			},
@@ -79,10 +99,16 @@ describe("InvoiceTotals", () => {
 		expect(wrapper.find('[data-label="Additional Discount"]').text()).toContain("50");
 		expect(wrapper.find('[data-label="Total Discount"]').text()).toContain("170");
 		expect(wrapper.find('[data-label="Discount Amount"]').exists()).toBe(false);
-		expect(wrapper.text()).toContain(
+		expect(wrapper.find(".discount-context-card").exists()).toBe(false);
+		const itemDiscountField = wrapper.find('[data-label="Item / Rate Discounts"]');
+		expect(itemDiscountField.find(".discount-help-trigger").exists()).toBe(true);
+		expect(itemDiscountField.find(".v-icon-stub").text()).toContain(
+			"mdi-information-outline",
+		);
+		expect(wrapper.find(".v-tooltip-stub").attributes("data-tooltip")).toContain(
 			"Item and rate discounts are already included in item rates and Net Total.",
 		);
-		expect(wrapper.text()).toContain(
+		expect(wrapper.find(".v-tooltip-stub").attributes("data-tooltip")).toContain(
 			"Additional Discount is the separate invoice-level discount.",
 		);
 	});
