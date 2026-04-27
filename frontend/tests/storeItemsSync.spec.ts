@@ -10,6 +10,8 @@ const offlineMocks = vi.hoisted(() => ({
 	saveItemGroups: vi.fn(),
 	getCachedItemGroups: vi.fn(() => []),
 	refreshBootstrapSnapshotFromCacheState: vi.fn(),
+	updateLocalStockCache: vi.fn(),
+	setStockCacheReady: vi.fn(),
 }));
 
 vi.mock("../src/posapp/services/itemService", () => ({
@@ -29,6 +31,8 @@ vi.mock("../src/offline/index", () => ({
 	getCachedItemGroups: offlineMocks.getCachedItemGroups,
 	refreshBootstrapSnapshotFromCacheState:
 		offlineMocks.refreshBootstrapSnapshotFromCacheState,
+	updateLocalStockCache: offlineMocks.updateLocalStockCache,
+	setStockCacheReady: offlineMocks.setStockCacheReady,
 }));
 
 import { useItemsSync } from "../src/posapp/composables/pos/items/store/useItemsSync";
@@ -81,5 +85,59 @@ describe("store useItemsSync background progress", () => {
 			],
 			{ append: true },
 		);
+	});
+
+	it("marks stock cache ready after background item sync stores stock quantities", async () => {
+		const sync = useItemsSync();
+		const frappeCall = vi
+			.fn()
+			.mockResolvedValueOnce({
+				message: [
+					{
+						item_code: "ITEM-2",
+						item_name: "Item 2",
+						actual_qty: 7,
+					},
+				],
+			})
+			.mockResolvedValueOnce({ message: [] });
+		(globalThis as any).frappe = { call: frappeCall };
+
+		await sync.backgroundSyncItems(
+			{
+				initialBatch: [
+					{
+						item_code: "ITEM-1",
+						item_name: "Item 1",
+						actual_qty: 3,
+					},
+				],
+			},
+			{ name: "POS-1", warehouse: "WH-1" } as any,
+			"Retail",
+			"POS-1_WH-1",
+			true,
+			() => 2,
+			vi.fn(),
+			vi.fn(async () => {}),
+			{ value: 2 },
+			{ value: false },
+			{
+				value: [
+					{
+						item_code: "ITEM-1",
+						item_name: "Item 1",
+						actual_qty: 3,
+					},
+				],
+			},
+		);
+
+		expect(
+			offlineMocks.refreshBootstrapSnapshotFromCacheState,
+		).toHaveBeenLastCalledWith({
+			itemsCount: 2,
+			stockCacheReady: true,
+		});
 	});
 });

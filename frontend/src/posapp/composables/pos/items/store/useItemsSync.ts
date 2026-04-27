@@ -12,12 +12,20 @@ import {
 	saveItemGroups,
 	getCachedItemGroups,
 	refreshBootstrapSnapshotFromCacheState,
+	updateLocalStockCache,
+	setStockCacheReady,
 } from "../../../../../offline/index";
 
 export interface BackgroundSyncState {
 	running: boolean;
 	token: number;
 }
+
+const hasStockQuantity = (item: Item) =>
+	item && Object.prototype.hasOwnProperty.call(item, "actual_qty");
+
+const containsStockQuantities = (items: Item[]) =>
+	Array.isArray(items) && items.some(hasStockQuantity);
 
 export function useItemsSync() {
 	const isLoading = ref(false);
@@ -238,6 +246,9 @@ export function useItemsSync() {
 		const bootstrapCount = Array.isArray(initialBatch)
 			? initialBatch.length
 			: items.value.length;
+		let stockCacheReady = containsStockQuantities(
+			Array.isArray(initialBatch) ? initialBatch : [],
+		);
 		const remainingCatalogEstimate =
 			totalItemCount.value > bootstrapCount
 				? totalItemCount.value - bootstrapCount
@@ -298,6 +309,10 @@ export function useItemsSync() {
 				}
 
 				primeItemDetailsCache(batch, posProfile, activePriceList);
+				if (containsStockQuantities(batch)) {
+					updateLocalStockCache(batch);
+					stockCacheReady = true;
+				}
 				await saveItemsBulk(batch, scope);
 				setItems(batch, { append: true });
 				appended.push(...batch);
@@ -330,9 +345,16 @@ export function useItemsSync() {
 				itemsLoaded.value = true;
 				await updateCachedPaginationFromStorage();
 				setItemsLastSync(new Date().toISOString());
-				refreshBootstrapSnapshotFromCacheState({
+				if (stockCacheReady) {
+					setStockCacheReady(true);
+				}
+				const snapshotState: Record<string, unknown> = {
 					itemsCount: loaded,
-				});
+				};
+				if (stockCacheReady) {
+					snapshotState.stockCacheReady = true;
+				}
+				refreshBootstrapSnapshotFromCacheState(snapshotState);
 			}
 
 			return appended;
