@@ -118,7 +118,7 @@
 						color="warning"
 						:prefix="getCurrencySymbol(posProfile?.currency)"
 						:disabled="
-							!canEditDiscount ||
+							!posProfile?.posa_allow_user_to_edit_additional_discount ||
 							!!discountPercentageOfferName
 						"
 						hide-details
@@ -138,7 +138,7 @@
 						density="compact"
 						color="warning"
 						:disabled="
-							!canEditDiscount ||
+							!posProfile?.posa_allow_user_to_edit_additional_discount ||
 							!!discountPercentageOfferName
 						"
 						hide-details
