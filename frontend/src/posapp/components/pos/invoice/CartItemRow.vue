@@ -534,19 +534,17 @@ const disableUomEdit = computed(
 		!!props.item.posa_is_replace,
 );
 
-const canEditDiscount = computed(
-	() => isSessionUserManager.value || isManagerMode.value,
-);
+const isManager = computed(() => isSessionUserManager.value || isManagerMode.value);
 
 const disableRateEdit = computed(
 	() =>
-		!canEditDiscount.value ||
+		!(isManager.value || props.posProfile.posa_allow_user_to_edit_rate) ||
 		!!props.item.posa_is_replace,
 );
 
 const disableDiscountEdit = computed(
 	() =>
-		!canEditDiscount.value ||
+		!(isManager.value || props.posProfile.posa_allow_user_to_edit_item_discount) ||
 		!!props.item.posa_is_replace ||
 		!!props.item.posa_offer_applied,
 );

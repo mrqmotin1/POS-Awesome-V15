@@ -54,7 +54,7 @@
 							color="warning"
 							:prefix="currencySymbol(pos_profile.currency)"
 							:disabled="
-								!canEditDiscount ||
+								!(canEditDiscount || pos_profile.posa_allow_user_to_edit_additional_discount) ||
 								!!discount_percentage_offer_name
 							"
 							class="summary-field summary-field--dock"
@@ -76,7 +76,7 @@
 							density="compact"
 							color="warning"
 							:disabled="
-								!canEditDiscount ||
+								!(canEditDiscount || pos_profile.posa_allow_user_to_edit_additional_discount) ||
 								!!discount_percentage_offer_name
 							"
 							class="summary-field summary-field--dock"
