@@ -40,6 +40,7 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
                 align: "end",
                 sortable: true,
                 width: "20%",
+                cellProps: { class: "nowrap-col" },
             },
         ];
     }
@@ -58,8 +59,8 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
             sortable: true,
             key: "item_code",
         },
-        { title: __("Rate"), key: "rate", align: "start" },
-        { title: __("AVL. QTY"), key: "actual_qty", align: "start" },
+        { title: __("Rate"), key: "rate", align: "start", cellProps: { class: "nowrap-col" } },
+        { title: __("AVL. QTY"), key: "actual_qty", align: "start", cellProps: { class: "nowrap-col" } },
         // { title: __("UOM"), key: "stock_uom", align: "start" },
     ];
 

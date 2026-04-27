@@ -304,8 +304,16 @@ defineExpose({ scrollToIndex, getTableElement, tableRef });
 	letter-spacing: 0.01em;
 }
 
+:deep(th) {
+	white-space: nowrap !important;
+}
+
 :deep(.item-name-col) {
 	white-space: normal !important;
 	word-break: break-word;
+}
+
+:deep(.nowrap-col) {
+	white-space: nowrap !important;
 }
 </style>
