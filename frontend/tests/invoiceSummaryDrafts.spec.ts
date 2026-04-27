@@ -111,7 +111,7 @@ describe("InvoiceSummary drafts placement", () => {
 		const wrapper = mount(InvoiceSummary, {
 			props: {
 				...baseProps,
-				additional_discount: -125,
+				additional_discount: -250,
 				return_discount_meta: {
 					ratio: 0.5,
 					original_discount: 250,

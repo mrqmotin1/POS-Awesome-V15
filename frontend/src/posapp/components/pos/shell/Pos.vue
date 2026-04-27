@@ -315,7 +315,19 @@ export default {
 			if (value === 0 || value === "0") {
 				return "";
 			}
+			return value;
+		};
+		const normalizeAdditionalDiscountDisplay = (value) => {
+			if (value === 0 || value === "0") {
+				return "";
+			}
 			if (showUnsignedReturnDiscount.value) {
+				const proratedValue = Number(
+					invoicePanel.value?.return_discount_meta?.prorated_discount,
+				);
+				if (Number.isFinite(proratedValue)) {
+					return Math.abs(proratedValue);
+				}
 				const numericValue = Number(value);
 				if (Number.isFinite(numericValue)) {
 					return Math.abs(numericValue);
@@ -324,17 +336,25 @@ export default {
 			return value;
 		};
 		const additionalDiscountDisplay = ref(
-			normalizeDiscountDisplay(additionalDiscount.value),
+			normalizeAdditionalDiscountDisplay(additionalDiscount.value),
 		);
 		const additionalDiscountPercentageDisplay = ref(
 			normalizeDiscountDisplay(additionalDiscountPercentage.value),
 		);
 
-		watch(additionalDiscount, (value) => {
-			if (!isEditingAdditionalDiscount.value) {
-				additionalDiscountDisplay.value = normalizeDiscountDisplay(value);
-			}
-		});
+		watch(
+			() => [
+				additionalDiscount.value,
+				invoicePanel.value?.return_discount_meta?.prorated_discount,
+				posProfile.value?.posa_use_percentage_discount,
+			],
+			([value]) => {
+				if (!isEditingAdditionalDiscount.value) {
+					additionalDiscountDisplay.value =
+						normalizeAdditionalDiscountDisplay(value);
+				}
+			},
+		);
 
 		watch(additionalDiscountPercentage, (value) => {
 			if (!isEditingAdditionalDiscountPercentage.value) {
