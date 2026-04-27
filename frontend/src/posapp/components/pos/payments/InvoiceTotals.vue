@@ -62,10 +62,38 @@
 				density="compact"
 				variant="solo"
 				color="primary"
-				:label="frappe._('Discount Amount')"
+				:label="frappe._('Item / Rate Discounts')"
+				class="sleek-field pos-themed-input"
+				hide-details
+				:model-value="formatCurrency(itemDiscountTotal)"
+				readonly
+				:prefix="currencySymbol(invoice_doc.currency)"
+				persistent-placeholder
+			></v-text-field>
+		</v-col>
+		<v-col cols="12" sm="6">
+			<v-text-field
+				density="compact"
+				variant="solo"
+				color="primary"
+				:label="frappe._('Additional Discount')"
 				class="sleek-field pos-themed-input"
 				hide-details
 				:model-value="formatCurrency(invoice_doc.discount_amount)"
+				readonly
+				:prefix="currencySymbol(invoice_doc.currency)"
+				persistent-placeholder
+			></v-text-field>
+		</v-col>
+		<v-col cols="12" sm="6">
+			<v-text-field
+				density="compact"
+				variant="solo"
+				color="primary"
+				:label="frappe._('Total Discount')"
+				class="sleek-field pos-themed-input"
+				hide-details
+				:model-value="formatCurrency(totalDiscountAmount)"
 				readonly
 				:prefix="currencySymbol(invoice_doc.currency)"
 				persistent-placeholder
@@ -103,16 +131,33 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from "vue";
+
+const props = defineProps({
 	invoice_doc: Object,
 	displayCurrency: String,
 	diff_payment: Number,
 	diff_label: String,
+	itemDiscountTotal: {
+		type: Number,
+		default: 0,
+	},
 	currencySymbol: Function,
 	formatCurrency: Function,
 });
 
 const frappe = window.frappe;
+
+const toNumber = (value) => {
+	const parsed = Number(value || 0);
+	return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const totalDiscountAmount = computed(
+	() =>
+		Math.abs(toNumber(props.itemDiscountTotal)) +
+		Math.abs(toNumber(props.invoice_doc?.discount_amount)),
+);
 </script>
 
 <style scoped>
