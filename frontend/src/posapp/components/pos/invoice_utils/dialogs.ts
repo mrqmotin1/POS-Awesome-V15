@@ -160,12 +160,12 @@ export async function show_payment(context: any) {
 
 export async function get_draft_invoices(
 	context: any,
-	source: "invoice" | "order" | "quote" = "invoice",
+	source?: "invoice" | "order" | "quote",
 ) {
 	try {
 		const selectedSource = getDefaultDocumentSource(
 			context.pos_profile,
-			source || context.uiStore?.draftSource,
+			source ?? context.uiStore?.draftSource,
 		);
 		const drafts = await fetchDocumentSourceRecords({
 			source: selectedSource,
@@ -183,7 +183,9 @@ export async function get_draft_invoices(
 		if (typeof context.$nextTick === "function") {
 			await context.$nextTick();
 		}
-		context.$refs?.invoiceSummary?.openDraftsSurface?.();
+		if (drafts.length > 0) {
+			context.$refs?.invoiceSummary?.openDraftsSurface?.();
+		}
 	} catch (error) {
 		console.error("Error fetching draft invoices:", error);
 		context.toastStore.show({
@@ -195,16 +197,7 @@ export async function get_draft_invoices(
 
 export async function get_draft_orders(context: any) {
 	try {
-		const { message } = await frappe.call({
-			method: "posawesome.posawesome.api.sales_orders.search_orders",
-			args: {
-				company: context.pos_profile.company,
-				currency: context.pos_profile.currency,
-			},
-		});
-		if (message) {
-			context.uiStore.openOrders(message);
-		}
+		context.uiStore?.openInvoiceManagement?.("drafts", "order");
 	} catch (error) {
 		console.error("Error fetching draft orders:", error);
 		context.toastStore.show({
@@ -219,10 +212,15 @@ export function open_returns(context: any) {
 	context.eventBus.emit("open_returns", context.pos_profile.company);
 }
 
-export function open_invoice_management(context: any, targetTab: string = "history") {
+export function open_invoice_management(
+	context: any,
+	targetTab: string = "history",
+	draftSource?: "invoice" | "order" | "quote",
+) {
+	const selectedSource = draftSource || context.uiStore?.draftSource || "invoice";
 	context.uiStore?.openInvoiceManagement?.(
 		targetTab,
-		context.uiStore?.draftSource || "invoice",
+		selectedSource,
 	);
 }
 
@@ -232,7 +230,7 @@ export function open_invoice_management_with_source(
 	draftSource: "invoice" | "order" | "quote" = "invoice",
 ) {
 	context.uiStore?.setInvoiceManagementDraftSource?.(draftSource);
-	return open_invoice_management(context, targetTab);
+	return open_invoice_management(context, targetTab, draftSource);
 }
 
 export async function load_draft_source_record(context: any, draft: any) {

@@ -55,13 +55,16 @@ def _resolve_profile(pos_profile=None):
 			return get_active_pos_profile()
 		try:
 			decoded = json.loads(raw_value)
-		except Exception:
+		except json.JSONDecodeError:
 			decoded = raw_value
 
 		if isinstance(decoded, dict):
 			return decoded
 		if isinstance(decoded, str):
-			doc = frappe.get_cached_doc("POS Profile", decoded)
+			try:
+				doc = frappe.get_cached_doc("POS Profile", decoded)
+			except frappe.DoesNotExistError:
+				return decoded
 			return doc.as_dict() if hasattr(doc, "as_dict") else doc
 
 	return get_active_pos_profile()

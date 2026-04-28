@@ -408,6 +408,7 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
 				);
 			if (!registration) {
 				updateStore.reloading = false;
+				reloadScheduled = false;
 				return;
 			}
 			if (registration.waiting) {

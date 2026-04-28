@@ -319,10 +319,16 @@ export async function get_invoice_from_order_doc(context: any) {
 				? "POS Invoice"
 				: "Sales Invoice",
 		});
-		doc = prepared?.prepared_doc || {};
+		doc = prepared?.prepared_doc || context.invoice_doc;
 	} else {
 		doc = context.invoice_doc;
 	}
+	doc = doc || {};
+	doc.items = Array.isArray(doc.items)
+		? doc.items
+		: Array.isArray(context.invoice_doc?.items)
+			? context.invoice_doc.items
+			: [];
 	const items: any[] = [];
 	const updatedItemsData: any[] = get_invoice_items(context);
 	doc.items.forEach((item) => {

@@ -286,7 +286,13 @@ export default {
 
 		const ensureCustomersForProfile = (profile) => {
 			if (!profile) {
-				return Promise.resolve(false);
+				return ensureCustomersReady({
+					profile: null,
+					online: networkOnline.value,
+					manualOffline: false,
+					setProfile: customersStore.setPosProfile,
+					load: customersStore.get_customer_names,
+				});
 			}
 
 			return ensureCustomersReady({

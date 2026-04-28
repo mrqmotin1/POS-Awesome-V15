@@ -31,6 +31,28 @@ describe("item addition serial selection helpers", () => {
 		]);
 	});
 
+	it("falls back to serial_no when selected serials are empty", () => {
+		const item = {
+			item_code: "ITEM-001",
+			posa_row_id: "current",
+		};
+		const context = {
+			items: [
+				{
+					item_code: "ITEM-001",
+					posa_row_id: "line-1",
+					serial_no_selected: [],
+					serial_no: " SN-005 \nSN-006",
+				},
+			],
+		};
+
+		expect([...collectUsedSerialsForItem(item, context)]).toEqual([
+			"SN-005",
+			"SN-006",
+		]);
+	});
+
 	it("ignores current row, other items, and different selected batches", () => {
 		const item = {
 			item_code: "ITEM-001",

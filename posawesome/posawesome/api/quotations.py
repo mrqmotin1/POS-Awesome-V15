@@ -81,10 +81,10 @@ def search_quotations(
     if quotation_name:
         search_value = f"%{quotation_name}%"
         or_filters = [
-            ["Quotation", "name", "like", search_value],
-            ["Quotation", "party_name", "like", search_value],
-            ["Quotation", "customer_name", "like", search_value],
-            ["Quotation", "currency", "like", search_value],
+            ["name", "like", search_value],
+            ["party_name", "like", search_value],
+            ["customer_name", "like", search_value],
+            ["currency", "like", search_value],
         ]
 
     quotations = frappe.get_list(
@@ -105,9 +105,9 @@ def search_quotations(
             "modified",
             "modified_by",
         ],
-        limit_page_length=0,
-        order_by="modified desc",
-    )
+		page_length=0,
+		order_by="modified desc",
+	)
 
     return [_normalize_quotation_row(dict(row)) for row in quotations]
 

@@ -114,7 +114,7 @@ describe("invoiceStore invoice type state", () => {
 
 		store.triggerLoadFlow(flow);
 
-		expect(store.flowToLoad).toEqual(flow);
+		expect(store.flowToLoad).toEqual(flow.prepared_doc);
 		expect(store.flowContext).toEqual(flow.flow_context);
 
 		store.clear();

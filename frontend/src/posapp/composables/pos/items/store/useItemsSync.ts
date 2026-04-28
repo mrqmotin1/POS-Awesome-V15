@@ -249,9 +249,7 @@ export function useItemsSync() {
 		const bootstrapCount = Array.isArray(initialBatch)
 			? initialBatch.length
 			: items.value.length;
-		let stockCacheReady = containsStockQuantities(
-			Array.isArray(initialBatch) ? initialBatch : [],
-		);
+		let stockCacheReady = false;
 		const remainingCatalogEstimate =
 			totalItemCount.value > bootstrapCount
 				? totalItemCount.value - bootstrapCount
@@ -262,7 +260,16 @@ export function useItemsSync() {
 				await clearStoredItems(scope);
 				if (Array.isArray(initialBatch) && initialBatch.length) {
 					await saveItemsBulk(initialBatch, scope);
+					if (containsStockQuantities(initialBatch)) {
+						updateLocalStockCache(initialBatch);
+						stockCacheReady = true;
+					}
 					await updateCachedPaginationFromStorage();
+				}
+			} else if (Array.isArray(initialBatch) && initialBatch.length) {
+				if (containsStockQuantities(initialBatch)) {
+					updateLocalStockCache(initialBatch);
+					stockCacheReady = true;
 				}
 			}
 

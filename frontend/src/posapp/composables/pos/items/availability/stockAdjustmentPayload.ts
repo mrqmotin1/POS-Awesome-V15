@@ -26,8 +26,9 @@ export function normalizeInvoiceStockAdjustmentPayload(
 
 	const collectedCodes = new Set<string>();
 	const collectCode = (code: unknown) => {
-		if (code === undefined || code === null) return;
-		const normalized = String(code).trim();
+		if (typeof code !== "string" && typeof code !== "number") return;
+		const normalized =
+			typeof code === "string" ? code.trim() : String(code).trim();
 		if (normalized) collectedCodes.add(normalized);
 	};
 	const collectFromItems = (items: unknown) => {
@@ -69,10 +70,17 @@ function normalizeBaseEntry(entry: unknown): StockAdjustmentBaseEntry | null {
 	if (!entry) return null;
 	const source = entry as { item_code?: unknown; actual_qty?: unknown };
 	const item_code =
-		source.item_code !== undefined && source.item_code !== null
-			? String(source.item_code).trim()
-			: "";
-	const actual_qty = Number(source.actual_qty);
+		typeof source.item_code === "string"
+			? source.item_code.trim()
+			: typeof source.item_code === "number"
+				? String(source.item_code).trim()
+				: "";
+	const rawQty = source.actual_qty;
+	const actual_qty =
+		typeof rawQty === "number" ||
+		(typeof rawQty === "string" && rawQty.trim().length > 0)
+			? Number(rawQty)
+			: Number.NaN;
 	if (!item_code || !Number.isFinite(actual_qty)) {
 		return null;
 	}

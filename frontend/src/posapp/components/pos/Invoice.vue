@@ -776,22 +776,18 @@ export default {
 			const targetDoctype =
 				flow?.flow_context?.target_doctype || flow?.prepared_doc?.doctype || "";
 
-			this.load_invoice(flow.prepared_doc, { preserveStickies: true });
-
 			if (targetDoctype === "Quotation" || action === "quote_edit_draft") {
 				this.invoiceType = "Quotation";
 				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
-				return;
-			}
-
-			if (targetDoctype === "Sales Order" || action === "order_load" || action === "quote_to_order") {
+			} else if (targetDoctype === "Sales Order" || action === "order_load" || action === "quote_to_order") {
 				this.invoiceType = "Order";
 				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
-				return;
+			} else {
+				this.invoiceType = "Invoice";
+				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
 			}
 
-			this.invoiceType = "Invoice";
-			this.invoiceTypes = ["Invoice", "Order", "Quotation"];
+			this.load_invoice(flow.prepared_doc, { preserveStickies: true });
 		},
 
 		calcProratedReturnDiscount(returnDoc) {
@@ -1036,6 +1032,12 @@ export default {
 			(flow) => {
 				if (flow?.prepared_doc) {
 					this.handleLoadFlow(flow);
+				} else if (flow) {
+					this.handleLoadFlow({
+						action: this.invoiceStore.flowContext?.prepared_action,
+						prepared_doc: flow,
+						flow_context: this.invoiceStore.flowContext,
+					});
 				}
 			},
 			{ deep: false },

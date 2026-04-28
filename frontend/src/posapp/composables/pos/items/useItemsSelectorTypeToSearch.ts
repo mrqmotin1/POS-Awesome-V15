@@ -10,7 +10,7 @@ type UseItemsSelectorTypeToSearchArgs = {
 	appendSearchCharacter: (_character: string) => void;
 };
 
-const SEARCH_TRIGGER_KEY_PATTERN = /^[A-Za-z0-9\-._/\\]$/;
+const SEARCH_TRIGGER_KEY_PATTERN = /^[\p{L}\p{N}\-._/\\]$/u;
 
 function isEditableElement(element: Element | null | undefined) {
 	if (!(element instanceof HTMLElement)) {
@@ -40,7 +40,7 @@ function isEditableElement(element: Element | null | undefined) {
 }
 
 function isTypeToSearchKey(event: KeyboardEvent) {
-	if (!event || event.defaultPrevented || event.repeat) {
+	if (!event || event.defaultPrevented || event.repeat || event.isComposing) {
 		return false;
 	}
 	if (event.ctrlKey || event.metaKey || event.altKey) {

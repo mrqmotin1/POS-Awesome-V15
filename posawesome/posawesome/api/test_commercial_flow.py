@@ -19,7 +19,7 @@ class FakeDoc:
     def as_dict(self):
         return dict(self.__dict__)
 
-    def save(self):
+    def save(self, *args, **kwargs):
         self.saved = True
 
     def submit(self):
@@ -28,11 +28,25 @@ class FakeDoc:
 
 
 def _install_stubs():
+    module_names = [
+        "frappe",
+        "frappe.utils",
+        "posawesome.posawesome.api.invoices",
+        "posawesome.posawesome.api.quotations",
+        "posawesome.posawesome.api.sales_orders",
+        "erpnext.selling.doctype.quotation.quotation",
+        "erpnext.selling.doctype.sales_order.sales_order",
+        "erpnext.stock.doctype.delivery_note.delivery_note",
+    ]
+    original_modules = {module_name: sys.modules.get(module_name) for module_name in module_names}
+
     frappe_module = types.ModuleType("frappe")
     frappe_module._ = lambda text: text
     frappe_module.throw = lambda message: (_ for _ in ()).throw(Exception(message))
     frappe_module.whitelist = lambda *args, **kwargs: (lambda fn: fn)
     frappe_module.flags = types.SimpleNamespace(ignore_account_permission=False)
+    frappe_module.PermissionError = PermissionError
+    frappe_module.has_permission = lambda *args, **kwargs: True
     frappe_module.get_list = lambda *args, **kwargs: []
     frappe_module.get_doc = lambda *args, **kwargs: None
     sys.modules["frappe"] = frappe_module
@@ -99,7 +113,15 @@ def _install_stubs():
     )
     sys.modules["erpnext.stock.doctype.delivery_note.delivery_note"] = delivery_note_mapping_module
 
-    return frappe_module, invoices_module, quotations_module, sales_orders_module
+    return original_modules, frappe_module, invoices_module, quotations_module, sales_orders_module
+
+
+def _restore_modules(original_modules):
+    for module_name, original in original_modules.items():
+        if original is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = original
 
 
 def _load_module():
@@ -115,8 +137,19 @@ def _load_module():
 class TestCommercialFlowApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.frappe, cls.invoices_module, cls.quotations_module, cls.sales_orders_module = _install_stubs()
+        (
+            cls.original_modules,
+            cls.frappe,
+            cls.invoices_module,
+            cls.quotations_module,
+            cls.sales_orders_module,
+        ) = _install_stubs()
         cls.module = _load_module()
+
+    @classmethod
+    def tearDownClass(cls):
+        _restore_modules(cls.original_modules)
+        sys.modules.pop("posawesome.posawesome.api.commercial_flow", None)
 
     def test_list_source_documents_adds_allowed_actions_for_quotes(self):
         self.module.search_quotations = lambda **kwargs: [

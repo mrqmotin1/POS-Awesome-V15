@@ -16,6 +16,18 @@ describe("useItemsSelectorQuantity", () => {
 		expect(quantity.debounceQty.value).toBe(1234.5);
 	});
 
+	it("normalizes decimal comma input with dot group separators", () => {
+		const quantity = useItemsSelectorQuantity({
+			hideQtyDecimals: ref(false),
+			initialQty: 1,
+		});
+
+		quantity.debounceQty.value = "1.234,50";
+
+		expect(quantity.qty.value).toBe(1234.5);
+		expect(quantity.debounceQty.value).toBe(1234.5);
+	});
+
 	it("rounds input and display when decimal quantities are hidden", () => {
 		const quantity = useItemsSelectorQuantity({
 			hideQtyDecimals: ref(true),

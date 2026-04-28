@@ -302,12 +302,6 @@ export default {
 		ordersDialog(value) {
 			if (!value) {
 				this.clearSelected();
-				return;
-			}
-
-			if (!this.uiStore.invoiceManagementDialog) {
-				this.uiStore.closeOrders();
-				this.uiStore.openInvoiceManagement("drafts", "order");
 			}
 		},
 		ordersData: {

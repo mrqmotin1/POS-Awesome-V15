@@ -58,9 +58,10 @@ export function useItemsSelectorSearchInput({
 	};
 
 	const handleSearchInput = (value: unknown) => {
-		searchInput.value = value as string;
-		firstSearch.value = String(value ?? "");
-		scannerInput.handleSearchInput?.(firstSearch.value);
+		const normalized = String(value ?? "");
+		searchInput.value = normalized;
+		firstSearch.value = normalized;
+		scannerInput.handleSearchInput?.(normalized);
 	};
 
 	const prepareSearchInjection = () => {

@@ -28,14 +28,17 @@ export function buildItemDetailsRequestIdentity({
 	const itemCodes = Array.from(
 		new Set(
 			items
-				.map((item) => item?.item_code)
+				.map((item) =>
+					item?.item_code !== undefined && item?.item_code !== null
+						? String(item.item_code).trim()
+						: undefined,
+				)
 				.filter(
 					(code) =>
-						code !== undefined && code !== null && code !== "",
+						code !== undefined && code !== "",
 				),
 		),
 	)
-		.map((code) => String(code))
 		.sort();
 
 	return {

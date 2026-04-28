@@ -12,7 +12,11 @@
 				'document-source-selector__button--inactive': !isActive(option.key),
 			}"
 			:prepend-icon="option.icon"
+			role="tab"
+			:tabindex="isActive(option.key) ? 0 : -1"
+			:aria-selected="isActive(option.key)"
 			@click="$emit('update:modelValue', option.key)"
+			@keydown="handleOptionKeydown($event, option.key)"
 		>
 			{{ option.label }}
 		</v-btn>
@@ -20,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from "vue";
+import { nextTick, type PropType } from "vue";
 
 import type { DocumentSourceOption } from "../../../utils/documentSources";
 
@@ -43,10 +47,44 @@ const props = defineProps({
 	},
 });
 
-defineEmits(["update:modelValue"]);
+const emit = defineEmits(["update:modelValue"]);
 
 function isActive(key: string) {
 	return props.modelValue === key;
+}
+
+function focusTabButton(event: KeyboardEvent, index: number) {
+	const container = (event.currentTarget as HTMLElement | null)?.parentElement;
+	const buttons = Array.from(
+		container?.querySelectorAll<HTMLElement>("[role='tab']") || [],
+	);
+	nextTick(() => {
+		buttons[index]?.focus();
+	});
+}
+
+function handleOptionKeydown(event: KeyboardEvent, key: string) {
+	const currentIndex = props.options.findIndex((option) => option.key === key);
+	if (currentIndex < 0 || props.options.length === 0) return;
+
+	let nextIndex: number | null = null;
+	if (event.key === "ArrowRight") {
+		nextIndex = (currentIndex + 1) % props.options.length;
+	} else if (event.key === "ArrowLeft") {
+		nextIndex = (currentIndex - 1 + props.options.length) % props.options.length;
+	} else if (event.key === "Home") {
+		nextIndex = 0;
+	} else if (event.key === "End") {
+		nextIndex = props.options.length - 1;
+	}
+
+	if (nextIndex === null) return;
+	event.preventDefault();
+	const nextOption = props.options[nextIndex];
+	if (nextOption) {
+		emit("update:modelValue", nextOption.key);
+		focusTabButton(event, nextIndex);
+	}
 }
 </script>
 
