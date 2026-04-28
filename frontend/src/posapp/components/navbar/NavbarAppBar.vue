@@ -124,7 +124,8 @@
 					</template>
 				</NavbarInfoGadgets>
 
-				<div :class="['profile-section', isRtl ? 'rtl-profile-section' : 'ltr-profile-section']">
+				<!--Profile Switch Section-->
+				<!-- <div :class="['profile-section', isRtl ? 'rtl-profile-section' : 'ltr-profile-section']">
 					<v-chip
 						v-if="cashierChipLabel"
 						variant="outlined"
@@ -155,6 +156,7 @@
 						</span>
 					</v-chip>
 				</div>
+				 -->
 
 				<div
 					:class="[

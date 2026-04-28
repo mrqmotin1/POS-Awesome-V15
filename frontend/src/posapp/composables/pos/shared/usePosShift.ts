@@ -217,8 +217,10 @@ export function usePosShift(openDialog?: () => void) {
 			});
 	}
 
-	function submit_closing_pos(data: any) {
+	function submit_closing_pos(data: any, CustomPrint = false) {
 		console.log("Submitting closing shift", data);
+		//console.log("data ----------------", data);
+		//console.log("Print ----------------", CustomPrint);
 		frappe
 			.call(
 				"posawesome.posawesome.doctype.pos_closing_shift.pos_closing_shift.submit_closing_shift",
@@ -238,6 +240,12 @@ export function usePosShift(openDialog?: () => void) {
 						title: "POS Shift Closed",
 						color: "success",
 					});
+					//console.log("Print Value", CustomPrint);
+					if (CustomPrint === true) {
+						console.log("Print is true");
+						load_print_page(r.message);
+						console.log("Print page loaded", r.message);
+					}
 					check_opening_entry();
 				}
 			})
@@ -245,6 +253,25 @@ export function usePosShift(openDialog?: () => void) {
 				console.error("Failed to submit closing shift", err);
 			});
 	}
+
+	// Open print page for pos clsoing shift
+		function load_print_page(x) {
+			console.log("XxXXXXX",x);
+			const print_format = "POS Closing Report";
+			const doctype = "POS Closing Shift";
+			const url =
+				frappe.urllib.get_base_url() +
+				"/printview?doctype=" +
+				encodeURIComponent(doctype) +
+				"&name=" +x+
+				"&trigger_print=1" +
+				"&format=" +
+				print_format;
+
+			//console.log("Print URL", url);
+			window.open(url, "Print");
+			
+		}
 
 	return {
 		pos_profile,

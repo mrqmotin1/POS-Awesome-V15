@@ -461,8 +461,9 @@ export default {
 				});
 			}
 			if (eventBus) {
-				eventBus.on("submit_closing_pos", (data) => {
-					shift.submit_closing_pos(data);
+				eventBus.on("submit_closing_pos", (payload) => {
+					const{print, ...data} = payload || {};
+					shift.submit_closing_pos(data, print);
 				});
 				eventBus.on("focus_additional_discount", focusAdditionalDiscountField);
 				eventBus.on("set_compact_panel", setCompactPanel);
