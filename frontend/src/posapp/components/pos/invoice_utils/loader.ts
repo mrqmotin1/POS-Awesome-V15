@@ -260,11 +260,19 @@ export async function load_invoice(
 		);
 		context.delivery_charges_rate = data.posa_delivery_charges_rate;
 	}
+	const roundFloat = (value: unknown, fallbackPrecision = 2) => {
+		const precision = Number.isFinite(Number(context.float_precision))
+			? Number(context.float_precision)
+			: fallbackPrecision;
+		return context.flt
+			? context.flt(value, precision)
+			: flt(value, precision);
+	};
 	let docDiscountAmount = flt(data.discount_amount);
 	const docDiscountPercentage =
 		data.additional_discount_percentage !== undefined &&
 		data.additional_discount_percentage !== null
-			? flt(data.additional_discount_percentage)
+			? roundFloat(data.additional_discount_percentage)
 			: 0;
 	const docIsReturn = Boolean(data.is_return);
 	if (docIsReturn && !usePercentageDiscount && docDiscountAmount > 0) {
@@ -347,6 +355,7 @@ export async function load_invoice(
 		} else {
 			resolvedPercentage = Math.abs(resolvedPercentage);
 		}
+		resolvedPercentage = roundFloat(resolvedPercentage);
 
 		context.additional_discount_percentage = resolvedPercentage;
 		updateDiscountAmount(context);

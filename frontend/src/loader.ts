@@ -12,16 +12,14 @@ const getBundlePath = (version: string) =>
 	`/assets/posawesome/dist/js/posawesome.js?v=${encodeURIComponent(version)}`;
 
 function recordPendingBundleActivation(version: string) {
-	if (
-		typeof window === "undefined" ||
-		!window.sessionStorage ||
-		!version
-	) {
+	if (typeof window === "undefined" || !version) {
 		return;
 	}
 	try {
 		window.sessionStorage.setItem("posa_pending_bundle_activation", version);
-	} catch {}
+	} catch {
+		// Session storage can be unavailable in restricted browser contexts.
+	}
 }
 
 declare global {

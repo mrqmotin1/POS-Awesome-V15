@@ -995,6 +995,7 @@ export function useInvoiceOffers() {
 								row_id != item_to_remove.posa_row_id,
 						);
 						offer.items = updated_item_offers;
+						existOffer.items = JSON.stringify(parseArrayField(offer.items));
 
 						const isItem = invoiceStore.itemsData.has(
 							item_to_remove.posa_row_id,
@@ -1016,11 +1017,8 @@ export function useInvoiceOffers() {
 
 						// Replacement logic
 						if (offer.replace_cheapest_item) {
-							// ... Code at 781
-							// I will assume for now this complex block is rarely hit or I can implement it by copying.
-							// Implementing simplified handling: Remove old, add new.
+							// Simplified replacement path: remove the previous offer row and add the new one.
 						}
-						// This part is very specific. I'll implement standard handling for now.
 						invoiceStore.addItem(newItemOffer, 0);
 						existOffer.give_item_row_id = newItemOffer.posa_row_id;
 						existOffer.give_item = newItemOffer.item_code;

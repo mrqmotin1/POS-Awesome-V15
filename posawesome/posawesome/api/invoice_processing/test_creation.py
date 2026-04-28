@@ -1055,6 +1055,72 @@ class TestManualPostingDatePreservation(unittest.TestCase):
         self.assertEqual(invoice_doc.set_posting_time, 1)
         self.assertEqual(result["status"], 1)
 
+    def test_submit_invoice_normalizes_existing_return_draft_payments_before_save(self):
+        invoice_doc = self._build_invoice_doc(
+            name="ACC-SINV-RETURN-0001",
+            is_return=1,
+            return_against="ACC-SINV-BASE-0001",
+            additional_discount_percentage=10,
+            discount_amount=-10,
+            total=-100,
+            net_total=-100,
+            grand_total=-90,
+            rounded_total=-90,
+            payments=[
+                FakeDoc(
+                    mode_of_payment="Cash",
+                    type="Cash",
+                    amount=90,
+                    base_amount=90,
+                )
+            ],
+        )
+        def assert_submit_sees_negative_payments():
+            self.assertEqual(invoice_doc.payments[0].amount, -90)
+            self.assertEqual(invoice_doc.payments[0].base_amount, -90)
+            invoice_doc.docstatus = 1
+
+        invoice_doc.submit = assert_submit_sees_negative_payments
+
+        self.creation.frappe.db.exists = lambda doctype, name: name == "ACC-SINV-RETURN-0001"
+        self.creation.frappe.db.get_value = lambda *args, **kwargs: 0
+        self.creation.frappe.get_value = lambda *args, **kwargs: 0
+        self.creation.frappe.get_doc = lambda *args: invoice_doc
+        self.creation._apply_invoice_gift_card_settlement = lambda *args, **kwargs: None
+        self.creation._process_post_submit_payments = lambda *args, **kwargs: None
+
+        def assert_return_payments_are_negative_before_save(doc):
+            self.assertEqual(doc.payments[0].amount, -90)
+            self.assertEqual(doc.payments[0].base_amount, -90)
+            # Simulate framework-side save logic mutating child rows before submit.
+            doc.payments[0].amount = 90
+            doc.payments[0].base_amount = 90
+            return doc
+
+        self.creation._save_draft_with_latest_timestamp = assert_return_payments_are_negative_before_save
+
+        result = self.creation.submit_invoice(
+            json.dumps(
+                {
+                    "doctype": "Sales Invoice",
+                    "name": "ACC-SINV-RETURN-0001",
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "currency": "USD",
+                    "customer": "CUST-0001",
+                    "is_return": 1,
+                    "return_against": "ACC-SINV-BASE-0001",
+                    "additional_discount_percentage": 10,
+                    "discount_amount": -10,
+                    "items": [],
+                }
+            ),
+            json.dumps({}),
+            submit_in_background=0,
+        )
+
+        self.assertEqual(result["status"], 1)
+
 
 class TestInvoiceIdempotency(unittest.TestCase):
     @classmethod
@@ -1067,6 +1133,7 @@ class TestInvoiceIdempotency(unittest.TestCase):
     def setUp(self):
         self.enqueue_calls.clear()
         self.frappe._publish_realtime_calls.clear()
+        self.creation.frappe.db.has_column = lambda doctype, fieldname: True
 
     def test_submit_invoice_returns_existing_submitted_doc_for_same_client_request_id(self):
         existing_doc = FakeDoc(

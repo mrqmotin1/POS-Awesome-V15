@@ -283,7 +283,7 @@ import { storeToRefs } from "pinia";
 import stockCoordinator from "../../utils/stockCoordinator";
 import { getCurrentInstance, ref } from "vue";
 import { save_and_clear_invoice as saveAndClearInvoiceAction } from "./invoice_utils/actions";
-import { fetchDraftInvoiceDoc, fetchDraftInvoices } from "../../utils/draftInvoices";
+import { fetchDraftInvoices } from "../../utils/draftInvoices";
 
 // Composables
 import { useOnlineStatus } from "../../composables/core/useOnlineStatus";
@@ -318,6 +318,8 @@ export default {
 			packedItems: packed_items,
 			invoiceDoc: invoice_doc,
 			invoiceType,
+			flowToLoad,
+			flowContext,
 		} = storeToRefs(invoiceStore);
 		const itemsTableRef = ref(null);
 		const currencyState = useInvoiceCurrency({}, {});
@@ -355,6 +357,8 @@ export default {
 			selectedCustomer,
 			customerRefreshToken,
 			invoiceType,
+			flowToLoad,
+			flowContext,
 			itemsTableRef,
 			...currencyState,
 			...itemActions,
@@ -762,6 +766,29 @@ export default {
 		handleLoadOrder(data) {
 			this.new_order(data);
 		},
+		handleLoadFlow(flow) {
+			if (!flow?.prepared_doc) {
+				return;
+			}
+
+			this.invoiceStore.setFlowContext?.(flow.flow_context || null);
+			const action = flow?.action || flow?.flow_context?.prepared_action;
+			const targetDoctype =
+				flow?.flow_context?.target_doctype || flow?.prepared_doc?.doctype || "";
+
+			if (targetDoctype === "Quotation" || action === "quote_edit_draft") {
+				this.invoiceType = "Quotation";
+				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
+			} else if (targetDoctype === "Sales Order" || action === "order_load" || action === "quote_to_order") {
+				this.invoiceType = "Order";
+				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
+			} else {
+				this.invoiceType = "Invoice";
+				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
+			}
+
+			this.load_invoice(flow.prepared_doc, { preserveStickies: true });
+		},
 
 		calcProratedReturnDiscount(returnDoc) {
 			if (!returnDoc) return 0;
@@ -810,6 +837,24 @@ export default {
 			this.invoiceType = "Return";
 			this.invoiceTypes = ["Return"];
 			this.invoice_doc.is_return = 1;
+			if (Array.isArray(this.invoice_doc.payments)) {
+				this.invoice_doc.payments.forEach((payment) => {
+					const amount = this.flt(
+						payment.amount || 0,
+						this.currency_precision,
+					);
+					payment.amount = amount ? -Math.abs(amount) : 0;
+					if (payment.base_amount !== undefined) {
+						const baseAmount = this.flt(
+							payment.base_amount || 0,
+							this.currency_precision,
+						);
+						payment.base_amount = baseAmount
+							? -Math.abs(baseAmount)
+							: 0;
+					}
+				});
+			}
 			if (this.items && this.items.length) {
 				this.items.forEach((item) => {
 					if (item.qty > 0) item.qty = -Math.abs(item.qty);
@@ -851,7 +896,10 @@ export default {
 						undefined
 					) {
 						this.additional_discount_percentage =
-							data.return_doc.additional_discount_percentage || 0;
+							this.flt(
+								data.return_doc.additional_discount_percentage || 0,
+								this.float_precision,
+							);
 					}
 					this.update_discount_umount();
 				} else {
@@ -876,12 +924,9 @@ export default {
 		},
 		async resume_parked_order(draft) {
 			try {
-				const message = await fetchDraftInvoiceDoc({
-					draft,
-					posProfile: this.pos_profile,
-				});
+				const message = await this.load_draft_source_record(draft);
 				if (message) {
-					this.invoiceStore.triggerLoadInvoice(message);
+					this.uiStore?.closeDrafts?.();
 				}
 			} catch (error) {
 				console.error("Error loading parked order:", error);
@@ -977,6 +1022,22 @@ export default {
 			(doc) => {
 				if (doc) {
 					this.handleLoadOrder(doc);
+				}
+			},
+			{ deep: false },
+		);
+
+		this.$watch(
+			() => this.invoiceStore.flowToLoad,
+			(flow) => {
+				if (flow?.prepared_doc) {
+					this.handleLoadFlow(flow);
+				} else if (flow) {
+					this.handleLoadFlow({
+						action: this.invoiceStore.flowContext?.prepared_action,
+						prepared_doc: flow,
+						flow_context: this.invoiceStore.flowContext,
+					});
 				}
 			},
 			{ deep: false },

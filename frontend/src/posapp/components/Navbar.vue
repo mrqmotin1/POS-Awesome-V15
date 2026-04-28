@@ -834,10 +834,13 @@ export default {
 				if (typeof localStorage !== "undefined") {
 					westernPref = localStorage.getItem("use_western_numerals");
 				}
-				await forceClearAllCache();
-				await clearAllCaches({ confirmBeforeClear: false }).catch(() => {});
-				if (westernPref !== null && typeof localStorage !== "undefined") {
-					localStorage.setItem("use_western_numerals", westernPref);
+				try {
+					await forceClearAllCache();
+					await clearAllCaches({ confirmBeforeClear: false });
+				} finally {
+					if (westernPref !== null && typeof localStorage !== "undefined") {
+						localStorage.setItem("use_western_numerals", westernPref);
+					}
 				}
 				this.toastStore.show({
 					color: "success",

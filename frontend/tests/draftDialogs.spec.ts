@@ -1,9 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchDraftInvoicesMock = vi.fn();
+const fetchDocumentSourceRecordsMock = vi.fn();
 
 vi.mock("../src/posapp/utils/draftInvoices", () => ({
 	fetchDraftInvoices: (...args: unknown[]) => fetchDraftInvoicesMock(...args),
+}));
+
+vi.mock("../src/posapp/utils/documentSources", () => ({
+	fetchDocumentSourceRecords: (...args: unknown[]) =>
+		fetchDocumentSourceRecordsMock(...args),
+	getDefaultDocumentSource: (_profile: unknown, source?: string) =>
+		source || "invoice",
+	loadDocumentSourceRecord: vi.fn(),
 }));
 
 import {
@@ -14,6 +23,7 @@ import {
 describe("get_draft_invoices", () => {
 	beforeEach(() => {
 		fetchDraftInvoicesMock.mockReset();
+		fetchDocumentSourceRecordsMock.mockReset();
 		(globalThis as any).__ = (value: string) => value;
 	});
 
@@ -38,7 +48,7 @@ describe("get_draft_invoices", () => {
 			},
 		};
 
-		fetchDraftInvoicesMock.mockResolvedValue(drafts);
+		fetchDocumentSourceRecordsMock.mockResolvedValue(drafts);
 
 		await get_draft_invoices(context);
 
@@ -68,7 +78,7 @@ describe("get_draft_invoices", () => {
 			},
 		};
 
-		fetchDraftInvoicesMock.mockResolvedValue([]);
+		fetchDocumentSourceRecordsMock.mockResolvedValue([]);
 
 		await get_draft_invoices(context);
 
@@ -89,6 +99,9 @@ describe("open_invoice_management", () => {
 
 		open_invoice_management(context, "drafts");
 
-		expect(context.uiStore.openInvoiceManagement).toHaveBeenCalledWith("drafts");
+		expect(context.uiStore.openInvoiceManagement).toHaveBeenCalledWith(
+			"drafts",
+			"invoice",
+		);
 	});
 });

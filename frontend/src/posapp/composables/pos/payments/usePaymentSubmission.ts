@@ -476,8 +476,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 
 	function ensureReturnPaymentsAreNegative() {
 		const doc = unref(invoiceDoc);
-		// Skip for credit returns (isCashback = false means payments are cleared to 0 intentionally)
-		if (!doc || !doc.is_return || unref(options.isCashback) === false) {
+		if (!doc || !doc.is_return) {
 			return;
 		}
 		// Check if any payment amount is set
@@ -488,6 +487,12 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 					hasPaymentSet = true;
 				}
 			});
+		}
+
+		// Credit returns intentionally keep payment rows at 0. If a non-zero row
+		// exists, it still must be negative for ERPNext return validation.
+		if (!hasPaymentSet && unref(options.isCashback) === false) {
+			return;
 		}
 
 		// If no payment set, set the default one
