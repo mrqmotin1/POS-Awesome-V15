@@ -503,213 +503,24 @@ export default {
 				? __("Grouped controls for terminal, UI, and session settings.")
 				: __("Fast cashier actions for active shifts.");
 		},
-		// quickActions() {
-		// 	const actions = [
-		// 		{
-		// 			id: "switch-cashier",
-		// 			label: __("Switch Cashier"),
-		// 			subtitle: this.cashierName || __("Change terminal cashier"),
-		// 			icon: "mdi-account-switch-outline",
-		// 			tone: "primary",
-		// 			handler: "openEmployeeSwitch",
-		// 		},
-		// 		{
-		// 			id: "lock-screen",
-		// 			label: __("Lock Screen"),
-		// 			subtitle: __("Pause terminal until next cashier"),
-		// 			icon: "mdi-lock-outline",
-		// 			tone: "warning",
-		// 			handler: "lockPos",
-		// 		},
-		// 		this.isEnabledSetting(this.posProfile?.posa_allow_print_last_invoice)
-		// 			? {
-		// 					id: "print-last-invoice",
-		// 					label: __("Print Last Invoice"),
-		// 					subtitle: __("Reprint previous transaction"),
-		// 					icon: "mdi-printer",
-		// 					tone: "secondary",
-		// 					handler: "printLastInvoiceAction",
-		// 				}
-		// 			: null,
-		// 				{
-		// 					id: "sync-offline-sales",
-		// 					label: __("Sync Offline Sales"),
-		// 					subtitle: __("Upload pending transactions"),
-		// 					icon: "mdi-sync",
-		// 					tone: "info",
-		// 					handler: "syncInvoices",
-		// 				},
-		// 				{
-		// 					id: "manager-login",
-		// 					label: this.isManagerMode ? __("Manager Logout") : __("Manager Login"),
-		// 					subtitle: this.isManagerMode ? __("Exit manager mode") : __("Authenticate as manager"),
-		// 					icon: this.isManagerMode ? "mdi-shield-off-outline" : "mdi-shield-account-outline",
-		// 					tone: "warning",
-		// 					handler: "managerLogin",
-		// 				},
-		// 		!this.posProfile?.posa_hide_closing_shift
-		// 			? {
-		// 					id: "close-shift",
-		// 					label: __("Close Shift"),
-		// 					subtitle: __("End current session"),
-		// 					icon: "mdi-content-save-move-outline",
-		// 					tone: "primary",
-		// 					handler: "closeShift",
-		// 				}
-		// 			: null,
-		// 	];
-
-		// 	return actions.filter(Boolean);
-		// },
-		// quickActionRows() {
-		// 	return this.quickActions.map((action) => [action]);
-		// },
-		// settingsSections() {
-		// 	return [
-		// 		{
-		// 			id: "personal",
-		// 			title: __("Personal"),
-		// 			description: __("Cashier identity and appearance preferences."),
-		// 			actions: [
-		// 				{
-		// 					id: "language",
-		// 					label: __("Language"),
-		// 					subtitle: __("Change interface language"),
-		// 					icon: "mdi-translate",
-		// 					tone: "primary",
-		// 					handler: "openLanguageDialog",
-		// 				},
-		// 				{
-		// 					id: "theme",
-		// 					label: this.$theme.isDark.value ? __("Light Mode") : __("Dark Mode"),
-		// 					subtitle: __("Switch theme appearance"),
-		// 					icon: this.$theme.isDark.value
-		// 						? "mdi-white-balance-sunny"
-		// 						: "mdi-moon-waning-crescent",
-		// 					tone: "info",
-		// 					handler: "toggleThemeAction",
-		// 				},
-		// 			],
-		// 		},
-		// 		{
-		// 			id: "terminal",
-		// 			title: __("Terminal"),
-		// 			description: __("Customer-facing tools and printer setup."),
-		// 			actions: [
-		// 				this.isEnabledSetting(this.posProfile?.posa_enable_customer_display)
-		// 					? {
-		// 							id: "customer-display",
-		// 							label: __("Open Customer Display"),
-		// 							subtitle: __("Show cart on customer-facing screen"),
-		// 							icon: "mdi-monitor-eye",
-		// 							tone: "primary",
-		// 							handler: "openCustomerDisplay",
-		// 						}
-		// 					: null,
-		// 				// this.isEnabledSetting(this.posProfile?.posa_silent_print)
-		// 				// 	? {
-		// 				// 			id: "qz-tray-setup",
-		// 				// 			label: __("QZ Tray Setup"),
-		// 				// 			subtitle: __("Connect printer and manage certificate"),
-		// 				// 			icon: "mdi-printer-wireless",
-		// 				// 			tone: "primary",
-		// 				// 			handler: "openQzTraySetup",
-		// 				// 		}
-		// 				// 	: null,
-		// 			].filter(Boolean),
-		// 		},
-		// 		{
-		// 			id: "tools",
-		// 			title: __("Tools"),
-		// 			description: __("Updates and app info that stay out of the cashier flow."),
-		// 			actions: [
-		// 				{
-		// 					id: "check-for-updates",
-		// 					label: __("Check for Updates"),
-		// 					subtitle: __("Check for new commits"),
-		// 					icon: "mdi-update",
-		// 					tone: "info",
-		// 					handler: "checkForUpdatesAction",
-		// 					disabled: this.manualOffline || !this.networkOnline || !this.serverOnline,
-		// 				},
-		// 				{
-		// 					id: "about",
-		// 					label: __("About"),
-		// 					subtitle: __("App information"),
-		// 					icon: "mdi-information-outline",
-		// 					tone: "neutral",
-		// 					handler: "showAboutAction",
-		// 				},
-		// 			],
-		// 		},
-		// 		{
-		// 			id: "session",
-		// 			title: __("Session"),
-		// 			description: __("Sensitive actions kept away from quick taps."),
-		// 			danger: true,
-		// 			actions: [
-		// 				{
-		// 					id: "logout",
-		// 					label: __("Logout"),
-		// 					subtitle: __("Sign out of session"),
-		// 					icon: "mdi-logout",
-		// 					tone: "danger",
-		// 					handler: "logoutAction",
-		// 				},
-		// 			],
-		// 		},
-		// 	];
-		// },
-		// showSupervisorSection() {
-		// 	return Boolean(this.currentCashier?.is_supervisor);
-		// },
-		// supervisorSections() {
-		// 	if (!this.showSupervisorSection) {
-		// 		return [];
-		// 	}
-
-		// 	return [
-		// 		{
-		// 			id: "restricted",
-		// 			title: __("Supervisor Tools"),
-		// 			description: __("Restricted operational controls for supervisors only."),
-		// 			actions: [
-		// 				{
-		// 					id: "awesome-dashboard",
-		// 					label: __("Awesome Dashboard"),
-		// 					subtitle: __("View restricted POS insights"),
-		// 					icon: "mdi-view-dashboard-outline",
-		// 					tone: "primary",
-		// 					handler: "openDashboard",
-		// 				},
-		// 			],
-		// 		},
-		// 	];
-		// },
-		// settingsActionCount() {
-		// 	const count =
-		// 		this.settingsSections.reduce((total, section) => total + section.actions.length, 0) +
-		// 		this.supervisorSections.reduce((total, section) => total + section.actions.length, 0);
-		// 	return `${count} ${this.__("options")}`;
-		// },
 		quickActions() {
 			const actions = [
-				{
-					id: "switch-cashier",
-					label: __("Switch Cashier"),
-					subtitle: this.cashierName || __("Change terminal cashier"),
-					icon: "mdi-account-switch-outline",
-					tone: "primary",
-					handler: "openEmployeeSwitch",
-				},
-				{
-					id: "lock-screen",
-					label: __("Lock Screen"),
-					subtitle: __("Pause terminal until next cashier"),
-					icon: "mdi-lock-outline",
-					tone: "warning",
-					handler: "lockPos",
-				},
+				// {
+				// 	id: "switch-cashier",
+				// 	label: __("Switch Cashier"),
+				// 	subtitle: this.cashierName || __("Change terminal cashier"),
+				// 	icon: "mdi-account-switch-outline",
+				// 	tone: "primary",
+				// 	handler: "openEmployeeSwitch",
+				// },
+				// {
+				// 	id: "lock-screen",
+				// 	label: __("Lock Screen"),
+				// 	subtitle: __("Pause terminal until next cashier"),
+				// 	icon: "mdi-lock-outline",
+				// 	tone: "warning",
+				// 	handler: "lockPos",
+				// },
 				this.isEnabledSetting(this.posProfile?.posa_allow_print_last_invoice)
 					? {
 							id: "print-last-invoice",
@@ -720,6 +531,25 @@ export default {
 							handler: "printLastInvoiceAction",
 						}
 					: null,
+				this.isEnabledSetting(this.posProfile?.posa_enable_customer_display)
+					? {
+							id: "customer-display",
+							label: __("Open Customer Display"),
+							subtitle: __("Show cart on customer-facing screen"),
+							icon: "mdi-monitor-eye",
+							tone: "primary",
+							handler: "openCustomerDisplay",
+						}
+					: null,
+				{
+					id: "clear-cache",
+					label: __("Clear Cache"),
+					subtitle: __("Remove local data and refresh"),
+					icon: "mdi-delete-sweep-outline",
+					tone: "neutral",
+					handler: "clearCacheAction",
+					disabled: this.manualOffline || !this.networkOnline || !this.serverOnline,
+				},
 				{
 					id: "sync-offline-invoices",
 					label: __("Sync Offline Invoices"),
@@ -766,14 +596,14 @@ export default {
 					title: __("Personal"),
 					description: __("Cashier identity and appearance preferences."),
 					actions: [
-						{
-							id: "manage-cashier-pin",
-							label: __("Manage Cashier PIN"),
-							subtitle: this.currentCashierDisplay || __("Create or change your PIN"),
-							icon: "mdi-form-textbox-password",
-							tone: "secondary",
-							handler: "openPinDialogAction",
-						},
+						// {
+						// 	id: "manage-cashier-pin",
+						// 	label: __("Manage Cashier PIN"),
+						// 	subtitle: this.currentCashierDisplay || __("Create or change your PIN"),
+						// 	icon: "mdi-form-textbox-password",
+						// 	tone: "secondary",
+						// 	handler: "openPinDialogAction",
+						// },
 						{
 							id: "language",
 							label: __("Language"),
@@ -794,65 +624,48 @@ export default {
 						},
 					],
 				},
-				{
-					id: "terminal",
-					title: __("Terminal"),
-					description: __("Customer-facing tools and printer setup."),
-					actions: [
-						this.isEnabledSetting(this.posProfile?.posa_enable_customer_display)
-							? {
-									id: "customer-display",
-									label: __("Open Customer Display"),
-									subtitle: __("Show cart on customer-facing screen"),
-									icon: "mdi-monitor-eye",
-									tone: "primary",
-									handler: "openCustomerDisplay",
-								}
-							: null,
-						// this.isEnabledSetting(this.posProfile?.posa_silent_print)
-						// 	? {
-						// 			id: "qz-tray-setup",
-						// 			label: __("QZ Tray Setup"),
-						// 			subtitle: __("Connect printer and manage certificate"),
-						// 			icon: "mdi-printer-wireless",
-						// 			tone: "primary",
-						// 			handler: "openQzTraySetup",
-						// 		}
-						// 	: null,
-						{
-							id: "system-status",
-							label: __("System Status"),
-							subtitle: __("Check cache and performance"),
-							icon: "mdi-database-clock",
-							tone: "neutral",
-							handler: "refreshCacheUsage",
-						},
-					].filter(Boolean),
-				},
+				// {
+				// 	id: "terminal",
+				// 	title: __("Terminal"),
+				// 	description: __("Customer-facing tools and printer setup."),
+				// 	actions: [
+						
+				// 		// this.isEnabledSetting(this.posProfile?.posa_silent_print)
+				// 		// 	? {
+				// 		// 			id: "qz-tray-setup",
+				// 		// 			label: __("QZ Tray Setup"),
+				// 		// 			subtitle: __("Connect printer and manage certificate"),
+				// 		// 			icon: "mdi-printer-wireless",
+				// 		// 			tone: "primary",
+				// 		// 			handler: "openQzTraySetup",
+				// 		// 		}
+				// 		// 	: null,
+				// 		{
+				// 			id: "system-status",
+				// 			label: __("System Status"),
+				// 			subtitle: __("Check cache and performance"),
+				// 			icon: "mdi-database-clock",
+				// 			tone: "neutral",
+				// 			handler: "refreshCacheUsage",
+				// 		},
+				// 	].filter(Boolean),
+				// },
 				{
 					id: "system",
 					title: __("System"),
 					description: __("Terminal controls and maintenance actions."),
 					actions: [
-						{
-							id: "toggle-offline",
-							label: this.manualOffline ? __("Go Online") : __("Go Offline"),
-							subtitle: this.manualOffline
-								? __("Disable offline mode")
-								: __("Work without server connection"),
-							icon: "mdi-wifi-off",
-							tone: "warning",
-							handler: "toggleOfflineAction",
-						},
-						{
-							id: "clear-cache",
-							label: __("Clear Cache"),
-							subtitle: __("Remove local data and refresh"),
-							icon: "mdi-delete-sweep-outline",
-							tone: "neutral",
-							handler: "clearCacheAction",
-							disabled: this.manualOffline || !this.networkOnline || !this.serverOnline,
-						},
+						// {
+						// 	id: "toggle-offline",
+						// 	label: this.manualOffline ? __("Go Online") : __("Go Offline"),
+						// 	subtitle: this.manualOffline
+						// 		? __("Disable offline mode")
+						// 		: __("Work without server connection"),
+						// 	icon: "mdi-wifi-off",
+						// 	tone: "warning",
+						// 	handler: "toggleOfflineAction",
+						// },
+						
 						{
 							id: "check-for-updates",
 							label: __("Check for Updates"),
