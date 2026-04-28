@@ -68,6 +68,17 @@
 					<v-icon start>mdi-check-circle-outline</v-icon>
 					<span>{{ __("Submit") }}</span>
 				</v-btn>
+
+				<v-btn
+					theme="dark"
+					@click="submitDialog(true)"
+					class="pos-action-btn submit-action-btn-print"
+					size="large"
+					elevation="2"
+				>
+					<v-icon start>mdi-check-circle-outline</v-icon>
+					<span>{{ __("Submit & Print") }}</span>
+				</v-btn>
 			</v-card-actions>
 		</v-card>
 	</v-dialog>
@@ -269,6 +280,10 @@ export default {
 }
 
 .submit-action-btn {
+	margin-left: 16px;
+}
+
+.submit-action-btn-print {
 	margin-left: 16px;
 }
 </style>
