@@ -661,12 +661,10 @@ function buildPrimaryWarningFromDecision(
 ): BootstrapPrimaryWarning {
 	if (validation.mode === "invalid") {
 		return {
-			active: true,
-			title: "Offline restore is unavailable for this session.",
-			messages: [
-				"Cached opening shift belongs to another user and cannot be restored offline.",
-			],
-			severity: "error",
+			active: false,
+			title: "",
+			messages: [],
+			severity: "info",
 			capabilityId: "session_mismatch",
 		};
 	}
