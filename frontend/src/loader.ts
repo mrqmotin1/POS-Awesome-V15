@@ -12,11 +12,7 @@ const getBundlePath = (version: string) =>
 	`/assets/posawesome/dist/js/posawesome.js?v=${encodeURIComponent(version)}`;
 
 function recordPendingBundleActivation(version: string) {
-	if (
-		typeof window === "undefined" ||
-		!window.sessionStorage ||
-		!version
-	) {
+	if (typeof window === "undefined" || !version) {
 		return;
 	}
 	try {

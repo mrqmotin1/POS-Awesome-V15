@@ -356,8 +356,27 @@ function normalizeAdditionalDiscountDisplay(value) {
 	return value;
 }
 
+function normalizeAdditionalDiscountInput(value) {
+	if (
+		props.return_discount_meta &&
+		!props.pos_profile?.posa_use_percentage_discount
+	) {
+		const numericValue = Number(value);
+		if (Number.isFinite(numericValue)) {
+			const originalStoredValue = Number(props.additional_discount);
+			const sign = Math.sign(
+				Number.isFinite(originalStoredValue) && originalStoredValue !== 0
+					? originalStoredValue
+					: -1,
+			);
+			return sign * Math.abs(numericValue);
+		}
+	}
+	return value;
+}
+
 function handleAdditionalDiscountUpdate(value) {
-	emit("update:additional_discount", value);
+	emit("update:additional_discount", normalizeAdditionalDiscountInput(value));
 }
 
 function handleAdditionalDiscountFocus() {

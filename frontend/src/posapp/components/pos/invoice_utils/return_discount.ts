@@ -47,13 +47,13 @@ export function syncReturnDiscountProration(context: any, logLabel?: string) {
 	}
 
 	const current = Number(context.additional_discount || 0);
+	context.discount_amount = proration.prorated;
+	context.additional_discount_percentage = 0;
 	if (Math.abs(current - proration.prorated) > 0.0001) {
 		if (logLabel) {
 			console.log(logLabel, proration);
 		}
 		context.additional_discount = proration.prorated;
-		context.discount_amount = proration.prorated;
-		context.additional_discount_percentage = 0;
 	}
 
 	return proration;

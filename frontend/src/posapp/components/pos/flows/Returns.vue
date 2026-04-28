@@ -784,11 +784,18 @@ export default {
 				invoice_doc.customer = return_doc.customer;
 				invoice_doc.discount_amount = return_doc.discount_amount;
 				invoice_doc.additional_discount_percentage = return_doc.additional_discount_percentage;
+				const normalizeRefundAmount = (value) => {
+					const amount = this.flt(value || 0, this.currency_precision);
+					return amount ? -Math.abs(amount) : 0;
+				};
 				invoice_doc.payments = Array.isArray(return_doc.payments)
 					? return_doc.payments.map((payment) => ({
 							mode_of_payment: payment.mode_of_payment,
-							amount: payment.amount,
-							base_amount: payment.base_amount,
+							amount: normalizeRefundAmount(payment.amount),
+							base_amount:
+								payment.base_amount !== undefined
+									? normalizeRefundAmount(payment.base_amount)
+									: payment.base_amount,
 							default: payment.default,
 							account: payment.account,
 							type: payment.type,

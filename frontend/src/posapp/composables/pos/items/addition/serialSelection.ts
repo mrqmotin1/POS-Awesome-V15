@@ -14,7 +14,10 @@ export function collectUsedSerialsForItem(item: any, context: any) {
 			return;
 		}
 
-		if (Array.isArray(line.serial_no_selected)) {
+		if (
+			Array.isArray(line.serial_no_selected) &&
+			line.serial_no_selected.length > 0
+		) {
 			line.serial_no_selected.forEach((serial: any) => {
 				const normalized = String(serial || "").trim();
 				if (normalized) used.add(normalized);

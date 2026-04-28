@@ -36,4 +36,21 @@ describe("normalizeInvoiceStockAdjustmentPayload", () => {
 			"ITEM-5",
 		]);
 	});
+
+	it("rejects non-code values and non-numeric quantities", () => {
+		const result = normalizeInvoiceStockAdjustmentPayload({
+			items: [
+				{ item_code: true, actual_qty: 5 },
+				{ item_code: { code: "ITEM-OBJECT" }, actual_qty: 5 },
+				{ item_code: "ITEM-1", actual_qty: "" },
+				{ item_code: "ITEM-2", actual_qty: false },
+				{ item_code: 123, actual_qty: "7" },
+			],
+			item_codes: [false, { item_code: "ITEM-OBJECT" }, "", "ITEM-3"],
+			item_code: true,
+		});
+
+		expect(result.baseEntries).toEqual([{ item_code: "123", actual_qty: 7 }]);
+		expect(result.codes).toEqual(["ITEM-1", "ITEM-2", "123", "ITEM-OBJECT", "ITEM-3"]);
+	});
 });

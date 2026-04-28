@@ -12,6 +12,10 @@ class AttrDict(dict):
 
 
 def _install_stubs():
+    original_modules = {
+        "frappe": sys.modules.get("frappe"),
+        "frappe.utils": sys.modules.get("frappe.utils"),
+    }
     frappe_module = types.ModuleType("frappe")
     frappe_module.whitelist = lambda *args, **kwargs: (lambda fn: fn)
     frappe_module.DoesNotExistError = Exception
@@ -25,6 +29,15 @@ def _install_stubs():
     frappe_utils.cstr = str
     frappe_utils.flt = float
     sys.modules["frappe.utils"] = frappe_utils
+    return original_modules
+
+
+def _restore_modules(original_modules):
+    for module_name, original in original_modules.items():
+        if original is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = original
 
 
 def _load_module():
@@ -47,8 +60,12 @@ def _load_module():
 class TestBarcodeProcessing(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        _install_stubs()
+        cls.original_modules = _install_stubs()
         cls.module = _load_module()
+
+    @classmethod
+    def tearDownClass(cls):
+        _restore_modules(cls.original_modules)
 
     def test_get_items_from_barcode_uses_standard_uom_when_posa_uom_empty(self):
         calls = []

@@ -110,4 +110,34 @@ describe("buildLoadItemsRequest", () => {
 		expect(request.args.limit).toBe(60);
 		expect(resolvePageSize).toHaveBeenCalledTimes(1);
 	});
+
+	it("trims whitespace-only group and search values before resolving bootstrap state", () => {
+		const resolvePageSize = vi.fn(() => 60);
+
+		const request = buildLoadItemsRequest({
+			options: {
+				groupFilter: "   ",
+				searchValue: "   ",
+			},
+			posProfile: {
+				name: "POS-1",
+				warehouse: "Main WH",
+				selling_price_list: "Retail",
+				currency: "PKR",
+				item_groups: [],
+			} as any,
+			activePriceList: "Retail",
+			customer: null,
+			itemCount: 0,
+			totalItemCount: 0,
+			limitSearchEnabled: false,
+			resolvePageSize,
+			resolveLimitSearchSize: vi.fn(() => 25),
+		});
+
+		expect(request.searchValue).toBe("");
+		expect(request.normalizedGroup).toBe("ALL");
+		expect(request.isInitialBootstrapRequest).toBe(true);
+		expect(request.args?.search_value).toBe("");
+	});
 });

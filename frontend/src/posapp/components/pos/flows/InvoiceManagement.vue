@@ -887,6 +887,7 @@
 </template>
 
 <script>
+/* global __ */
 import { inject, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
@@ -1842,6 +1843,8 @@ export default {
 						typeof this.resolveSupervisorProfileScope === "function"
 							? this.resolveSupervisorProfileScope()
 							: null,
+					resolveCashierProfileScope: () => this.posProfile?.name || null,
+					resolveCashierScope: () => this.currentCashier?.user || null,
 				});
 				this.draftRecordsBySource = {
 					...this.draftRecordsBySource,

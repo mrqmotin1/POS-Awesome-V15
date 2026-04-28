@@ -335,6 +335,21 @@ export default {
 			}
 			return value;
 		};
+		const normalizeAdditionalDiscountInput = (value) => {
+			if (showUnsignedReturnDiscount.value) {
+				const numericValue = Number(value);
+				if (Number.isFinite(numericValue)) {
+					const originalStoredValue = Number(additionalDiscount.value);
+					const sign = Math.sign(
+						Number.isFinite(originalStoredValue) && originalStoredValue !== 0
+							? originalStoredValue
+							: -1,
+					);
+					return sign * Math.abs(numericValue);
+				}
+			}
+			return value;
+		};
 		const additionalDiscountDisplay = ref(
 			normalizeAdditionalDiscountDisplay(additionalDiscount.value),
 		);
@@ -448,7 +463,7 @@ export default {
 			};
 		});
 		const handleAdditionalDiscountUpdate = (value) => {
-			invoiceStore.setAdditionalDiscount(value);
+			invoiceStore.setAdditionalDiscount(normalizeAdditionalDiscountInput(value));
 		};
 		const handleAdditionalDiscountFocus = () => {
 			isEditingAdditionalDiscount.value = true;

@@ -393,7 +393,10 @@ def commit_document_flow_action(
     if action == "quote_submit":
         submit_payload = payload
         if isinstance(submit_payload, str) and submit_payload.strip():
-            submit_payload = json.loads(submit_payload)
+            try:
+                submit_payload = json.loads(submit_payload)
+            except json.JSONDecodeError:
+                frappe.throw(_("Invalid JSON payload"))
         elif not isinstance(submit_payload, dict):
             submit_payload = source_payload
         submit_payload.setdefault("name", source_name)
@@ -407,11 +410,14 @@ def commit_document_flow_action(
         }
 
     if action == "order_to_delivery_note":
+        if not frappe.has_permission("Delivery Note", "create"):
+            frappe.throw(_("You are not allowed to create Delivery Notes"), frappe.PermissionError)
         mapping_functions = _get_mapping_functions()
         delivery_note = mapping_functions[action](source_name)
-        delivery_note.flags.ignore_permissions = True
-        frappe.flags.ignore_account_permission = True
-        delivery_note.save()
+        try:
+            delivery_note.save(ignore_permissions=True)
+        except TypeError:
+            delivery_note.save()
         if cint(delivery_note.docstatus) == 0:
             delivery_note.submit()
         delivery_payload = _as_dict(delivery_note)

@@ -63,6 +63,8 @@ type FetchSourceOptions = {
 	currentInvoiceDoctype?: string;
 	isSupervisorScope?: boolean;
 	resolveSupervisorProfileScope?: (() => string | null) | null;
+	resolveCashierProfileScope?: (() => string | null) | null;
+	resolveCashierScope?: (() => string | null) | null;
 	search?: string;
 };
 
@@ -382,6 +384,8 @@ export async function fetchDocumentSourceRecords(
 		currentInvoiceDoctype = "Sales Invoice",
 		isSupervisorScope = false,
 		resolveSupervisorProfileScope = null,
+		resolveCashierProfileScope = null,
+		resolveCashierScope = null,
 		search = "",
 	} = options;
 
@@ -400,8 +404,13 @@ export async function fetchDocumentSourceRecords(
 			pos_profile:
 				isSupervisorScope && typeof resolveSupervisorProfileScope === "function"
 					? resolveSupervisorProfileScope()
+					: typeof resolveCashierProfileScope === "function"
+						? resolveCashierProfileScope()
+						: posProfile?.name || null,
+			cashier:
+				!isSupervisorScope && typeof resolveCashierScope === "function"
+					? resolveCashierScope()
 					: null,
-			cashier: null,
 			is_supervisor: isSupervisorScope ? 1 : 0,
 			search: search || undefined,
 			include_draft: 1,

@@ -17,7 +17,23 @@ export function useItemsSelectorQuantity({
 			return hideQtyDecimals.value ? Math.round(qty.value) : qty.value;
 		},
 		set(value: unknown) {
-			let parsed: number | null = parseFloat(String(value).replace(/,/g, ""));
+			const rawValue = String(value ?? "").trim();
+			const lastDot = rawValue.lastIndexOf(".");
+			const lastComma = rawValue.lastIndexOf(",");
+			const decimalSeparator =
+				lastDot >= 0 || lastComma >= 0
+					? lastDot > lastComma
+						? "."
+						: ","
+					: "";
+			let normalized = rawValue;
+			if (decimalSeparator) {
+				const groupingSeparator = decimalSeparator === "." ? "," : ".";
+				normalized = normalized
+					.replace(new RegExp(`\\${groupingSeparator}`, "g"), "")
+					.replace(decimalSeparator, ".");
+			}
+			let parsed: number | null = parseFloat(normalized);
 			if (Number.isNaN(parsed)) parsed = null;
 			if (hideQtyDecimals.value && parsed != null) parsed = Math.round(parsed);
 			qty.value = parsed;

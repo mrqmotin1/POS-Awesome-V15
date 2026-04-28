@@ -26,6 +26,7 @@ describe("process_invoice return discount proration", () => {
 
 	afterEach(() => {
 		vi.restoreAllMocks();
+		delete (globalThis as any).flt;
 	});
 
 	it("syncs stale return additional discount to the prorated amount before payment", async () => {

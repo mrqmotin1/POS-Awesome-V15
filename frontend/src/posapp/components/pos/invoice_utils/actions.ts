@@ -268,11 +268,21 @@ export async function new_order(context: any, data: any = {}) {
 			context.pos_profile?.posa_use_percentage_discount
 		) {
 			context.additional_discount_percentage = -Math.abs(
-				Number.parseFloat(data.additional_discount_percentage),
+				context.flt
+					? context.flt(
+							Number.parseFloat(data.additional_discount_percentage),
+							context.float_precision,
+						)
+					: Number.parseFloat(data.additional_discount_percentage),
 			);
 		} else {
 			context.additional_discount_percentage =
-				data.additional_discount_percentage;
+				context.flt
+					? context.flt(
+							data.additional_discount_percentage,
+							context.float_precision,
+						)
+					: data.additional_discount_percentage;
 		}
 
 		context.items.forEach((item) => {
@@ -309,10 +319,16 @@ export async function get_invoice_from_order_doc(context: any) {
 				? "POS Invoice"
 				: "Sales Invoice",
 		});
-		doc = prepared?.prepared_doc || {};
+		doc = prepared?.prepared_doc || context.invoice_doc;
 	} else {
 		doc = context.invoice_doc;
 	}
+	doc = doc || {};
+	doc.items = Array.isArray(doc.items)
+		? doc.items
+		: Array.isArray(context.invoice_doc?.items)
+			? context.invoice_doc.items
+			: [];
 	const items: any[] = [];
 	const updatedItemsData: any[] = get_invoice_items(context);
 	doc.items.forEach((item) => {

@@ -29,6 +29,10 @@ def load_offline_sync_common():
 		/ "offline_sync"
 		/ "common.py",
 	)
+	if spec is None:
+		raise ImportError("Unable to load posawesome.posawesome.api.offline_sync.common")
+	if spec.loader is None:
+		raise ImportError("Missing loader for posawesome.posawesome.api.offline_sync.common")
 	module = importlib.util.module_from_spec(spec)
 	sys.modules["posawesome.posawesome.api.offline_sync.common"] = module
 	spec.loader.exec_module(module)

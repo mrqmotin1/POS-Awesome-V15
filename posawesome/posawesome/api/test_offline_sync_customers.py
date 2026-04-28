@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import pathlib
 import sys
 import types
@@ -30,6 +31,7 @@ def _install_stubs():
 	frappe_module._ = lambda text: text
 	frappe_module.throw = lambda message: (_ for _ in ()).throw(Exception(message))
 	frappe_module.whitelist = lambda *args, **kwargs: (lambda fn: fn)
+	frappe_module.DoesNotExistError = Exception
 	frappe_module.get_cached_doc = lambda doctype, name: AttrDict(
 		{
 			"name": name,
@@ -66,28 +68,34 @@ def _install_stubs():
 
 	customers_module = types.ModuleType("posawesome.posawesome.api.customers")
 	customers_module.get_customer_groups = lambda pos_profile: ["Retail"]
-	customers_module.get_customer_names = (
-		lambda pos_profile, limit=None, offset=None, start_after=None, modified_after=None: [
+	def fake_get_customer_names(pos_profile, limit=None, offset=None, start_after=None, modified_after=None):
+		decoded_profile = json.loads(pos_profile)
+		profile_id = decoded_profile.get("name") if isinstance(decoded_profile, dict) else None
+		return [
 			{
 				"name": "CUST-001",
 				"customer_name": "Alpha Customer",
 				"mobile_no": "123",
 				"modified": "2026-04-09T10:04:00",
+				"pos_profile_id": profile_id,
 			},
 			{
 				"name": "CUST-002",
 				"customer_name": "Beta Customer",
 				"mobile_no": "456",
 				"modified": "2026-04-09T10:05:00",
+				"pos_profile_id": profile_id,
 			},
 			{
 				"name": "CUST-003",
 				"customer_name": "Gamma Customer",
 				"mobile_no": "789",
 				"modified": "2026-04-09T10:06:00",
+				"pos_profile_id": profile_id,
 			},
 		][:limit]
-	)
+
+	customers_module.get_customer_names = fake_get_customer_names
 	sys.modules["posawesome.posawesome.api.customers"] = customers_module
 
 
@@ -109,7 +117,7 @@ def _load_module():
 
 
 def _load_common_module():
-	return load_offline_sync_common()
+	return sys.modules["posawesome.posawesome.api.offline_sync.common"]
 
 
 class TestOfflineSyncCustomers(unittest.TestCase):
@@ -162,6 +170,7 @@ class TestOfflineSyncCustomers(unittest.TestCase):
 		)
 
 		self.assertEqual(response["changes"][0]["key"], "customer::CUST-001")
+		self.assertEqual(response["changes"][0]["data"]["pos_profile_id"], "POS-TEST")
 
 	def test_common_module_normalize_timestamp_matches_customers_behavior(self):
 		common = _load_common_module()

@@ -467,6 +467,22 @@ def _resolve_payment_amounts(payment, conversion_rate=1):
     return amount, base_amount
 
 
+def _normalize_return_payment_rows(invoice_doc, conversion_rate=1):
+    if not invoice_doc.is_return:
+        return
+
+    for payment in invoice_doc.payments or []:
+        resolved_amount, resolved_base_amount = _resolve_payment_amounts(
+            payment,
+            invoice_doc.get("conversion_rate") or conversion_rate,
+        )
+        payment.amount = -abs(resolved_amount)
+        payment.base_amount = -abs(resolved_base_amount)
+
+    invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments or []))
+    invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments or []))
+
+
 @frappe.whitelist()
 def update_invoice(data):
     currency_cache = {}
@@ -676,18 +692,7 @@ def update_invoice(data):
             else:
                 tax.included_in_print_rate = 1 if inclusive else 0
 
-    # For return invoices, payments should be negative amounts
-    if invoice_doc.is_return:
-        for payment in invoice_doc.payments:
-            resolved_amount, resolved_base_amount = _resolve_payment_amounts(
-                payment,
-                invoice_doc.get("conversion_rate") or conversion_rate,
-            )
-            payment.amount = -abs(resolved_amount)
-            payment.base_amount = -abs(resolved_base_amount)
-
-        invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
-        invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
+    _normalize_return_payment_rows(invoice_doc, conversion_rate)
 
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True
@@ -831,6 +836,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
                 is_payment_entry = 1
 
     _apply_invoice_gift_card_settlement(invoice_doc, data)
+    _normalize_return_payment_rows(invoice_doc, invoice_doc.get("conversion_rate") or 1)
 
     payments = [
         row
@@ -852,6 +858,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
     frappe.flags.ignore_account_permission = True
     invoice_doc.posa_is_printed = 1
     invoice_doc = _save_draft_with_latest_timestamp(invoice_doc)
+    _normalize_return_payment_rows(invoice_doc, invoice_doc.get("conversion_rate") or 1)
 
     if data.get("due_date"):
         frappe.db.set_value(
@@ -944,8 +951,10 @@ def submit_in_background_job(kwargs):
                 invoice_doc.loyalty_redemption_cost_center = invoice_doc.cost_center
 
         _apply_invoice_gift_card_settlement(invoice_doc, data)
+        _normalize_return_payment_rows(invoice_doc, invoice_doc.get("conversion_rate") or 1)
 
         invoice_doc = _save_draft_with_latest_timestamp(invoice_doc)
+        _normalize_return_payment_rows(invoice_doc, invoice_doc.get("conversion_rate") or 1)
 
         invoice_doc.submit()
         if hasattr(frappe, "publish_realtime"):

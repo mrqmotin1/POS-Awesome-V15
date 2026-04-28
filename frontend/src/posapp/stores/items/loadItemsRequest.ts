@@ -45,15 +45,17 @@ export const buildLoadItemsRequest = ({
 }: BuildLoadItemsRequestInput): BuiltLoadItemsRequest => {
 	const {
 		forceServer = false,
-		searchValue = "",
+		searchValue: rawSearchValue = "",
 		groupFilter = "ALL",
 		priceList = null,
 		limit = null,
 	} = options;
 
+	const searchValue =
+		typeof rawSearchValue === "string" ? rawSearchValue.trim() : "";
 	const normalizedGroup =
-		typeof groupFilter === "string" && groupFilter.length > 0
-			? groupFilter
+		typeof groupFilter === "string" && groupFilter.trim().length > 0
+			? groupFilter.trim()
 			: "ALL";
 
 	const isInitialBootstrapRequest =

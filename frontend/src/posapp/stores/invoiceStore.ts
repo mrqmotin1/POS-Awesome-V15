@@ -650,8 +650,8 @@ export const useInvoiceStore = defineStore("invoice", () => {
 			flowContext.value = null;
 		},
 		triggerLoadFlow: (flow: any) => {
-			flowToLoad.value = flow;
 			flowContext.value = flow?.flow_context || null;
+			flowToLoad.value = flow?.prepared_doc || flow;
 		},
 		// Exposed sticky fields
 		discountAmount,

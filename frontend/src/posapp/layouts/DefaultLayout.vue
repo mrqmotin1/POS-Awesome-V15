@@ -888,14 +888,14 @@ const setupEventListeners = () => {
 
 				if (navigator.onLine && !getIsManualOffline()) {
 					refreshTaxInclusiveSetting();
-					void ensureCustomersReady({
-						profile: newProfile,
-						online: navigator.onLine,
-						manualOffline: getIsManualOffline(),
-						setProfile: customersStore.setPosProfile,
-						load: customersStore.get_customer_names,
-					});
 				}
+				void ensureCustomersReady({
+					profile: newProfile,
+					online: navigator.onLine,
+					manualOffline: getIsManualOffline(),
+					setProfile: customersStore.setPosProfile,
+					load: customersStore.get_customer_names,
+				});
 			}
 		},
 		{ deep: true, immediate: true },

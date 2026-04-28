@@ -105,10 +105,11 @@ describe("InvoiceTotals", () => {
 		expect(itemDiscountField.find(".v-icon-stub").text()).toContain(
 			"mdi-information-outline",
 		);
-		expect(wrapper.find(".v-tooltip-stub").attributes("data-tooltip")).toContain(
+		const itemDiscountTooltip = itemDiscountField.find(".v-tooltip-stub");
+		expect(itemDiscountTooltip.attributes("data-tooltip")).toContain(
 			"Item and rate discounts are already included in item rates and Net Total.",
 		);
-		expect(wrapper.find(".v-tooltip-stub").attributes("data-tooltip")).toContain(
+		expect(itemDiscountTooltip.attributes("data-tooltip")).toContain(
 			"Additional Discount is the separate invoice-level discount.",
 		);
 	});

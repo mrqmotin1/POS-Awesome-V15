@@ -635,6 +635,69 @@ describe("usePaymentSubmission", () => {
 		);
 	});
 
+	it("normalizes return payment rows before submit even when cashback is disabled", async () => {
+		const invoiceService =
+			(await import("../src/posapp/services/invoiceService")).default;
+		(invoiceService.submitInvoice as any).mockResolvedValue({
+			name: "ACC-SINV-RETURN-0001",
+			doctype: "Sales Invoice",
+			docstatus: 1,
+		});
+
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-RETURN-0001",
+			doctype: "Sales Invoice",
+			is_return: 1,
+			items: [{ item_code: "ITEM-1", qty: -1 }],
+			payments: [
+				{
+					mode_of_payment: "Cash",
+					amount: 90,
+					base_amount: 90,
+					type: "Cash",
+				},
+			],
+			rounded_total: -90,
+			grand_total: -90,
+		});
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 0,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Return"),
+			formatFloat: (value) => Number(value || 0),
+			stores: {
+				toastStore: { show: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(false),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			diff_payment: ref(0),
+		});
+
+		await submitInvoice(false, {
+			onFinishNavigation: vi.fn(),
+		});
+
+		const [, submittedDoc] = (invoiceService.submitInvoice as any).mock.calls[0];
+		expect(submittedDoc.payments).toEqual([
+			expect.objectContaining({
+				mode_of_payment: "Cash",
+				amount: -90,
+				base_amount: -90,
+			}),
+		]);
+	});
+
 	it("allows gift card submission when no gift card mode of payment is configured", async () => {
 		const invoiceService =
 			(await import("../src/posapp/services/invoiceService")).default;

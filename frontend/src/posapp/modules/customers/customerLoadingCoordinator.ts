@@ -8,7 +8,7 @@ type EnsureCustomersReadyArgs = {
 	online: boolean;
 	manualOffline: boolean;
 	force?: boolean;
-	setProfile: (_profile: CustomerProfile) => void;
+	setProfile: (_profile: CustomerProfile | null) => void;
 	load: () => Promise<void>;
 };
 
@@ -39,6 +39,7 @@ export async function ensureCustomersReady({
 }: EnsureCustomersReadyArgs) {
 	const loadKey = getCustomerLoadKey(profile);
 	if (!loadKey) {
+		setProfile(null);
 		return false;
 	}
 
@@ -48,21 +49,24 @@ export async function ensureCustomersReady({
 		return false;
 	}
 
+	if (force) {
+		completedLoads.delete(loadKey);
+	}
+
 	if (!force && completedLoads.has(loadKey)) {
 		return false;
 	}
 
-	if (!force) {
-		const inflight = inflightLoads.get(loadKey);
-		if (inflight) {
-			await inflight;
-			return true;
-		}
+	const inflight = inflightLoads.get(loadKey);
+	if (inflight) {
+		await inflight;
+		return true;
 	}
 
-	const loadPromise = Promise.resolve(load()).then(() => {
+	const loadPromise = (async () => {
+		await load();
 		completedLoads.add(loadKey);
-	});
+	})();
 
 	inflightLoads.set(loadKey, loadPromise);
 

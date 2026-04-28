@@ -776,22 +776,18 @@ export default {
 			const targetDoctype =
 				flow?.flow_context?.target_doctype || flow?.prepared_doc?.doctype || "";
 
-			this.load_invoice(flow.prepared_doc, { preserveStickies: true });
-
 			if (targetDoctype === "Quotation" || action === "quote_edit_draft") {
 				this.invoiceType = "Quotation";
 				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
-				return;
-			}
-
-			if (targetDoctype === "Sales Order" || action === "order_load" || action === "quote_to_order") {
+			} else if (targetDoctype === "Sales Order" || action === "order_load" || action === "quote_to_order") {
 				this.invoiceType = "Order";
 				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
-				return;
+			} else {
+				this.invoiceType = "Invoice";
+				this.invoiceTypes = ["Invoice", "Order", "Quotation"];
 			}
 
-			this.invoiceType = "Invoice";
-			this.invoiceTypes = ["Invoice", "Order", "Quotation"];
+			this.load_invoice(flow.prepared_doc, { preserveStickies: true });
 		},
 
 		calcProratedReturnDiscount(returnDoc) {
@@ -841,6 +837,24 @@ export default {
 			this.invoiceType = "Return";
 			this.invoiceTypes = ["Return"];
 			this.invoice_doc.is_return = 1;
+			if (Array.isArray(this.invoice_doc.payments)) {
+				this.invoice_doc.payments.forEach((payment) => {
+					const amount = this.flt(
+						payment.amount || 0,
+						this.currency_precision,
+					);
+					payment.amount = amount ? -Math.abs(amount) : 0;
+					if (payment.base_amount !== undefined) {
+						const baseAmount = this.flt(
+							payment.base_amount || 0,
+							this.currency_precision,
+						);
+						payment.base_amount = baseAmount
+							? -Math.abs(baseAmount)
+							: 0;
+					}
+				});
+			}
 			if (this.items && this.items.length) {
 				this.items.forEach((item) => {
 					if (item.qty > 0) item.qty = -Math.abs(item.qty);
@@ -882,7 +896,10 @@ export default {
 						undefined
 					) {
 						this.additional_discount_percentage =
-							data.return_doc.additional_discount_percentage || 0;
+							this.flt(
+								data.return_doc.additional_discount_percentage || 0,
+								this.float_precision,
+							);
 					}
 					this.update_discount_umount();
 				} else {
@@ -1015,6 +1032,12 @@ export default {
 			(flow) => {
 				if (flow?.prepared_doc) {
 					this.handleLoadFlow(flow);
+				} else if (flow) {
+					this.handleLoadFlow({
+						action: this.invoiceStore.flowContext?.prepared_action,
+						prepared_doc: flow,
+						flow_context: this.invoiceStore.flowContext,
+					});
 				}
 			},
 			{ deep: false },

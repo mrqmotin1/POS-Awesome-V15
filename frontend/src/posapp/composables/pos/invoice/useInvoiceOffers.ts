@@ -995,6 +995,7 @@ export function useInvoiceOffers() {
 								row_id != item_to_remove.posa_row_id,
 						);
 						offer.items = updated_item_offers;
+						existOffer.items = JSON.stringify(parseArrayField(offer.items));
 
 						const isItem = invoiceStore.itemsData.has(
 							item_to_remove.posa_row_id,
