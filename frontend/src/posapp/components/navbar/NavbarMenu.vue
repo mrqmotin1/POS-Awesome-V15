@@ -512,22 +512,22 @@ export default {
 		},
 		quickActions() {
 			const actions = [
-				{
-					id: "switch-cashier",
-					label: __("Switch Cashier"),
-					subtitle: this.cashierName || __("Change terminal cashier"),
-					icon: "mdi-account-switch-outline",
-					tone: "primary",
-					handler: "openEmployeeSwitch",
-				},
-				{
-					id: "lock-screen",
-					label: __("Lock Screen"),
-					subtitle: __("Pause terminal until next cashier"),
-					icon: "mdi-lock-outline",
-					tone: "warning",
-					handler: "lockPos",
-				},
+				// {
+				// 	id: "switch-cashier",
+				// 	label: __("Switch Cashier"),
+				// 	subtitle: this.cashierName || __("Change terminal cashier"),
+				// 	icon: "mdi-account-switch-outline",
+				// 	tone: "primary",
+				// 	handler: "openEmployeeSwitch",
+				// },
+				// {
+				// 	id: "lock-screen",
+				// 	label: __("Lock Screen"),
+				// 	subtitle: __("Pause terminal until next cashier"),
+				// 	icon: "mdi-lock-outline",
+				// 	tone: "warning",
+				// 	handler: "lockPos",
+				// },
 				this.isEnabledSetting(this.posProfile?.posa_allow_print_last_invoice)
 					? {
 							id: "print-last-invoice",
