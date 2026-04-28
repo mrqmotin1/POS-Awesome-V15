@@ -215,12 +215,6 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		format.methods.formatFloat(val, resolveFloatPrecision(prec));
 
 	const shouldEnforceStockLimits = (item: any) => {
-		if (
-			pos_profile.value &&
-			!parseBooleanSetting(pos_profile.value.posa_validate_stock)
-		) {
-			return false;
-		}
 		if (item.is_stock_item === 0 || item.is_stock_item === false) {
 			if (item.is_bundle) {
 				const bundleChildren = invoiceStore.packedItems.filter(
@@ -280,6 +274,14 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 			(parseBooleanSetting(stock_settings.value?.allow_negative_stock) ||
 				parseBooleanSetting(item?.allow_negative_stock)) &&
 			!blockSaleBeyondAvailableQty.value;
+
+		if (enforceStockLimits) {
+			if (item._base_actual_qty !== undefined && item._base_actual_qty !== null) {
+				item.max_qty = flt(item._base_actual_qty / (item.conversion_factor || 1), null);
+			} else if (item.actual_qty !== undefined && item.actual_qty !== null) {
+				item.max_qty = flt(item.actual_qty / (item.conversion_factor || 1), null);
+			}
+		}
 
 		if (
 			enforceStockLimits &&
