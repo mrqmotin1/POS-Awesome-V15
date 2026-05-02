@@ -184,7 +184,28 @@ const OFFLINE_SYNC_SCHEMA_VERSION = "2026-04-09";
 const OFFLINE_SYNC_TIMER_INTERVAL_MS = 60_000;
 
 // Utils
-const { overlayVisible: globalLoading, getScopeState } = useLoading();
+const createFallbackLoadingScope = () =>
+	computed(() => ({
+		count: 0,
+		kind: "background",
+		blocking: false,
+		message: "",
+		progress: null,
+	}));
+
+const loadingApi = (() => {
+	try {
+		return typeof useLoading === "function" ? useLoading() : null;
+	} catch (error) {
+		console.warn("Falling back to inert POS loading state", error);
+		return null;
+	}
+})();
+const globalLoading = loadingApi?.overlayVisible || ref(false);
+const getScopeState =
+	typeof loadingApi?.getScopeState === "function"
+		? loadingApi.getScopeState
+		: createFallbackLoadingScope;
 const { get_closing_data } = usePosShift();
 const syncStore = useSyncStore();
 const customersStore = useCustomersStore();
