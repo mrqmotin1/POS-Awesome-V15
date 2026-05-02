@@ -76,7 +76,8 @@ module.exports = {
 		[
 			"@semantic-release/exec",
 			{
-				prepareCmd: "python scripts/update_version.py ${nextRelease.version} && yarn build && yarn electron:build:win",
+				prepareCmd:
+					"python scripts/update_version.py ${nextRelease.version} && yarn build && yarn verify:build && yarn electron:smoke && yarn electron:build:win && yarn electron:smoke --require-artifact",
 			},
 		],
 		[
@@ -90,7 +91,11 @@ module.exports = {
 		[
 			"@semantic-release/github",
 			{
-				assets: ["dist-electron/*.exe"],
+				assets: [
+					"dist-electron/*.exe",
+					"dist-electron/*.blockmap",
+					"posawesome/public/dist/js/checksums.sha256",
+				],
 			},
 		],
 	],

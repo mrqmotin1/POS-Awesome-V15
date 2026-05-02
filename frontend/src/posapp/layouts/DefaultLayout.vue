@@ -646,7 +646,7 @@ watch(
 		const shouldLift = shouldLiftBootstrapWarningStartupGate({
 			loadingActive: Boolean(isLoading),
 			initialBootstrapSettled: Boolean(isBootstrapSettled),
-			itemsStartupSyncSettled: Boolean(areItemsLoaded) && !Boolean(areItemsSyncing),
+			itemsStartupSyncSettled: Boolean(areItemsLoaded) && !areItemsSyncing,
 			startupGateLifted: startupBootstrapWarningsReady.value,
 		});
 
