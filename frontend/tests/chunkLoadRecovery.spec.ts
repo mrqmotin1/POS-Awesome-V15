@@ -7,6 +7,7 @@ import {
 	isDynamicImportFailure,
 	recoverFromChunkLoadError,
 	scheduleAfterStableBoot,
+	scheduleChunkRecoveryStateReset,
 } from "../src/posapp/utils/chunkLoadRecovery";
 
 describe("chunk load recovery helpers", () => {
@@ -61,6 +62,59 @@ describe("chunk load recovery helpers", () => {
 		expect(
 			window.sessionStorage.getItem("posa_chunk_cache_recovery_once"),
 		).toBe("1");
+	});
+
+	it("keeps retry decisions bounded after the cache recovery path is used", async () => {
+		const chunkError = new TypeError(
+			"Failed to fetch dynamically imported module: /assets/chunk.js",
+		);
+
+		await recoverFromChunkLoadError(chunkError, "first-load");
+		clearChunkRecoveryState();
+		await recoverFromChunkLoadError(chunkError, "after-reload");
+		clearChunkRecoveryState();
+
+		const recovered = await recoverFromChunkLoadError(
+			chunkError,
+			"after-cache-recovery",
+		);
+		clearChunkRecoveryState();
+		const repeated = await recoverFromChunkLoadError(
+			chunkError,
+			"after-terminal",
+		);
+
+		expect(recovered).toBe(false);
+		expect(repeated).toBe(false);
+		expect(
+			window.sessionStorage.getItem("posa_chunk_recovery_terminal"),
+		).toBe("1");
+		expect(
+			window.sessionStorage.getItem("posa_chunk_reload_once"),
+		).toBe("1");
+		expect(
+			window.sessionStorage.getItem("posa_chunk_cache_recovery_once"),
+		).toBe("1");
+	});
+
+	it("does not clear retry decisions after stable boot", async () => {
+		vi.useFakeTimers();
+		window.sessionStorage.setItem("posa_chunk_reload_once", "1");
+		window.sessionStorage.setItem("posa_chunk_cache_recovery_once", "1");
+		window.sessionStorage.setItem("posa_chunk_recovery_in_progress", "1");
+
+		scheduleChunkRecoveryStateReset();
+		await vi.runAllTimersAsync();
+
+		expect(
+			window.sessionStorage.getItem("posa_chunk_reload_once"),
+		).toBe("1");
+		expect(
+			window.sessionStorage.getItem("posa_chunk_cache_recovery_once"),
+		).toBe("1");
+		expect(
+			window.sessionStorage.getItem("posa_chunk_recovery_in_progress"),
+		).toBeNull();
 	});
 
 	it("builds chunk recovery URLs against the current POS sub-route", () => {
