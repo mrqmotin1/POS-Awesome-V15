@@ -164,16 +164,29 @@ function ensureStylesheetLoaded(
 	document.head.appendChild(link);
 }
 
-export async function importPosAwesomeBundle(): Promise<BootAssetResult> {
+export async function importPosAwesomeBundle(
+	metadata: BuildMetadata | null = null,
+): Promise<BootAssetResult> {
 	const initialVersion = __BUILD_VERSION__;
+	const metadataVersion = extractBuildVersion(metadata);
+	const preferredVersion = metadataVersion || initialVersion;
+	const preferredUrl = resolveBuildAssetUrl(
+		metadata,
+		"posawesome",
+		"/assets/posawesome/dist/js/posawesome.js",
+		preferredVersion,
+	);
 	try {
 		const module = await import(
-			/* @vite-ignore */ getBundlePath(initialVersion)
+			/* @vite-ignore */ preferredUrl
 		);
-		return { ok: true, module, version: initialVersion };
+		if (preferredVersion && preferredVersion !== initialVersion) {
+			recordPendingBundleActivation(preferredVersion);
+		}
+		return { ok: true, module, version: preferredVersion };
 	} catch (firstError) {
 		const latestVersion = await fetchLatestBuildVersion();
-		if (latestVersion && latestVersion !== initialVersion) {
+		if (latestVersion && latestVersion !== preferredVersion) {
 			try {
 				const reloadedBundle = await import(
 					/* @vite-ignore */
@@ -223,7 +236,7 @@ async function loadPosAssets(
 	) {
 		return window.__posawesomeBundlePromise;
 	}
-	window.__posawesomeBundlePromise = importPosAwesomeBundle();
+	window.__posawesomeBundlePromise = importPosAwesomeBundle(metadata);
 	return window.__posawesomeBundlePromise;
 }
 
