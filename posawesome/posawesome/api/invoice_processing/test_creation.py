@@ -1586,6 +1586,78 @@ class TestInvoiceIdempotency(unittest.TestCase):
         self.assertEqual(invoice_doc.docstatus, 1)
         self.assertEqual(ledger_doc.state, "POST_SUBMIT_DONE")
 
+    def test_background_submit_marks_ledger_failed_when_post_submit_work_crashes(self):
+        ledger_doc = FakeDoc(
+            doctype="POS Invoice Submission Ledger",
+            name="ledger-background-failed-001",
+            ledger_key="ledger-background-failed-001",
+            client_request_id="ledger-background-failed-001",
+            company="Test Company",
+            pos_profile="Main POS",
+            document_type="Sales Invoice",
+            invoice_name="ACC-SINV-BG-FAIL-0001",
+            state="DRAFT_CREATED",
+            request_data=json.dumps({}),
+            payment_context=json.dumps({}),
+            error_message=None,
+        )
+        ledger_doc.save = lambda ignore_permissions=False: ledger_doc
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-BG-FAIL-0001",
+            docstatus=0,
+            pos_profile="Main POS",
+            company="Test Company",
+            currency="USD",
+            customer="CUST-0001",
+            is_return=0,
+            items=[],
+            payments=[],
+            taxes=[],
+            flags=types.SimpleNamespace(ignore_permissions=False),
+            redeem_loyalty_points=0,
+            loyalty_program=None,
+            cost_center=None,
+            write_off_amount=0,
+            rounded_total=0,
+            grand_total=0,
+            remarks="",
+        )
+        invoice_doc.submit = lambda: setattr(invoice_doc, "docstatus", 1)
+
+        def fake_get_doc(doctype, name):
+            if doctype == "POS Invoice Submission Ledger":
+                return ledger_doc
+            if doctype == "Sales Invoice":
+                return invoice_doc
+            raise AssertionError(f"unexpected get_doc call: {(doctype, name)}")
+
+        self.creation.frappe.get_doc = fake_get_doc
+        self.creation.frappe.db.get_value = lambda *args, **kwargs: 0
+        self.creation._save_draft_with_latest_timestamp = lambda doc: doc
+        self.creation._apply_invoice_gift_card_settlement = lambda *args, **kwargs: None
+        self.creation._process_post_submit_payments = lambda *args, **kwargs: (
+            _ for _ in ()
+        ).throw(Exception("post submit failed"))
+
+        self.creation.submit_in_background_job(
+            {
+                "invoice": "ACC-SINV-BG-FAIL-0001",
+                "doctype": "Sales Invoice",
+                "data": {},
+                "is_payment_entry": 0,
+                "total_cash": 0,
+                "cash_account": None,
+                "payments": [],
+                "ledger_name": "ledger-background-failed-001",
+                "user": "cashier@example.com",
+            }
+        )
+
+        self.assertEqual(invoice_doc.docstatus, 1)
+        self.assertEqual(ledger_doc.state, "FAILED")
+        self.assertIn("post submit failed", ledger_doc.error_message)
+
 
 if __name__ == "__main__":
     unittest.main()

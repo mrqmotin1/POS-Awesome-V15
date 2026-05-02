@@ -19,6 +19,7 @@ type UseCustomerReadinessOptions = {
 
 export function useCustomerReadiness(options: UseCustomerReadinessOptions) {
 	let stopWatcher: (() => void) | null = null;
+	let lastReadyKey = "";
 
 	function start() {
 		if (stopWatcher) {
@@ -30,7 +31,11 @@ export function useCustomerReadiness(options: UseCustomerReadinessOptions) {
 				if (!newProfile?.name) {
 					return;
 				}
-				void options.onProfileReady?.(newProfile);
+				const readyKey = `${String(newProfile.name || "").trim()}::${String(newProfile.modified || "").trim()}`;
+				if (readyKey && readyKey !== lastReadyKey) {
+					lastReadyKey = readyKey;
+					void options.onProfileReady?.(newProfile);
+				}
 				void (
 					options.ensureCustomersReady || defaultEnsureCustomersReady
 				)({
@@ -51,6 +56,7 @@ export function useCustomerReadiness(options: UseCustomerReadinessOptions) {
 		}
 		stopWatcher();
 		stopWatcher = null;
+		lastReadyKey = "";
 	}
 
 	return {

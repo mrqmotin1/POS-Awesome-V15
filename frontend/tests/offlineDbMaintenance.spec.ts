@@ -6,9 +6,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	db,
+	checkDbHealth,
 	initPromise,
 	pruneOfflineStorage,
 	quickDbHealthCheck,
+	repairDbAfterFailedHealthCheck,
 	safeBulkPut,
 } from "../src/offline/index";
 
@@ -25,6 +27,8 @@ describe("offline IndexedDB maintenance", () => {
 			await db.table(table).clear();
 		}
 		vi.useRealTimers();
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+		vi.spyOn(console, "error").mockImplementation(() => {});
 	});
 
 	it("writes large batches through one bulkPut call", async () => {
@@ -131,6 +135,31 @@ describe("offline IndexedDB maintenance", () => {
 		const openSpy = vi.spyOn(db, "open").mockRejectedValue(new Error("open failed"));
 
 		await expect(quickDbHealthCheck()).resolves.toBe(false);
+
+		expect(openSpy).toHaveBeenCalledTimes(1);
+		isOpenSpy.mockRestore();
+		openSpy.mockRestore();
+	});
+
+	it("uses the controlled repair path after a failed IndexedDB health check", async () => {
+		const isOpenSpy = vi.spyOn(db, "isOpen").mockReturnValue(false);
+		const openSpy = vi
+			.spyOn(db, "open")
+			.mockRejectedValueOnce(new Error("open failed"))
+			.mockResolvedValueOnce(db);
+
+		await expect(checkDbHealth()).resolves.toBe(true);
+
+		expect(openSpy).toHaveBeenCalledTimes(2);
+		isOpenSpy.mockRestore();
+		openSpy.mockRestore();
+	});
+
+	it("allows callers to enter degraded mode when controlled repair cannot open the DB", async () => {
+		const isOpenSpy = vi.spyOn(db, "isOpen").mockReturnValue(false);
+		const openSpy = vi.spyOn(db, "open").mockRejectedValue(new Error("blocked"));
+
+		await expect(repairDbAfterFailedHealthCheck()).resolves.toBe(false);
 
 		expect(openSpy).toHaveBeenCalledTimes(1);
 		isOpenSpy.mockRestore();

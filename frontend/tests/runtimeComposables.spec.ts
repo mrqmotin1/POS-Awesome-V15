@@ -102,6 +102,30 @@ describe("runtime composable lifecycle ownership", () => {
 		expect(ensureCustomersReady).toHaveBeenCalledTimes(1);
 	});
 
+	it("deduplicates customer readiness side effects for the same profile revision", async () => {
+		const profile = ref<any>({ name: "P1", modified: "1" });
+		const ensureCustomersReady = vi.fn(async () => true);
+		const onProfileReady = vi.fn();
+		const runtime = useCustomerReadiness({
+			profile,
+			isOnline: () => true,
+			isManualOffline: () => false,
+			ensureCustomersReady,
+			setProfile: vi.fn(),
+			load: vi.fn(async () => undefined),
+			onProfileReady,
+		});
+
+		runtime.start();
+		await Promise.resolve();
+		profile.value = { name: "P1", modified: "1" };
+		await Promise.resolve();
+		runtime.stop();
+
+		expect(ensureCustomersReady).toHaveBeenCalledTimes(2);
+		expect(onProfileReady).toHaveBeenCalledTimes(1);
+	});
+
 	it("owns queue metrics cache refresh state without leaking timers", async () => {
 		const metrics = useQueueMetrics({
 			getCacheUsageEstimate: vi.fn(async () => ({
