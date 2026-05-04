@@ -280,6 +280,8 @@ const bootstrapSnackbarVisible = ref(false);
 const confirmedBootstrapDecisionKey = ref("");
 const initialBootstrapSyncSettled = ref(false);
 const startupBootstrapWarningsReady = ref(false);
+const startupOfflineWarmupInFlight = ref(false);
+const startupOfflineWarmupKey = ref("");
 let _sidebarObserver = null;
 let _navPollTimer = null;
 let removeBootstrapSnapshotListener = null;
@@ -537,6 +539,45 @@ function triggerOperatorRefreshSync(options = {}) {
 	return bootSync.triggerOperatorRefreshSync(options);
 }
 
+async function runStartupOfflineDataWarmup(reason = "startup") {
+	const profile = getOfflineSyncProfile();
+	if (
+		startupOfflineWarmupInFlight.value ||
+		!initialBootstrapSyncSettled.value ||
+		!profile?.name ||
+		getIsManualOffline() ||
+		!navigator.onLine
+	) {
+		return false;
+	}
+
+	const warmupKey = [
+		BUILD_VERSION || "",
+		profile.name || "",
+		profile.modified || "",
+		profile.selling_price_list || "",
+		profile.currency || "",
+		reason,
+	].join("::");
+	if (startupOfflineWarmupKey.value === warmupKey) {
+		return false;
+	}
+
+	startupOfflineWarmupInFlight.value = true;
+	try {
+		await triggerOperatorRefreshSync({ includeBootSync: true });
+		await refreshOfflinePricingRules();
+		evaluateBootstrapSnapshot({ allowPrompt: false });
+		startupOfflineWarmupKey.value = warmupKey;
+		return true;
+	} catch (error) {
+		console.error("Failed to warm offline data after startup", error);
+		return false;
+	} finally {
+		startupOfflineWarmupInFlight.value = false;
+	}
+}
+
 // Computed
 const routeLoadingState = getScopeState("route");
 const loadingActive = computed(() => loadingState.active || routeLoadingState.value.count > 0);
@@ -648,6 +689,38 @@ watch(
 			allowPrompt: getIsManualOffline() || !navigator.onLine,
 		});
 	},
+);
+
+watch(
+	() => [
+		initialBootstrapSyncSettled.value,
+		startupBootstrapWarningsReady.value,
+		networkOnline.value,
+		serverOnline.value,
+		serverConnecting.value,
+		posProfile.value?.name || null,
+		posProfile.value?.modified || null,
+		posProfile.value?.selling_price_list || null,
+		posProfile.value?.currency || null,
+	],
+	([
+		isInitialSyncSettled,
+		areWarningsReady,
+		isNetworkOnline,
+		isServerOnline,
+		isServerConnecting,
+	]) => {
+		if (
+			isInitialSyncSettled &&
+			areWarningsReady &&
+			isNetworkOnline &&
+			isServerOnline &&
+			!isServerConnecting
+		) {
+			void runStartupOfflineDataWarmup("post_load_online");
+		}
+	},
+	{ immediate: true },
 );
 
 watch(
@@ -836,6 +909,7 @@ const initializeData = async () => {
 	await refreshOfflinePricingRules();
 	evaluateBootstrapSnapshot({ allowPrompt: false });
 	initialBootstrapSyncSettled.value = true;
+	void runStartupOfflineDataWarmup("initial_load");
 
 	markSourceLoaded("init");
 };
