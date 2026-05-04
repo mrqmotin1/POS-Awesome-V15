@@ -423,7 +423,7 @@ const {
 	loading,
 	isBackgroundLoading,
 	loadProgress,
-	syncedItemsCount,
+	syncedItemsCount = ref(0),
 } = itemsIntegration;
 
 const displayedItems = computed(() => {

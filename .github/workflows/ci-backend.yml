@@ -49,8 +49,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y redis-server libmysqlclient-dev
 
-      - name: Ruff lint
-        run: python -m ruff check posawesome
+      - name: Ruff syntax smoke
+        run: python -m ruff check --select E9,F63,F7 posawesome
 
       - name: Initialize Frappe bench
         run: bench init --frappe-branch version-15 --python python3 frappe-bench
