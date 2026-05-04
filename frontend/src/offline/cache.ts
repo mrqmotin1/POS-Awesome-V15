@@ -1158,9 +1158,7 @@ export function savePricingRulesSnapshot(
 	persist("pricing_rules_last_sync");
 	persist("pricing_rules_stale_at");
 	refreshBootstrapSnapshotFromCacheState({
-		pricingSnapshotCount: Array.isArray(memory.pricing_rules_snapshot)
-			? memory.pricing_rules_snapshot.length
-			: 0,
+		pricingSnapshotCount: true,
 		pricingContext: memory.pricing_rules_context,
 	});
 }

@@ -95,6 +95,7 @@ import { useToastStore } from "../stores/toastStore.js";
 import { useUIStore } from "../stores/uiStore.js";
 import { useUpdateStore } from "../stores/updateStore.js";
 import { useItemsStore } from "../stores/itemsStore.js";
+import { usePricingRulesStore } from "../stores/pricingRulesStore";
 import { useOfflineSyncStore } from "../stores/offlineSyncStore";
 import { storeToRefs } from "pinia";
 import {
@@ -214,6 +215,7 @@ const offlineSyncStore = useOfflineSyncStore();
 const toastStore = useToastStore();
 const uiStore = useUIStore();
 const updateStore = useUpdateStore();
+const pricingRulesStore = usePricingRulesStore();
 
 // UI Store State
 const { posProfile, lastInvoiceId, posOpeningShift } = storeToRefs(uiStore);
@@ -326,6 +328,7 @@ const customerReadiness = useCustomerReadiness({
 		void scheduleBootCriticalWarmSync();
 		if (navigator.onLine && !getIsManualOffline()) {
 			void refreshTaxInclusiveSetting();
+			void refreshOfflinePricingRules();
 		}
 	},
 });
@@ -443,6 +446,32 @@ function getOfflineSyncProfile() {
 	return buildOfflineSyncProfile(getCurrentBootstrapProfile());
 }
 
+function buildDefaultPricingRulesContext() {
+	const profile = getCurrentBootstrapProfile();
+	return {
+		company: profile?.company || null,
+		price_list: profile?.selling_price_list || null,
+		currency: profile?.currency || null,
+		date: new Date().toISOString().slice(0, 10),
+	};
+}
+
+async function refreshOfflinePricingRules(options = {}) {
+	if (!canRunOfflineSync()) {
+		return false;
+	}
+
+	const context = buildDefaultPricingRulesContext();
+	if (!context.company || !context.price_list || !context.currency) {
+		return false;
+	}
+
+	await pricingRulesStore.ensureActiveRules(context, {
+		force: options.force === true,
+	});
+	return true;
+}
+
 function canRunOfflineSync() {
 	return !!(getOfflineSyncProfile()?.name && !getIsManualOffline() && navigator.onLine);
 }
@@ -494,7 +523,11 @@ function scheduleBootCriticalWarmSync() {
 }
 
 function triggerOnlineResumeSync() {
-	return bootSync.triggerOnlineResumeSync();
+	return bootSync.triggerOnlineResumeSync().then(async (result) => {
+		await refreshOfflinePricingRules();
+		evaluateBootstrapSnapshot({ allowPrompt: false });
+		return result;
+	});
 }
 
 function triggerOperatorRefreshSync(options = {}) {
@@ -555,7 +588,7 @@ const bootstrapRecoveryMessage = computed(() => {
 		return "";
 	}
 
-	return __("If the warning persists, open Status > Clear Cache.");
+	return __("If the warning persists, open Settings > Offline & Sync, then run Refresh Offline Data or Rebuild Offline Data.");
 });
 const bootstrapWarningTooltip = computed(() => {
 	if (!bootstrapWarningActive.value) {
@@ -795,6 +828,8 @@ const initializeData = async () => {
 		allowPrompt: manualOffline.value || !navigator.onLine,
 	});
 	await scheduleBootCriticalWarmSync();
+	await refreshOfflinePricingRules();
+	evaluateBootstrapSnapshot({ allowPrompt: false });
 	initialBootstrapSyncSettled.value = true;
 
 	markSourceLoaded("init");
@@ -878,6 +913,7 @@ const handleRefreshOfflineData = async () => {
 	if (!getIsManualOffline() && navigator.onLine) {
 		await handleRetryStatus();
 		await triggerOperatorRefreshSync();
+		await refreshOfflinePricingRules();
 		evaluateBootstrapSnapshot({ allowPrompt: false });
 	}
 	toastStore.show({
@@ -896,11 +932,12 @@ const handleRebuildOfflineData = async () => {
 	});
 	if (canRunOfflineSync()) {
 		await triggerOperatorRefreshSync({ includeBootSync: true });
+		await refreshOfflinePricingRules({ force: true });
 		evaluateBootstrapSnapshot({ allowPrompt: false });
 	}
 	toastStore.show({
 		title: __("Offline rebuild guidance"),
-		detail: __("If stale data remains, open Status > Clear Cache and reload this terminal online."),
+		detail: __("If stale data remains, open Settings > Offline & Sync and run Rebuild Offline Data again while online."),
 		color: "warning",
 	});
 };

@@ -146,7 +146,7 @@ export const usePricingRulesStore = defineStore("pricing-rules", () => {
 	const lastSyncedAt = ref<string | null>(null);
 	const staleAt = ref<string | null>(null);
 
-	const hasSnapshot = computed(() => rules.value.length > 0);
+	const hasSnapshot = computed(() => !!contextKey.value && !!lastSyncedAt.value);
 	const isStale = computed(() => {
 		if (!staleAt.value) return false;
 		const ts = new Date(staleAt.value).getTime();
