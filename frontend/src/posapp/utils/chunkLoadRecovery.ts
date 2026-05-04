@@ -8,6 +8,8 @@ const CHUNK_RECOVERY_TERMINAL_KEY = "posa_chunk_recovery_terminal";
 const CHUNK_RECOVERY_STABLE_DELAY_MS = 3000;
 const CHUNK_RELOAD_PARAM = "_posa_chunk_reload";
 const CHUNK_CACHE_RECOVERY_PARAM = "_posa_chunk_cache_recovery";
+const LAST_RECOVERY_TS_KEY = "posa_last_chunk_recovery_ts";
+const RECOVERY_COOLDOWN_MS = 60_000;
 
 function normalizeErrorText(error: unknown): string {
 	const message =
@@ -29,6 +31,24 @@ export function isDynamicImportFailure(error: unknown): boolean {
 		(message.includes("requested module") &&
 			message.includes("does not provide an export named"))
 	);
+}
+
+function resetRecoveryState() {
+	if (typeof window === "undefined" || !window.sessionStorage) {
+		return;
+	}
+	// Don't reset if a recovery redirect happened recently — prevents infinite loop
+	// when a chunk error persists and the stable-boot timer would re-arm the counter.
+	try {
+		const lastTs = Number(window.localStorage?.getItem(LAST_RECOVERY_TS_KEY) || 0);
+		if (lastTs && Date.now() - lastTs < RECOVERY_COOLDOWN_MS) {
+			return;
+		}
+		window.localStorage?.removeItem(LAST_RECOVERY_TS_KEY);
+	} catch {}
+	window.sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+	window.sessionStorage.removeItem(CHUNK_CACHE_RECOVERY_KEY);
+	window.sessionStorage.removeItem(CHUNK_RECOVERY_IN_PROGRESS_KEY);
 }
 
 export function clearChunkRecoveryState() {
@@ -68,6 +88,9 @@ function redirectToPosApp(param: string) {
 	if (typeof window === "undefined" || !window.location) {
 		return false;
 	}
+	try {
+		window.localStorage?.setItem(LAST_RECOVERY_TS_KEY, String(Date.now()));
+	} catch {}
 	window.location.replace(
 		buildChunkRecoveryLocation(window.location, param, Date.now()),
 	);
