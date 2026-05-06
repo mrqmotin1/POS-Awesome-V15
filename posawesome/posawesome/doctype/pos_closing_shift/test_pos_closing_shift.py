@@ -40,6 +40,15 @@ class DummyPaymentEntry:
         return getattr(self, key, default)
 
 
+class DummyClosingShiftDoc:
+    def __init__(self, pos_payments):
+        self.flags = AttrDict()
+        self._tables = {"pos_payments": pos_payments}
+
+    def get(self, key, default=None):
+        return self._tables.get(key, default)
+
+
 class TestPOSClosingShift(unittest.TestCase):
     def _make_doc(self, data):
         doc = Mock()
@@ -159,6 +168,29 @@ class TestPOSClosingShift(unittest.TestCase):
         self.assertEqual(row.party_type, "Customer")
         self.assertEqual(row.party, "Walk-in Customer")
         self.assertEqual(row.customer, "Walk-in Customer")
+
+    @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.creation.frappe")
+    def test_normalize_payment_references_clears_supplier_customer_link(self, mock_frappe):
+        row = AttrDict(
+            {
+                "payment_entry": "ACC-PAY-SUP-0001",
+                "mode_of_payment": "Cash",
+                "customer": "Haji Khalid & Sons",
+            }
+        )
+        closing_shift_doc = DummyClosingShiftDoc([row])
+        mock_frappe.db.get_value.return_value = {
+            "party_type": "Supplier",
+            "party": "Haji Khalid & Sons",
+        }
+        mock_frappe.get_meta.return_value.get_field.return_value = SimpleNamespace(reqd=1)
+
+        creation.normalize_pos_payment_references(closing_shift_doc)
+
+        self.assertEqual(row.party_type, "Supplier")
+        self.assertEqual(row.party, "Haji Khalid & Sons")
+        self.assertIsNone(row.customer)
+        self.assertTrue(closing_shift_doc.flags.ignore_mandatory)
 
     @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.invoices.frappe")
     def test_submit_printed_invoices_skips_return_drafts_against_cancelled_invoices(self, mock_frappe):

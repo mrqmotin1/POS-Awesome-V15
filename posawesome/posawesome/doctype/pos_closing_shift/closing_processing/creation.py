@@ -31,6 +31,53 @@ def build_pos_payment_reference(payment_entry):
     return row
 
 
+def _get_payment_entry_party(payment_entry):
+    if not payment_entry:
+        return {}
+
+    return (
+        frappe.db.get_value(
+            "Payment Entry",
+            payment_entry,
+            ["party_type", "party"],
+            as_dict=True,
+        )
+        or {}
+    )
+
+
+def _is_legacy_customer_required():
+    customer_field = frappe.get_meta("POS Payment Entry Reference").get_field("customer")
+    return bool(customer_field and customer_field.reqd)
+
+
+def normalize_pos_payment_references(closing_shift_doc):
+    has_non_customer_payment = False
+
+    for row in closing_shift_doc.get("pos_payments", []):
+        party_type = row.get("party_type")
+        party = row.get("party")
+
+        if row.get("payment_entry") and (not party_type or not party):
+            payment_party = _get_payment_entry_party(row.get("payment_entry"))
+            party_type = party_type or payment_party.get("party_type")
+            party = party or payment_party.get("party")
+            row.party_type = party_type
+            row.party = party
+
+        if party_type == "Customer":
+            if party and not row.get("customer"):
+                row.customer = party
+            continue
+
+        has_non_customer_payment = True
+        if row.get("customer"):
+            row.customer = None
+
+    if has_non_customer_payment and _is_legacy_customer_required():
+        closing_shift_doc.flags.ignore_mandatory = True
+
+
 @frappe.whitelist()
 def make_closing_shift_from_opening(opening_shift):
     opening_shift = json.loads(opening_shift)
@@ -201,6 +248,7 @@ def submit_closing_shift(closing_shift):
     closing_shift = json.loads(closing_shift)
     closing_shift_doc = frappe.get_doc(closing_shift)
     closing_shift_doc.flags.ignore_permissions = True
+    normalize_pos_payment_references(closing_shift_doc)
     closing_shift_doc.save()
     closing_shift_doc.submit()
     return closing_shift_doc.name
