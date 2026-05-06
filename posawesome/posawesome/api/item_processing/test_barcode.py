@@ -42,14 +42,7 @@ def _restore_modules(original_modules):
 
 def _load_module():
     module_name = "test_barcode_target"
-    file_path = (
-        REPO_ROOT
-        / "posawesome"
-        / "posawesome"
-        / "api"
-        / "item_processing"
-        / "barcode.py"
-    )
+    file_path = REPO_ROOT / "posawesome" / "posawesome" / "api" / "item_processing" / "barcode.py"
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module

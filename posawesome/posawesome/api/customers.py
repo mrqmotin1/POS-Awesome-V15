@@ -23,9 +23,7 @@ def get_customer_groups(pos_profile):
             group_name = data.get("customer_group") if data else None
             if not group_name:
                 continue
-            customer_groups.extend(
-                [d.get("name") for d in get_child_nodes("Customer Group", group_name)]
-            )
+            customer_groups.extend([d.get("name") for d in get_child_nodes("Customer Group", group_name)])
 
     return list(set(customer_groups))
 
@@ -174,14 +172,9 @@ def get_customer_info(customer=None, company=None):
         "Customer Group", customer.customer_group, "default_price_list"
     )
 
-    effective_price_list = (
-        res.get("customer_price_list")
-        or res.get("customer_group_price_list")
-    )
+    effective_price_list = res.get("customer_price_list") or res.get("customer_group_price_list")
     if effective_price_list:
-        res["price_list_currency"] = frappe.get_value(
-            "Price List", effective_price_list, "currency"
-        )
+        res["price_list_currency"] = frappe.get_value("Price List", effective_price_list, "currency")
     else:
         res["price_list_currency"] = None
 

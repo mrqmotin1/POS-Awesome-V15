@@ -4,8 +4,11 @@ const POSAPP_ROUTE = "/app/posapp";
 const CHUNK_RELOAD_KEY = "posa_chunk_reload_once";
 const CHUNK_CACHE_RECOVERY_KEY = "posa_chunk_cache_recovery_once";
 const CHUNK_RECOVERY_IN_PROGRESS_KEY = "posa_chunk_recovery_in_progress";
+const CHUNK_RECOVERY_TERMINAL_KEY = "posa_chunk_recovery_terminal";
 const LOADER_RECOVERY_KEY = "posa_loader_chunk_recovery_once";
 const CHUNK_RECOVERY_STABLE_DELAY_MS = 3000;
+const CHUNK_RELOAD_PARAM = "_posa_chunk_reload";
+const CHUNK_CACHE_RECOVERY_PARAM = "_posa_chunk_cache_recovery";
 
 function normalizeErrorText(error: unknown): string {
 	const message =
@@ -36,6 +39,7 @@ function resetRecoveryState() {
 	window.sessionStorage.removeItem(CHUNK_RELOAD_KEY);
 	window.sessionStorage.removeItem(CHUNK_CACHE_RECOVERY_KEY);
 	window.sessionStorage.removeItem(CHUNK_RECOVERY_IN_PROGRESS_KEY);
+	window.sessionStorage.removeItem(CHUNK_RECOVERY_TERMINAL_KEY);
 	window.sessionStorage.removeItem(LOADER_RECOVERY_KEY);
 }
 
@@ -48,7 +52,7 @@ export function clearChunkRecoveryState() {
 
 export function scheduleChunkRecoveryStateReset() {
 	scheduleAfterStableBoot(() => {
-		resetRecoveryState();
+		clearChunkRecoveryState();
 	});
 }
 
@@ -80,6 +84,14 @@ function redirectToPosApp(param: string) {
 		buildChunkRecoveryLocation(window.location, param, Date.now()),
 	);
 	return true;
+}
+
+function hasRecoveryParam(param: string) {
+	if (typeof window === "undefined" || !window.location) {
+		return false;
+	}
+
+	return new URLSearchParams(window.location.search || "").has(param);
 }
 
 async function clearServiceWorkersAndCaches() {
@@ -156,6 +168,17 @@ export async function recoverFromChunkLoadError(
 		return false;
 	}
 
+	const urlAlreadyRetried = hasRecoveryParam(CHUNK_RELOAD_PARAM);
+	const urlAlreadyRecovered = hasRecoveryParam(CHUNK_CACHE_RECOVERY_PARAM);
+	if (
+		urlAlreadyRecovered ||
+		window.sessionStorage.getItem(CHUNK_RECOVERY_TERMINAL_KEY) === "1"
+	) {
+		window.sessionStorage.setItem(CHUNK_RECOVERY_TERMINAL_KEY, "1");
+		window.sessionStorage.removeItem(CHUNK_RECOVERY_IN_PROGRESS_KEY);
+		return false;
+	}
+
 	if (
 		window.sessionStorage.getItem(CHUNK_RECOVERY_IN_PROGRESS_KEY) === "1"
 	) {
@@ -165,6 +188,7 @@ export async function recoverFromChunkLoadError(
 	window.sessionStorage.setItem(CHUNK_RECOVERY_IN_PROGRESS_KEY, "1");
 
 	const alreadyRetried =
+		urlAlreadyRetried ||
 		window.sessionStorage.getItem(CHUNK_RELOAD_KEY) === "1";
 	if (!alreadyRetried) {
 		window.sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
@@ -172,10 +196,11 @@ export async function recoverFromChunkLoadError(
 			source,
 			error,
 		});
-		return redirectToPosApp("_posa_chunk_reload");
+		return redirectToPosApp(CHUNK_RELOAD_PARAM);
 	}
 
 	const alreadyRecovered =
+		urlAlreadyRecovered ||
 		window.sessionStorage.getItem(CHUNK_CACHE_RECOVERY_KEY) === "1";
 	if (!alreadyRecovered) {
 		window.sessionStorage.setItem(CHUNK_CACHE_RECOVERY_KEY, "1");
@@ -184,9 +209,14 @@ export async function recoverFromChunkLoadError(
 			{ source, error },
 		);
 		await clearServiceWorkersAndCaches();
-		return redirectToPosApp("_posa_chunk_cache_recovery");
+		return redirectToPosApp(CHUNK_CACHE_RECOVERY_PARAM);
 	}
 
-	resetRecoveryState();
+	window.sessionStorage.setItem(CHUNK_RECOVERY_TERMINAL_KEY, "1");
+	window.sessionStorage.removeItem(CHUNK_RECOVERY_IN_PROGRESS_KEY);
+	console.error("Chunk recovery: automatic recovery exhausted", {
+		source,
+		error,
+	});
 	return false;
 }

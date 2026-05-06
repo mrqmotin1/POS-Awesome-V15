@@ -96,9 +96,9 @@ def _build_completed_reconciliation_summaries(selected_payments, completed_docum
             continue
 
         allocated_amount = _requested_reconciled_amount(payment)
-        if (
-            not allocated_amount
-            and (_get_value(document, "doctype") == "Payment Entry" or payment.get("voucher_type") != "Sales Invoice")
+        if not allocated_amount and (
+            _get_value(document, "doctype") == "Payment Entry"
+            or payment.get("voucher_type") != "Sales Invoice"
         ):
             allocated_amount = max(
                 flt(_get_value(document, "paid_amount")) - flt(_get_value(document, "unallocated_amount")),
@@ -266,13 +266,13 @@ def process_pos_payment(payload):
     selected_payments = list(data.selected_payments or [])
     payment_methods = list(data.payment_methods or [])
     existing_entries = find_payment_entries_by_client_request_id(client_request_id)
-    matched_existing_entries, pending_payment_methods, unmatched_existing_entries = _partition_payment_methods(
-        existing_entries,
-        payment_methods,
+    matched_existing_entries, pending_payment_methods, unmatched_existing_entries = (
+        _partition_payment_methods(
+            existing_entries,
+            payment_methods,
+        )
     )
-    draft_entries = [
-        entry for entry in unmatched_existing_entries if cint(entry.get("docstatus")) == 0
-    ]
+    draft_entries = [entry for entry in unmatched_existing_entries if cint(entry.get("docstatus")) == 0]
     if draft_entries:
         draft_names = ", ".join(entry.get("name") for entry in draft_entries if entry.get("name"))
         frappe.throw(
@@ -284,11 +284,7 @@ def process_pos_payment(payload):
 
     is_replay_attempt = bool(existing_entries)
     completed_mpesa_entries, pending_mpesa_payments = ([], [])
-    if (
-        is_replay_attempt
-        and allow_mpesa_reconcile_payments
-        and data.total_selected_mpesa_payments > 0
-    ):
+    if is_replay_attempt and allow_mpesa_reconcile_payments and data.total_selected_mpesa_payments > 0:
         completed_mpesa_entries, pending_mpesa_payments = _partition_completed_mpesa_payments(
             selected_mpesa_payments,
             customer,

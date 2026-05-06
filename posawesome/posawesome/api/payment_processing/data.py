@@ -133,9 +133,17 @@ def _coerce_bool(value, default=False):
 
 
 @frappe.whitelist()
-def get_outstanding_invoices(customer=None, company=None, currency=None, pos_profile=None,
-                             include_all_currencies=False, page_start=0, page_length=None,
-                             party=None, party_type="Customer"):
+def get_outstanding_invoices(
+    customer=None,
+    company=None,
+    currency=None,
+    pos_profile=None,
+    include_all_currencies=False,
+    page_start=0,
+    page_length=None,
+    party=None,
+    party_type="Customer",
+):
     """
     Fetch outstanding invoices with optional multi-currency support.
 
@@ -213,12 +221,18 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
                         "pos_profile": invoice.get("pos_profile") if party_type == "Customer" else None,
                         "customer": customer,
                         "customer_name": (
-                            invoice.get("supplier_name") if party_type == "Supplier" else invoice.get("customer_name")
-                        ) or customer_name,
+                            invoice.get("supplier_name")
+                            if party_type == "Supplier"
+                            else invoice.get("customer_name")
+                        )
+                        or customer_name,
                         "party": customer,
                         "party_name": (
-                            invoice.get("supplier_name") if party_type == "Supplier" else invoice.get("customer_name")
-                        ) or customer_name,
+                            invoice.get("supplier_name")
+                            if party_type == "Supplier"
+                            else invoice.get("customer_name")
+                        )
+                        or customer_name,
                         "party_type": party_type,
                         "conversion_rate": conversion_rate,
                     }
@@ -235,7 +249,7 @@ def get_outstanding_invoices(customer=None, company=None, currency=None, pos_pro
         )
 
         if page_length:
-            return normalized_rows[page_start: page_start + page_length]
+            return normalized_rows[page_start : page_start + page_length]
 
         return normalized_rows
     except Exception as e:
@@ -278,7 +292,9 @@ def get_unallocated_payments(
         "unallocated_amount": [">", 0],
     }
     if currency and not include_all_currencies:
-        filters["paid_to_account_currency" if party_type == "Supplier" else "paid_from_account_currency"] = currency
+        filters["paid_to_account_currency" if party_type == "Supplier" else "paid_from_account_currency"] = (
+            currency
+        )
     if mode_of_payment:
         filters.update({"mode_of_payment": mode_of_payment})
     unallocated_payment = frappe.get_list(
@@ -304,11 +320,7 @@ def get_unallocated_payments(
 
     # If strict currency filtering produces no rows, fall back to all
     # currencies for visibility.
-    if (
-        not include_all_currencies
-        and currency
-        and not unallocated_payment
-    ):
+    if not include_all_currencies and currency and not unallocated_payment:
         fallback_filters = dict(filters)
         fallback_filters.pop(
             "paid_to_account_currency" if party_type == "Supplier" else "paid_from_account_currency",
@@ -532,6 +544,7 @@ def get_unallocated_payments(
     )
 
     return unallocated_payment
+
 
 @frappe.whitelist()
 def get_available_pos_profiles(company, currency):

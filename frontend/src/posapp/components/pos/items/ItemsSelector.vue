@@ -96,37 +96,37 @@
 								:hide-qty-decimals="hide_qty_decimals"
 								:show-rate-info="show_last_invoice_rate"
 								:get-item-rate-info="getItemRateInfo"
-						:is-item-highlighted="isItemHighlighted"
-						:currency-symbol="currencySymbol"
-						:format-currency="memoizedFormatCurrency"
-						:format-number="memoizedFormatNumber"
-						:rate-precision="ratePrecision"
-						:is-negative="isNegative"
-						:no-items-title="__('No items found')"
-						:no-items-subtitle="__('Try adjusting your search or filters')"
-						:clear-search-label="__('Clear Search')"
-						@select-item="select_item"
-						@dragstart="onDragStart"
-						@dragend="onDragEnd"
-						@virtual-range-update="onVirtualRangeUpdate"
-						@clear-search="clearSearch"
-					/>
-					<ItemsSelectorTable
-						v-else
-						ref="itemsTable"
-						:headers="headers"
-						:displayed-items="displayedItems"
-						:header-props="headerProps"
-						:context="context"
-						:pos-profile="pos_profile"
-						:selected-currency="selected_currency"
-						:hide-qty-decimals="hide_qty_decimals"
-						:show-rate-info="show_last_invoice_rate"
-						:currency-symbol="currencySymbol"
-						:format-currency="memoizedFormatCurrency"
-						:format-number="memoizedFormatNumber"
-						:rate-precision="ratePrecision"
-						:get-item-rate-info="getItemRateInfo"
+								:is-item-highlighted="isItemHighlighted"
+								:currency-symbol="currencySymbol"
+								:format-currency="memoizedFormatCurrency"
+								:format-number="memoizedFormatNumber"
+								:rate-precision="ratePrecision"
+								:is-negative="isNegative"
+								:no-items-title="__('No items found')"
+								:no-items-subtitle="__('Try adjusting your search or filters')"
+								:clear-search-label="__('Clear Search')"
+								@select-item="select_item"
+								@dragstart="onDragStart"
+								@dragend="onDragEnd"
+								@virtual-range-update="onVirtualRangeUpdate"
+								@clear-search="clearSearch"
+							/>
+							<ItemsSelectorTable
+								v-else
+								ref="itemsTable"
+								:headers="headers"
+								:displayed-items="displayedItems"
+								:header-props="headerProps"
+								:context="context"
+								:pos-profile="pos_profile"
+								:selected-currency="selected_currency"
+								:hide-qty-decimals="hide_qty_decimals"
+								:show-rate-info="show_last_invoice_rate"
+								:currency-symbol="currencySymbol"
+								:format-currency="memoizedFormatCurrency"
+								:format-number="memoizedFormatNumber"
+								:rate-precision="ratePrecision"
+								:get-item-rate-info="getItemRateInfo"
 								:is-negative="isNegative"
 								:item-class="getItemRowClass"
 								:row-props="getItemRowProps"
@@ -271,8 +271,7 @@ const {
 	activeView,
 } = storeToRefs(uiStore);
 const { currentCashier } = storeToRefs(employeeStore);
-const { deferStockValidationToPayment: invoiceTypeDefersStockValidation } =
-	storeToRefs(invoiceStore);
+const { deferStockValidationToPayment: invoiceTypeDefersStockValidation } = storeToRefs(invoiceStore);
 
 const __ = (window as any).__;
 
@@ -313,8 +312,7 @@ const itemSync = useItemSync();
 const itemDisplay = useItemDisplay();
 const itemsLoader = useItemsLoader();
 const itemCurrencyUtils = useItemCurrency();
-const { startItemWorker, itemWorker, storageAvailable, markStorageUnavailable } =
-	useItemStorageSafety();
+const { startItemWorker, itemWorker, storageAvailable, markStorageUnavailable } = useItemStorageSafety();
 const {
 	ensureBarcodeIndex,
 	resetBarcodeIndex,
@@ -335,13 +333,10 @@ const new_line = ref(false);
 const item_group = computed({
 	get: () => {
 		const selectedGroup = itemsIntegration.item_group.value;
-		return typeof selectedGroup === "string" && selectedGroup.length > 0
-			? selectedGroup
-			: "ALL";
+		return typeof selectedGroup === "string" && selectedGroup.length > 0 ? selectedGroup : "ALL";
 	},
 	set: (value: string) => {
-		const normalized =
-			typeof value === "string" && value.length > 0 ? value : "ALL";
+		const normalized = typeof value === "string" && value.length > 0 ? value : "ALL";
 		itemsIntegration.item_group.value = normalized;
 	},
 });
@@ -384,9 +379,7 @@ const flyConfig = reactive({ speed: 0.6, easing: "ease-in-out" });
 // 3. Computed Properties
 const pos_profile = computed(() => (itemsIntegration.posProfile.value || {}) as any);
 const usesLimitSearch = computed(() =>
-	parseBooleanSetting(
-		pos_profile.value?.posa_use_limit_search ?? pos_profile.value?.pose_use_limit_search,
-	),
+	parseBooleanSetting(pos_profile.value?.posa_use_limit_search ?? pos_profile.value?.pose_use_limit_search),
 );
 const { stockSettings: stock_settings_ref } = storeToRefs(uiStore);
 const stock_settings = computed(() => stock_settings_ref.value || {});
@@ -403,9 +396,7 @@ const { syncSelectorPriceList } = useItemsSelectorPriceListSync({
 	updatePriceList: (priceList) => itemsIntegration.updatePriceList(priceList),
 	getItems: (force) => itemsIntegration.get_items(force),
 });
-const isPosSupervisor = computed(() =>
-	parseBooleanSetting(currentCashier.value?.is_supervisor),
-);
+const isPosSupervisor = computed(() => parseBooleanSetting(currentCashier.value?.is_supervisor));
 
 const isReturnInvoice = computed(() => {
 	return !!invoiceStore.invoiceDoc?.is_return;
@@ -415,13 +406,11 @@ const blockSaleBeyondAvailableQty = computed(() => {
 	if (props.context === "purchase" || invoiceTypeDefersStockValidation.value) {
 		return false;
 	}
-	return parseBooleanSetting(
-		pos_profile.value?.posa_block_sale_beyond_available_qty,
-	);
+	return parseBooleanSetting(pos_profile.value?.posa_block_sale_beyond_available_qty);
 });
 
-const deferStockValidationToPayment = computed(() =>
-	props.context === "purchase" || invoiceTypeDefersStockValidation.value,
+const deferStockValidationToPayment = computed(
+	() => props.context === "purchase" || invoiceTypeDefersStockValidation.value,
 );
 const forceCustomerPriceList = computed(() =>
 	parseBooleanSetting(pos_profile.value?.posa_force_price_from_customer_price_list),
@@ -434,7 +423,7 @@ const {
 	loading,
 	isBackgroundLoading,
 	loadProgress,
-	syncedItemsCount,
+	syncedItemsCount = ref(0),
 } = itemsIntegration;
 
 const displayedItems = computed(() => {
@@ -499,9 +488,7 @@ const syncItemsCount = computed(() => {
 	return Math.round(count);
 });
 
-const showSearchSyncProgress = computed(
-	() => isBackgroundLoading.value && items.value.length > 0,
-);
+const showSearchSyncProgress = computed(() => isBackgroundLoading.value && items.value.length > 0);
 
 const lastSyncTimeLabel = computed(() => {
 	const lastSync = itemSync.last_background_sync_time?.value;
@@ -575,8 +562,7 @@ const { getLastBuyingRate, scheduleLastBuyingRateRefresh, clearLastBuyingRateCac
 	supplier: () => selectedSupplier.value,
 	displayedItems: () => displayedItems.value,
 	show_last_buying_rate: () =>
-		show_last_invoice_rate.value
-		&& parseBooleanSetting(currentCashier.value?.is_supervisor),
+		show_last_invoice_rate.value && parseBooleanSetting(currentCashier.value?.is_supervisor),
 });
 
 const getLastRateForContext = (item: any) => {
@@ -657,10 +643,7 @@ const add_item = async (item, optionsOrQty: any = {}) => {
 			items: invoiceStore.items,
 			isReturnInvoice: isReturnInvoice.value,
 			...options,
-			new_line:
-				typeof options?.new_line === "boolean"
-					? options.new_line
-					: !!new_line.value,
+			new_line: typeof options?.new_line === "boolean" ? options.new_line : !!new_line.value,
 		};
 
 		const isValid = await cartValidation.validateCartItem(
@@ -807,8 +790,7 @@ onMounted(async () => {
 		applyCurrencyConversionToItem: (item) => {
 			itemCurrencyUtils.applyCurrencyConversionToItem(item, {
 				pos_profile: pos_profile.value,
-				price_list_currency:
-					item?.original_currency || item?.currency || pos_profile.value?.currency,
+				price_list_currency: item?.original_currency || item?.currency || pos_profile.value?.currency,
 				selected_currency: selected_currency.value || pos_profile.value?.currency,
 				exchange_rate: selected_exchange_rate.value,
 				conversion_rate: selected_conversion_rate.value,
@@ -885,15 +867,11 @@ onMounted(async () => {
 			return usesLimitSearch.value;
 		},
 		get itemsPageLimit() {
-			return enable_custom_items_per_page.value
-				? items_per_page.value
-				: itemsPerPage.value;
+			return enable_custom_items_per_page.value ? items_per_page.value : itemsPerPage.value;
 		},
 		getBackgroundSyncPriceList: () => {
 			const customerPriceList =
-				typeof customer_price_list.value === "string"
-					? customer_price_list.value.trim()
-					: "";
+				typeof customer_price_list.value === "string" ? customer_price_list.value.trim() : "";
 			const profilePriceList =
 				typeof pos_profile.value?.selling_price_list === "string"
 					? pos_profile.value.selling_price_list.trim()
@@ -905,12 +883,10 @@ onMounted(async () => {
 
 			return profilePriceList || customerPriceList || null;
 		},
-		refreshModifiedItems: (priceListOverride) =>
-			itemsIntegration.refreshModifiedItems(priceListOverride),
+		refreshModifiedItems: (priceListOverride) => itemsIntegration.refreshModifiedItems(priceListOverride),
 		backgroundSyncItems: (args) => itemsIntegration.backgroundSyncItems(args),
 		get_items: (force) => itemsIntegration.get_items(force),
-		search_onchange: (value, fromScanner) =>
-			itemsIntegration.search_onchange(value, fromScanner),
+		search_onchange: (value, fromScanner) => itemsIntegration.search_onchange(value, fromScanner),
 		fetchServerItemsTimestamp,
 		eventBus,
 		getItems: () => items.value,
