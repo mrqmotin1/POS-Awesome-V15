@@ -194,11 +194,54 @@ export function useItemSelection() {
 
 	// --- Mouse Interaction ---
 
+	function getCartTopRowTarget() {
+		return document.querySelector(
+			".posa-cart-table tbody tr:not(.v-data-table-rows-no-data)",
+		) as HTMLElement | null;
+	}
+
+	function createCartTopAnchor(container: HTMLElement) {
+		const rect = container.getBoundingClientRect();
+		const anchor = document.createElement("div");
+		anchor.className = "item-fly-target-anchor";
+		anchor.style.position = "fixed";
+		anchor.style.left = `${rect.left + rect.width / 2}px`;
+		anchor.style.top = `${rect.top + 24}px`;
+		anchor.style.width = "1px";
+		anchor.style.height = "1px";
+		anchor.style.pointerEvents = "none";
+		anchor.style.opacity = "0";
+		document.body.appendChild(anchor);
+		return anchor;
+	}
+
+	function resolveFlyTarget() {
+		const topRow = getCartTopRowTarget();
+		if (topRow) {
+			return { target: topRow, cleanup: null as (() => void) | null };
+		}
+
+		const cartContainer = document.querySelector(
+			".posa-items-table-container",
+		) as HTMLElement | null;
+		if (cartContainer) {
+			const anchor = createCartTopAnchor(cartContainer);
+			return {
+				target: anchor,
+				cleanup: () => anchor.remove(),
+			};
+		}
+
+		const selectorContainer = document.querySelector(
+			".items-table-container",
+		) as HTMLElement | null;
+		return { target: selectorContainer, cleanup: null as (() => void) | null };
+	}
+
 	function triggerFlyAnimation(event: MouseEvent, isRow = false) {
 		if (!ctx.fly) return;
 
-		const targets = document.querySelectorAll(".items-table-container");
-		const target = targets[targets.length - 1]; // The Cart table container
+		const { target, cleanup } = resolveFlyTarget();
 
 		if (!target) return;
 
@@ -219,12 +262,6 @@ export function useItemSelection() {
 
 			ctx.fly(placeholder, target, ctx.flyConfig);
 
-			// Cleanup placeholder after animation starts?
-			// The original code does `placeholder.remove()` immediately?
-			// "this.fly(placeholder, target, this.flyConfig); placeholder.remove();"
-			// Wait, if removed immediately, does it animate?
-			// `useFlyAnimation` likely clones it or uses it as start pos.
-			// Let's assume original code works.
 			placeholder.remove();
 		} else {
 			// For card click
@@ -236,6 +273,7 @@ export function useItemSelection() {
 				ctx.fly(source, target, ctx.flyConfig);
 			}
 		}
+		cleanup?.();
 	}
 
 	function handleItemSelection(event: MouseEvent, item: SelectableItem) {
