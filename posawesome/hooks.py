@@ -78,6 +78,7 @@ after_migrate = [
     "posawesome.patches.add_gift_card_invoice_redemption_fields.execute",
     "posawesome.patches.add_gift_card_to_workspace.execute",
     "posawesome.patches.add_submission_ledger_to_workspace.execute",
+    "posawesome.patches.migrate_pos_supervisor_to_role.execute",
 ]
 
 # Desk Notifications
@@ -351,10 +352,13 @@ fixtures = [
                     "POS Invoice-posa_return_valid_upto",
                     "Sales Invoice-posa_return_valid_upto",
                     "User-posa_pos_pin",
-                    "User-posa_is_pos_supervisor",
                 ),
             ]
         ],
+    },
+    {
+        "doctype": "Role",
+        "filters": [["name", "in", ("POS Supervisor",)]],
     },
     {
         "doctype": "Property Setter",

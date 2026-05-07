@@ -3,6 +3,8 @@ from __future__ import annotations
 import frappe
 from frappe import _
 
+POS_SUPERVISOR_ROLE = "POS Supervisor"
+
 
 def _resolve_profile_name(pos_profile=None) -> str:
     if isinstance(pos_profile, dict):
@@ -51,7 +53,46 @@ def _get_user_pin(user_doc) -> str:
 
 
 def _is_pos_supervisor(user_doc) -> bool:
+    user = getattr(user_doc, "name", None)
+    if user and POS_SUPERVISOR_ROLE in _get_roles_for_user(user):
+        return True
     return bool(getattr(user_doc, "posa_is_pos_supervisor", 0))
+
+
+def _get_roles_for_user(user: str) -> set[str]:
+    get_roles = getattr(frappe, "get_roles", None)
+    if not callable(get_roles):
+        return set()
+
+    try:
+        return set(get_roles(user) or [])
+    except Exception:
+        if hasattr(frappe, "log_error"):
+            frappe.log_error(
+                frappe.get_traceback(),
+                f"POS Awesome: failed to read roles for user {user}",
+            )
+        return set()
+
+
+def _has_legacy_supervisor_field() -> bool:
+    try:
+        db = getattr(frappe, "db", None)
+        if db and hasattr(db, "has_column"):
+            return bool(db.has_column("User", "posa_is_pos_supervisor"))
+    except Exception:
+        pass
+
+    try:
+        return bool(frappe.get_meta("User").has_field("posa_is_pos_supervisor"))
+    except Exception:
+        return False
+
+
+def _as_user_doc(row):
+    if hasattr(frappe, "_dict"):
+        return frappe._dict(row)
+    return type("UserRow", (), row)()
 
 
 def _validate_new_pin(new_pin: str) -> str:
@@ -75,10 +116,14 @@ def get_terminal_employees(pos_profile=None):
     if not users:
         return []
 
+    fields = ["name", "full_name", "enabled"]
+    if _has_legacy_supervisor_field():
+        fields.append("posa_is_pos_supervisor")
+
     user_rows = frappe.get_all(
         "User",
         filters={"name": ["in", users], "enabled": 1},
-        fields=["name", "full_name", "enabled", "posa_is_pos_supervisor"],
+        fields=fields,
         order_by="full_name asc, name asc",
         ignore_permissions=True,
     )
@@ -96,7 +141,7 @@ def get_terminal_employees(pos_profile=None):
                 "full_name": row.get("full_name") or row.get("name"),
                 "enabled": row.get("enabled", 1),
                 "is_current": row.get("name") == current_user,
-                "is_supervisor": bool(row.get("posa_is_pos_supervisor")),
+                "is_supervisor": _is_pos_supervisor(_as_user_doc(row)),
             }
         )
 
