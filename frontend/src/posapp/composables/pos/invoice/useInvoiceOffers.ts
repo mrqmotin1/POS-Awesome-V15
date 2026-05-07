@@ -57,6 +57,12 @@ const __ = window.__ || ((s) => s);
 const frappe = window.frappe;
 // @ts-ignore
 
+const emitBus = (eventName: string, payload?: any) => {
+	if (bus && typeof bus.emit === "function") {
+		bus.emit(eventName, payload);
+	}
+};
+
 export function useInvoiceOffers() {
 	const isOfferDebugEnabled =
 		typeof window !== "undefined" &&
@@ -304,7 +310,7 @@ export function useInvoiceOffers() {
 			).map((offer: any) => ensureOfferIdentity(offer));
 			if (!sourceOffers.length) {
 				offerDebugLog("[useInvoiceOffers] No source offers available");
-				bus.emit("update_pos_offers", []);
+				emitBus("update_pos_offers", []);
 				uiStore.setApplicableOffers([]);
 				updatePosOffers([]);
 				_cachedOfferResults.value.clear();
@@ -375,7 +381,7 @@ export function useInvoiceOffers() {
 				.filter((entry: any) => !!entry);
 			setItemGiveOffer(offers);
 			pruneManualSuppression(offers);
-			bus.emit("update_pos_offers", offers);
+			emitBus("update_pos_offers", offers);
 			uiStore.setApplicableOffers(offers);
 			const effectiveOffers = offers.filter((offer: any) =>
 				shouldProcessOfferInAutoRefresh(offer),
