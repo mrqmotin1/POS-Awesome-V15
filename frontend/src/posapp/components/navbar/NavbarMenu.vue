@@ -65,12 +65,12 @@
 					</div>
 
 					<div class="menu-section-block">
-						<div class="menu-section-heading">
+						<!-- <div class="menu-section-heading">
 							<div class="menu-section-title">{{ __("Quick Actions") }}</div>
 							<div class="menu-section-subtitle">
 								{{ __("Daily cashier actions without scrolling.") }}
 							</div>
-						</div>
+						</div> -->
 
 						<div class="quick-actions-grid">
 							<div v-for="(row, rowIndex) in quickActionRows" :key="`quick-row-${rowIndex}`" class="quick-actions-row">
@@ -593,8 +593,8 @@ export default {
 			return [
 				{
 					id: "personal",
-					title: __("Personal"),
-					description: __("Cashier identity and appearance preferences."),
+					//title: __("Personal"),
+					//description: __("Cashier identity and appearance preferences."),
 					actions: [
 						// {
 						// 	id: "manage-cashier-pin",
