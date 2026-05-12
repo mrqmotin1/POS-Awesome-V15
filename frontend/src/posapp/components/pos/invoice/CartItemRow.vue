@@ -364,7 +364,7 @@
 		<!-- Actions -->
 		<td v-else-if="column.key === 'actions'" class="text-center" :data-column-key="'actions'">
 			<v-btn
-				:disabled="!!item.posa_is_replace"
+				:disabled="!!item.posa_is_replace || !isManager"
 				size="small"
 				variant="flat"
 				class="posa-cart-table__delete-btn delete-action-btn"

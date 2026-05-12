@@ -478,6 +478,10 @@ const __ = (window as any).__ || ((s: string) => s);
 const frappe = (window as any).frappe || { _: (s: string) => s };
 
 const onQtyChange = (item: CartItem, event: any) => {
+	const raw = parseFloat(event?.target?.value ?? event);
+	if (!isNaN(raw) && raw <= 0 && event?.target) {
+		event.target.value = "1";
+	}
 	emit("qty-change", item, event);
 };
 
