@@ -94,11 +94,21 @@ export function useInvoiceOffers() {
 	const discount_percentage_offer_name = ref<string | null>(null);
 	const brand_cache = ref<Record<string, string>>({});
 
-	// Watch for changes that should trigger offer evaluation
-	// We watch metadata specifically because it is "touched" whenever items are modified in the store
+	const hasOfferWork = () =>
+		(posOffers.value?.length || 0) > 0 ||
+		(posa_coupons.value?.length || 0) > 0 ||
+		(posa_offers.value?.length || 0) > 0 ||
+		!!discount_percentage_offer_name.value;
+
+	// Watch for changes that should trigger offer evaluation.
+	// Cart mutations already bump metadata.changeVersion, so avoid deep-watching
+	// every cart item field on large invoices.
 	watch(
-		[items, posOffers, posa_coupons, () => invoiceStore.metadata],
+		[() => invoiceStore.metadata.changeVersion, posOffers, posa_coupons],
 		() => {
+			if (!hasOfferWork()) {
+				return;
+			}
 			offerDebugLog(
 				"[useInvoiceOffers] watch triggered for items/offers/coupons/metadata",
 			);
