@@ -74,6 +74,7 @@
 				@click="$emit('cancel-sale')"
 				class="summary-btn"
 				:loading="cancelLoading"
+				:disabled="!isManager"
 			>
 				{{ __("Cancel Sale") }}
 			</v-btn>
@@ -124,6 +125,7 @@
 <script setup>
 import { computed } from "vue";
 import { parseBooleanSetting } from "../../../utils/stock";
+import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 
 const props = defineProps({
 	pos_profile: {
@@ -158,6 +160,8 @@ const __ = window.__;
 const showCustomerDisplayButton = computed(() =>
 	parseBooleanSetting(props.pos_profile?.posa_enable_customer_display),
 );
+
+const isManager = computed(() => isSessionUserManager.value || isManagerMode.value);
 </script>
 
 <style scoped>
