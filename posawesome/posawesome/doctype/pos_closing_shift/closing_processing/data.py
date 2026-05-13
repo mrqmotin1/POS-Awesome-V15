@@ -65,6 +65,7 @@ def get_payments_entries(pos_opening_shift):
             "reference_no",
             "posting_date",
             "party",
+            "party_type",
             "payment_type",
         ],
     )
