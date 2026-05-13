@@ -119,7 +119,7 @@
 							<div class="filter-grid mb-4">
 								<v-text-field
 									v-model="historySearch"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -129,7 +129,7 @@
 								/>
 								<v-select
 									v-model="historyStatus"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -139,7 +139,7 @@
 								<v-text-field
 									v-model="historyDateFrom"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -148,7 +148,7 @@
 								<v-text-field
 									v-model="historyDateTo"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -495,7 +495,7 @@
 							<div class="filter-grid mb-4">
 								<v-text-field
 									v-model="partialSearch"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -505,7 +505,7 @@
 								/>
 								<v-select
 									v-model="partialStatus"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -515,7 +515,7 @@
 								<v-text-field
 									v-model="partialDateFrom"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -524,7 +524,7 @@
 								<v-text-field
 									v-model="partialDateTo"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -873,7 +873,7 @@
 							<div class="filter-grid mb-4">
 								<v-text-field
 									v-model="draftSearch"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -884,7 +884,7 @@
 								<v-text-field
 									v-model="draftDateFrom"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -893,7 +893,7 @@
 								<v-text-field
 									v-model="draftDateTo"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -1072,7 +1072,7 @@
 							<div class="filter-grid mb-4">
 								<v-text-field
 									v-model="returnSearch"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -1083,7 +1083,7 @@
 								<v-text-field
 									v-model="returnDateFrom"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -1092,7 +1092,7 @@
 								<v-text-field
 									v-model="returnDateTo"
 									type="date"
-									class="pos-themed-input"
+									class="pos-themed-input inv-mgt"
 									variant="outlined"
 									density="compact"
 									hide-details
@@ -2757,6 +2757,10 @@ export default {
 <style scoped>
 .invoice-management-dialog-content {
 	background: transparent !important;
+}
+
+.inv-mgt {
+  padding: 6px;
 }
 
 .invoice-management-card {
