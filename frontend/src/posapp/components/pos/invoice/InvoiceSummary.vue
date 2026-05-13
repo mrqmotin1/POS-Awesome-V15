@@ -333,11 +333,6 @@ async function handleSaveAndClear() {
 }
 
 async function handleLoadDrafts() {
-	if (allDrafts.value.length) {
-		openDraftsSurface();
-		return;
-	}
-
 	loadDraftsLoading.value = true;
 	try {
 		await emit("load-drafts");

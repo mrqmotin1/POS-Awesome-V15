@@ -108,6 +108,11 @@ export const useUIStore = defineStore("ui", () => {
     parkedOrders.value = Array.isArray(data) ? data : [];
   };
 
+  const removeParkedOrder = (name: string) => {
+    parkedOrders.value = parkedOrders.value.filter((o) => o.name !== name);
+    draftsData.value = draftsData.value.filter((o) => o.name !== name);
+  };
+
   const parkedOrdersCount = computed(() => parkedOrders.value.length);
   const hasParkedOrders = computed(() => parkedOrdersCount.value > 0);
 
@@ -293,6 +298,7 @@ export const useUIStore = defineStore("ui", () => {
     closeDrafts,
     setDraftsData,
     setParkedOrders,
+    removeParkedOrder,
     ordersDialog,
     ordersData,
     openOrders,
