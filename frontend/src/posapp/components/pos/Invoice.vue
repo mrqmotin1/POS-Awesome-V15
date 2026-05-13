@@ -882,6 +882,7 @@ export default {
 				});
 				if (message) {
 					this.invoiceStore.triggerLoadInvoice(message);
+					this.uiStore.removeParkedOrder(draft.name);
 				}
 			} catch (error) {
 				console.error("Error loading parked order:", error);
