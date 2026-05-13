@@ -200,6 +200,11 @@ export async function get_draft_invoices(
 		}
 		if (drafts.length > 0) {
 			context.$refs?.invoiceSummary?.openDraftsSurface?.();
+		} else {
+			context.toastStore.show({
+				title: __("No draft invoices available"),
+				color: "warning",
+			});
 		}
 	} catch (error) {
 		console.error("Error fetching draft invoices:", error);

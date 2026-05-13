@@ -121,6 +121,11 @@ export const useUIStore = defineStore("ui", () => {
     invoiceManagementDraftSource.value = sourceKey || "invoice";
   };
 
+  const removeParkedOrder = (name: string) => {
+    parkedOrders.value = parkedOrders.value.filter((o) => o.name !== name);
+    draftsData.value = draftsData.value.filter((o) => o.name !== name);
+  };
+
   const parkedOrdersCount = computed(() => parkedOrders.value.length);
   const hasParkedOrders = computed(() => parkedOrdersCount.value > 0);
 
@@ -310,6 +315,7 @@ export const useUIStore = defineStore("ui", () => {
     setParkedOrders,
     setDraftSource,
     setInvoiceManagementDraftSource,
+    removeParkedOrder,
     ordersDialog,
     ordersData,
     openOrders,

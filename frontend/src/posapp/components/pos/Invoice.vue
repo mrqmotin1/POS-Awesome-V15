@@ -1005,6 +1005,8 @@ export default {
 			try {
 				const message = await this.load_draft_source_record(draft);
 				if (message) {
+					this.invoiceStore.triggerLoadInvoice(message);
+					this.uiStore.removeParkedOrder(draft.name);
 					this.uiStore?.closeDrafts?.();
 				}
 			} catch (error) {

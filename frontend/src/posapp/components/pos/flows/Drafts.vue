@@ -216,6 +216,7 @@ export default {
 					});
 					if (message) {
 						this.invoiceStore.triggerLoadInvoice(message);
+						this.uiStore.removeParkedOrder(selectedDraft.name);
 					}
 				} catch (error) {
 					console.error("Error loading draft invoice:", error);
