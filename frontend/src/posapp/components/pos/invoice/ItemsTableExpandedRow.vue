@@ -435,6 +435,8 @@ import { getDisplayableBatchOptions } from "../../../composables/pos/shared/useB
 import type { CartItem, POSProfile, InvoiceDoc } from "../../../types/models";
 import { computed } from "vue";
 import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
+import { useToastStore } from "../../../stores/toastStore";
+const toastStore = useToastStore();
 
 interface Props {
 	item: CartItem | any;
@@ -469,6 +471,7 @@ defineProps<Props>();
 const canEditDiscount = computed(
 	() => isSessionUserManager.value || isManagerMode.value,
 );
+const isManager = computed(() => isSessionUserManager.value || isManagerMode.value);
 
 const emit = defineEmits<{
 	"qty-change": [item: CartItem, event: any];
@@ -478,6 +481,16 @@ const __ = (window as any).__ || ((s: string) => s);
 const frappe = (window as any).frappe || { _: (s: string) => s };
 
 const onQtyChange = (item: CartItem, event: any) => {
+	const raw = parseFloat(event?.target?.value ?? event);
+	if (!isNaN(raw) && raw <= 0 && event?.target) {
+		event.target.value = "1";
+		if (!isManager.value) {
+			toastStore.show({
+				title: __("Can't make qty 0"),
+				color: "warning",
+			});
+		}
+	}
 	emit("qty-change", item, event);
 };
 

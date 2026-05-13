@@ -364,7 +364,7 @@
 		<!-- Actions -->
 		<td v-else-if="column.key === 'actions'" class="text-center" :data-column-key="'actions'">
 			<v-btn
-				:disabled="!!item.posa_is_replace"
+				:disabled="!!item.posa_is_replace || !isManager"
 				size="small"
 				variant="flat"
 				class="posa-cart-table__delete-btn delete-action-btn"
@@ -400,6 +400,8 @@
 <script setup>
 import { computed, nextTick, ref } from "vue";
 import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
+import { useToastStore } from "../../../stores/toastStore";
+const toastStore = useToastStore();
 
 defineOptions({
 	name: "CartItemRow",
@@ -571,7 +573,12 @@ function closeQtyEdit() {
 	if (isEditingQty.value) {
 		if (editingQtyValue.value !== "" && editingQtyValue.value != null) {
 			const newQty = parseFloat(editingQtyValue.value);
-			// Emit event to update parent state
+			if ((!newQty || newQty <= 0) && !isManager.value) {
+				toastStore.show({
+					title: __("Can't make qty 0"),
+					color: "warning",
+				});
+			}
 			const val = !newQty || newQty <= 0 ? 1 : newQty;
 			emit("update-qty", props.item, val);
 		}
