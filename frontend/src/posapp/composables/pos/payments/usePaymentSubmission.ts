@@ -273,6 +273,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 		// 1. Ensure return payments are negative
 		if (doc.is_return) {
 			ensureReturnPaymentsAreNegative();
+			normalizeReturnPaymentAmounts();
 		}
 
 		let current_total_payments = 0;
@@ -474,6 +475,69 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 		return submissionDoc;
 	};
 
+	function normalizeReturnPaymentAmounts() {
+		const doc = unref(invoiceDoc);
+		const prec = unref(options.currencyPrecision) || 2;
+
+		if (
+			!doc?.is_return ||
+			!Array.isArray(doc.payments) ||
+			!doc.payments.length ||
+			unref(options.isCashback) === false
+		) {
+			return;
+		}
+
+		const invoiceTotal = Math.abs(
+			formatFloat(doc.rounded_total || doc.grand_total, prec),
+		);
+		if (invoiceTotal <= 0) {
+			return;
+		}
+
+		const sourcePayments = doc.payments.filter(
+			(payment: any) => payment?.mode_of_payment,
+		);
+		if (!sourcePayments.length) {
+			return;
+		}
+
+		const sourceTotal = sourcePayments.reduce(
+			(sum: number, payment: any) =>
+				sum + Math.abs(formatFloat(payment?.amount || 0, prec)),
+			0,
+		);
+		if (sourceTotal <= 0) {
+			return;
+		}
+
+		let remainingAmount = invoiceTotal;
+		sourcePayments.forEach((payment: any, index: number) => {
+			const share =
+				Math.abs(formatFloat(payment?.amount || 0, prec)) / sourceTotal;
+			let paymentAmount =
+				index === sourcePayments.length - 1
+					? remainingAmount
+					: formatFloat(invoiceTotal * share, prec);
+			paymentAmount = -Math.abs(paymentAmount);
+			remainingAmount = formatFloat(
+				remainingAmount - Math.abs(paymentAmount),
+				prec,
+			);
+			payment.amount = paymentAmount;
+
+			if (payment.base_amount !== undefined) {
+				const paymentConversionRate =
+					formatFloat(payment.conversion_rate || doc.conversion_rate || 1) ||
+					1;
+				payment.base_amount = formatFloat(
+					paymentAmount * paymentConversionRate,
+					prec,
+				);
+			}
+		});
+	}
+
 	function ensureReturnPaymentsAreNegative() {
 		const doc = unref(invoiceDoc);
 		// Skip for credit returns (isCashback = false means payments are cleared to 0 intentionally)
@@ -564,6 +628,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 
 		if (doc.is_return) {
 			ensureReturnPaymentsAreNegative();
+			normalizeReturnPaymentAmounts();
 		}
 
 		let totalPayedAmount = 0;

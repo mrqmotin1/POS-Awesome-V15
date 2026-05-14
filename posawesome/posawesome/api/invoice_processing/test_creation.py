@@ -314,6 +314,77 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
         self.assertEqual(amount, 12.34)
         self.assertEqual(base_amount, 24.68)
 
+    def test_normalize_return_payments_scales_overpaid_mix_to_return_total(self):
+        invoice_doc = FakeDoc(
+            is_return=1,
+            conversion_rate=1,
+            rounded_total=-100,
+            grand_total=-100,
+            base_rounded_total=-100,
+            base_grand_total=-100,
+            payments=[
+                FakeDoc(amount=70, base_amount=70),
+                FakeDoc(amount=-50, base_amount=-50),
+            ],
+            paid_amount=0,
+            base_paid_amount=0,
+        )
+
+        self.creation._normalize_return_payments(invoice_doc, 1)
+
+        self.assertEqual(invoice_doc.payments[0].amount, -58.33)
+        self.assertEqual(invoice_doc.payments[0].base_amount, -58.33)
+        self.assertEqual(invoice_doc.payments[1].amount, -41.67)
+        self.assertEqual(invoice_doc.payments[1].base_amount, -41.67)
+        self.assertEqual(invoice_doc.paid_amount, -100)
+        self.assertEqual(invoice_doc.base_paid_amount, -100)
+
+    def test_create_return_cashback_payment_entries_creates_pay_entries(self):
+        created = []
+
+        class PaymentEntryDoc(FakeDoc):
+            def append(self, fieldname, value):
+                row = FakeDoc()
+                self._data.setdefault(fieldname, []).append(row)
+                return row
+
+            def save(self):
+                created.append(("save", self.as_dict()))
+
+            def submit(self):
+                created.append(("submit", self.as_dict()))
+
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="RET-0001",
+            is_return=1,
+            docstatus=1,
+            customer="CUST-1",
+            company="Test Company",
+            debit_to="Debtors - TC",
+            posting_date="2026-03-21",
+            due_date="2026-03-21",
+            posa_pos_opening_shift="SHIFT-1",
+        )
+
+        original_get_doc = self.creation.frappe.get_doc
+        self.creation.frappe.get_doc = lambda data: PaymentEntryDoc(**data)
+        try:
+            self.creation._create_return_cashback_payment_entries(
+                invoice_doc,
+                {"is_cashback": 1},
+                [{"amount": -58.33, "account": "Cash - TC", "mode_of_payment": "Cash"}],
+            )
+        finally:
+            self.creation.frappe.get_doc = original_get_doc
+
+        self.assertEqual(len(created), 2)
+        saved_doc = created[0][1]
+        self.assertEqual(saved_doc["payment_type"], "Pay")
+        self.assertEqual(saved_doc["paid_from"], "Cash - TC")
+        self.assertEqual(saved_doc["paid_to"], "Debtors - TC")
+        self.assertEqual(saved_doc["references"][0].reference_name, "RET-0001")
+
 
 class TestStaleNamedInvoiceHandling(unittest.TestCase):
     @classmethod

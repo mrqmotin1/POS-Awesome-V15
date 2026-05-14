@@ -64,6 +64,7 @@ def _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, c
     receive_entries = redeeming_customer_credit(
         invoice_doc, data, is_payment_entry, total_cash, cash_account, payments
     )
+    _create_return_cashback_payment_entries(invoice_doc, data, payments)
     _create_change_payment_entries(
         invoice_doc,
         data,
@@ -180,6 +181,55 @@ def _resolve_write_off_limit(pos_profile_doc):
             return limit
 
     return None
+
+
+def _create_return_cashback_payment_entries(invoice_doc, data, payments):
+    if not (
+        invoice_doc
+        and invoice_doc.get("is_return")
+        and data.get("is_cashback")
+        and invoice_doc.docstatus == 1
+    ):
+        return
+
+    today = invoice_doc.get("posting_date") or nowdate()
+    for payment in payments or []:
+        payment_amount = abs(flt(payment.get("amount")))
+        if payment_amount <= 0:
+            continue
+
+        payout = frappe.get_doc(
+            {
+                "doctype": "Payment Entry",
+                "posting_date": today,
+                "payment_type": "Pay",
+                "party_type": "Customer",
+                "party": invoice_doc.customer,
+                "paid_amount": payment_amount,
+                "received_amount": payment_amount,
+                "paid_from": payment.get("account"),
+                "paid_to": invoice_doc.debit_to,
+                "company": invoice_doc.company,
+                "mode_of_payment": payment.get("mode_of_payment"),
+                "reference_no": invoice_doc.posa_pos_opening_shift,
+                "reference_date": today,
+            }
+        )
+
+        payout_reference = payout.append("references", {})
+        payout_reference.update(
+            {
+                "allocated_amount": payment_amount,
+                "reference_doctype": invoice_doc.doctype,
+                "reference_name": invoice_doc.name,
+                "due_date": invoice_doc.get("due_date"),
+            }
+        )
+        ensure_child_doctype(payout, "references", "Payment Entry Reference")
+        payout.flags.ignore_permissions = True
+        frappe.flags.ignore_account_permission = True
+        payout.save()
+        payout.submit()
 
 
 def _apply_write_off_settings(invoice_doc, data):
@@ -467,6 +517,69 @@ def _resolve_payment_amounts(payment, conversion_rate=1):
     return amount, base_amount
 
 
+def _normalize_return_payments(invoice_doc, conversion_rate=1):
+    if not getattr(invoice_doc, "is_return", 0):
+        return
+
+    payments = invoice_doc.get("payments") or []
+    if not payments:
+        return
+
+    invoice_total = abs(flt(invoice_doc.get("rounded_total") or invoice_doc.get("grand_total")))
+    normalized_rows = []
+    source_total = 0
+    source_base_total = 0
+
+    for payment in payments:
+        resolved_amount, resolved_base_amount = _resolve_payment_amounts(
+            payment,
+            invoice_doc.get("conversion_rate") or conversion_rate,
+        )
+        normalized_rows.append((payment, abs(resolved_amount), abs(resolved_base_amount)))
+        source_total += abs(resolved_amount)
+        source_base_total += abs(resolved_base_amount)
+
+    if source_total > 0 and invoice_total > 0:
+        remaining_amount = invoice_total
+        remaining_base_amount = abs(
+            flt(invoice_doc.get("base_rounded_total") or invoice_doc.get("base_grand_total"))
+        ) or abs(flt(invoice_total * (invoice_doc.get("conversion_rate") or conversion_rate)))
+
+        for index, (payment, resolved_amount, resolved_base_amount) in enumerate(normalized_rows):
+            ratio = resolved_amount / source_total if source_total else 0
+            base_ratio = (
+                resolved_base_amount / source_base_total if source_base_total else ratio
+            )
+
+            if index == len(normalized_rows) - 1:
+                payment_amount = remaining_amount
+                payment_base_amount = remaining_base_amount
+            else:
+                payment_amount = flt(invoice_total * ratio, payment.precision("amount"))
+                payment_base_amount = flt(
+                    abs(
+                        (invoice_doc.get("base_rounded_total") or invoice_doc.get("base_grand_total"))
+                    )
+                    * base_ratio,
+                    payment.precision("base_amount"),
+                )
+
+            payment.amount = -abs(payment_amount)
+            payment.base_amount = -abs(payment_base_amount)
+            remaining_amount = flt(remaining_amount - abs(payment_amount), payment.precision("amount"))
+            remaining_base_amount = flt(
+                remaining_base_amount - abs(payment.base_amount),
+                payment.precision("base_amount"),
+            )
+    else:
+        for payment, resolved_amount, resolved_base_amount in normalized_rows:
+            payment.amount = -abs(resolved_amount)
+            payment.base_amount = -abs(resolved_base_amount)
+
+    invoice_doc.paid_amount = flt(sum(flt(p.get("amount")) for p in payments))
+    invoice_doc.base_paid_amount = flt(sum(flt(p.get("base_amount")) for p in payments))
+
+
 @frappe.whitelist()
 def update_invoice(data):
     currency_cache = {}
@@ -676,18 +789,7 @@ def update_invoice(data):
             else:
                 tax.included_in_print_rate = 1 if inclusive else 0
 
-    # For return invoices, payments should be negative amounts
-    if invoice_doc.is_return:
-        for payment in invoice_doc.payments:
-            resolved_amount, resolved_base_amount = _resolve_payment_amounts(
-                payment,
-                invoice_doc.get("conversion_rate") or conversion_rate,
-            )
-            payment.amount = -abs(resolved_amount)
-            payment.base_amount = -abs(resolved_base_amount)
-
-        invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
-        invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
+    _normalize_return_payments(invoice_doc, conversion_rate)
 
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True
@@ -838,6 +940,11 @@ def submit_invoice(invoice, data, submit_in_background=False):
         if str(row.get("mode_of_payment") or "").strip() != "Gift Card"
     ]
 
+    if invoice_doc.is_return and cint(data.get("is_cashback")):
+        invoice_doc.set("payments", [])
+        invoice_doc.paid_amount = 0
+        invoice_doc.base_paid_amount = 0
+
     _auto_set_return_batches(invoice_doc)
 
     # if frappe.get_value("POS Profile", invoice_doc.pos_profile, "posa_auto_set_batch"):
@@ -847,6 +954,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
     _validate_stock_on_invoice(invoice_doc)
 
     _apply_write_off_settings(invoice_doc, data)
+    _normalize_return_payments(invoice_doc, invoice_doc.get("conversion_rate") or 1)
 
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True

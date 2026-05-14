@@ -63,6 +63,74 @@ describe("usePaymentSubmission", () => {
 		]);
 	});
 
+	it("normalizes mixed overpaid return payments to the return total before submit", async () => {
+		const invoiceService =
+			(await import("../src/posapp/services/invoiceService")).default;
+		(invoiceService.submitInvoice as any).mockResolvedValue({
+			name: "ACC-SINV-RET-0001",
+			doctype: "Sales Invoice",
+			docstatus: 1,
+		});
+
+		const invoiceDoc = ref<any>({
+			name: "ACC-SINV-RET-0001",
+			doctype: "Sales Invoice",
+			is_return: 1,
+			items: [{ item_code: "ITEM-1", qty: -1 }],
+			payments: [
+				{ mode_of_payment: "Cash", amount: 70, base_amount: 70, type: "Cash", default: 1 },
+				{ mode_of_payment: "Card", amount: 50, base_amount: 50, type: "Bank" },
+			],
+			rounded_total: -100,
+			grand_total: -100,
+		});
+
+		const { submitInvoice } = usePaymentSubmission({
+			invoiceDoc,
+			posProfile: ref({
+				posa_allow_submissions_in_background_job: 0,
+				create_pos_invoice_instead_of_sales_invoice: 0,
+			}),
+			stockSettings: ref({}),
+			invoiceType: ref("Invoice"),
+			formatFloat: (value, prec = 2) => Number(Number(value || 0).toFixed(prec)),
+			stores: {
+				toastStore: { show: vi.fn() },
+				uiStore: { setLastInvoice: vi.fn(), setLastStockAdjustment: vi.fn() },
+				customersStore: { setSelectedCustomer: vi.fn() },
+				invoiceStore: { invoiceDoc: invoiceDoc.value },
+			},
+			isCashback: ref(true),
+			paidChange: ref(0),
+			creditChange: ref(0),
+			redeemedCustomerCredit: ref(0),
+			customerCreditDict: ref([]),
+			diff_payment: ref(0),
+		});
+
+		await submitInvoice(false, {
+			onFinishNavigation: vi.fn(),
+		});
+
+		const submittedDoc = (invoiceService.submitInvoice as any).mock.calls[0][1];
+		expect(submittedDoc.payments).toEqual([
+			expect.objectContaining({
+				mode_of_payment: "Cash",
+				amount: -58.33,
+			}),
+			expect.objectContaining({
+				mode_of_payment: "Card",
+				amount: -41.67,
+			}),
+		]);
+		expect(
+			submittedDoc.payments.reduce(
+				(sum: number, payment: any) => sum + payment.amount,
+				0,
+			),
+		).toBe(-100);
+	});
+
 	it("defers print and schedules background wait when invoice submission is queued", async () => {
 		const invoiceService =
 			(await import("../src/posapp/services/invoiceService")).default;
