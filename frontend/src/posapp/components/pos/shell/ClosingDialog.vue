@@ -126,7 +126,16 @@ export default {
 			formatCurrencyWithSymbol: (amount, currency) => {
 				const resolvedCurrency = currency || "";
 				const symbol = currencySymbol(resolvedCurrency);
-				const formatted = formatCurrency(amount || 0);
+				const formatted = String(formatCurrency(amount || 0) || "").trim();
+				if (!formatted) {
+					return symbol || resolvedCurrency || "";
+				}
+				if (
+					(symbol && formatted.includes(symbol)) ||
+					(resolvedCurrency && formatted.includes(resolvedCurrency))
+				) {
+					return formatted;
+				}
 				if (symbol) return `${symbol} ${formatted}`;
 				return `${resolvedCurrency} ${formatted}`.trim();
 			},

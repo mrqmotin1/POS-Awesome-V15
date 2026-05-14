@@ -118,9 +118,20 @@ export function useClosingShift(eventBus: any) {
 				}),
 			});
 
-			const invoiceChange = normalizeBranch(
-				change?.invoice_change || change || {},
-			);
+			const hasExplicitInvoiceChange =
+				change?.invoice_change &&
+				typeof change.invoice_change === "object";
+			const hasExplicitOverpaymentChange =
+				change?.overpayment_change &&
+				typeof change.overpayment_change === "object";
+
+			const invoiceChangeSource = hasExplicitInvoiceChange
+				? change.invoice_change
+				: hasExplicitOverpaymentChange
+					? {}
+					: change || {};
+
+			const invoiceChange = normalizeBranch(invoiceChangeSource);
 			const overpaymentChange = normalizeBranch(
 				change?.overpayment_change || {},
 			);

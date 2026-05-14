@@ -42,9 +42,71 @@ export function useClosingSummary(
 			: [];
 	});
 
+	const paymentReconciliation = computed(() => {
+		const data = unref(dialogData);
+		if (Array.isArray(data?.payment_reconciliation)) {
+			return data.payment_reconciliation;
+		}
+		if (Array.isArray(data?.payments)) {
+			return data.payments;
+		}
+		return [];
+	});
+
 	const paymentsByMode = computed(() => {
 		const ov = unref(overview);
-		return Array.isArray(ov?.payments_by_mode) ? ov.payments_by_mode : [];
+		const overviewRows = Array.isArray(ov?.payments_by_mode)
+			? ov.payments_by_mode
+			: [];
+
+		if (!overviewRows.length) {
+			return overviewRows;
+		}
+
+		const cashRows = paymentReconciliation.value.filter((row: any) =>
+			isCashMode(row?.mode_of_payment || ""),
+		);
+
+		if (!cashRows.length) {
+			return overviewRows;
+		}
+
+		const normalizedCashMode =
+			cashExpectedSummary.value?.mode_of_payment || cashRows[0]?.mode_of_payment || "";
+
+		const nonCashRows = overviewRows.filter(
+			(row: any) => !isCashMode(row?.mode_of_payment || ""),
+		);
+		const groupedCashRows = new Map<string, any>();
+
+		cashRows.forEach((row: any) => {
+			const currency = row?.currency || overviewCompanyCurrency.value || "";
+			const expectedAmount = Number(row?.expected_amount) || 0;
+			const existing = groupedCashRows.get(currency) || {
+				mode_of_payment: normalizedCashMode,
+				currency,
+				total: 0,
+				company_currency_total: 0,
+				exchange_rates: [],
+			};
+
+			existing.total += expectedAmount;
+			existing.company_currency_total += expectedAmount;
+			groupedCashRows.set(currency, existing);
+		});
+
+		return [
+			...nonCashRows,
+			...Array.from(groupedCashRows.values()),
+		].sort((a: any, b: any) => {
+			const modeCompare = (a.mode_of_payment || "").localeCompare(
+				b.mode_of_payment || "",
+			);
+			if (modeCompare !== 0) {
+				return modeCompare;
+			}
+			return (a.currency || "").localeCompare(b.currency || "");
+		});
 	});
 
 	const creditInvoices = computed(() => {
@@ -245,6 +307,38 @@ export function useClosingSummary(
 		);
 	});
 
+	const cashExpectedFromReconciliation = computed(() => {
+		const rows = paymentReconciliation.value.filter((row: any) =>
+			isCashMode(row?.mode_of_payment || ""),
+		);
+
+		if (!rows.length) {
+			return [];
+		}
+
+		const grouped = new Map<string, any>();
+
+		rows.forEach((row: any) => {
+			const currency = row?.currency || overviewCompanyCurrency.value || "";
+			const expectedAmount = Number(row?.expected_amount) || 0;
+			const existing = grouped.get(currency) || {
+				currency,
+				mode_of_payment: row?.mode_of_payment || "",
+				total: 0,
+				company_currency_total: 0,
+				exchange_rates: [],
+			};
+
+			existing.total += expectedAmount;
+			existing.company_currency_total += expectedAmount;
+			grouped.set(currency, existing);
+		});
+
+		return Array.from(grouped.values()).sort((a: any, b: any) =>
+			(a.currency || "").localeCompare(b.currency || ""),
+		);
+	});
+
 	const cashMovementSummary = computed(() => {
 		const ov = unref(overview);
 		return (
@@ -276,9 +370,23 @@ export function useClosingSummary(
 	});
 
 	const cashExpectedByCurrency = computed(() => {
+		if (cashExpectedFromReconciliation.value.length) {
+			return cashExpectedFromReconciliation.value;
+		}
 		return Array.isArray(cashExpectedSummary.value.by_currency)
 			? cashExpectedSummary.value.by_currency
 			: [];
+	});
+
+	const cashExpectedCompanyCurrencyTotal = computed(() => {
+		if (cashExpectedFromReconciliation.value.length) {
+			return cashExpectedFromReconciliation.value.reduce(
+				(total: number, row: any) =>
+					total + (Number(row?.company_currency_total) || 0),
+				0,
+			);
+		}
+		return Number(cashExpectedSummary.value.company_currency_total) || 0;
 	});
 
 	const salesSummary = computed(() => {
@@ -365,7 +473,7 @@ export function useClosingSummary(
 			overviewCompanyCurrency.value,
 		);
 		const cashValue = formatCurrencyWithSymbol(
-			cashExpectedSummary.value.company_currency_total,
+			cashExpectedCompanyCurrencyTotal.value,
 			overviewCompanyCurrency.value,
 		);
 
