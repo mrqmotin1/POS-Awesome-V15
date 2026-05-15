@@ -263,16 +263,12 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 
 	const set_rest_amount = (payment: any, isReturn = false) => {
 		const doc = unref(invoiceDoc);
-		const currentPaymentAmount = flt(payment.amount);
-
-		// Only auto-fill if the field is empty — don't overwrite an existing amount
-		if (currentPaymentAmount !== 0) return;
-
 		const invoiceAmount = getInvoiceSettlementAmount();
 		const currentPaid = doc.payments.reduce(
 			(acc: number, p: any) => acc + flt(p.amount),
 			0,
 		);
+		const currentPaymentAmount = flt(payment.amount);
 
 		const otherPayments = currentPaid - currentPaymentAmount;
 		let amount = invoiceAmount - otherPayments;
@@ -280,8 +276,6 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 		if (!isReturn) {
 			amount = Math.max(amount, 0);
 		}
-
-		if (amount <= 0) return;
 
 		payment.amount = amount;
 		if (payment.base_amount !== undefined) {
