@@ -371,60 +371,22 @@ def get_closing_shift_overview(pos_opening_shift):
                 if rate:
                     returns_entry["exchange_rates"].add(rate)
 
-        # Build net amounts per mode: always reduce change from cash first
-        inv_payment_amounts = {}
         for payment in invoice.get("payments", []):
             mode = payment.get("mode_of_payment")
             payment_currency = resolve_payment_currency(payment, invoice_currency)
             amount = flt(payment.get("amount") or 0)
             base_amount = get_base_value(payment, "amount", "base_amount", conversion_rate)
-            if mode not in inv_payment_amounts:
-                inv_payment_amounts[mode] = {"amount": 0.0, "base_amount": 0.0, "currency": payment_currency}
-            inv_payment_amounts[mode]["amount"] += amount
-            inv_payment_amounts[mode]["base_amount"] += base_amount
-
-        total_base_paid = sum(v["base_amount"] for v in inv_payment_amounts.values())
-        change_base = flt(total_base_paid - flt(base_grand_total))
-
-        if change_base > 0.001:
-            cash_mop = cash_mode_of_payment or "Cash"
-            remaining = change_base
-            if cash_mop in inv_payment_amounts:
-                cash_base = inv_payment_amounts[cash_mop]["base_amount"]
-                cash_reduction = min(cash_base, remaining)
-                ratio = (cash_base - cash_reduction) / cash_base if cash_base else 0
-                inv_payment_amounts[cash_mop]["amount"] *= ratio
-                inv_payment_amounts[cash_mop]["base_amount"] -= cash_reduction
-                remaining = flt(remaining - cash_reduction)
-            for mode in list(inv_payment_amounts.keys()):
-                if remaining <= 0.001:
-                    break
-                if mode == cash_mop:
-                    continue
-                entry = inv_payment_amounts[mode]
-                base_amt = entry["base_amount"]
-                reduction = min(base_amt, remaining)
-                ratio = (base_amt - reduction) / base_amt if base_amt else 0
-                entry["amount"] *= ratio
-                entry["base_amount"] -= reduction
-                remaining = flt(remaining - reduction)
-
-        for mode, data in inv_payment_amounts.items():
             accumulate_payment(
                 payments_by_mode,
                 mode,
-                data["currency"],
-                data["amount"],
-                data["base_amount"],
+                payment_currency,
+                amount,
+                base_amount,
                 conversion_rate,
             )
 
     for entry in payment_entries:
         # Change-return entries (Pay to Customer) must still populate change_returned display,
-        # but must NOT be added to payments_by_mode — the invoice algorithm already netted them out.
-        is_change_return = (
-            entry.get("payment_type") == "Pay" and entry.get("party_type") == "Customer"
-        )
         mode = entry.get("mode_of_payment")
         payment_currency = (
             entry.get("paid_to_account_currency")
@@ -511,15 +473,14 @@ def get_closing_shift_overview(pos_opening_shift):
 
                 rate = reference.get("exchange_rate") or entry_rate
 
-                if not is_change_return:
-                    accumulate_payment(
-                        payments_by_mode,
-                        mode,
-                        payment_currency,
-                        allocated_amount,
-                        allocated_base,
-                        rate,
-                    )
+                accumulate_payment(
+                    payments_by_mode,
+                    mode,
+                    payment_currency,
+                    allocated_amount,
+                    allocated_base,
+                    rate,
+                )
 
         residual_amount = amount - allocated_amount_sum
         residual_base = base_amount - allocated_base_sum
@@ -536,7 +497,7 @@ def get_closing_shift_overview(pos_opening_shift):
                 )
             )
 
-        if not is_change_return and (abs(residual_amount) > 0.0001 or abs(residual_base) > 0.0001):
+        if abs(residual_amount) > 0.0001 or abs(residual_base) > 0.0001:
             accumulate_payment(
                 payments_by_mode,
                 mode,
@@ -578,18 +539,6 @@ def get_closing_shift_overview(pos_opening_shift):
         currency_row["company_currency_total"] += movement_amount
 
     if cash_mode_of_payment:
-        for row in payments_by_mode.values():
-            if row["mode_of_payment"] != cash_mode_of_payment:
-                continue
-
-            overpayment_change_row = overpayment_change_totals_by_currency.get(row["currency"])
-            if overpayment_change_row:
-                row["total"] -= flt(overpayment_change_row.get("total"))
-
-                base_overpayment_change = overpayment_change_row.get("company_currency_total")
-                if base_overpayment_change:
-                    row["company_currency_total"] -= flt(base_overpayment_change)
-
         if cash_movement_company_currency_total:
             cash_key = (cash_mode_of_payment, company_currency)
             cash_row = payments_by_mode.setdefault(
@@ -621,6 +570,27 @@ def get_closing_shift_overview(pos_opening_shift):
                     },
                 )
                 cash_expected_company_currency_total += flt(row["company_currency_total"])
+
+    for detail in opening_shift_doc.get("balance_details", []):
+        if detail.get("mode_of_payment") != cash_mode_of_payment:
+            continue
+        opening_balance = flt(detail.get("amount") or 0)
+        if not opening_balance:
+            continue
+        cash_expected_company_currency_total += opening_balance
+        matched = next(
+            (r for r in cash_expected_totals if r["currency"] == company_currency), None
+        )
+        if matched:
+            matched["total"] += opening_balance
+            matched["company_currency_total"] += opening_balance
+        else:
+            cash_expected_totals.append({
+                "currency": company_currency,
+                "total": opening_balance,
+                "company_currency_total": opening_balance,
+                "exchange_rates": [],
+            })
 
     average_invoice_value = 0
     if sale_invoices_count:
