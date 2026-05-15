@@ -32,7 +32,6 @@
 						@change="$emit('update-amount', payment, $event)"
 						:rules="[isNumber]"
 						:prefix="currencySymbol(currency)"
-						@focus="$emit('set-rest-amount', payment, isReturn)"
 						:readonly="isGiftCardPayment(payment)"
 					></v-text-field>
 				</v-col>
