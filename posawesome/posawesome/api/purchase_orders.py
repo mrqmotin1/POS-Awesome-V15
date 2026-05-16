@@ -712,8 +712,8 @@ def create_purchase_order(data):
     frappe.flags.ignore_account_permission = True
     po_doc.save()
 
-    # Persist a safe draft first so if any downstream step fails (submit/PR/PI/payment),
-    # the operator does not lose the created PO.
+    # Intentional partial persistence: keep the draft PO before submit/receipt/invoice/payment
+    # work so the operator does not lose it if any downstream step fails.
     frappe.db.commit()
 
     try:
