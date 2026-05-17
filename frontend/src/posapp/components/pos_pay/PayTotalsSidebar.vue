@@ -274,14 +274,22 @@
 										<span class="font-weight-medium">{{ formatCurrency(newPaymentFields[selectedMop.row_id].targetRate) }}</span>
 									</div>
 								</v-col>
-								<v-col cols="6" class="py-0">
-									<div class="d-flex justify-space-between pr-1">
-										<span class="text-medium-emphasis">{{ __("Base Paid:") }}</span>
-										<span class="font-weight-medium">
-											{{ currencySymbol(companyCurrency) }}{{ formatCurrency(newPaymentFields[selectedMop.row_id].basePaidAmount) }}
-										</span>
-									</div>
-								</v-col>
+							<v-col cols="6" class="py-0">
+								<div class="d-flex justify-space-between align-center pr-1">
+									<span class="text-medium-emphasis text-caption">{{ __("Base Paid:") }}</span>
+									<v-text-field
+										:model-value="effectiveBasePaid(selectedMop.row_id)"
+										@update:model-value="v => basePaidManual[selectedMop.row_id] = v ? flt(v) : null"
+										density="compact"
+										variant="plain"
+										hide-details
+										type="number"
+										@wheel.prevent
+										:prefix="currencySymbol(companyCurrency)"
+										class="base-paid-input"
+									/>
+								</div>
+							</v-col>
 								<v-col cols="6" class="py-0">
 									<div class="d-flex justify-space-between pl-1">
 										<span class="text-medium-emphasis">{{ __("Base Recv:") }}</span>
@@ -627,6 +635,10 @@ const getPaymentMethodAccount = (mode) => {
 
 const rateFromCurrencyToCompany = (currency) => {
 	if (!currency || currency === props.companyCurrency) return 1;
+	if (currency === props.invoiceTotalCurrency) {
+		if (flt(props.exchangeRate) > 0) return flt(props.exchangeRate);
+		if (flt(props.invoiceConversionRate) > 0) return flt(props.invoiceConversionRate);
+	}
 	if (flt(props.exchangeRate) > 0) return flt(props.exchangeRate);
 	if (flt(props.invoiceConversionRate) > 0) return flt(props.invoiceConversionRate);
 	return 1;
@@ -665,6 +677,13 @@ const newPaymentFields = computed(() => {
 	}
 	return fields;
 });
+
+const basePaidManual = ref({});
+
+const effectiveBasePaid = (rowId) => {
+	const manual = basePaidManual.value[rowId];
+	return manual != null ? flt(manual) : (newPaymentFields.value[rowId]?.basePaidAmount || 0);
+};
 
 const selectedMopName = ref(null);
 
@@ -794,7 +813,7 @@ const enteredPayments = computed(() => {
 				row_id: m.row_id,
 				mode_of_payment: m.mode_of_payment,
 				amount: flt(m.amount),
-				baseAmount: fields.basePaidAmount || fields.baseReceivedAmount || flt(m.amount),
+				baseAmount: effectiveBasePaid(m.row_id) || flt(m.amount),
 			};
 		});
 });
@@ -886,6 +905,33 @@ defineExpose({
 	min-height: 28px;
 }
 .exchange-rate-input :deep(.v-field__overlay) {
+	display: none;
+}
+
+.base-paid-input {
+	max-width: 100px;
+	min-width: 70px;
+}
+.base-paid-input :deep(.v-field) {
+	background: transparent !important;
+	box-shadow: none !important;
+	border-bottom: 1px dashed rgba(var(--v-border-color), 0.3);
+	border-radius: 0;
+}
+.base-paid-input :deep(.v-field__input) {
+	font-size: 0.8rem;
+	font-weight: 600;
+	padding: 2px 4px;
+	min-height: 26px;
+	text-align: right;
+}
+.base-paid-input :deep(.v-field__prefix) {
+	font-size: 0.7rem;
+	font-weight: 500;
+	color: rgba(var(--v-theme-primary), 0.8);
+	padding-right: 2px;
+}
+.base-paid-input :deep(.v-field__overlay) {
 	display: none;
 }
 
