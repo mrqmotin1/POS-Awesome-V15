@@ -49,6 +49,7 @@
 							<h3 class="payment-section__title">{{ __("Payment Methods") }}</h3>
 						</div>
 						<PaymentMethods
+							ref="paymentMethodsRef"
 							:payments="visiblePaymentMethods"
 							:currency="invoice_doc.currency"
 							:isReturn="invoice_doc.is_return"
@@ -61,12 +62,13 @@
 							:isMpesaC2bPayment="is_mpesa_c2b_payment"
 							:isGiftCardPayment="isGiftCardPayment"
 							@update-amount="handlePaymentAmountChange"
-							@set-full-amount="set_full_amount"
+							@set-full-amount="(payment, isReturn) => { set_full_amount(payment, isReturn); paymentMethodsRef.value?.focusCardDigits(payment.mode_of_payment); }"
 							@set-denomination="setPaymentToDenomination"
 							@mpesa-dialog="mpesa_c2b_dialog"
 							@request-payment="request_payment"
 							@set-rest-amount="set_rest_amount"
 							@open-gift-card="openGiftCardDialog"
+							@update-card-digits="handleCardDigitsChange"
 						/>
 						<PaymentGiftCardSection
 							:enabled="Boolean(pos_profile?.posa_use_gift_cards)"
@@ -362,6 +364,7 @@ const {
 	isNumber,
 	flt,
 	setFormatedCurrency,
+	setCardLast4Digits,
 } = useFormat();
 
 const { selectedCustomer, customerInfo } = storeToRefs(customersStore);
@@ -396,6 +399,7 @@ const backgroundStatusCheck = ref(null);
 const paymentVisible = ref(false);
 const paymentContainer = ref(null);
 const submitButton = ref(null);
+const paymentMethodsRef = ref(null);
 const _shortcutHandlers = ref({});
 const readonly = ref(false); // Add missing readonly ref
 const submissionInFlight = ref(false);
@@ -1352,9 +1356,14 @@ const updateCreditChange = (rawValue) => {
 	}
 };
 
+const handleCardDigitsChange = (payment, event) => {
+	setCardLast4Digits(payment, "custom_card_last_4_digits", event);
+};
+
 const handlePaymentAmountChange = (payment, event) => {
 	last_payment_change_was_cash.value = isCashLikePayment(payment);
 	setFormatedCurrency(payment, "amount", null, false, event);
+	paymentMethodsRef.value?.focusCardDigits(payment.mode_of_payment);
 
 	// For return invoices: user enters a positive number but we store it as negative (refund)
 	if (invoice_doc.value?.is_return && payment.amount > 0) {
@@ -1646,7 +1655,10 @@ const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {})
 		});
 	} catch (error) {
 		console.error("Submission failed propagate:", error);
-		restorePaymentLinesAfterFailedSubmit();
+		const isCardDigitsError = error?.message?.includes("last 4 digits");
+		if (!isCardDigitsError) {
+			restorePaymentLinesAfterFailedSubmit();
+		}
 
 		if (error?.message) {
 			toastStore.show({

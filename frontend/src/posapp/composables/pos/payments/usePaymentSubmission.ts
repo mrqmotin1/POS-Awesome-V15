@@ -542,7 +542,23 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			}
 		}
 
-		// 5. Validate paid_change
+		// 5. Validate card last 4 digits
+		if (doc.payments) {
+			const cardPaymentMissingDigits = doc.payments.some(
+				(payment: any) =>
+					payment.mode_of_payment.toLowerCase().includes("card") &&
+					![0, "0", "", null, undefined].includes(payment.amount) &&
+					(!payment.custom_card_last_4_digits ||
+						String(payment.custom_card_last_4_digits).length !== 4),
+			);
+			if (cardPaymentMissingDigits) {
+				throw new Error(
+					__("Please enter valid last 4 digits for card payments"),
+				);
+			}
+		}
+
+		// 7. Validate paid_change
 		const changeLimit = Math.max(-diff, 0);
 		const pChange = unref(paidChange) || 0;
 		if (pChange > changeLimit + 0.001) {
@@ -551,7 +567,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			);
 		}
 
-		// 6. Validate cashback
+		// 8. Validate cashback
 		const cChange = unref(creditChange) || 0;
 		let total_change_calc = formatFloat(pChange + Math.abs(cChange), prec);
 		if (
@@ -561,7 +577,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			throw new Error(__("Error in change calculations!"));
 		}
 
-		// 7. Validate customer credit redemption
+		// 9. Validate customer credit redemption
 		if (customerCreditDict?.value?.length) {
 			let credit_calc_check = customerCreditDict.value.filter(
 				(row: any) => {

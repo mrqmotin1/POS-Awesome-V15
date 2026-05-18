@@ -378,6 +378,22 @@ export function useFormat() {
 			if (el && field_name) el[field_name] = value;
 			return formatCurrency(value, precision);
 		},
+		setCardLast4Digits(el: any, field_name: string, event?: any): string {
+			let input_val: string =
+				event && event.target ? event.target.value : event;
+			if (typeof input_val === "string") {
+				input_val = fromArabicNumerals(input_val);
+				input_val = input_val.replace(/\D/g, "");
+				if (input_val.length > 4) {
+					input_val = input_val.slice(-4);
+				}
+			}
+			if (!input_val) input_val = "";
+			if (typeof el === "object" && el !== null) {
+				el[field_name] = input_val;
+			}
+			return input_val;
+		},
 	};
 }
 
@@ -525,6 +541,29 @@ export default {
 			if (no_negative && value < 0) value = Math.abs(value);
 			if (el && field_name) el[field_name] = value;
 			return this.formatCurrency(value, precision);
+		},
+		setCardLast4Digits(
+			this: any,
+			el: any,
+			field_name: string,
+			event?: any,
+		): string {
+			let input_val: string =
+				event && event.target ? event.target.value : event;
+			if (typeof input_val === "string") {
+				input_val = fromArabicNumerals(input_val);
+				input_val = input_val.replace(/\D/g, "");
+				if (input_val.length > 4) {
+					input_val = input_val.slice(-4);
+				}
+			}
+			if (!input_val) input_val = "";
+			if (typeof el === "object" && el !== null) {
+				el[field_name] = input_val;
+			} else {
+				this[field_name] = input_val;
+			}
+			return input_val;
 		},
 		formatDateForBackend(date: any): string | null {
 			return normalizeDateForBackend(date);

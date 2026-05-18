@@ -74,6 +74,23 @@
 					</div>
 				</v-col>
 
+				<v-col
+					cols="6"
+					v-if="!isMpesaC2bPayment(payment) && payment.mode_of_payment.toLowerCase().includes('card')"
+				>
+					<v-text-field
+						ref="cardDigitsInputs"
+						density="compact"
+						variant="solo"
+						color="primary"
+						:label="frappe._('Card Last 4 Digits')"
+						class="sleek-field"
+						hide-details
+						:model-value="payment.custom_card_last_4_digits"
+						@change="$emit('update-card-digits', payment, $event)"
+					></v-text-field>
+				</v-col>
+
 				<v-col cols="12" v-if="isMpesaC2bPayment(payment)" class="pa-0">
 					<v-btn
 						block
@@ -108,8 +125,12 @@
 </template>
 
 <script setup>
+import { ref, nextTick } from "vue";
+
 const frappe = window.frappe;
 const __ = window.__;
+
+const cardDigitsInputs = ref([]);
 
 const props = defineProps({
 	payments: Array,
@@ -136,6 +157,7 @@ const emit = defineEmits([
 	"request-payment",
 	"set-rest-amount",
 	"open-gift-card",
+	"update-card-digits",
 ]);
 
 const handlePrimaryAction = (payment) => {
@@ -145,6 +167,25 @@ const handlePrimaryAction = (payment) => {
 	}
 	emit("set-full-amount", payment, props.isReturn);
 };
+
+const showQuickTenderActions = (payment) =>
+	!props.isGiftCardPayment(payment) &&
+	props.isCashLikePayment(payment) &&
+	payment?.default === 1;
+
+const focusCardDigits = (mode_of_payment) => {
+	if (!mode_of_payment.toLowerCase().includes("card")) return;
+	nextTick(() => {
+		const inputs = cardDigitsInputs.value;
+		const first = Array.isArray(inputs) ? inputs[0] : inputs;
+		if (first) {
+			const el = first.$el?.querySelector("input") || first.$el;
+			if (el) el.focus();
+		}
+	});
+};
+
+defineExpose({ focusCardDigits });
 </script>
 
 <style scoped>
