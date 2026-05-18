@@ -62,7 +62,7 @@
 							:isMpesaC2bPayment="is_mpesa_c2b_payment"
 							:isGiftCardPayment="isGiftCardPayment"
 							@update-amount="handlePaymentAmountChange"
-							@set-full-amount="(payment, isReturn) => { set_full_amount(payment, isReturn); paymentMethodsRef.value?.focusCardDigits(payment.mode_of_payment); }"
+							@set-full-amount="(payment, isReturn) => { set_full_amount(payment, isReturn); paymentMethodsRef?.focusCardDigits(payment.mode_of_payment); }"
 							@set-denomination="setPaymentToDenomination"
 							@mpesa-dialog="mpesa_c2b_dialog"
 							@request-payment="request_payment"

@@ -75,7 +75,8 @@
 				</v-col>
 
 				<v-col
-					cols="6"
+					cols="12"
+					md="7"
 					v-if="!isMpesaC2bPayment(payment) && payment.mode_of_payment.toLowerCase().includes('card')"
 				>
 					<v-text-field
@@ -84,7 +85,7 @@
 						variant="solo"
 						color="primary"
 						:label="frappe._('Card Last 4 Digits')"
-						class="sleek-field"
+						:class="['sleek-field pos-themed-input', isReturn ? 'pos-themed-input--refund' : '']"
 						hide-details
 						:model-value="payment.custom_card_last_4_digits"
 						@change="$emit('update-card-digits', payment, $event)"
