@@ -1088,6 +1088,45 @@ def update_invoice(data):
     return response
 
 
+def _fix_return_payment_change(invoice_doc):
+    """Normalise return invoice payments immediately before submit.
+
+    Two things must be true before GL entries are created:
+    1. All payment amounts must be negative (returns pay out, not receive).
+    2. The default/cash payment must be reduced by the original invoice's
+       change_amount so the net refund matches what was actually received
+       on the original sale net of change given out.
+
+    This runs after invoice_doc.update(invoice) which can restore positive
+    frontend amounts, so it re-applies both corrections in one place.
+    """
+    if not invoice_doc.is_return or not invoice_doc.payments:
+        return
+
+    # Step 1: force every payment negative
+    for payment in invoice_doc.payments:
+        payment.amount = -abs(flt(payment.amount))
+        payment.base_amount = -abs(flt(payment.base_amount))
+
+    # Step 2: subtract original change_amount from default payment
+    if invoice_doc.return_against:
+        original_change = flt(
+            frappe.db.get_value(
+                invoice_doc.doctype, invoice_doc.return_against, "change_amount"
+            )
+        )
+        if original_change > 0:
+            default_payment = next(
+                (p for p in invoice_doc.payments if p.default),
+                invoice_doc.payments[0],
+            )
+            default_payment.amount = flt(default_payment.amount + original_change)
+            default_payment.base_amount = flt(default_payment.base_amount + original_change)
+
+    invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
+    invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
+
+
 @frappe.whitelist()
 def submit_invoice(invoice, data, submit_in_background=False):
     data = json.loads(data)
@@ -1318,6 +1357,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
             },
         )
     else:
+        _fix_return_payment_change(invoice_doc)
         _run_without_return_outstanding_prompts(invoice_doc, invoice_doc.submit)
         if ledger_doc:
             _update_submission_ledger(
@@ -1399,7 +1439,7 @@ def submit_in_background_job(kwargs):
 
         invoice_doc = _save_draft_with_latest_timestamp(invoice_doc)
         _normalize_return_payment_rows(invoice_doc, invoice_doc.get("conversion_rate") or 1)
-
+        _fix_return_payment_change(invoice_doc)
         invoice_doc.submit()
         if ledger_doc:
             _update_submission_ledger(
