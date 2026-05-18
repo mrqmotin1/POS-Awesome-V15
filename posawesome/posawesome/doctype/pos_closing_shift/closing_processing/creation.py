@@ -96,44 +96,19 @@ def make_closing_shift_from_opening(opening_shift):
                     )
                 )
 
-        # Build net amounts per mode: always reduce change from cash first
-        payment_amounts = {}
         for p in d.payments:
-            mop = p.mode_of_payment
-            pay_amount = flt(get_base_value(p, "amount", "base_amount", d.get("conversion_rate")))
-            payment_amounts[mop] = payment_amounts.get(mop, 0) + pay_amount
-
-        invoice_base_total = flt(get_base_value(d, "grand_total", "base_grand_total", d.get("conversion_rate")))
-        total_paid = sum(payment_amounts.values())
-        change = flt(total_paid - invoice_base_total)
-
-        if change > 0.001:
-            remaining = change
-            cash_amount = payment_amounts.get(cash_mode_of_payment, 0)
-            cash_reduction = min(cash_amount, remaining)
-            payment_amounts[cash_mode_of_payment] = cash_amount - cash_reduction
-            remaining = flt(remaining - cash_reduction)
-            for mop in list(payment_amounts.keys()):
-                if remaining <= 0.001:
-                    break
-                if mop == cash_mode_of_payment:
-                    continue
-                amount = payment_amounts[mop]
-                reduction = min(amount, remaining)
-                payment_amounts[mop] = amount - reduction
-                remaining = flt(remaining - reduction)
-
-        for mop, net_amount in payment_amounts.items():
-            existing_pay = [pay for pay in payments if pay.mode_of_payment == mop]
+            existing_pay = [pay for pay in payments if pay.mode_of_payment == p.mode_of_payment]
+            conversion_rate = d.get("conversion_rate")
+            amount = get_base_value(p, "amount", "base_amount", conversion_rate)
             if existing_pay:
-                existing_pay[0].expected_amount += net_amount
+                existing_pay[0].expected_amount += flt(amount)
             else:
                 payments.append(
                     frappe._dict(
                         {
-                            "mode_of_payment": mop,
+                            "mode_of_payment": p.mode_of_payment,
                             "opening_amount": 0,
-                            "expected_amount": net_amount,
+                            "expected_amount": flt(amount),
                         }
                     )
                 )
@@ -152,10 +127,6 @@ def make_closing_shift_from_opening(opening_shift):
                 }
             )
         )
-        # Skip change-return entries (Pay to Customer) — already accounted for
-        # by the invoice_needed algorithm above; counting them again double-deducts cash.
-        if py.payment_type == "Pay" and py.get("party_type") == "Customer":
-            continue
         existing_pay = [pay for pay in payments if pay.mode_of_payment == py.mode_of_payment]
         multiplier = -1 if py.payment_type == "Pay" else 1
         signed_amount = multiplier * abs(get_base_value(py, "paid_amount", "base_paid_amount"))

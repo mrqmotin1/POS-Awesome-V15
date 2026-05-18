@@ -35,13 +35,13 @@
 				></v-text-field>
 			</template>
 			<template v-slot:item.difference="{ item }">
-				{{ formatCurrencyDisplay(calculateDifference(item)) }}
+				{{ formatCurrency(calculateDifference(item)) }}
 			</template>
 			<template v-slot:item.opening_amount="{ item }">
-				{{ formatCurrencyDisplay(item.opening_amount) }}</template
+				{{ formatCurrency(item.opening_amount) }}</template
 			>
 			<template v-slot:item.expected_amount="{ item }">
-				{{ formatCurrencyDisplay(item.expected_amount) }}</template
+				{{ formatCurrency(item.expected_amount) }}</template
 			>
 			<template v-slot:item.variance_percent="{ item }">
 				<span :class="['variance-chip', varianceClass(item)]">
@@ -100,21 +100,6 @@ const calculateDifference = (item) => {
 	const closing = Number(item?.closing_amount) || 0;
 	const expected = Number(item?.expected_amount) || 0;
 	return expected - closing;
-};
-
-const formatCurrencyDisplay = (value) => {
-	const formatted = String(props.formatCurrency(value || 0) || "").trim();
-	if (!formatted) {
-		return props.companyCurrencySymbol || "";
-	}
-	if (
-		(props.companyCurrencySymbol &&
-			formatted.includes(props.companyCurrencySymbol)) ||
-		/^([A-Z]{3})\s/.test(formatted)
-	) {
-		return formatted;
-	}
-	return `${props.companyCurrencySymbol || ""} ${formatted}`.trim();
 };
 
 const formatVariancePercent = (item) => {
