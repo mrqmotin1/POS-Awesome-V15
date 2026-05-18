@@ -1080,16 +1080,16 @@ const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
 		return null;
 	}
 
-	const otherMeaningfulPayments = payments.filter((payment) => {
-		if (payment === preferredPayment) {
-			return false;
-		}
-		return Math.abs(flt(payment.amount || 0, currency_precision.value)) > 0.0001;
-	});
+	// const otherMeaningfulPayments = payments.filter((payment) => {
+	// 	if (payment === preferredPayment) {
+	// 		return false;
+	// 	}
+	// 	return Math.abs(flt(payment.amount || 0, currency_precision.value)) > 0.0001;
+	// });
 
-	if (otherMeaningfulPayments.length) {
-		return preferredPayment;
-	}
+	// if (otherMeaningfulPayments.length ) {
+	// 	return preferredPayment;
+	// }
 
 	const total = netInvoiceSettlementAmount.value;
 	const normalizedTotal = doc.is_return ? -Math.abs(total) : Math.abs(total);
