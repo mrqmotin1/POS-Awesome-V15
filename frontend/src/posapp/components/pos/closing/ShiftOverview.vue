@@ -91,7 +91,7 @@
 											<span class="overview-amount">
 												{{
 													formatCurrencyWithSymbol(
-														row.total || 0,
+														(paymentsByModeTotalMap[row.currency] || {}).total || 0,
 														row.currency || overviewCompanyCurrency,
 													)
 												}}
@@ -102,7 +102,7 @@
 											>
 												({{
 													formatCurrencyWithSymbol(
-														row.company_currency_total || 0,
+														(paymentsByModeTotalMap[row.currency] || {}).company_currency_total || 0,
 														overviewCompanyCurrency,
 													)
 												}})
@@ -782,7 +782,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from "vue";
+
+const props = defineProps({
 	loading: Boolean,
 	primaryInsights: Array,
 	secondaryInsights: Array,
@@ -820,6 +822,17 @@ const hasLoyaltyRedemption = (summary, rows = []) => {
 			Number(row?.invoice_count || 0) !== 0,
 	);
 };
+
+const paymentsByModeTotalMap = computed(() => {
+	const map = {};
+	for (const row of props.paymentsByMode || []) {
+		const cur = row.currency || props.overviewCompanyCurrency;
+		if (!map[cur]) map[cur] = { total: 0, company_currency_total: 0 };
+		map[cur].total += row.total || 0;
+		map[cur].company_currency_total += row.company_currency_total || 0;
+	}
+	return map;
+});
 </script>
 
 <style scoped>

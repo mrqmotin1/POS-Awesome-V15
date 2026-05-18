@@ -218,6 +218,48 @@ def search_invoices_for_return(
     return result
 
 
+def _build_cash_return_payments(invoice_doc, pos_profile=None):
+    """Return a single Cash payment row covering the full invoice grand_total.
+
+    Regardless of how the original invoice was paid (cash, card, or a mix),
+    refunds always go out as cash only.
+    """
+    original_payments = invoice_doc.get("payments") or []
+
+    # Resolve cash mode: POS profile config → Cash-type row → fallback "Cash"
+    cash_mode = None
+    if pos_profile:
+        cash_mode = frappe.db.get_value("POS Profile", pos_profile, "posa_cash_mode_of_payment")
+    if not cash_mode:
+        for p in original_payments:
+            if (p.get("type") or "").lower() == "cash":
+                cash_mode = p.get("mode_of_payment")
+                break
+    if not cash_mode:
+        cash_mode = "Cash"
+
+    # Resolve cash account from the matching payment row if available
+    cash_account = None
+    for p in original_payments:
+        if p.get("mode_of_payment") == cash_mode:
+            cash_account = p.get("account")
+            break
+
+    total = flt(invoice_doc.grand_total)
+    return [
+        {
+            "mode_of_payment": cash_mode,
+            "amount": total,
+            "base_amount": total,
+            "default": 1,
+            "account": cash_account,
+            "type": "Cash",
+            "currency": invoice_doc.currency,
+            "conversion_rate": invoice_doc.conversion_rate,
+        }
+    ]
+
+
 @frappe.whitelist()
 def get_invoice_for_return(invoice_name, pos_profile=None, doctype="Sales Invoice"):
     """Return one invoice with returnable item quantities after past returns."""
@@ -242,19 +284,7 @@ def get_invoice_for_return(invoice_name, pos_profile=None, doctype="Sales Invoic
         "discount_amount": invoice_doc.discount_amount,
         "additional_discount_percentage": invoice_doc.additional_discount_percentage,
         "posa_return_valid_upto": invoice_doc.get("posa_return_valid_upto"),
-        "payments": [
-            {
-                "mode_of_payment": payment.get("mode_of_payment"),
-                "amount": payment.get("amount"),
-                "base_amount": payment.get("base_amount"),
-                "default": payment.get("default"),
-                "account": payment.get("account"),
-                "type": payment.get("type"),
-                "currency": payment.get("currency"),
-                "conversion_rate": payment.get("conversion_rate"),
-            }
-            for payment in (invoice_doc.get("payments") or [])
-        ],
+        "payments": _build_cash_return_payments(invoice_doc, pos_profile),
     }
 
     meta = frappe.get_meta(doctype)
