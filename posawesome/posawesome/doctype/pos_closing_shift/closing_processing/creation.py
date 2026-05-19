@@ -100,8 +100,10 @@ def make_closing_shift_from_opening(opening_shift):
             existing_pay = [pay for pay in payments if pay.mode_of_payment == p.mode_of_payment]
             conversion_rate = d.get("conversion_rate")
             amount = get_base_value(p, "amount", "base_amount", conversion_rate)
+            if p.mode_of_payment == cash_mode_of_payment:
+                amount -= get_base_value(d, "change_amount", "base_change_amount", conversion_rate)
             if existing_pay:
-                existing_pay[0].expected_amount += flt(amount)
+                existxing_pay[0].expected_amount += flt(amount)
             else:
                 payments.append(
                     frappe._dict(
