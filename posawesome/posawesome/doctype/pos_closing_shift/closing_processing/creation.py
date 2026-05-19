@@ -129,6 +129,9 @@ def make_closing_shift_from_opening(opening_shift):
                 }
             )
         )
+        # Skip change-return entries — change already deducted from cash in invoice loop above
+        if py.payment_type == "Pay" and py.get("party_type") == "Customer":
+            continue
         existing_pay = [pay for pay in payments if pay.mode_of_payment == py.mode_of_payment]
         multiplier = -1 if py.payment_type == "Pay" else 1
         signed_amount = multiplier * abs(get_base_value(py, "paid_amount", "base_paid_amount"))
