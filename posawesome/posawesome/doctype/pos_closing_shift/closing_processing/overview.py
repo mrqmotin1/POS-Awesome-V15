@@ -424,6 +424,14 @@ def get_closing_shift_overview(pos_opening_shift):
             payment_currency = resolve_payment_currency(payment, invoice_currency)
             amount = flt(payment.get("amount") or 0)
             base_amount = get_base_value(payment, "amount", "base_amount", conversion_rate)
+
+            if mode == cash_mode_of_payment and change_amount and not has_overpayment_entry and not invoice.get("is_return"):
+                change_base_amount = flt(
+                    get_base_value(invoice, "change_amount", "base_change_amount", conversion_rate)
+                )
+                amount -= change_amount
+                base_amount -= change_base_amount
+
             accumulate_payment(
                 payments_by_mode,
                 mode,

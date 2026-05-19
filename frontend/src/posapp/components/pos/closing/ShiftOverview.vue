@@ -59,7 +59,8 @@
 				</v-row>
 			</div>
 
-			<div class="table-section mt-6">
+			<!-- Totals by Invoice Currency table commented out -->
+			<!-- <div class="table-section mt-6">
 				<div class="table-header mb-2">
 					<h5 class="text-subtitle-1 text-grey-darken-2 mb-1">
 						{{ __("Totals by Invoice Currency") }}
@@ -130,9 +131,10 @@
 				<div v-else class="overview-empty text-body-2">
 					{{ __("No invoices recorded for this shift.") }}
 				</div>
-			</div>
+			</div> -->
 
-			<v-row dense class="mt-4">
+			<!-- Outstanding Credit by Currency table commented out -->
+			<!-- <v-row dense class="mt-4">
 				<v-col cols="12" md="6">
 					<div class="table-section">
 						<div class="table-header mb-2">
@@ -286,9 +288,10 @@
 						</div>
 					</div>
 				</v-col>
-			</v-row>
+			</v-row> -->
 
-			<v-row dense class="mt-4">
+			<!-- Change Returned table commented out -->
+			<!-- <v-row dense class="mt-4">
 				<v-col cols="12" md="6">
 					<div class="table-section">
 						<div class="table-header mb-2">
@@ -466,7 +469,8 @@
 						</div>
 					</div>
 					<!-- End: Change Returned -->
-					<div class="table-section">
+					<!-- Cash Drawer Snapshot table commented out -->
+					<!-- <div class="table-section">
 						<div class="table-header mb-2">
 							<h5 class="text-subtitle-1 text-grey-darken-2 mb-1">
 								{{ __("Cash Drawer Snapshot") }}
@@ -548,8 +552,9 @@
 						<div v-else class="overview-empty text-body-2">
 							{{ __("No cash expected for this shift.") }}
 						</div>
-					</div>
-					<div class="table-section mt-4">
+					</div> -->
+					<!-- Submitted Cash Movements table commented out -->
+					<!-- <div class="table-section mt-4">
 						<div class="table-header mb-2">
 							<h5 class="text-subtitle-1 text-grey-darken-2 mb-1">
 								{{ __("Submitted Cash Movements") }}
@@ -602,9 +607,7 @@
 						<div v-else class="overview-empty text-body-2">
 							{{ __("No submitted cash movements in this shift.") }}
 						</div>
-					</div>
-				</v-col>
-			</v-row>
+					</div> -->
 
 			<div
 				v-if="hasLoyaltyRedemption(loyaltyRedemptionSummary, loyaltyRedemptionByCurrency)"
@@ -776,7 +779,7 @@
 				<div v-else class="overview-empty text-body-2">
 					{{ __("No payments registered for this shift.") }}
 				</div>
-			</div>
+			</div> -->
 		</div>
 	</div>
 </template>

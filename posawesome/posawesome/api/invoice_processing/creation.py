@@ -1108,7 +1108,10 @@ def _fix_return_payment_change(invoice_doc):
         payment.amount = -abs(flt(payment.amount))
         payment.base_amount = -abs(flt(payment.base_amount))
 
-    # Step 2: subtract original change_amount from default payment
+    # Step 2: subtract original change_amount from default payment.
+    # Only applies when payment magnitude exceeds grand_total (old flow where payments
+    # were copied from the original invoice as the full paid amount).
+    # Skipped when payment already equals grand_total (_build_cash_return_payments flow).
     if invoice_doc.return_against:
         original_change = flt(
             frappe.db.get_value(
@@ -1120,8 +1123,11 @@ def _fix_return_payment_change(invoice_doc):
                 (p for p in invoice_doc.payments if p.default),
                 invoice_doc.payments[0],
             )
-            default_payment.amount = flt(default_payment.amount + original_change)
-            default_payment.base_amount = flt(default_payment.base_amount + original_change)
+            payment_magnitude = abs(flt(default_payment.amount))
+            grand_total_magnitude = abs(flt(invoice_doc.grand_total))
+            if payment_magnitude > grand_total_magnitude + 0.001:
+                default_payment.amount = flt(default_payment.amount + original_change)
+                default_payment.base_amount = flt(default_payment.base_amount + original_change)
 
     invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
     invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
