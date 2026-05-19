@@ -190,8 +190,8 @@ def make_closing_shift_from_opening(opening_shift):
 
     for py in pos_payments:
         pos_payments_table.append(build_pos_payment_reference(py))
-        # Skip change-return entries (Pay to Customer) — already accounted for
-        # by the invoice_needed algorithm above; counting them again double-deducts cash.
+        # Skip change-return entries (Pay to Customer) — change already deducted from
+        # cash in the invoice loop above; counting them again double-deducts cash.
         if py.payment_type == "Pay" and py.get("party_type") == "Customer":
             continue
         existing_pay = [pay for pay in payments if pay.mode_of_payment == py.mode_of_payment]
