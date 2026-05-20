@@ -343,6 +343,16 @@ export default {
 			}
 		};
 
+		const commitPendingCustomerSelection = () => {
+			if (tempSelectedCustomer.value) {
+				internalCustomer.value = tempSelectedCustomer.value;
+				customersStore.setSelectedCustomer(tempSelectedCustomer.value);
+			} else if (selectedCustomer.value) {
+				internalCustomer.value = selectedCustomer.value;
+			}
+			tempSelectedCustomer.value = null;
+		};
+
 		const onCustomerMenuToggle = (isOpen) => {
 			isMenuOpen.value = isOpen;
 			if (isOpen) {
@@ -356,16 +366,11 @@ export default {
 			}
 
 			detachScrollListener();
-			if (tempSelectedCustomer.value) {
-				internalCustomer.value = tempSelectedCustomer.value;
-				customersStore.setSelectedCustomer(tempSelectedCustomer.value);
-			} else if (selectedCustomer.value) {
-				internalCustomer.value = selectedCustomer.value;
-			}
-			tempSelectedCustomer.value = null;
+			commitPendingCustomerSelection();
 		};
 
 		const closeCustomerMenu = () => {
+			commitPendingCustomerSelection();
 			const dropdown = customerDropdown.value;
 			if (dropdown) {
 				try {

@@ -58,4 +58,10 @@ describe("Customer dropdown XSS regression", () => {
 		expect(customerSource).toContain("Mobile No: {{ item.raw.mobile_no }}");
 		expect(customerSource).toContain("Primary Address: {{ item.raw.primary_address }}");
 	});
+
+	it("commits a clicked customer before closing the autocomplete menu", () => {
+		expect(customerSource).toContain("const commitPendingCustomerSelection = () =>");
+		expect(customerSource).toContain("customersStore.setSelectedCustomer(tempSelectedCustomer.value)");
+		expect(customerSource).toContain("const closeCustomerMenu = () => {\n\t\t\tcommitPendingCustomerSelection();");
+	});
 });
