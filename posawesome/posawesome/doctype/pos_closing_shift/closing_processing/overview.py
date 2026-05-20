@@ -73,6 +73,10 @@ def get_closing_shift_overview(pos_opening_shift):
     overpayment_change_company_currency_total = 0
     overpayment_change_totals_by_currency = {}
     total_change_totals_by_currency = {}
+    loyalty_redeemed_company_currency_total = 0
+    loyalty_redeemed_points = 0
+    loyalty_redeemed_invoice_count = 0
+    loyalty_redeemed_totals_by_currency = {}
     cash_movement_count = 0
     cash_movement_company_currency_total = 0
     cash_movement_totals_by_type = {}
@@ -256,6 +260,43 @@ def get_closing_shift_overview(pos_opening_shift):
                 rate = abs(flt(base_grand_total)) / abs(flt(invoice_total)) if base_grand_total else None
             if rate:
                 currency_entry["exchange_rates"].add(rate)
+
+        loyalty_amount = abs(flt(invoice.get("loyalty_amount") or 0))
+        loyalty_points = abs(flt(invoice.get("loyalty_points") or 0))
+        if loyalty_amount or loyalty_points:
+            loyalty_base_amount = abs(
+                flt(get_base_value(invoice, "loyalty_amount", "base_loyalty_amount", conversion_rate))
+            )
+            if not loyalty_base_amount and loyalty_amount:
+                loyalty_base_amount = loyalty_amount
+            loyalty_redeemed_company_currency_total += loyalty_base_amount
+            loyalty_redeemed_points += loyalty_points
+            loyalty_redeemed_invoice_count += 1
+
+            loyalty_entry = loyalty_redeemed_totals_by_currency.setdefault(
+                invoice_currency,
+                {
+                    "currency": invoice_currency,
+                    "total": 0,
+                    "company_currency_total": 0,
+                    "points": 0,
+                    "invoice_count": 0,
+                    "exchange_rates": set(),
+                },
+            )
+            loyalty_entry["total"] += loyalty_amount
+            loyalty_entry["company_currency_total"] += loyalty_base_amount
+            loyalty_entry["points"] += loyalty_points
+            loyalty_entry["invoice_count"] += 1
+
+            if invoice_currency != company_currency:
+                rate = None
+                if loyalty_amount:
+                    rate = loyalty_base_amount / loyalty_amount if loyalty_base_amount else None
+                if not rate and conversion_rate:
+                    rate = flt(conversion_rate)
+                if rate:
+                    loyalty_entry["exchange_rates"].add(rate)
 
         change_amount = flt(invoice.get("change_amount") or 0)
         has_overpayment_entry = invoice.get("name") in overpayment_invoice_names
@@ -587,7 +628,7 @@ def get_closing_shift_overview(pos_opening_shift):
     if sale_invoices_count:
         average_invoice_value = gross_company_currency_total / sale_invoices_count
 
-    def prepare_currency_rows(container, include_count=False):
+    def prepare_currency_rows(container, include_count=False, include_points=False):
         output = []
         for row in container.values():
             exchange_rates = row.get("exchange_rates") or []
@@ -607,6 +648,8 @@ def get_closing_shift_overview(pos_opening_shift):
             }
             if include_count:
                 record["invoice_count"] = row.get("invoice_count", 0)
+            if include_points:
+                record["points"] = flt(row.get("points"))
             output.append(record)
         return sorted(output, key=lambda r: (r.get("currency") or ""))
 
@@ -682,6 +725,16 @@ def get_closing_shift_overview(pos_opening_shift):
                 "company_currency_total": flt(overpayment_change_company_currency_total),
                 "by_currency": prepare_currency_rows(overpayment_change_totals_by_currency),
             },
+        },
+        "loyalty_redemption": {
+            "count": loyalty_redeemed_invoice_count,
+            "points": flt(loyalty_redeemed_points),
+            "company_currency_total": flt(loyalty_redeemed_company_currency_total),
+            "by_currency": prepare_currency_rows(
+                loyalty_redeemed_totals_by_currency,
+                include_count=True,
+                include_points=True,
+            ),
         },
         "cash_expected": {
             "mode_of_payment": cash_mode_of_payment,

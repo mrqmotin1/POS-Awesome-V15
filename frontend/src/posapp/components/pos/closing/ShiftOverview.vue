@@ -606,6 +606,107 @@
 				</v-col>
 			</v-row>
 
+			<div
+				v-if="loyaltyRedemptionSummary && loyaltyRedemptionSummary.company_currency_total"
+				class="table-section mt-4"
+			>
+				<div class="table-header mb-2">
+					<h5 class="text-subtitle-1 text-grey-darken-2 mb-1">
+						{{ __("Loyalty Redemption") }}
+					</h5>
+					<p class="text-body-2 text-grey">
+						{{ __("Invoice value settled by loyalty points, not cash collection") }}
+					</p>
+				</div>
+
+				<div class="overview-table-wrapper">
+					<table class="overview-table">
+						<thead>
+							<tr>
+								<th>{{ __("Currency") }}</th>
+								<th class="text-end">
+									{{ __("Redeemed Amount") }}
+								</th>
+								<th class="text-end">
+									{{ __("Points") }}
+								</th>
+								<th class="text-end">
+									{{ __("Invoices") }}
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr
+								v-for="row in loyaltyRedemptionByCurrency"
+								:key="`loyalty-${row.currency}`"
+							>
+								<td>{{ row.currency }}</td>
+								<td class="text-end">
+									<div class="amount-with-base">
+										<div class="amount-primary">
+											<span class="overview-amount">
+												{{
+													formatCurrencyWithSymbol(
+														row.total || 0,
+														row.currency || overviewCompanyCurrency,
+													)
+												}}
+											</span>
+											<span
+												v-if="shouldShowCompanyEquivalent(row, row.currency)"
+												class="company-equivalent"
+											>
+												({{
+													formatCurrencyWithSymbol(
+														row.company_currency_total || 0,
+														overviewCompanyCurrency,
+													)
+												}})
+											</span>
+										</div>
+										<div
+											v-if="showExchangeRates(row, row.currency)"
+											class="exchange-note"
+										>
+											{{
+												formatExchangeRates(
+													row.exchange_rates,
+													row.currency || overviewCompanyCurrency,
+													overviewCompanyCurrency,
+												)
+											}}
+										</div>
+									</div>
+								</td>
+								<td class="text-end">{{ row.points || 0 }}</td>
+								<td class="text-end">{{ row.invoice_count || 0 }}</td>
+							</tr>
+							<tr>
+								<td>
+									<strong>{{ __("Total") }}</strong>
+								</td>
+								<td class="text-end">
+									<strong>
+										{{
+											formatCurrencyWithSymbol(
+												loyaltyRedemptionSummary.company_currency_total || 0,
+												overviewCompanyCurrency,
+											)
+										}}
+									</strong>
+								</td>
+								<td class="text-end">
+									<strong>{{ loyaltyRedemptionSummary.points || 0 }}</strong>
+								</td>
+								<td class="text-end">
+									<strong>{{ loyaltyRedemptionSummary.count || 0 }}</strong>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
 			<div class="table-section mt-4">
 				<div class="table-header mb-2">
 					<h5 class="text-subtitle-1 text-grey-darken-2 mb-1">
@@ -691,6 +792,8 @@ defineProps({
 	changeReturnedRows: Array,
 	cashExpectedByCurrency: Array,
 	cashMovementSummary: Object,
+	loyaltyRedemptionSummary: Object,
+	loyaltyRedemptionByCurrency: Array,
 	paymentsByMode: Array,
 	overviewCompanyCurrency: String,
 	// Functions
