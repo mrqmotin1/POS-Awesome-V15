@@ -64,13 +64,13 @@ def _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, c
     receive_entries = redeeming_customer_credit(
         invoice_doc, data, is_payment_entry, total_cash, cash_account, payments
     )
-    _create_change_payment_entries(
-        invoice_doc,
-        data,
-        invoice_doc.pos_profile,
-        cash_account,
-        receive_entries,
-    )
+    # _create_change_payment_entries(
+    #     invoice_doc,
+    #     data,
+    #     invoice_doc.pos_profile,
+    #     cash_account,
+    #     receive_entries,
+    # )
 
 
 def _process_post_submit_payments(
@@ -698,51 +698,51 @@ def update_invoice(data):
     return response
 
 
-def _fix_return_payment_change(invoice_doc):
-    """Normalise return invoice payments immediately before submit.
+# def _fix_return_payment_change(invoice_doc):
+#     """Normalise return invoice payments immediately before submit.
 
-    Two things must be true before GL entries are created:
-    1. All payment amounts must be negative (returns pay out, not receive).
-    2. The default/cash payment must be reduced by the original invoice's
-       change_amount so the net refund matches what was actually received
-       on the original sale net of change given out.
+#     Two things must be true before GL entries are created:
+#     1. All payment amounts must be negative (returns pay out, not receive).
+#     2. The default/cash payment must be reduced by the original invoice's
+#        change_amount so the net refund matches what was actually received
+#        on the original sale net of change given out.
 
-    This runs after invoice_doc.update(invoice) which can restore positive
-    frontend amounts, so it re-applies both corrections in one place.
-    """
-    if not invoice_doc.is_return or not invoice_doc.payments:
-        return
+#     This runs after invoice_doc.update(invoice) which can restore positive
+#     frontend amounts, so it re-applies both corrections in one place.
+#     """
+#     if not invoice_doc.is_return or not invoice_doc.payments:
+#         return
 
-    # Step 1: force every payment negative
-    for payment in invoice_doc.payments:
-        payment.amount = -abs(flt(payment.amount))
-        payment.base_amount = -abs(flt(payment.base_amount))
+#     # Step 1: force every payment negative
+#     for payment in invoice_doc.payments:
+#         payment.amount = -abs(flt(payment.amount))
+#         payment.base_amount = -abs(flt(payment.base_amount))
 
-    # Step 2: subtract original change_amount from default payment.
-    # Only applies when payment magnitude exceeds grand_total (old flow where payments
-    # were copied from the original invoice as the full paid amount).
-    # Skipped when payment already equals grand_total (_build_cash_return_payments flow).
-    if invoice_doc.return_against:
-        original_change = flt(
-            frappe.db.get_value(
-                invoice_doc.doctype, invoice_doc.return_against, "change_amount"
-            )
-        )
-        if original_change > 0:
-            default_payment = next(
-                (p for p in invoice_doc.payments if p.default),
-                invoice_doc.payments[0],
-            )
-            default_payment.amount = flt(default_payment.amount + original_change)
-            default_payment.base_amount = flt(default_payment.base_amount + original_change)
-            payment_magnitude = abs(flt(default_payment.amount))
-            grand_total_magnitude = abs(flt(invoice_doc.grand_total))
-            if payment_magnitude > grand_total_magnitude + 0.001:
-                default_payment.amount = flt(default_payment.amount + original_change)
-                default_payment.base_amount = flt(default_payment.base_amount + original_change)
+#     # Step 2: subtract original change_amount from default payment.
+#     # Only applies when payment magnitude exceeds grand_total (old flow where payments
+#     # were copied from the original invoice as the full paid amount).
+#     # Skipped when payment already equals grand_total (_build_cash_return_payments flow).
+#     if invoice_doc.return_against:
+#         original_change = flt(
+#             frappe.db.get_value(
+#                 invoice_doc.doctype, invoice_doc.return_against, "change_amount"
+#             )
+#         )
+#         if original_change > 0:
+#             default_payment = next(
+#                 (p for p in invoice_doc.payments if p.default),
+#                 invoice_doc.payments[0],
+#             )
+#             default_payment.amount = flt(default_payment.amount + original_change)
+#             default_payment.base_amount = flt(default_payment.base_amount + original_change)
+#             payment_magnitude = abs(flt(default_payment.amount))
+#             grand_total_magnitude = abs(flt(invoice_doc.grand_total))
+#             if payment_magnitude > grand_total_magnitude + 0.001:
+#                 default_payment.amount = flt(default_payment.amount + original_change)
+#                 default_payment.base_amount = flt(default_payment.base_amount + original_change)
 
-    invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
-    invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
+#     invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
+#     invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
 
 
 @frappe.whitelist()
@@ -929,7 +929,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
             },
         )
     else:
-        _fix_return_payment_change(invoice_doc)
+        # _fix_return_payment_change(invoice_doc)
         invoice_doc.submit()
         _process_post_submit_payments(
             invoice_doc,
@@ -990,7 +990,7 @@ def submit_in_background_job(kwargs):
         _apply_invoice_gift_card_settlement(invoice_doc, data)
 
         invoice_doc = _save_draft_with_latest_timestamp(invoice_doc)
-        _fix_return_payment_change(invoice_doc)
+        # _fix_return_payment_change(invoice_doc)
         invoice_doc.submit()
         if hasattr(frappe, "publish_realtime"):
             frappe.publish_realtime(
