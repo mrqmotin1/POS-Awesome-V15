@@ -7,10 +7,12 @@ import json
 import frappe
 from frappe.utils import nowdate, flt, cstr, get_datetime
 from frappe import _
+from erpnext.accounts.doctype.loyalty_program.loyalty_program import (
+    get_loyalty_program_details_with_points,
+)
 from frappe.utils.caching import redis_cache
 from .utils import assert_pos_profile_write_allowed, fetch_sales_person_names
 from .stored_value import get_stored_value_summary
-from .loyalty import get_customer_loyalty_details
 
 
 def _load_json_arg(value):
@@ -165,8 +167,7 @@ def get_customer_info(customer=None, company=None):
     res["email_id"] = customer.email_id
     res["mobile_no"] = customer.mobile_no
     res["image"] = customer.image
-    loyalty_details = get_customer_loyalty_details(customer, company=company)
-    res["loyalty_program"] = loyalty_details.get("loyalty_program")
+    res["loyalty_program"] = customer.loyalty_program
     res["customer_price_list"] = customer.default_price_list
     res["customer_group"] = customer.customer_group
     res["customer_type"] = customer.customer_type
@@ -187,8 +188,15 @@ def get_customer_info(customer=None, company=None):
     else:
         res["price_list_currency"] = None
 
-    res["loyalty_points"] = loyalty_details.get("loyalty_points")
-    res["conversion_factor"] = loyalty_details.get("conversion_factor")
+    if customer.loyalty_program:
+        lp_details = get_loyalty_program_details_with_points(
+            customer.name,
+            customer.loyalty_program,
+            silent=True,
+            include_expired_entry=False,
+        )
+        res["loyalty_points"] = lp_details.get("loyalty_points")
+        res["conversion_factor"] = lp_details.get("conversion_factor")
 
     company = cstr(company or "").strip()
     if company:

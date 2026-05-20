@@ -69,4 +69,34 @@ describe("PaymentRedemption", () => {
 		expect(wrapper.text()).toContain("You can redeem up to (50 pts)");
 		expect(wrapper.findAll("input")[1].element.value).toBe("100");
 	});
+
+	it("keeps loyalty redemption visible when points exist before the amount is calculated", () => {
+		const wrapper = mount(PaymentRedemption, {
+			props: {
+				invoiceDoc: {
+					currency: "PKR",
+					is_return: 0,
+				},
+				customerInfo: {
+					loyalty_points: 2,
+					conversion_factor: 0,
+				},
+				availablePointsAmount: 0,
+				loyaltyAmount: 0,
+				formatCurrency: (value: number) => String(value),
+				formatFloat: (value: number) => String(value),
+				currencySymbol: () => "Rs",
+			},
+			global: {
+				components: {
+					VRow: BoxStub,
+					VCol: BoxStub,
+					VTextField: VTextFieldStub,
+				},
+			},
+		});
+
+		expect(wrapper.text()).toContain("Redeem Loyalty Points");
+		expect(wrapper.text()).toContain("You can redeem up to (2 pts)");
+	});
 });

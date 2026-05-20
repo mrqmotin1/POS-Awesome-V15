@@ -324,7 +324,7 @@ import PaymentOptions from "./payments/PaymentOptions.vue";
 import PaymentSelectionFields from "./payments/PaymentSelectionFields.vue";
 import PaymentDialogs from "./payments/PaymentDialogs.vue";
 
-const props = defineProps({
+defineProps({
 	dialogMode: {
 		type: Boolean,
 		default: false,
@@ -1329,6 +1329,29 @@ const creditSourceLabel = (row) => {
 	return row.credit_origin;
 };
 
+const refreshPaymentCustomerInfo = async (doc) => {
+	const customer = typeof doc?.customer === "string" ? doc.customer.trim() : "";
+	if (!customer || isOffline()) {
+		return;
+	}
+
+	try {
+		const result = await frappe.call({
+			method: "posawesome.posawesome.api.customers.get_customer_info",
+			args: {
+				customer,
+				company: pos_profile.value?.company || doc.company || null,
+			},
+		});
+		if (result?.message && !result.exc) {
+			customer_info.value = { ...result.message };
+			customersStore.setCustomerInfo(customer_info.value);
+		}
+	} catch (error) {
+		console.error("Failed to refresh payment customer loyalty details", error);
+	}
+};
+
 const showDiffPayment = () => {
 	if (!invoice_doc.value) return;
 	toastStore.show({
@@ -1860,6 +1883,7 @@ onMounted(() => {
 	if (eventBus) {
 		eventBus.on("send_invoice_doc_payment", (doc) => {
 			invoiceStore.setInvoiceDoc(doc);
+			void refreshPaymentCustomerInfo(doc);
 			paid_change.value = flt(doc.paid_change || 0, currency_precision.value);
 			credit_change.value = flt(doc.credit_change || 0, currency_precision.value);
 			last_payment_change_was_cash.value = null;

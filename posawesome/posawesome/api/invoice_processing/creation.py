@@ -35,7 +35,6 @@ from posawesome.posawesome.api.idempotency import (
     strip_invoice_client_request_id,
     doctype_supports_client_request_id,
 )
-from posawesome.posawesome.api.loyalty import resolve_customer_loyalty_program
 import json
 import hashlib
 from frappe.utils import money_in_words
@@ -1029,10 +1028,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
     _deduplicate_free_items(invoice_doc)
 
     if invoice_doc.redeem_loyalty_points and not invoice_doc.loyalty_program:
-        invoice_doc.loyalty_program = resolve_customer_loyalty_program(
-            frappe.get_doc("Customer", invoice_doc.customer),
-            company=invoice_doc.company,
-        )
+        invoice_doc.loyalty_program = frappe.db.get_value("Customer", invoice_doc.customer, "loyalty_program")
 
     if invoice_doc.redeem_loyalty_points and invoice_doc.loyalty_program:
         if not invoice_doc.loyalty_redemption_account:
@@ -1252,9 +1248,8 @@ def submit_in_background_job(kwargs):
         _apply_write_off_settings(invoice_doc, data)
 
         if invoice_doc.redeem_loyalty_points and not invoice_doc.loyalty_program:
-            invoice_doc.loyalty_program = resolve_customer_loyalty_program(
-                frappe.get_doc("Customer", invoice_doc.customer),
-                company=invoice_doc.company,
+            invoice_doc.loyalty_program = frappe.db.get_value(
+                "Customer", invoice_doc.customer, "loyalty_program"
             )
 
         if invoice_doc.redeem_loyalty_points and invoice_doc.loyalty_program:

@@ -1,7 +1,7 @@
 <template>
 	<div v-if="invoiceDoc">
 		<!-- Loyalty Points Redemption -->
-		<v-row class="payments pa-1" v-if="availablePointsAmount > 0 && !invoiceDoc.is_return">
+		<v-row class="payments pa-1" v-if="hasRedeemableLoyaltyPoints && !invoiceDoc.is_return">
 			<v-col cols="7">
 				<v-text-field
 					density="compact"
@@ -72,14 +72,14 @@
 </template>
 
 <script setup>
-import { inject } from "vue";
+import { computed, inject } from "vue";
 
 /**
  * Component for handling Loyalty Points and Customer Credit redemptions.
  * Extracted from Payments.vue for better maintainability.
  */
 
-defineProps({
+const props = defineProps({
 	invoiceDoc: {
 		type: Object,
 		required: true,
@@ -130,6 +130,11 @@ const emit = defineEmits(["update:loyaltyAmount", "update:redeemedCustomerCredit
 
 // Access frappe globally or via injection if set up
 const $frappe = inject("frappe", window.frappe);
+
+const hasRedeemableLoyaltyPoints = computed(() => {
+	const points = Number(props.customerInfo?.loyalty_points || 0);
+	return Number.isFinite(points) && points > 0;
+});
 
 const handleLoyaltyChange = (event) => {
 	emit("set-formatted-currency", {
