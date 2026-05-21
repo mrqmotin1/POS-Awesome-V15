@@ -44,21 +44,27 @@ declare const frappe: any;
  */
 
 export async function fetch_customer_balance(context: any) {
+	context.customer_balance_loading = true;
 	try {
 		if (!context.customer) {
 			context.customer_balance = 0;
+			context.customer_balance_loading = false;
 			return;
 		}
 
 		// Check if offline and use cached balance
 		if (isOffline()) {
-			const cachedBalance = getCachedCustomerBalance(context.customer);
-			if (cachedBalance !== null) {
-				context.customer_balance = cachedBalance;
+			const cachedData = getCachedCustomerBalance(context.customer);
+			if (cachedData !== null) {
+				context.customer_balance = cachedData.balance;
+				context.customer_balance_currency = cachedData.currency;
+				context.customer_balance_loading = false;
 				return;
 			} else {
 				// No cached balance available in offline mode
 				context.customer_balance = 0;
+				context.customer_balance_currency = undefined;
+				context.customer_balance_loading = false;
 				context.toastStore.show({
 					title: __("Customer balance unavailable offline"),
 					text: __(
@@ -73,21 +79,25 @@ export async function fetch_customer_balance(context: any) {
 		// Online mode: fetch from server and cache the result
 		const r = await frappe.call({
 			method: "posawesome.posawesome.api.customer.get_customer_balance",
-			args: { customer: context.customer },
+			args: { customer: context.customer, company: context.pos_profile?.company },
 		});
 
 		const balance = r?.message?.balance || 0;
+		const currency = r?.message?.currency || undefined;
 		context.customer_balance = balance;
+		context.customer_balance_currency = currency;
 
 		// Cache the balanced for offline use
-		saveCustomerBalance(context.customer, balance);
+		saveCustomerBalance(context.customer, balance, currency);
+		context.customer_balance_loading = false;
 	} catch (error) {
 		console.error("Error fetching balance:", error);
 
 		// Try to use cached balance as fallback
-		const cachedBalance = getCachedCustomerBalance(context.customer);
-		if (cachedBalance !== null) {
-			context.customer_balance = cachedBalance;
+		const cachedData = getCachedCustomerBalance(context.customer);
+		if (cachedData !== null) {
+			context.customer_balance = cachedData.balance;
+			context.customer_balance_currency = cachedData.currency;
 			context.toastStore.show({
 				title: __("Using cached customer balance"),
 				text: __("Could not fetch latest balance from server"),
@@ -99,7 +109,9 @@ export async function fetch_customer_balance(context: any) {
 				color: "error",
 			});
 			context.customer_balance = 0;
+			context.customer_balance_currency = undefined;
 		}
+		context.customer_balance_loading = false;
 	}
 }
 

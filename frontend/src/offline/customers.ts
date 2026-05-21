@@ -354,11 +354,12 @@ export function clearGiftCardSnapshotCache() {
 	}
 }
 
-export function saveCustomerBalance(customer: string, balance: number) {
+export function saveCustomerBalance(customer: string, balance: number, currency?: string) {
 	try {
 		const cache = memory.customer_balance_cache;
 		cache[customer] = {
 			balance,
+			currency: currency || undefined,
 			timestamp: Date.now(),
 		};
 		memory.customer_balance_cache = cache;
@@ -375,7 +376,7 @@ export function getCachedCustomerBalance(customer: string) {
 		if (cachedData) {
 			const isValid =
 				Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000;
-			return isValid ? cachedData.balance : null;
+			return isValid ? cachedData : null;
 		}
 		return null;
 	} catch (error) {

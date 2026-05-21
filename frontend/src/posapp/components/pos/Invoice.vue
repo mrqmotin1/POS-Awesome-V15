@@ -89,9 +89,12 @@
 								:pos_profile="pos_profile"
 								:posting_date_display="posting_date_display"
 								:customer_balance="customer_balance"
+								:customer_balance_currency="customer_balance_currency"
+								:balance_loading="customer_balance_loading"
 								:price-list="selected_price_list"
 								:price-lists="price_lists"
 								:formatCurrency="formatCurrency"
+								:currencySymbol="currencySymbol"
 								@update:posting_date_display="
 									(val) => {
 										posting_date_display = val;
@@ -381,6 +384,8 @@ export default {
 			customer: "",
 			customer_info: "",
 			customer_balance: 0,
+			customer_balance_currency: undefined,
+			customer_balance_loading: false,
 			total_tax: 0,
 			packed_dialog_items: [],
 			show_packed_dialog: false,

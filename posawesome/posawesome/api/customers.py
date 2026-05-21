@@ -64,31 +64,43 @@ def get_customer_group_condition(pos_profile):
 
 
 @frappe.whitelist()
-def get_customer_balance(customer):
+def get_customer_balance(customer, company=None):
     if not customer:
-        return {"balance": 0, "customer_name": None}
+        return {"balance": 0, "customer_name": None, "currency": None}
+
+    if not company:
+        if frappe.db.exists("DocType", "POS Session"):
+            pos_session = frappe.db.get_value(
+                "POS Session",
+                {"user": frappe.session.user, "status": "Open"},
+                "pos_profile",
+            )
+            if pos_session:
+                company = frappe.db.get_value("POS Profile", pos_session, "company")
+        if not company:
+            company = frappe.defaults.get_user_default("Company") or frappe.db.get_default("Company")
+
+    from erpnext.accounts.party import get_dashboard_info
 
     try:
-        customer_doc = frappe.get_doc("Customer", customer)
-        customer_name = customer_doc.customer_name
+        customer_name = frappe.db.get_value("Customer", customer, "customer_name")
 
-        balance = frappe.db.sql(
-            """
-            SELECT SUM(debit - credit) AS balance
-            FROM `tabGL Entry`
-            WHERE party_type = 'Customer' AND party = %s AND docstatus = 1
-        """,
-            (customer,),
-            as_dict=True,
-        )
+        dashboard_info = get_dashboard_info("Customer", customer)
+        company_data = [d for d in dashboard_info if d.get("company") == company]
+
+        if company_data:
+            balance = flt(company_data[0].get("total_unpaid", 0))
+        else:
+            balance = 0
 
         return {
-            "balance": flt(balance[0].get("balance", 0)) if balance else 0,
+            "balance": balance,
             "customer_name": customer_name,
+            "currency": company_data[0].get("currency") if company_data else None,
         }
     except Exception as e:
-        frappe.log_error(f"Error fetching customer balance: {e}")
-        return {"balance": 0, "customer_name": None}
+        frappe.log_error(frappe.get_traceback(), _("Error fetching customer balance"))
+        return {"balance": 0, "customer_name": None, "currency": None}
 
 
 @frappe.whitelist()
