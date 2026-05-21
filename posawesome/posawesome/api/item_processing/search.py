@@ -202,6 +202,7 @@ def _build_search_plan(
         "max_discount",
         "brand",
         "allow_negative_stock",
+        "custom_desktop_shortcut",
     ]
     if include_description:
         fields.append("description")

@@ -413,6 +413,11 @@ const { items, filteredItems, customer_price_list, loading, isBackgroundLoading 
 
 const displayedItems = computed(() => {
 	const baseItems = Array.isArray(filteredItems.value) ? filteredItems.value : [];
+
+	if (items_view.value === "card") {
+		return baseItems.filter((item) => item.custom_desktop_shortcut);
+	}
+
 	const rawTerm = first_search.value;
 	const term = (typeof rawTerm === "string" ? rawTerm : "").trim().toLowerCase();
 	return filterAndPaginate(baseItems, {
