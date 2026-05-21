@@ -607,7 +607,7 @@
 			</v-row>
 
 			<div
-				v-if="loyaltyRedemptionSummary && loyaltyRedemptionSummary.company_currency_total"
+				v-if="hasLoyaltyRedemption(loyaltyRedemptionSummary, loyaltyRedemptionByCurrency)"
 				class="table-section mt-4"
 			>
 				<div class="table-header mb-2">
@@ -806,6 +806,20 @@ defineProps({
 });
 
 const __ = window.__ || ((t) => t);
+
+const hasLoyaltyRedemption = (summary, rows = []) => {
+	if (!summary) return false;
+	if (Number(summary.company_currency_total || 0) !== 0) return true;
+	if (Number(summary.points || 0) !== 0) return true;
+	if (Number(summary.count || 0) !== 0) return true;
+	return (Array.isArray(rows) ? rows : []).some(
+		(row) =>
+			Number(row?.total || 0) !== 0 ||
+			Number(row?.company_currency_total || 0) !== 0 ||
+			Number(row?.points || 0) !== 0 ||
+			Number(row?.invoice_count || 0) !== 0,
+	);
+};
 </script>
 
 <style scoped>

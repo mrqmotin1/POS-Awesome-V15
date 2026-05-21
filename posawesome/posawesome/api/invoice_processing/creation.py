@@ -308,6 +308,16 @@ def _apply_loyalty_redemption_settings(invoice_doc, pos_profile=None):
             or frappe.db.get_value("POS Profile", pos_profile or invoice_doc.pos_profile, "cost_center")
         )
 
+    if not invoice_doc.loyalty_redemption_cost_center:
+        frappe.throw(
+            _(
+                "Loyalty Redemption Cost Center is required for invoice {0} and POS Profile {1}."
+            ).format(
+                invoice_doc.get("name") or _("unsaved invoice"),
+                pos_profile or invoice_doc.pos_profile or _("unknown"),
+            )
+        )
+
 
 def _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments):
     from posawesome.posawesome.api.invoice_processing.payment import _create_change_payment_entries

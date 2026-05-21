@@ -90,7 +90,7 @@ class TestClosingOverviewLoyalty(unittest.TestCase):
         _install_stubs()
         self.module = _load_module()
 
-    def test_loyalty_redemption_uses_net_values_for_return_invoices(self):
+    def test_loyalty_redemption_excludes_return_adjustments_from_redeemed_totals(self):
         self.module.get_pos_invoices = lambda *args, **kwargs: [
             AttrDict(
                 {
@@ -125,11 +125,11 @@ class TestClosingOverviewLoyalty(unittest.TestCase):
 
         result = self.module.get_closing_shift_overview("POS-OPEN-1")
 
-        self.assertEqual(result["loyalty_redemption"]["company_currency_total"], 7)
-        self.assertEqual(result["loyalty_redemption"]["points"], 1)
+        self.assertEqual(result["loyalty_redemption"]["company_currency_total"], 10)
+        self.assertEqual(result["loyalty_redemption"]["points"], 2)
         self.assertEqual(result["loyalty_redemption"]["count"], 1)
-        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["total"], 7)
-        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["points"], 1)
+        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["total"], 10)
+        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["points"], 2)
         self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["invoice_count"], 1)
 
 

@@ -186,30 +186,36 @@ export async function setCustomerStorage(customers: AnyRecord[]) {
 			}
 		});
 
-		const clean = customers.map((customer) => {
+		const clean = customers.flatMap((customer) => {
 			const name = customer.name || customer.customer;
+			if (!name) {
+				console.warn("Skipping customer cache row without a name", customer);
+				return [];
+			}
 			const existing = name ? existingByName.get(name) : null;
-			return {
-				...customer,
-				name,
-				customer_name:
-					customer.customer_name || customer.name || customer.customer,
-				mobile_no: customer.mobile_no,
-				email_id: customer.email_id,
-				primary_address: customer.primary_address,
-				tax_id: customer.tax_id,
-				loyalty_program: customer.loyalty_program,
-				loyalty_points:
-					customer.loyalty_points !== undefined
-						? customer.loyalty_points
-						: existing?.loyalty_points,
-				conversion_factor:
-					customer.conversion_factor !== undefined
-						? customer.conversion_factor
-						: existing?.conversion_factor,
-				stored_value_balance: customer.stored_value_balance || 0,
-				stored_value_sources: customer.stored_value_sources || 0,
-			};
+			return [
+				{
+					...customer,
+					name,
+					customer_name:
+						customer.customer_name || customer.name || customer.customer,
+					mobile_no: customer.mobile_no,
+					email_id: customer.email_id,
+					primary_address: customer.primary_address,
+					tax_id: customer.tax_id,
+					loyalty_program: customer.loyalty_program,
+					loyalty_points:
+						customer.loyalty_points !== undefined
+							? customer.loyalty_points
+							: existing?.loyalty_points,
+					conversion_factor:
+						customer.conversion_factor !== undefined
+							? customer.conversion_factor
+							: existing?.conversion_factor,
+					stored_value_balance: customer.stored_value_balance || 0,
+					stored_value_sources: customer.stored_value_sources || 0,
+				},
+			];
 		});
 
 		await db.table("customers").bulkPut(clean);

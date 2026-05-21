@@ -1739,6 +1739,10 @@ watch(loyalty_amount, (value) => {
 		invoice_doc.value.loyalty_amount = 0;
 		invoice_doc.value.redeem_loyalty_points = 0;
 		invoice_doc.value.loyalty_points = 0;
+		if (flt(loyalty_amount.value) !== 0) {
+			loyalty_amount.value = 0;
+		}
+		rebalancePreferredPaymentCoverage();
 		return;
 	}
 	if (amount > available_points_amount.value + 0.001) {
