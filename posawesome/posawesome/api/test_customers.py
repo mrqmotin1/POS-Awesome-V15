@@ -97,8 +97,13 @@ def _load_module():
 
 class TestCustomersApi(unittest.TestCase):
     def setUp(self):
+        self._orig_sys_modules = sys.modules.copy()
         self.state = _install_stubs()
         self.module = _load_module()
+
+    def tearDown(self):
+        sys.modules.clear()
+        sys.modules.update(self._orig_sys_modules)
 
     def test_customer_list_does_not_fetch_loyalty_balances_per_customer(self):
         rows = self.module.get_customer_names(

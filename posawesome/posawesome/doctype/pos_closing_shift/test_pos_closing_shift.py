@@ -326,7 +326,7 @@ class TestPOSClosingShift(unittest.TestCase):
     @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.overview.get_payments_entries")
     @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.overview.get_pos_invoices")
     @patch("posawesome.posawesome.doctype.pos_closing_shift.closing_processing.overview.frappe")
-    def test_overview_reports_net_loyalty_redemption_for_returns(
+    def test_overview_excludes_return_loyalty_adjustments_from_redeemed_totals(
         self,
         mock_frappe,
         mock_get_pos_invoices,
@@ -381,9 +381,9 @@ class TestPOSClosingShift(unittest.TestCase):
 
         result = overview.get_closing_shift_overview("POS-OPEN-1")
 
-        self.assertEqual(result["loyalty_redemption"]["company_currency_total"], 7)
-        self.assertEqual(result["loyalty_redemption"]["points"], 1)
+        self.assertEqual(result["loyalty_redemption"]["company_currency_total"], 10)
+        self.assertEqual(result["loyalty_redemption"]["points"], 2)
         self.assertEqual(result["loyalty_redemption"]["count"], 1)
-        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["total"], 7)
-        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["points"], 1)
+        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["total"], 10)
+        self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["points"], 2)
         self.assertEqual(result["loyalty_redemption"]["by_currency"][0]["invoice_count"], 1)

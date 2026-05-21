@@ -945,6 +945,7 @@ class TestManualPostingDatePreservation(unittest.TestCase):
             "set_posting_time": 0,
             "customer": "CUST-0001",
             "customer_name": "Customer 1",
+            "cost_center": None,
             "is_return": 0,
             "return_against": None,
             "items": [],
@@ -997,6 +998,31 @@ class TestManualPostingDatePreservation(unittest.TestCase):
             self.creation._apply_loyalty_redemption_settings(invoice_doc, "Main POS")
 
         self.assertIn("Expense Account in Loyalty Program Retail Loyalty", str(ctx.exception))
+
+    def test_loyalty_redemption_settings_requires_configured_cost_center_for_positive_redemption(self):
+        invoice_doc = self._build_invoice_doc(
+            name="SINV-0001",
+            redeem_loyalty_points=1,
+            loyalty_program="Retail Loyalty",
+            loyalty_amount=10,
+            loyalty_points=2,
+        )
+
+        def fake_get_value(doctype, name, fieldname):
+            if (doctype, name, fieldname) == ("Loyalty Program", "Retail Loyalty", "expense_account"):
+                return "Loyalty Expense - TC"
+            if (doctype, name, fieldname) == ("POS Profile", "Main POS", "cost_center"):
+                return None
+            return None
+
+        self.creation.frappe.db.get_value = fake_get_value
+
+        with self.assertRaises(Exception) as ctx:
+            self.creation._apply_loyalty_redemption_settings(invoice_doc, "Main POS")
+
+        self.assertIn("Loyalty Redemption Cost Center is required", str(ctx.exception))
+        self.assertIn("SINV-0001", str(ctx.exception))
+        self.assertIn("Main POS", str(ctx.exception))
 
     def test_update_invoice_marks_backdated_payload_for_manual_posting(self):
         captured_payloads = []

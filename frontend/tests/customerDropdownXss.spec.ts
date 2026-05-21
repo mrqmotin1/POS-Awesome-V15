@@ -62,6 +62,8 @@ describe("Customer dropdown XSS regression", () => {
 	it("commits a clicked customer before closing the autocomplete menu", () => {
 		expect(customerSource).toContain("const commitPendingCustomerSelection = () =>");
 		expect(customerSource).toContain("customersStore.setSelectedCustomer(tempSelectedCustomer.value)");
-		expect(customerSource).toContain("const closeCustomerMenu = () => {\n\t\t\tcommitPendingCustomerSelection();");
+		expect(customerSource).toMatch(
+			/const\s+closeCustomerMenu\s*=\s*\(\)\s*=>\s*{\s*commitPendingCustomerSelection\(\);/,
+		);
 	});
 });

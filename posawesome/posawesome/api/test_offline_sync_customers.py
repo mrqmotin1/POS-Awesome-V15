@@ -133,6 +133,7 @@ class TestOfflineSyncCustomers(unittest.TestCase):
         self.assertEqual(response["changes"][1]["data"]["customer_name"], "Beta Customer")
         self.assertNotIn("loyalty_points", response["changes"][1]["data"])
         self.assertNotIn("conversion_factor", response["changes"][1]["data"])
+        self.assertIn("loyalty_program", response["changes"][1]["data"])
         self.assertEqual(response["deleted"], [{"key": "customer::CUST-REMOVED"}])
         self.assertEqual(response["next_watermark"], "2026-04-09T10:07:00")
         self.assertEqual(response["schema_version"], self.module.SYNC_SCHEMA_VERSION)

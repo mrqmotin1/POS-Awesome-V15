@@ -270,29 +270,28 @@ def get_closing_shift_overview(pos_opening_shift):
             if not loyalty_base_amount and loyalty_amount:
                 loyalty_base_amount = loyalty_amount
             is_loyalty_redemption = loyalty_amount > 0 or loyalty_points > 0
-            loyalty_redeemed_company_currency_total += loyalty_base_amount
-            loyalty_redeemed_points += loyalty_points
             if is_loyalty_redemption:
+                loyalty_redeemed_company_currency_total += loyalty_base_amount
+                loyalty_redeemed_points += loyalty_points
                 loyalty_redeemed_invoice_count += 1
 
-            loyalty_entry = loyalty_redeemed_totals_by_currency.setdefault(
-                invoice_currency,
-                {
-                    "currency": invoice_currency,
-                    "total": 0,
-                    "company_currency_total": 0,
-                    "points": 0,
-                    "invoice_count": 0,
-                    "exchange_rates": set(),
-                },
-            )
-            loyalty_entry["total"] += loyalty_amount
-            loyalty_entry["company_currency_total"] += loyalty_base_amount
-            loyalty_entry["points"] += loyalty_points
-            if is_loyalty_redemption:
+                loyalty_entry = loyalty_redeemed_totals_by_currency.setdefault(
+                    invoice_currency,
+                    {
+                        "currency": invoice_currency,
+                        "total": 0,
+                        "company_currency_total": 0,
+                        "points": 0,
+                        "invoice_count": 0,
+                        "exchange_rates": set(),
+                    },
+                )
+                loyalty_entry["total"] += loyalty_amount
+                loyalty_entry["company_currency_total"] += loyalty_base_amount
+                loyalty_entry["points"] += loyalty_points
                 loyalty_entry["invoice_count"] += 1
 
-            if invoice_currency != company_currency:
+            if is_loyalty_redemption and invoice_currency != company_currency:
                 rate = None
                 if loyalty_amount:
                     rate = (

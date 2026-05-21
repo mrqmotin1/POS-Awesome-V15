@@ -170,4 +170,31 @@ describe("offline storage ownership", () => {
 			}),
 		);
 	});
+
+	it("skips customer cache rows without a resolvable name", async () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const { setCustomerStorage } = await import("../src/offline/customers");
+
+		await setCustomerStorage([
+			{
+				customer_name: "Missing Identifier",
+			},
+			{
+				customer: "CUST-2",
+				customer_name: "Customer 2",
+			},
+		]);
+
+		expect(customersTable.bulkPut).toHaveBeenCalledWith([
+			expect.objectContaining({
+				name: "CUST-2",
+				customer_name: "Customer 2",
+			}),
+		]);
+		expect(warnSpy).toHaveBeenCalledWith(
+			"Skipping customer cache row without a name",
+			expect.objectContaining({ customer_name: "Missing Identifier" }),
+		);
+		warnSpy.mockRestore();
+	});
 });

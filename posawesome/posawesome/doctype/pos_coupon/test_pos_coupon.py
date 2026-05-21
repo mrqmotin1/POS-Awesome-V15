@@ -73,8 +73,13 @@ def _load_pos_coupon_module():
 
 class TestPOSCoupon(unittest.TestCase):
     def setUp(self):
+        self._orig_sys_modules = sys.modules.copy()
         self.state = _install_frappe_stubs()
         self.module = _load_pos_coupon_module()
+
+    def tearDown(self):
+        sys.modules.clear()
+        sys.modules.update(self._orig_sys_modules)
 
     def _set_coupon_and_offer(self, coupon=None, offer=None):
         coupon_data = {

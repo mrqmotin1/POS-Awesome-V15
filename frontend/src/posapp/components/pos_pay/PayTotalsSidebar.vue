@@ -790,11 +790,17 @@ const enteredPayments = computed(() => {
 		.filter((m) => flt(m.amount) > 0)
 		.map((m) => {
 			const fields = newPaymentFields.value[m.row_id] || {};
+			const baseAmount =
+				fields.basePaidAmount != null
+					? fields.basePaidAmount
+					: fields.baseReceivedAmount != null
+						? fields.baseReceivedAmount
+						: flt(m.amount);
 			return {
 				row_id: m.row_id,
 				mode_of_payment: m.mode_of_payment,
 				amount: flt(m.amount),
-				baseAmount: fields.basePaidAmount || fields.baseReceivedAmount || flt(m.amount),
+				baseAmount,
 			};
 		});
 });
