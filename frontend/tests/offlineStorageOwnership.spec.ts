@@ -193,7 +193,7 @@ describe("offline storage ownership", () => {
 		]);
 		expect(warnSpy).toHaveBeenCalledWith(
 			"Skipping customer cache row without a name",
-			expect.objectContaining({ customer_name: "Missing Identifier" }),
+			{ customerIdentifier: "row:0" },
 		);
 		warnSpy.mockRestore();
 	});
