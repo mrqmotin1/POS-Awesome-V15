@@ -73,7 +73,7 @@
 					<v-tooltip
 						v-else-if="isNegative"
 						location="bottom"
-						text="Account is overdrawn"
+						:text="__('Account is overdrawn')"
 					>
 						<template #activator="{ props: tooltipProps }">
 							<v-chip
@@ -114,7 +114,7 @@ interface Props {
 	customer_balance?: number;
 	customer_balance_currency?: string;
 	balance_loading?: boolean;
-	formatCurrency: (val: number | undefined) => string;
+	formatCurrency: (val: number | undefined, currency?: string) => string;
 	currencySymbol: (currency?: string) => string;
 	priceList?: string;
 	priceLists?: string[];

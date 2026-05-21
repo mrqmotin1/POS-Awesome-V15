@@ -66,7 +66,7 @@ def get_customer_group_condition(pos_profile):
 @frappe.whitelist()
 def get_customer_balance(customer, company=None):
     if not customer:
-        return {"balance": 0, "customer_name": None}
+        return {"balance": 0, "customer_name": None, "currency": None}
 
     if not company:
         if frappe.db.exists("DocType", "POS Session"):
@@ -83,8 +83,7 @@ def get_customer_balance(customer, company=None):
     from erpnext.accounts.party import get_dashboard_info
 
     try:
-        customer_doc = frappe.get_doc("Customer", customer)
-        customer_name = customer_doc.customer_name
+        customer_name = frappe.db.get_value("Customer", customer, "customer_name")
 
         dashboard_info = get_dashboard_info("Customer", customer)
         company_data = [d for d in dashboard_info if d.get("company") == company]
@@ -100,7 +99,7 @@ def get_customer_balance(customer, company=None):
             "currency": company_data[0].get("currency") if company_data else None,
         }
     except Exception as e:
-        frappe.log_error(f"Error fetching customer balance: {e}")
+        frappe.log_error(frappe.get_traceback(), _("Error fetching customer balance"))
         return {"balance": 0, "customer_name": None, "currency": None}
 
 
@@ -143,6 +142,10 @@ def get_customer_names(pos_profile, limit=None, offset=None, start_after=None, m
                 "email_id",
                 "tax_id",
                 "customer_name",
+                "loyalty_program",
+                "default_price_list",
+                "customer_group",
+                "territory",
                 "primary_address",
             ],
             order_by="name",
