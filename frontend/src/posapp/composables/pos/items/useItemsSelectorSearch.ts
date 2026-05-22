@@ -301,14 +301,14 @@ export const useItemsSelectorSearch = ({
 		syncSearchInput(vm, trimmedQuery);
 
 		// If the input is a numeric string 12 characters or longer, treat it as a barcode
-		if (/^\d{12,}$/.test(trimmedQuery)) {
-			if (typeof vm.onBarcodeScanned === "function") {
-				vm.onBarcodeScanned(trimmedQuery);
-			} else if (scannerInput.onBarcodeScanned) {
-				scannerInput.onBarcodeScanned(trimmedQuery);
-			}
-			return;
-		}
+		// if (/^\d{12,}$/.test(trimmedQuery)) {
+		// 	if (typeof vm.onBarcodeScanned === "function") {
+		// 		vm.onBarcodeScanned(trimmedQuery);
+		// 	} else if (scannerInput.onBarcodeScanned) {
+		// 		scannerInput.onBarcodeScanned(trimmedQuery);
+		// 	}
+		// 	return;
+		// }
 
 		// Require a minimum of three characters before running a search
 		if (!trimmedQuery || trimmedQuery.length < 3) {
@@ -388,6 +388,34 @@ export const useItemsSelectorSearch = ({
 		const vm = getVm();
 		if (!vm) return;
 
+		if (
+			vm.itemDetailFetcher &&
+			typeof vm.itemDetailFetcher.cancelItemDetailsRequest === "function"
+		) {
+			vm.itemDetailFetcher.cancelItemDetailsRequest();
+		} else if (typeof vm.cancelItemDetailsRequest === "function") {
+			vm.cancelItemDetailsRequest();
+		}
+
+		// Prefer the visible input value so Enter uses the latest typed text.
+		const rawQuery = getCurrentSearchInput(vm);
+		const trimmedQuery = String(rawQuery || "").trim();
+		// Require a minimum of three characters before running a search
+		if (!trimmedQuery || trimmedQuery.length < 3) {
+			vm.search_from_scanner = false;
+			return;
+		}
+		// Keep both search refs aligned with the value we are about to process.
+		vm.first_search = trimmedQuery;
+		syncSearchInput(vm, trimmedQuery);
+
+		// Default: treat the typed query as a barcode/item-code scan.
+		if (typeof vm.onBarcodeScanned === "function") {
+			vm.onBarcodeScanned(trimmedQuery);
+		} else if (scannerInput.onBarcodeScanned) {
+			scannerInput.onBarcodeScanned(trimmedQuery);
+		}
+
 		if (usesLimitSearch(vm)) {
 			if (event && typeof event.preventDefault === "function") {
 				event.preventDefault();
@@ -407,10 +435,6 @@ export const useItemsSelectorSearch = ({
 			(itemSelection || vm.itemSelection).selectHighlightedItem();
 			return;
 		}
-		if (search_onchange.cancel) {
-			search_onchange.cancel();
-		}
-		_performSearch();
 	};
 
 	const clearSearch = () => {
