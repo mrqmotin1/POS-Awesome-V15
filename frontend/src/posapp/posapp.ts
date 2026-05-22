@@ -130,16 +130,16 @@ frappe.PosApp.posapp = class {
 
 		this.app.mount(this.$el[0]);
 
-		// Suppress the "You are not connected to Internet" alert that fires on
-		// every frappe.call() when offline. POSAwesome handles offline silently.
-		const _origShowAlert = frappe.show_alert.bind(frappe);
-		(frappe as any).show_alert = (frappe as any).toast = function (message: any, ...args: any[]) {
-			const subtitle = typeof message === "object" ? message?.subtitle : null;
-			if (subtitle && subtitle.includes("You are not connected to Internet")) {
-				return;
-			}
-			return _origShowAlert(message, ...args);
-		};
+		// // Suppress the "You are not connected to Internet" alert that fires on
+		// // every frappe.call() when offline. POSAwesome handles offline silently.
+		// const _origShowAlert = frappe.show_alert.bind(frappe);
+		// (frappe as any).show_alert = (frappe as any).toast = function (message: any, ...args: any[]) {
+		// 	const subtitle = typeof message === "object" ? message?.subtitle : null;
+		// 	if (subtitle && subtitle.includes("You are not connected to Internet")) {
+		// 		return;
+		// 	}
+		// 	return _origShowAlert(message, ...args);
+		// };
 		clearChunkRecoveryState();
 		void this.router.isReady().finally(() => {
 			scheduleChunkRecoveryStateReset();

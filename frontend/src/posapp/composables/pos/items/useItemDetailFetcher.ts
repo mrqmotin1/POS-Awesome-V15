@@ -156,9 +156,6 @@ export function useItemDetailFetcher() {
 			return itemDetailsRequestCache.promise;
 		}
 
-		if (!frappe.is_online()) {
-			return [];
-		}
 
 		cancelItemDetailsRequest();
 		itemDetailsRequestCache.key = key;

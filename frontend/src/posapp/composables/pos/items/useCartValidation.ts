@@ -91,7 +91,7 @@ export function useCartValidation() {
 						posProfile,
 					);
 
-					if (stockValidationResult && !stockValidationResult.isValid) {
+					if (!stockValidationResult.isValid) {
 						toastStore.show({
 							title: formatStockShortageError(
 								stockValidationResult.data?.item_name ||
@@ -142,8 +142,6 @@ export function useCartValidation() {
 				actual_qty: item.actual_qty,
 				uom: item.stock_uom || item.uom || "Nos",
 			};
-
-			if (!frappe.is_online()) return null;
 
 			const response = await frappe.call({
 				method: "posawesome.posawesome.api.invoices.validate_cart_items",
