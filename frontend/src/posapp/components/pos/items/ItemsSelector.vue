@@ -415,7 +415,19 @@ const displayedItems = computed(() => {
 	const baseItems = Array.isArray(filteredItems.value) ? filteredItems.value : [];
 
 	if (items_view.value === "card") {
-		return baseItems.filter((item) => item.custom_desktop_shortcut);
+		const shortcutItems = baseItems.filter((item) => item.custom_desktop_shortcut);
+		const rawTerm = first_search.value;
+		const term = (typeof rawTerm === "string" ? rawTerm : "").trim().toLowerCase();
+		if (term.length >= 3) {
+			return filterAndPaginate(shortcutItems, {
+				searchTerm: term,
+				hideZeroRate: hide_zero_rate_items.value,
+				hideVariants: pos_profile.value?.posa_hide_variants_items,
+				onlyBarcode: showOnlyBarcodeItemsRef.value,
+				limit: 9999,
+			});
+		}
+		return shortcutItems;
 	}
 
 	const rawTerm = first_search.value;

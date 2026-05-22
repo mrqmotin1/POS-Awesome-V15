@@ -679,8 +679,8 @@ def update_invoice(data):
     # For return invoices, payments should be negative amounts
     if invoice_doc.is_return:
         for payment in invoice_doc.payments:
-            payment.amount = -abs(payment.amount)
-            payment.base_amount = -abs(payment.base_amount)
+            payment.amount = -abs(payment.amount or 0)
+            payment.base_amount = -abs(payment.base_amount or 0)
 
         invoice_doc.paid_amount = flt(sum(p.amount for p in invoice_doc.payments))
         invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
