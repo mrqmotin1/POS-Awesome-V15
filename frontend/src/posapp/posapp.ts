@@ -57,6 +57,18 @@ if (typeof frappe === "undefined") {
 	console.error("Frappe is not defined");
 } else {
 	frappe.provide("frappe.PosApp");
+
+	// Suppress the built-in "Connection Lost" alert from frappe.call when offline.
+	// POSAwesome handles offline state silently — callers either use cached data or
+	// bail out gracefully, so the alert adds noise without value.
+	const _originalFrappeCall = frappe.call.bind(frappe);
+	frappe.call = function (opts: any) {
+		if (!frappe.is_online()) {
+			if (opts && opts.always) opts.always();
+			return $.ajax();
+		}
+		return _originalFrappeCall(opts);
+	};
 }
 
 frappe.PosApp.posapp = class {
