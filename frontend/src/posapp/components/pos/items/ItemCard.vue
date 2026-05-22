@@ -1,6 +1,6 @@
 <template>
 	<div
-		:class="['card-item-card', { 'item-highlighted': isItemHighlighted }]"
+		:class="['card-item-card custom-card', { 'item-highlighted': isItemHighlighted }]"
 		@click="onClick"
 		:draggable="true"
 		@dragstart="onDragStart"
@@ -331,4 +331,222 @@ const onDragEnd = (event) => {
 		font-size: 0.7rem;
 	}
 }
+
+@media (max-width: 1024px) {
+	/* Card uses CSS grid: fixed image row + flexible content row */
+	/* .custom-card {
+		width: 100% !important;
+		height: 100% !important;
+		display: grid !important;
+		grid-template-rows: 42px 1fr;
+		border-radius: 6px;
+	}
+
+	.card-item-image-container {
+		height: 42px;
+		margin: 0;
+		flex-shrink: 0;
+	}
+
+	.card-item-content {
+		display: flex;
+		flex-direction: column;
+		padding: 4px 6px;
+		gap: 0;
+		justify-content: space-between;
+		margin: 0;
+	}
+
+	.card-item-header {
+		gap: 0;
+		margin: 0;
+	}
+
+	.card-item-name {
+		font-size: 0.67rem;
+		font-weight: 600;
+		line-height: 1.2;
+		-webkit-line-clamp: 1;
+		line-clamp: 1;
+		margin: 0;
+	}
+
+	.card-item-code {
+		display: none !important;
+	}
+
+	/* price + stock qty on same line */
+	/* .card-item-details {
+		display: flex;
+		flex-direction: row;
+		/* align-items: center;
+		justify-content: space-between; */
+		/* gap: 0px;
+		margin: 0;
+	}  */
+
+	/* .card-item-price {
+		gap: 0;
+		min-width: 0;
+	}
+
+	.primary-price {
+		font-size: 0.63rem;
+		font-weight: 700;
+		gap: 1px;
+		flex-wrap: nowrap;
+	}
+
+	.card-item-stock {
+		font-size: 0.55rem;
+		padding: 1px 3px;
+		gap: 2px;
+		border-radius: 3px;
+		flex-shrink: 0;
+		white-space: nowrap;
+	} */
+
+	/* .card-item-stock .stock-icon {
+		display: none;
+	}
+
+	.stock-amount {
+		font-size: 0.55rem;
+		font-weight: 600;
+	}
+
+	.stock-uom {
+		font-size: 0.5rem;
+	}  */
+}
+
+
+@media (max-width: 1024px) {
+	/* Force a tight gap between cards regardless of which inner
+	   container actually owns the grid layout. */
+	/* .virtual-scroller .items-virtual-list,
+	.virtual-scroller .items-virtual-list > *,
+	.virtual-scroller .items-virtual-list > * > * {
+		gap: 4px !important;
+		row-gap: 4px !important;
+		column-gap: 4px !important;
+	} */
+
+	/* Card uses CSS grid: fixed image row + content row sized to content */
+	.custom-card {
+		width: 100% !important;
+		height: auto !important;
+		align-self: start;
+		display: grid !important;
+		grid-template-rows: 42px auto;
+		gap: 2px;
+		padding: 4px;
+		border-radius: 6px;
+		overflow: hidden;
+	}
+
+	.card-item-image-container {
+		height: 42px;
+		margin: 0;
+		flex-shrink: 0;
+		border-radius: 4px;
+		overflow: hidden;
+	}
+
+	.card-item-image-container img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+
+	.card-item-content {
+		display: flex;
+		flex-direction: column;
+		padding: 2px 4px;
+		gap: 0;
+		justify-content: flex-start;
+		margin: 0;
+		min-width: 0;
+	}
+
+	.card-item-header {
+		gap: 0;
+		margin: 0;
+		min-width: 0;
+	}
+
+	.card-item-name {
+		font-size: 0.67rem;
+		font-weight: 600;
+		line-height: 1.2;
+		-webkit-line-clamp: 1;
+		line-clamp: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		margin: 0;
+	}
+
+	.card-item-code {
+		display: none !important;
+	}
+
+	/* price (left) + stock qty (right) on same line */
+	.card-item-details {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		gap: 4px;
+		margin: 0;
+		min-width: 0;
+	}
+
+	.card-item-price {
+		gap: 0;
+		min-width: 0;
+		display: inline-flex;
+		align-items: baseline;
+	}
+
+	.primary-price {
+		font-size: 0.63rem;
+		font-weight: 700;
+		line-height: 1.1;
+		gap: 1px;
+		flex-wrap: nowrap;
+		white-space: nowrap;
+		display: inline-flex;
+		align-items: baseline;
+	}
+
+	.card-item-stock {
+		font-size: 0.55rem;
+		padding: 1px 3px;
+		gap: 2px;
+		border-radius: 3px;
+		flex-shrink: 0;
+		white-space: nowrap;
+		display: inline-flex;
+		align-items: center;
+		line-height: 1.1;
+	}
+
+	.card-item-stock .stock-icon {
+		display: none;
+	}
+
+	.stock-amount {
+		font-size: 0.55rem;
+		font-weight: 600;
+		line-height: 1.1;
+	}
+
+	.stock-uom {
+		font-size: 0.5rem;
+		line-height: 1.1;
+	}
+}
+
 </style>

@@ -9,6 +9,9 @@ export const getCardColumns = (width: number): number => {
     if (width <= 768) {
         return 1;
     }
+    if (width <= 1024) {
+        return 2;
+    }
     if (width <= 1200) {
         return 2;
     }
@@ -22,6 +25,9 @@ export const getCardGap = (width: number): number => {
     if (width <= 768) {
         return 10;
     }
+    if (width <= 1024) {
+        return 4;
+    }
     if (width <= 1200) {
         return 12;
     }
@@ -34,6 +40,9 @@ export const getCardGap = (width: number): number => {
 export const getCardPadding = (width: number): number => {
     if (width <= 768) {
         return 10;
+    }
+    if (width <= 1024) {
+        return 3;
     }
     if (width <= 1200) {
         return 12;

@@ -28,7 +28,7 @@
 		<RecycleScroller
 			v-else
 			ref="scrollerRef"
-			class="virtual-scroller"
+			class="virtual-scroller custom-scrollbar"
 			:list-class="['items-virtual-list', { 'item-container': isOverflowing }]"
 			:items="displayedItems"
 			key-field="item_code"
@@ -204,6 +204,12 @@ defineExpose({ scrollToItem, getScrollerElement, scrollerRef });
 		padding: 12px;
 	}
 }
+/* @media (max-width: 1024px) {
+	.virtual-scroller :deep(.items-virtual-list) {
+		padding: 0px;
+		box-sizing: border-box;
+	}
+} */
 
 @media (max-width: 768px) {
 	.virtual-scroller :deep(.items-virtual-list) {

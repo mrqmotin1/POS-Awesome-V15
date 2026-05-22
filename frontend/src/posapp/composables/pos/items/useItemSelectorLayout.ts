@@ -36,6 +36,9 @@ export function useItemSelectorLayout(options: SelectorLayoutOptions = {}) {
 		if (windowWidth.value <= 768) {
 			return 260;
 		}
+		if (windowWidth.value <= 1024) {
+			return 80;
+		}
 		if (windowWidth.value <= 1200) {
 			return 280;
 		}
@@ -53,7 +56,8 @@ export function useItemSelectorLayout(options: SelectorLayoutOptions = {}) {
 		}
 		// Fallback estimation (e.g. 5 columns of regular grid)
 		// This is just a safe default until mounted
-		return windowWidth.value * 0.4; // Approx 40% of screen for items selector usually
+		// Items panel = 4/12 cols, minus 6px padding on each side of the col
+		return Math.round(windowWidth.value / 3) - (10 * 2);
 	});
 
 	const cardColumnWidth = computed(() => {
@@ -65,11 +69,12 @@ export function useItemSelectorLayout(options: SelectorLayoutOptions = {}) {
 			return 240; // Safe default
 		}
 
-		const gapTotal = cardGap.value * (columns - 1);
+		// Use columns*gap to account for slot-based rendering in RecycleScroller (each slot has a trailing gap)
+		const gapTotal = cardGap.value * columns;
 		const paddingTotal = cardPadding.value * 2;
 		const available = Math.max(0, containerWidth - gapTotal - paddingTotal);
 		const width = Math.floor(available / columns);
-		return Math.max(180, width);
+		return Math.max(80, width);
 	});
 
 	// Actions
