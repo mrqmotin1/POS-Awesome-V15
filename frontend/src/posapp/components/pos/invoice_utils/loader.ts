@@ -4,7 +4,7 @@ import {
 	getCachedCustomerBalance,
 } from "../../../../offline/index";
 import { useDiscounts } from "../../../composables/pos/shared/useDiscounts";
-import { shouldCreateSalesOrder } from "../../../utils/salesOrderMode";
+import { resolvePosDocumentDoctype } from "../../../utils/posDocumentMode";
 
 declare const __: (_text: string, _args?: any[]) => string;
 declare const flt: (_value: unknown, _precision?: number) => number;
@@ -194,7 +194,10 @@ export async function load_invoice(
 		}
 	} else if (
 		data.doctype === "Sales Order" &&
-		shouldCreateSalesOrder("Order", context.pos_profile)
+		resolvePosDocumentDoctype({
+			invoiceType: "Order",
+			posProfile: context.pos_profile,
+		}) === "Sales Order"
 	) {
 		context.invoiceType = "Order";
 		if (!context.invoiceTypes.includes("Order")) {

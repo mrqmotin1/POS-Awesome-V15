@@ -1,5 +1,4 @@
-import { parseBooleanSetting } from "./stock";
-import { shouldCreateSalesOrder } from "./salesOrderMode";
+import { resolvePosDocumentDoctype } from "./posDocumentMode";
 
 interface ResolvePaymentPrintDoctypeOptions {
 	profile?: Record<string, any> | null;
@@ -16,21 +15,10 @@ export function resolvePaymentPrintDoctype({
 		return explicitDoctype;
 	}
 
-	if (invoiceType === "Quotation") {
-		return "Quotation";
-	}
-
-	if (shouldCreateSalesOrder(invoiceType || "", profile)) {
-		return "Sales Order";
-	}
-
-	if (
-		parseBooleanSetting(profile?.create_pos_invoice_instead_of_sales_invoice)
-	) {
-		return "POS Invoice";
-	}
-
-	return "Sales Invoice";
+	return resolvePosDocumentDoctype({
+		invoiceType,
+		posProfile: profile,
+	});
 }
 
 export function resolvePaymentPrintFormatDoctypes(
