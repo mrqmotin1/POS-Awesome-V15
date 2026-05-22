@@ -498,7 +498,7 @@ export function useScannerInput(options: ScannerInputOptions = {}) {
 			// Virtual scanners (for example AHK-based tools) often populate the
 			// field without reliable key timing, so fall back to idle-value detection.
 			resetKeyboardScanDetection();
-			onBarcodeScanned(latestValue);
+			// onBarcodeScanned(latestValue);
 		}, keyboardScanProcessingDelay);
 
 		return currentValue.length >= keyboardScanMinLength;
