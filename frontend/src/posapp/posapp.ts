@@ -57,18 +57,6 @@ if (typeof frappe === "undefined") {
 	console.error("Frappe is not defined");
 } else {
 	frappe.provide("frappe.PosApp");
-
-	// Suppress the built-in "Connection Lost" alert from frappe.call when offline.
-	// POSAwesome handles offline state silently — callers either use cached data or
-	// bail out gracefully, so the alert adds noise without value.
-	const _originalFrappeCall = frappe.call.bind(frappe);
-	frappe.call = function (opts: any) {
-		if (!frappe.is_online()) {
-			if (opts && opts.always) opts.always();
-			return $.ajax();
-		}
-		return _originalFrappeCall(opts);
-	};
 }
 
 frappe.PosApp.posapp = class {
@@ -141,6 +129,17 @@ frappe.PosApp.posapp = class {
 		installGlobalErrorHandlers(this.app);
 
 		this.app.mount(this.$el[0]);
+
+		// Suppress the "You are not connected to Internet" alert that fires on
+		// every frappe.call() when offline. POSAwesome handles offline silently.
+		const _origShowAlert = frappe.show_alert.bind(frappe);
+		(frappe as any).show_alert = (frappe as any).toast = function (message: any, ...args: any[]) {
+			const subtitle = typeof message === "object" ? message?.subtitle : null;
+			if (subtitle && subtitle.includes("You are not connected to Internet")) {
+				return;
+			}
+			return _origShowAlert(message, ...args);
+		};
 		clearChunkRecoveryState();
 		void this.router.isReady().finally(() => {
 			scheduleChunkRecoveryStateReset();
