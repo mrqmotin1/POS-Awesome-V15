@@ -26,7 +26,7 @@
 					readonly
 				></v-text-field>
 			</v-col>
-			<v-col cols="12" sm="4" class="dynamic-margin-xs">
+			<v-col cols="12" sm="4" class="dynamic-margin-xs custom-b">
 				<v-btn-toggle
 					:model-value="itemsView"
 					@update:model-value="$emit('update:itemsView', $event)"
@@ -34,10 +34,10 @@
 					group
 					density="compact"
 					rounded
-					class="view-toggle-btn"
+					class="view-toggle-btn "
 				>
-					<v-btn size="small" value="list">{{ __("List") }}</v-btn>
-					<v-btn size="small" value="card">{{ __("Card") }}</v-btn>
+					<v-btn class = "custom-bt" size="small" value="list">{{ __("List") }}</v-btn>
+					<v-btn class = "custom-bt" size="small" value="card">{{ __("Card") }}</v-btn>
 				</v-btn-toggle>
 			</v-col>
 			<v-col cols="6" sm="4" class="dynamic-margin-xs">
@@ -164,6 +164,15 @@ defineEmits(["update:modelValue", "update:itemsView", "open-offers", "open-coupo
 	.cards {
 		padding: var(--dynamic-xs) !important;
 		position: static;
+	}
+}
+@media (max-width: 1024px) {
+	.custom-b{
+		width: 100% !important;
+		display: flex !important;
+	}
+	.custom-bt{
+		width: 50% !important;
 	}
 }
 </style>
