@@ -438,7 +438,14 @@ export const useItemsSelectorSearch = ({
 			if (search_onchange.cancel) {
 				search_onchange.cancel();
 			}
-			_performSearch();
+			// Skip _performSearch for hardware barcode scans: onBarcodeScanned (called above)
+			// handles item lookup and calls clearSearch after adding. Running _performSearch
+			// fires a server query that can resolve AFTER clearSearch, overwriting filteredItems
+			// with just the one scanned item.
+			const isBarcodeScan = scannerInput?.searchFromScanner?.value === true;
+			if (!isBarcodeScan) {
+				_performSearch();
+			}
 			return;
 		}
 	};
