@@ -409,6 +409,20 @@ export const useItemsSelectorSearch = ({
 		vm.first_search = trimmedQuery;
 		syncSearchInput(vm, trimmedQuery);
 
+		// If an item is highlighted, select it immediately regardless of search mode.
+		// This must run before limit-search handling because that path clears the
+		// highlight, making selectHighlightedItem unreachable in limit-search mode.
+		if (getHighlightedIndex(itemSelection || vm.itemSelection) >= 0) {
+			if (event && typeof event.preventDefault === "function") {
+				event.preventDefault();
+			}
+			if (search_onchange.cancel) {
+				search_onchange.cancel();
+			}
+			(itemSelection || vm.itemSelection).selectHighlightedItem();
+			return;
+		}
+
 		// Default: treat the typed query as a barcode/item-code scan.
 		if (typeof vm.onBarcodeScanned === "function") {
 			vm.onBarcodeScanned(trimmedQuery);
@@ -425,14 +439,6 @@ export const useItemsSelectorSearch = ({
 				search_onchange.cancel();
 			}
 			_performSearch();
-			return;
-		}
-
-		if (getHighlightedIndex(itemSelection || vm.itemSelection) >= 0) {
-			if (event && typeof event.preventDefault === "function") {
-				event.preventDefault();
-			}
-			(itemSelection || vm.itemSelection).selectHighlightedItem();
 			return;
 		}
 	};
