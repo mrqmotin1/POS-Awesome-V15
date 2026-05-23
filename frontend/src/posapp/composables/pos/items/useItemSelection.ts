@@ -239,6 +239,8 @@ export function useItemSelection() {
 	function handleItemSelection(event: MouseEvent, item: SelectableItem) {
 		triggerFlyAnimation(event, false);
 		if (ctx.addItem) ctx.addItem(item);
+		clearHighlightedItem();
+		if (ctx.clearSearch) ctx.clearSearch();
 	}
 
 	async function handleRowClick(
@@ -247,6 +249,8 @@ export function useItemSelection() {
 	) {
 		triggerFlyAnimation(event, true);
 		if (ctx.addItem) await ctx.addItem(item);
+		clearHighlightedItem();
+		if (ctx.clearSearch) ctx.clearSearch();
 	}
 
 	function handleSearchKeydown(event: KeyboardEvent) {
