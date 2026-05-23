@@ -117,7 +117,7 @@ export default {
 		} = useClosingShift(eventBus);
 
 		// Formatters
-		const formatCurrency = (v) => window.format_currency(v);
+		const formatCurrency = (v, currency = undefined) => window.format_currency(v, currency);
 		const formatFloat = (v, d) => window.flt(v, d);
 		const currencySymbol = (c) => window.get_currency_symbol(c);
 		const translate = (t) => window.__(t);
@@ -125,10 +125,7 @@ export default {
 		const summaryFormatters = {
 			formatCurrencyWithSymbol: (amount, currency) => {
 				const resolvedCurrency = currency || "";
-				const symbol = currencySymbol(resolvedCurrency);
-				const formatted = formatCurrency(amount || 0);
-				if (symbol) return `${symbol} ${formatted}`;
-				return `${resolvedCurrency} ${formatted}`.trim();
+				return formatCurrency(amount || 0, resolvedCurrency);
 			},
 			formatCount: (value) => formatFloat(value || 0, 0),
 			formatCurrency,

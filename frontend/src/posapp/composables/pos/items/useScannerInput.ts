@@ -317,6 +317,9 @@ export function useScannerInput(options: ScannerInputOptions = {}) {
 			}
 		};
 
+		// Set synchronously so onEnter in useItemsSelectorSearch can detect a scan
+		// is in progress before the async pipeline starts (pipeline sets it at line 296).
+		searchFromScanner.value = true;
 		if (scanDebounceId.value) clearTimeout(scanDebounceId.value);
 		scanQueuedCode.value = scannedCode;
 

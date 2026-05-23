@@ -710,6 +710,7 @@ const clearSearch = () => {
 	search_input.value = "";
 	first_search.value = "";
 	clearingSearch.value = false;
+	itemsIntegration.searchItems("");
 };
 
 const clearSearchAndQty = () => {
