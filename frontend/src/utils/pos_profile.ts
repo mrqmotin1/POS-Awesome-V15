@@ -24,6 +24,27 @@ async function cachePrintTemplateAndTerms(profile: any) {
 	}
 
 	try {
+		if (profile.company) {
+			const companyRes = await frappe.call({
+				method: "frappe.client.get_value",
+				args: {
+					doctype: "Company",
+					fieldname: ["name", "registration_details", "phone_no", "tax_id"],
+					filters: { name: profile.company },
+				},
+			});
+			if (companyRes.message) {
+				localStorage.setItem(
+					"pos_offline_company_details",
+					JSON.stringify(companyRes.message),
+				);
+			}
+		}
+	} catch (e) {
+		console.error("Failed to cache offline company details", e);
+	}
+
+	try {
 		const termsName = profile.tc_name || profile.terms_and_conditions;
 		if (termsName) {
 			const tc = await frappe.call({

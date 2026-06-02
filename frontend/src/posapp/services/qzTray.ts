@@ -23,6 +23,7 @@ export interface QzPrintDocumentOptions extends QzPrintHtmlOptions {
 
 const PRINTER_STORAGE_KEY = "posa_qz_printer_name";
 const CERT_READY_STORAGE_KEY = "posa_qz_cert_ready";
+const CERT_PEM_STORAGE_KEY = "posa_qz_certificate";
 const MANUAL_DISCONNECT_STORAGE_KEY = "posa_qz_manual_disconnect";
 const DEFAULT_PRINT_FORMAT = "Standard";
 const PROFILE_PRINTER_FIELD = "posa_qz_printer_name";
@@ -35,8 +36,30 @@ export const selectedQzPrinter = ref(getSavedPrinterName());
 export const qzCertReady = ref(loadCertReady());
 export const qzReconnectPaused = ref(loadReconnectPaused());
 
+function loadCachedCertificate(): string | null {
+	try {
+		return localStorage.getItem(CERT_PEM_STORAGE_KEY) || null;
+	} catch {
+		return null;
+	}
+}
+
+function saveCachedCertificate(pem: string | null) {
+	try {
+		if (pem) {
+			localStorage.setItem(CERT_PEM_STORAGE_KEY, pem);
+		} else {
+			localStorage.removeItem(CERT_PEM_STORAGE_KEY);
+		}
+	} catch {
+		// ignore localStorage errors
+	}
+}
+
 let securityInitialized = false;
-let cachedCertificate: string | null = null;
+// Hydrate the public certificate from localStorage so the certificate promise can
+// resolve while offline (e.g. after an app reload). The private key stays server-side.
+let cachedCertificate: string | null = loadCachedCertificate();
 let certificateProvided = false;
 let connectPromise: Promise<boolean> | null = null;
 let certificateChecked = false;
@@ -172,6 +195,7 @@ function setupSecurity() {
 			.then((certificate) => {
 				if (certificate) {
 					cachedCertificate = certificate;
+					saveCachedCertificate(certificate);
 					certificateProvided = true;
 					qzCertReady.value = true;
 					saveCertReady(true);
@@ -192,6 +216,13 @@ function setupSecurity() {
 	qz.security.setSignatureAlgorithm("SHA512");
 	qz.security.setSignaturePromise((toSign) => {
 		return (resolve) => {
+			// Signing requires the server-held private key. Offline, skip the call and
+			// resolve undefined so QZ Tray falls back to its unsigned allow-prompt path
+			// instead of erroring.
+			if (typeof navigator !== "undefined" && !navigator.onLine) {
+				resolve(undefined);
+				return;
+			}
 			callServer<string>("posawesome.posawesome.api.qz.sign_message", {
 				message: toSign,
 			})
@@ -357,6 +388,7 @@ export async function checkQzCertificateOnce() {
 		const certificate = await callServer<string>("posawesome.posawesome.api.qz.get_certificate");
 		if (certificate) {
 			cachedCertificate = certificate;
+			saveCachedCertificate(certificate);
 			qzCertReady.value = true;
 			saveCertReady(true);
 		}
