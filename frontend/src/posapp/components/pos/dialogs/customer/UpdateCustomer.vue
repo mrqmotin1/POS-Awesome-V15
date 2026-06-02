@@ -439,7 +439,7 @@ export default {
 			this.mobile_no = "";
 			this.address_line1 = "";
 			this.city = "";
-			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
+			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Qatar";
 			this.email_id = "";
 			this.referral_code = "";
 			this.birthday = "";
@@ -720,7 +720,7 @@ export default {
 						this.country =
 							data.country ||
 							(this.pos_profile && this.pos_profile.posa_default_country) ||
-							"Pakistan";
+							"Qatar";
 						this.tax_id = data.tax_id;
 						this.mobile_no = data.mobile_no;
 						this.email_id = data.email_id;
@@ -745,7 +745,7 @@ export default {
 			(profile) => {
 				if (profile) {
 					this.pos_profile = profile;
-					this.country = (profile && profile.posa_default_country) || "Pakistan";
+					this.country = (profile && profile.posa_default_country) || "Qatar";
 				}
 			},
 			{ deep: true, immediate: true },
@@ -754,11 +754,11 @@ export default {
 		/*
 		this.eventBus.on("register_pos_profile", (data) => {
 			this.pos_profile = data.pos_profile;
-			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
+			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Qatar";
 		});
 		this.eventBus.on("payments_register_pos_profile", (data) => {
 			this.pos_profile = data.pos_profile;
-			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
+			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Qatar";
 		});
 		*/
 		this.getCustomerGroups();
