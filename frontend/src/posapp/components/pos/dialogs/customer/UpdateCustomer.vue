@@ -252,7 +252,7 @@ export default {
 		mobile_no: "",
 		address_line1: "",
 		city: "",
-		country: "Pakistan",
+		country: "Qatar",
 		email_id: "",
 		referral_code: "",
 		birthday: "",
