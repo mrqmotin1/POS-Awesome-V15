@@ -25,6 +25,18 @@
 						<v-row>
 							<v-col cols="12">
 								<v-text-field
+									ref="mobileNoField"
+									density="compact"
+									color="primary"
+									:label="frappe._('Mobile No') + ' *'"
+									class="pos-themed-input"
+									hide-details
+									v-model="mobile_no"
+
+								></v-text-field>
+							</v-col>
+							<v-col cols="6">
+								<v-text-field
 									ref="customerNameField"
 									density="compact"
 									color="primary"
@@ -34,7 +46,7 @@
 									v-model="customer_name"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
 									color="primary"
@@ -44,16 +56,7 @@
 									v-model="tax_id"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
-								<v-text-field
-									density="compact"
-									color="primary"
-									:label="frappe._('Mobile No')"
-									class="pos-themed-input"
-									hide-details
-									v-model="mobile_no"
-								></v-text-field>
-							</v-col>
+							
 							<v-col cols="12" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
@@ -86,7 +89,7 @@
 								></v-select>
 							</v-col>
 
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
 									color="primary"
@@ -96,7 +99,7 @@
 									v-model="email_id"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-select
 									density="compact"
 									label="Gender"
@@ -105,7 +108,7 @@
 									class="pos-themed-input"
 								></v-select>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
 									color="primary"
@@ -115,7 +118,7 @@
 									v-model="referral_code"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									v-model="birthday"
 									:label="frappe._('Birthday (DD-MM-YYYY)')"
@@ -128,7 +131,7 @@
 									class="pos-themed-input"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6" v-if="!hideNonEssential">
+							<v-col cols="6">
 								<v-autocomplete
 									clearable
 									density="compact"
@@ -144,7 +147,7 @@
 								>
 								</v-autocomplete>
 							</v-col>
-							<v-col cols="6" v-if="!hideNonEssential">
+							<v-col cols="6">
 								<v-autocomplete
 									clearable
 									density="compact"
@@ -251,7 +254,7 @@ export default {
 		mobile_no: "",
 		address_line1: "",
 		city: "",
-		country: "Pakistan",
+		country: "Qatar",
 		email_id: "",
 		referral_code: "",
 		birthday: "",
@@ -366,9 +369,9 @@ export default {
 	},
 	computed: {},
 	methods: {
-		focusCustomerNameField() {
+		focusMobileNoField() {
 			this.$nextTick(() => {
-				const field = this.$refs.customerNameField;
+				const field = this.$refs.mobileNoField;
 				if (field && typeof field.focus === "function") {
 					field.focus();
 				}
@@ -438,12 +441,12 @@ export default {
 			this.mobile_no = "";
 			this.address_line1 = "";
 			this.city = "";
-			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
+			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Qatar";
 			this.email_id = "";
 			this.referral_code = "";
 			this.birthday = "";
-			this.group = frappe.defaults.get_user_default("Customer Group");
-			this.territory = frappe.defaults.get_user_default("Territory");
+			this.group = "Individual";
+			this.territory = "Qatar";
 			this.customer_id = "";
 			this.customer_type = "Individual";
 			this.gender = "";
@@ -518,6 +521,11 @@ export default {
 			const vm = this;
 			if (!this.customer_name) {
 				frappe.throw(__("Customer Name is required"));
+				return;
+			}
+
+			if (!this.mobile_no) {
+				frappe.throw(__("Mobile number is required"));
 				return;
 			}
 
@@ -704,7 +712,7 @@ export default {
 			() => this.isUpdateCustomerDialogOpen,
 			(isOpen) => {
 				if (isOpen) {
-					this.focusCustomerNameField();
+					this.focusMobileNoField();
 					const data = this.customerToUpdate;
 					if (data) {
 						this.customer_name = data.customer_name || data.name || ""; // fallback
@@ -714,7 +722,7 @@ export default {
 						this.country =
 							data.country ||
 							(this.pos_profile && this.pos_profile.posa_default_country) ||
-							"Pakistan";
+							"Qatar";
 						this.tax_id = data.tax_id;
 						this.mobile_no = data.mobile_no;
 						this.email_id = data.email_id;
@@ -739,7 +747,7 @@ export default {
 			(profile) => {
 				if (profile) {
 					this.pos_profile = profile;
-					this.country = (profile && profile.posa_default_country) || "Pakistan";
+					this.country = (profile && profile.posa_default_country) || "Qatar";
 				}
 			},
 			{ deep: true, immediate: true },
@@ -748,19 +756,19 @@ export default {
 		/*
 		this.eventBus.on("register_pos_profile", (data) => {
 			this.pos_profile = data.pos_profile;
-			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
+			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Qatar";
 		});
 		this.eventBus.on("payments_register_pos_profile", (data) => {
 			this.pos_profile = data.pos_profile;
-			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Pakistan";
+			this.country = (this.pos_profile && this.pos_profile.posa_default_country) || "Qatar";
 		});
 		*/
 		this.getCustomerGroups();
 		this.getCustomerTerritorys();
 		this.getGenders();
-		// set default values for customer group and territory from user defaults
-		this.group = frappe.defaults.get_user_default("Customer Group");
-		this.territory = frappe.defaults.get_user_default("Territory");
+		// set default values for customer group and territory
+		this.group = "Individual";
+		this.territory = "Qatar";
 	},
 };
 </script>

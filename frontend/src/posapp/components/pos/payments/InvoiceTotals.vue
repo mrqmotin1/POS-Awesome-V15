@@ -35,7 +35,7 @@
 				:label="frappe._('Total Amount')"
 				class="sleek-field pos-themed-input"
 				hide-details
-				:model-value="formatCurrency(invoice_doc.total, displayCurrency)"
+				:model-value="formatCurrency(invoice_doc.total + (discount_total || 0), displayCurrency)"
 				readonly
 				:prefix="currencySymbol()"
 				persistent-placeholder
@@ -65,7 +65,7 @@
 				:label="frappe._('Discount Amount')"
 				class="sleek-field pos-themed-input"
 				hide-details
-				:model-value="formatCurrency(invoice_doc.discount_amount)"
+				:model-value="formatCurrency(invoice_doc.discount_amount + (discount_total || 0))"
 				readonly
 				:prefix="currencySymbol(invoice_doc.currency)"
 				persistent-placeholder
@@ -105,6 +105,7 @@
 <script setup>
 defineProps({
 	invoice_doc: Object,
+	discount_total: Number,
 	displayCurrency: String,
 	diff_payment: Number,
 	diff_label: String,

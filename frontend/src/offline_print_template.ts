@@ -359,7 +359,7 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
 </html>`; 
 }
 
-async function enrichItemsWithBarcodes(items: any[]) {
+export async function enrichItemsWithBarcodes(items: any[]) {
 	if (!items || !items.length) return;
 	try {
 		await checkDbHealth();

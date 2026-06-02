@@ -113,6 +113,7 @@
 						/>
 						<InvoiceTotals
 							:invoice_doc="invoice_doc"
+							:discount_total="discountTotal"
 							:displayCurrency="displayCurrency"
 							:diff_payment="diff_payment"
 							:diff_label="diff_label"
@@ -360,7 +361,7 @@ const {
 
 const { selectedCustomer, customerInfo } = storeToRefs(customersStore);
 const { activeView, paymentDialogOpen } = storeToRefs(uiStore);
-const { invoiceType } = storeToRefs(invoiceStore);
+const { invoiceType, discountTotal } = storeToRefs(invoiceStore);
 const employeeStore = useEmployeeStore();
 const { currentCashier } = storeToRefs(employeeStore);
 

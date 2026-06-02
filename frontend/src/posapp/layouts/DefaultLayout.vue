@@ -698,6 +698,15 @@ watch(
 	{ immediate: true },
 );
 
+const handleBeforeUnload = (event) => {
+	if (isOffline() || manualOffline.value) {
+		const message = __("POS is in offline mode. If you reload, unsaved data will be lost. Are you sure?");
+		event.preventDefault();
+		event.returnValue = message;
+		return message;
+	}
+};
+
 // Lifecycle Hooks
 onMounted(() => {
 	pollForFrappeNav();
@@ -706,6 +715,7 @@ onMounted(() => {
 	});
 
 	window.addEventListener("resize", adjust_frappe_sidebar_offset);
+	window.addEventListener("beforeunload", handleBeforeUnload);
 	// initLoadingSources move to setup to catch early store readiness
 	initializeData();
 	offlineSyncRuntime.startTimerSync();
@@ -733,6 +743,7 @@ onBeforeUnmount(() => {
 		removeBootstrapSnapshotListener();
 		removeBootstrapSnapshotListener = null;
 	}
+	window.removeEventListener("beforeunload", handleBeforeUnload);
 	offlineSyncRuntime.stopTimerSync();
 	if (eventBus) {
 		eventBus.off("data-loaded");

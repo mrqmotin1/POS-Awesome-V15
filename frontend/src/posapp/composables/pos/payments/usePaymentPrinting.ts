@@ -1,12 +1,13 @@
 import { unref, type Ref } from "vue";
 import renderOfflineInvoiceHTML from "../../../../offline_print_template";
+import renderOfflineInvoiceRaw from "../../../../offline_raw_print_template";
 import {
 	appendDebugPrintParam,
 	isDebugPrintEnabled,
 	silentPrint,
 	watchPrintWindow,
 } from "../../../plugins/print";
-import { printDocumentViaQz } from "../../../services/qzTray";
+import { printDocumentViaQz, printHtmlViaQz } from "../../../services/qzTray";
 import { isOffline } from "../../../../offline/index";
 import { resolvePaymentPrintDoctype } from "../../../utils/paymentPrintDoctype";
 
@@ -72,6 +73,25 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 
 	const printOfflineInvoice = async (invoice: any) => {
 		if (!invoice) return;
+
+		// When silent printing is enabled, render the ESC/POS receipt client-side and
+		// send it to QZ Tray as raw commands (QZ runs locally, so this works offline).
+		const profile = unref(posProfile);
+		if (profile?.posa_silent_print) {
+			try {
+				const raw = await renderOfflineInvoiceRaw(invoice);
+				await printHtmlViaQz(raw, {
+					printerName: profile.custom_pos_printer || null,
+				});
+				return;
+			} catch (error) {
+				console.warn(
+					"Offline QZ raw print failed, falling back to browser print",
+					error,
+				);
+			}
+		}
+
 		const html = await renderOfflineInvoiceHTML(invoice);
 		const win = window.open("", "_blank");
 		if (!win) {
@@ -167,11 +187,26 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 						letterhead: profile.letter_head || null,
 						noLetterhead: letter_head,
 						printerName: profile.custom_pos_printer || null,
-						
+
 					});
 					return;
 				} catch (error) {
 					console.warn("QZ Tray print failed, falling back to browser print", error);
+				}
+			} else {
+				// Offline: render the ESC/POS receipt client-side and send it to QZ Tray
+				// as raw commands (QZ runs locally so it works without the server).
+				try {
+					const raw = await renderOfflineInvoiceRaw(doc);
+					await printHtmlViaQz(raw, {
+						printerName: profile.custom_pos_printer || null,
+					});
+					return;
+				} catch (error) {
+					console.warn(
+						"Offline QZ raw print failed, falling back to browser print",
+						error,
+					);
 				}
 			}
 			silentPrint(url, printOptions);

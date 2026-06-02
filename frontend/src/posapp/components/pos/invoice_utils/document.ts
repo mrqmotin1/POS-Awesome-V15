@@ -322,8 +322,9 @@ export function get_invoice_doc(context: any) {
 				let tax_amount = 0;
 				if (row.charge_type === "Actual") {
 					tax_amount = flt(row.tax_amount || 0);
-				} else if (inclusive) {
-					tax_amount = flt((doc.total * flt(row.rate)) / 100);
+				} else if (inclusive) {					
+					const tax_rate = flt(row.rate);
+					tax_amount = flt((doc.total * tax_rate) / (100 + tax_rate));
 				} else {
 					tax_amount = flt((doc.net_total * flt(row.rate)) / 100);
 				}
