@@ -5,7 +5,8 @@ import {
 	formatStockShortageError,
 	parseBooleanSetting,
 } from "../../../utils/stock";
-import { saveItems, savePriceListItems } from "../../../../offline/index";
+import { saveItems, savePriceListItems, isOffline } from "../../../../offline/index";
+import { decodePluBarcode, PLU_BARCODE_PATTERN } from "../../../utils/pluBarcode";
 import { openItemSelectionDialog } from "../../../utils/itemSelectionDialog";
 // @ts-ignore
 import placeholderImage from "../../../components/pos/placeholder-image.png";
@@ -468,9 +469,86 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		}
 	};
 
+	// NATC PLU weighed-item barcode handling. Decoded entirely client-side
+	// (see utils/pluBarcode) so it works offline; the item, price and UOM come
+	// from the local/cached catalog, the barcode only carries the weight.
+	const processPluBarcode = async (scannedCode: string) => {
+		const decoded = decodePluBarcode(scannedCode);
+		if (!decoded.valid) {
+			showScanError({
+				message: decoded.error || __("Invalid PLU barcode"),
+				code: scannedCode,
+				details: __("Verify the barcode label or item configuration."),
+			});
+			return;
+		}
+
+		const itemCode = decoded.item_code as string;
+
+		// Resolve from the local/offline catalog first.
+		let foundItem =
+			barcodeIndex.lookupItemByBarcode(itemCode) ||
+			items.value.find((i: any) => i.item_code === itemCode);
+
+		// Only reach for the server when online and not cached locally.
+		if (!foundItem && !isOffline()) {
+			try {
+				const res = await frappe.call({
+					method: "posawesome.posawesome.api.items.get_item_detail",
+					args: {
+						item: JSON.stringify({ item_code: itemCode }),
+						warehouse: pos_profile.value.warehouse,
+						price_list: active_price_list.value,
+						company: pos_profile.value.company,
+					},
+				});
+				if (res && res.message) {
+					foundItem = res.message;
+				}
+			} catch (error) {
+				console.error("Failed to fetch PLU item detail", error);
+			}
+		}
+
+		if (!foundItem) {
+			if (context.onItemNotFound) context.onItemNotFound(scannedCode);
+			showScanError({
+				message: `${__("Item not found")}: ${scannedCode}`,
+				code: scannedCode,
+				details: __(
+					"Please verify the barcode or check the item's availability.",
+				),
+			});
+			return;
+		}
+
+		// Price and UOM come from the system (Item record); barcode only carries weight.
+		const pluItem = { ...foundItem, uom: foundItem.stock_uom };
+		await addScannedItemToInvoice(
+			pluItem,
+			scannedCode,
+			Number(decoded.weight), // qtyFromBarcode -> cart qty (weight)
+			null, // priceFromBarcode -> keep item's price_list_rate
+			{ serialNo: null, batchNo: null },
+			{ isScaleBarcode: true },
+		);
+	};
+
 	const processScannedItem = async (scannedCode: string) => {
 		const mark = perfMarkStart("pos:scan-process");
 		logScanFlow("Start processing scan", { scannedCode });
+
+		// PLU weighed-item barcodes decode locally and short-circuit the normal flow.
+		const pluCandidate = String(scannedCode || "").trim();
+		if (PLU_BARCODE_PATTERN.test(pluCandidate)) {
+			try {
+				await processPluBarcode(pluCandidate);
+			} finally {
+				perfMarkEnd("pos:scan-process", mark);
+			}
+			return;
+		}
+
 		pendingScanCode.value = scannedCode;
 		if (typeof scannerInput.ensureScaleBarcodeSettings === "function") {
 			await scannerInput.ensureScaleBarcodeSettings();
