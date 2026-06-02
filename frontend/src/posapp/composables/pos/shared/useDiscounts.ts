@@ -24,9 +24,10 @@ export function useDiscounts() {
 	const refreshInvoiceTotals = (context: any) => {
 		if (context.invoiceStore?.triggerUpdateTotals) {
 			context.invoiceStore.triggerUpdateTotals();
-			return;
+		} else {
+			context.invoiceStore?.recalculateTotals?.();
+			context.invoiceStore?.touch?.();
 		}
-		context.invoiceStore?.recalculateTotals?.();
 	};
 
 	/**
