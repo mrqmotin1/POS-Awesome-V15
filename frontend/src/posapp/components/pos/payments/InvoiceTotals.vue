@@ -65,7 +65,7 @@
 				:label="frappe._('Discount Amount')"
 				class="sleek-field pos-themed-input"
 				hide-details
-				:model-value="formatCurrency(invoice_doc.discount_amount)"
+				:model-value="formatCurrency(invoice_doc.discount_amount + (discount_total || 0))"
 				readonly
 				:prefix="currencySymbol(invoice_doc.currency)"
 				persistent-placeholder
