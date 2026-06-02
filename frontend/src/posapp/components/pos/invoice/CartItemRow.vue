@@ -1,5 +1,5 @@
 <template>
-	<tr class="posa-cart-item-row" v-memo="memoDepsValue">
+	<tr class="posa-cart-item-row" v-memo="memoDeps">
 		<template v-for="column in visibleColumns" :key="column.key">
 			<!-- Item Name Column -->
 			<td v-if="column.key === 'item_name'" class="text-start" :data-column-key="'item_name'">
@@ -438,7 +438,6 @@ const emit = defineEmits([
 ]);
 
 const __ = window.__ || ((text) => text);
-const memoDepsValue = computed(() => memoDeps.value);
 
 const isEditingQty = ref(false);
 const editingQtyValue = ref("");

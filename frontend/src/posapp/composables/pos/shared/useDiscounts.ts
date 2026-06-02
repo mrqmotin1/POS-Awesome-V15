@@ -22,12 +22,11 @@ export function useDiscounts() {
 	const toastStore = useToastStore();
 
 	const refreshInvoiceTotals = (context: any) => {
-		if (context.invoiceStore?.recalculateTotals) {
-			context.invoiceStore.recalculateTotals();
+		if (context.invoiceStore?.triggerUpdateTotals) {
+			context.invoiceStore.triggerUpdateTotals();
+			return;
 		}
-		if (context.invoiceStore?.touch) {
-			context.invoiceStore.touch();
-		}
+		context.invoiceStore?.recalculateTotals?.();
 	};
 
 	/**
@@ -458,7 +457,7 @@ export function useDiscounts() {
 					item.base_rate = toBaseCurrency(context, newValue);
 
 					item.base_discount_amount = context.flt(
-						Math.max(item.base_price_list_rate - item.base_rate, 0),
+						Math.max((item.base_price_list_rate || 0) - item.base_rate, 0),
 						context.currency_precision,
 					);
 					item.discount_amount = toSelectedCurrency(
@@ -558,6 +557,14 @@ export function useDiscounts() {
 				context.currency_precision,
 			);
 			item.base_amount = toBaseCurrency(context, item.amount);
+
+			// Sync totals for immediate UI update on single-item edits
+			if (context.invoiceStore?.recalculateTotals) {
+				context.invoiceStore.recalculateTotals();
+			}
+			if (context.invoiceStore?.touch) {
+				context.invoiceStore.touch();
+			}
 
 			// Update stock calculations and force UI update
 			if (context.calc_stock_qty) context.calc_stock_qty(item, item.qty);
