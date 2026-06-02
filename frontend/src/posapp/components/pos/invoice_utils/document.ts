@@ -291,40 +291,51 @@ export function get_invoice_doc(context: any) {
 
 	// Prepare taxes array
 	doc.taxes = [];
-	if (context.invoice_doc && context.invoice_doc.taxes) {
-		let totalTax = 0;
-		context.invoice_doc.taxes.forEach((tax) => {
-			if (tax.tax_amount) {
-				grandTotal += flt(tax.tax_amount);
-				totalTax += flt(tax.tax_amount);
-			}
-			doc.taxes.push({
-				account_head: tax.account_head,
-				charge_type: tax.charge_type || "On Net Total",
-				description: tax.description,
-				rate: tax.rate,
-				included_in_print_rate: tax.included_in_print_rate || 0,
-				tax_amount: tax.tax_amount,
-				total: tax.total,
-				base_tax_amount:
-					tax.tax_amount * (context.conversion_rate || 1),
-				base_total: tax.total * (context.conversion_rate || 1),
-			});
-		});
-		doc.total_taxes_and_charges = totalTax;
-	} else if (isOffline()) {
+	// if (context.invoice_doc && context.invoice_doc.taxes) {
+	// 	let totalTax = 0;
+	// 	context.invoice_doc.taxes.forEach((tax) => {
+	// 		if (tax.tax_amount) {
+	// 			grandTotal += flt(tax.tax_amount);
+	// 			totalTax += flt(tax.tax_amount);
+	// 		}
+	// 		doc.taxes.push({
+	// 			account_head: tax.account_head,
+	// 			charge_type: tax.charge_type || "On Net Total",
+	// 			description: tax.description,
+	// 			rate: tax.rate,
+	// 			included_in_print_rate: tax.included_in_print_rate || 0,
+	// 			tax_amount: tax.tax_amount,
+	// 			total: tax.total,
+	// 			base_tax_amount:
+	// 				tax.tax_amount * (context.conversion_rate || 1),
+	// 			base_total: tax.total * (context.conversion_rate || 1),
+	// 		});
+	// 	});
+	// 	doc.total_taxes_and_charges = totalTax;
+	// } else 
+	if (isOffline()) {
 		const tmpl = getTaxTemplate(context.pos_profile.taxes_and_charges);
 		if (tmpl && Array.isArray(tmpl.taxes)) {
-			const inclusive = getTaxInclusiveSetting();
+			// Inclusiveness is authoritative on the cached template rows
+			// (included_in_print_rate) and is reliably available offline. The global
+			// tax_inclusive flag is only set by the bootstrap-config sync, so offline
+			// it is often unset — prefer the template, fall back to the flag.
+			const inclusive =
+				tmpl.taxes.some(
+					(row: any) => flt(row.included_in_print_rate) === 1,
+				) || getTaxInclusiveSetting();
 			let runningTotal = grandTotal;
 			let totalTax = 0;
 			tmpl.taxes.forEach((row) => {
 				let tax_amount = 0;
 				if (row.charge_type === "Actual") {
 					tax_amount = flt(row.tax_amount || 0);
-				} else if (inclusive) {					
-					const tax_rate = flt(row.rate);
-					tax_amount = flt((doc.total * tax_rate) / (100 + tax_rate));
+				} else if (inclusive) {
+					// Tax is included in doc.total (gross), so extract it out of the
+					// total rather than adding it on top: gross * r / (100 + r).
+					tax_amount = flt(
+						(doc.total * flt(row.rate)) / (100 + flt(row.rate)),
+					);
 				} else {
 					tax_amount = flt((doc.net_total * flt(row.rate)) / 100);
 				}
