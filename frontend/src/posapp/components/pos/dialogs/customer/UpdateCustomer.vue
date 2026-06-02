@@ -34,7 +34,7 @@
 									v-model="customer_name"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
 									color="primary"
@@ -48,10 +48,11 @@
 								<v-text-field
 									density="compact"
 									color="primary"
-									:label="frappe._('Mobile No')"
+									:label="frappe._('Mobile No') + ' *'"
 									class="pos-themed-input"
 									hide-details
 									v-model="mobile_no"
+									
 								></v-text-field>
 							</v-col>
 							<v-col cols="12" v-if="!hideNonEssential">
@@ -86,7 +87,7 @@
 								></v-select>
 							</v-col>
 
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
 									color="primary"
@@ -96,7 +97,7 @@
 									v-model="email_id"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-select
 									density="compact"
 									label="Gender"
@@ -105,7 +106,7 @@
 									class="pos-themed-input"
 								></v-select>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
 									color="primary"
@@ -115,7 +116,7 @@
 									v-model="referral_code"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
+							<v-col cols="6" v-if="!hideNonEssential">
 								<v-text-field
 									v-model="birthday"
 									:label="frappe._('Birthday (DD-MM-YYYY)')"
@@ -128,7 +129,7 @@
 									class="pos-themed-input"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6" v-if="!hideNonEssential">
+							<v-col cols="6">
 								<v-autocomplete
 									clearable
 									density="compact"
@@ -144,7 +145,7 @@
 								>
 								</v-autocomplete>
 							</v-col>
-							<v-col cols="6" v-if="!hideNonEssential">
+							<v-col cols="6">
 								<v-autocomplete
 									clearable
 									density="compact"
@@ -518,6 +519,11 @@ export default {
 			const vm = this;
 			if (!this.customer_name) {
 				frappe.throw(__("Customer Name is required"));
+				return;
+			}
+
+			if (!this.mobile_no) {
+				frappe.throw(__("Mobile number is required"));
 				return;
 			}
 
