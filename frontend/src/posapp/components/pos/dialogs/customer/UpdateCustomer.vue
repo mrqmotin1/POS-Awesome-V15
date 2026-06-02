@@ -25,6 +25,18 @@
 						<v-row>
 							<v-col cols="12">
 								<v-text-field
+									ref="mobileNoField"
+									density="compact"
+									color="primary"
+									:label="frappe._('Mobile No') + ' *'"
+									class="pos-themed-input"
+									hide-details
+									v-model="mobile_no"
+
+								></v-text-field>
+							</v-col>
+							<v-col cols="6">
+								<v-text-field
 									ref="customerNameField"
 									density="compact"
 									color="primary"
@@ -44,17 +56,7 @@
 									v-model="tax_id"
 								></v-text-field>
 							</v-col>
-							<v-col cols="6">
-								<v-text-field
-									density="compact"
-									color="primary"
-									:label="frappe._('Mobile No') + ' *'"
-									class="pos-themed-input"
-									hide-details
-									v-model="mobile_no"
-									
-								></v-text-field>
-							</v-col>
+							
 							<v-col cols="12" v-if="!hideNonEssential">
 								<v-text-field
 									density="compact"
@@ -367,9 +369,9 @@ export default {
 	},
 	computed: {},
 	methods: {
-		focusCustomerNameField() {
+		focusMobileNoField() {
 			this.$nextTick(() => {
-				const field = this.$refs.customerNameField;
+				const field = this.$refs.mobileNoField;
 				if (field && typeof field.focus === "function") {
 					field.focus();
 				}
@@ -443,8 +445,8 @@ export default {
 			this.email_id = "";
 			this.referral_code = "";
 			this.birthday = "";
-			this.group = frappe.defaults.get_user_default("Customer Group");
-			this.territory = frappe.defaults.get_user_default("Territory");
+			this.group = "Individual";
+			this.territory = "Qatar";
 			this.customer_id = "";
 			this.customer_type = "Individual";
 			this.gender = "";
@@ -710,7 +712,7 @@ export default {
 			() => this.isUpdateCustomerDialogOpen,
 			(isOpen) => {
 				if (isOpen) {
-					this.focusCustomerNameField();
+					this.focusMobileNoField();
 					const data = this.customerToUpdate;
 					if (data) {
 						this.customer_name = data.customer_name || data.name || ""; // fallback
@@ -764,9 +766,9 @@ export default {
 		this.getCustomerGroups();
 		this.getCustomerTerritorys();
 		this.getGenders();
-		// set default values for customer group and territory from user defaults
-		this.group = frappe.defaults.get_user_default("Customer Group");
-		this.territory = frappe.defaults.get_user_default("Territory");
+		// set default values for customer group and territory
+		this.group = "Individual";
+		this.territory = "Qatar";
 	},
 };
 </script>
