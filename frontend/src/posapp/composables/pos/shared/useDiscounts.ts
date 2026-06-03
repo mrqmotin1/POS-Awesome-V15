@@ -569,7 +569,6 @@ export function useDiscounts() {
 
 			// Update stock calculations and force UI update
 			if (context.calc_stock_qty) context.calc_stock_qty(item, item.qty);
-			refreshInvoiceTotals(context);
 			if (context.forceUpdate) context.forceUpdate();
 		} catch (error: unknown) {
 			console.error("Error calculating prices:", error);
