@@ -1,7 +1,10 @@
 import { isOffline } from "../../../../offline/index";
 import { usePricingRulesStore } from "../../../stores/pricingRulesStore.js";
 import { useItemsStore } from "../../../stores/itemsStore.js";
-import { evaluatePricingRules } from "../../../../lib/pricingEngine";
+import {
+	evaluatePricingRules,
+	evaluateTransactionDiscount,
+} from "../../../../lib/pricingEngine";
 import { _syncAutoFreeLines } from "./free_items";
 
 declare const __: (_text: string, _args?: any[]) => string;
@@ -363,12 +366,92 @@ export async function _applyLocalPricingRules(context: any, force = false) {
 		}
 
 		syncAutoFreeLines(context, freebiesMap);
+
+		// Document-level (Apply On = Transaction) rules → invoice Additional Discount.
+		// Base the discount on the line subtotal (sum of line amounts, pre-additional
+		// discount) so it stays stable across re-pricing.
+		const lineSubtotal = context.items.reduce((sum: number, it: any) => {
+			if (!it || it.is_free_item) return sum;
+			const amt = Number.parseFloat(String(it.amount ?? 0));
+			return sum + (Number.isFinite(amt) ? amt : 0);
+		}, 0);
+		const txnDiscount = evaluateTransactionDiscount({
+			rules: (indexes as any).general || [],
+			ctx,
+			total: lineSubtotal,
+		});
+		_applyTransactionDiscount(context, txnDiscount);
+
 		if (typeof context.$forceUpdate === "function") {
 			context.$forceUpdate();
 		}
 	} catch (error) {
 		console.error("Failed to apply pricing rules locally", error);
 	}
+}
+
+/**
+ * Set the invoice Additional Discount from a transaction-level pricing rule,
+ * mirroring the server path's mapping (percentage vs amount, honoring
+ * posa_use_percentage_discount). Tracks whether the current discount was applied
+ * by a rule so a user's manual discount is preserved when no rule matches.
+ */
+function _applyTransactionDiscount(
+	context: any,
+	txn: {
+		discount_percentage: number;
+		discount_amount: number;
+		apply_discount_on?: string;
+	} | null,
+) {
+	const usePercentage = !!context.pos_profile?.posa_use_percentage_discount;
+	// Round to the configured precision so the field doesn't show float noise
+	// (e.g. 3.0009999999999994). float_precision drives the percentage; the
+	// amount uses currency_precision. Both fall back to 2.
+	const pctPrecision = Number.isFinite(context.float_precision)
+		? context.float_precision
+		: 2;
+	const amtPrecision = Number.isFinite(context.currency_precision)
+		? context.currency_precision
+		: 2;
+	const round = (val: number, precision: number) =>
+		typeof context.flt === "function"
+			? context.flt(val, precision)
+			: Number(Number(val || 0).toFixed(precision));
+
+	if (!txn) {
+		// No transaction rule matched: only clear a previously rule-applied
+		// discount, leaving any manually entered additional discount untouched.
+		if (context._additional_discount_from_rule === true) {
+			if (usePercentage) {
+				context.additional_discount_percentage = 0;
+				context.update_discount_umount?.();
+			} else {
+				context.additional_discount = 0;
+				context.additional_discount_percentage = 0;
+				context.discount_amount = 0;
+			}
+			context._additional_discount_from_rule = false;
+			context._additional_discount_apply_on = null;
+		}
+		return;
+	}
+
+	const pct = round(txn.discount_percentage || 0, pctPrecision);
+	const amount = round(txn.discount_amount || 0, amtPrecision);
+
+	if (usePercentage) {
+		context.additional_discount_percentage = pct;
+		context.update_discount_umount?.();
+	} else {
+		context.additional_discount = amount;
+		context.additional_discount_percentage = pct;
+		context.discount_amount = context.additional_discount;
+	}
+	context._additional_discount_from_rule = true;
+	// Base the discount should apply on (Grand Total / Net Total). document.ts
+	// uses this to make the offline grand_total match the server's recompute.
+	context._additional_discount_apply_on = txn.apply_discount_on || "Grand Total";
 }
 
 export async function _applyServerPricingRules(context: any, ctx: any = {}) {
