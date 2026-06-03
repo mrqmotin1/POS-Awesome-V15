@@ -1845,10 +1845,14 @@ watch(
 	},
 );
 
-watch(customerInfo, (newInfo) => {
-	customer_info.value = newInfo || "";
-	set_print_format();
-});
+watch(
+	customerInfo,
+	(newInfo) => {
+		customer_info.value = newInfo || "";
+		set_print_format();
+	},
+	{ immediate: true },
+);
 
 watch(selectedCustomer, (newCustomer, oldCustomer) => {
 	if (newCustomer === oldCustomer) return;
