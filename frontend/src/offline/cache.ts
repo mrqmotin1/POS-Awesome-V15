@@ -352,6 +352,43 @@ export async function getAllStoredItems(scope = "") {
 	}
 }
 
+/**
+ * Attach barcode data to a single (cart) item from the offline `items` cache when it is missing.
+ * Called at cart-add time so offline-created invoice lines carry the barcode for the receipt
+ * (the submitted line and trimmed source items often lack `item_barcode`/`barcode`).
+ * No-op when the item already has a barcode, or when offline data is unavailable.
+ */
+export async function enrichItemWithBarcode(item) {
+	if (!item || !item.item_code || item.barcode) return;
+
+	// 1) Derive from an in-memory item_barcode array first (no DB hit).
+	if (Array.isArray(item.item_barcode) && item.item_barcode.length) {
+		const first = item.item_barcode[0];
+		item.barcode = typeof first === "string" ? first : first?.barcode || "";
+		if (item.barcode) return;
+	}
+
+	// 2) Otherwise look it up from the offline items cache by item_code.
+	try {
+		await checkDbHealth();
+		if (!db.isOpen()) await db.open();
+		const stored: any = await db
+			.table("items")
+			.where("item_code")
+			.equals(item.item_code)
+			.first();
+		if (!stored) return;
+		if (Array.isArray(stored.barcodes) && stored.barcodes.length) {
+			item.barcode = stored.barcodes[0];
+		} else if (Array.isArray(stored.item_barcode) && stored.item_barcode.length) {
+			const first = stored.item_barcode[0];
+			item.barcode = typeof first === "string" ? first : first?.barcode || "";
+		}
+	} catch (e) {
+		console.error("Failed to enrich item with barcode", item?.item_code, e);
+	}
+}
+
 export async function saveItemsBulk(items, scope = "") {
 	return await saveItems(items, scope);
 }

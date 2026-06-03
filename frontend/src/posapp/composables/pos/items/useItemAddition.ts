@@ -3,6 +3,7 @@ import { withPerf } from "../../../utils/perf";
 import { parseBooleanSetting } from "../../../utils/stock";
 import { useToastStore } from "../../../stores/toastStore";
 import { useStockUtils } from "../shared/useStockUtils";
+import { enrichItemWithBarcode } from "../../../../offline/index";
 
 // Imported composables
 import { useItemTasks } from "./addition/useItemTasks";
@@ -419,6 +420,10 @@ export function useItemAddition() {
 			if (index === -1 || context.new_line) {
 				new_item = getNewItem(item, context);
 				new_item._needs_update = true; // Mark new item for background update
+
+				// Attach barcode from the offline items cache so offline receipts can show it
+				// (the cart/invoice line often lacks item_barcode/barcode). No-op if already set.
+				await enrichItemWithBarcode(new_item);
 
 				// Handle serial number logic
 				if (item.has_serial_no && item.to_set_serial_no) {
