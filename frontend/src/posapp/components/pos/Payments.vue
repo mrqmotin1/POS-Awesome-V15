@@ -1512,6 +1512,30 @@ const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {})
 	submissionInFlight.value = true;
 	loading.value = true;
 	try {
+		// Stop submit if loyalty redemption exceeds the allowed maximum
+		// (min of available points value and invoice total), then auto-assign the
+		// full allowed amount so the cashier can resubmit.
+		if (invoice_doc.value && (parseFloat(loyalty_amount.value) || 0) > 0) {
+			const invoiceTotal = flt(
+				invoice_doc.value.rounded_total || invoice_doc.value.grand_total,
+				currency_precision.value,
+			);
+			const maxRedeemable = flt(
+				Math.min(available_points_amount.value, invoiceTotal),
+				currency_precision.value,
+			);
+			if ((parseFloat(loyalty_amount.value) || 0) > maxRedeemable + 0.001) {
+				loyalty_amount.value = 0;
+				loyalty_amount.value = maxRedeemable;
+				toastStore.show({
+					title: `Loyalty Amount can not be more than ${maxRedeemable}. Adjusted to ${maxRedeemable}.`,
+					color: "error",
+				});
+				frappe.utils.play_sound("error");
+				return;
+			}
+		}
+
 		await validateSubmission(options.paymentReceived || false);
 		await submitInvoice(print, {
 			onPrint: (doc, printOptions = {}) => {
@@ -1559,7 +1583,10 @@ const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {})
 	} catch (error) {
 		console.error("Submission failed propagate:", error);
 		const isCardDigitsError = error?.message?.includes("last 4 digits");
-		if (!isCardDigitsError) {
+		const isLoyaltyOverTotalError = error?.message?.includes(
+			"Loyalty Points having more value",
+		);
+		if (!isCardDigitsError && !isLoyaltyOverTotalError) {
 			restorePaymentLinesAfterFailedSubmit();
 		}
 
@@ -1710,16 +1737,9 @@ watch(paid_change, (newVal) => {
 watch(loyalty_amount, (value) => {
 	if (!invoice_doc.value) return;
 	const amount = parseFloat(value) || 0;
-	if (amount > available_points_amount.value + 0.001) {
-		invoice_doc.value.loyalty_amount = 0;
-		invoice_doc.value.redeem_loyalty_points = 0;
-		invoice_doc.value.loyalty_points = 0;
-		loyalty_amount.value = 0;
-		toastStore.show({
-			title: `Loyalty Amount can not be more than ${available_points_amount.value}`,
-			color: "error",
-		});
-	} else {
+	// Keep the entered value here; over-limit correction happens at submit time
+	// in submitInvoiceWrapper.
+	{
 		invoice_doc.value.loyalty_amount = flt(loyalty_amount.value);
 		invoice_doc.value.redeem_loyalty_points = 1;
 

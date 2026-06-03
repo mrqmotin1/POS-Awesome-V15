@@ -300,6 +300,18 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			doc.rounded_total || doc.grand_total,
 			prec,
 		);
+
+		// Loyalty Points redeemed value cannot exceed the invoice total
+		const loyaltyValue =
+			(options.loyaltyAmount && unref(options.loyaltyAmount)) || 0;
+		if (loyaltyValue > invoice_total + 0.001) {
+			throw new Error(
+				__(
+					"You can't redeem Loyalty Points having more value than the Total Amount.",
+				),
+			);
+		}
+
 		const effective_total_payments = formatFloat(
 			current_total_payments + writeOffAmount,
 			prec,
