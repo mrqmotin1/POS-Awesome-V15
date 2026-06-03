@@ -562,9 +562,13 @@ export default {
 				this.isSessionUserNotManager
 					? {
 							id: "manager-login",
-							label: __("Manager Login"),
-							subtitle: __("Authenticate as manager"),
-							icon: "mdi-shield-account-outline",
+							label: this.isManagerMode ? __("Manager Logout") : __("Manager Login"),
+							subtitle: this.isManagerMode
+								? __("Log out of manager mode")
+								: __("Authenticate as manager"),
+							icon: this.isManagerMode
+								? "mdi-shield-off-outline"
+								: "mdi-shield-account-outline",
 							tone: "warning",
 							handler: "managerLogin",
 						}
