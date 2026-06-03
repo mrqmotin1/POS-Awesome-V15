@@ -29,6 +29,13 @@ const CUT = GS + "V" + "\x41" + "\x03";
 const LF = "\x0A";
 const LINE = "------------------------------------------------"; // 48 dashes
 
+// Hardcoded company registration / address block (mirrors the reference Jinja template).
+const COMPANY_ADDRESS = [
+	"Po. Box No. 60235 - Doha Qatar",
+	"Alkhore Industrial Area",
+	"Street No.27 - Zone 74 - Building No: 38",
+];
+
 // --- Python str.format helpers (no truncation, matching Python semantics) ---
 function padRight(value: any, width: number): string {
 	const s = String(value ?? "");
@@ -55,6 +62,22 @@ function money(value: any): string {
 		minimumFractionDigits: 2,
 		maximumFractionDigits: 2,
 	});
+}
+
+// Single shared column layout for the item table (header + item rows + barcode rows).
+// Widths total 56 chars, which fits Font B (~64 chars on 80mm) used for the table.
+function itemRow(sl: any, name: any, qty: any, price: any, amount: any): string {
+	return (
+		padRight(sl, 2) +
+		" " +
+		padRight(name, 27) +
+		" " +
+		padLeft(qty, 3) +
+		" " +
+		padLeft(price, 10) +
+		" " +
+		padLeft(amount, 10)
+	);
 }
 
 function sumPayments(payments: any[], modes: string[]): number {
@@ -105,8 +128,8 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	out.push(INIT);
 	out.push(CENTER);
 	out.push(BOLD_ON + companyName + BOLD_OFF + LF);
-	if (company.registration_details) {
-		out.push(String(company.registration_details).replace(/\n/g, " ") + LF);
+	for (const line of COMPANY_ADDRESS) {
+		out.push(line + LF);
 	}
 	out.push("Tel:" + (company.phone_no ?? "") + LF);
 	if (company.tax_id) {
@@ -129,58 +152,36 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	out.push(LINE + LF);
 
 	// --- Item header row ---
-	out.push(
-		BOLD_ON +
-			padRight("SL", 2) +
-			" " +
-			padRight(" Items", 20) +
-			" " +
-			padLeft("Qty", 4) +
-			" " +
-			padLeft("Price", 8) +
-			" " +
-			padLeft("Amount", 9) +
-			BOLD_OFF,
-	);
-	out.push(SMALL2 + LF);
+	// Switch to small font (Font B) before the header so the header and the item rows
+	// render in the same font and therefore align.
+	out.push(SMALL2);
+	out.push(BOLD_ON + itemRow("SL", "Items", "Qty", "Price", "Amount") + BOLD_OFF + LF);
 
 	// --- Items ---
 	(doc.items || []).forEach((item: any, index: number) => {
 		const name = String(item.item_name || "");
-		const displayName = name.length > 26 ? name.slice(0, 24) + ".." : name;
+		const displayName = name.length > 27 ? name.slice(0, 25) + ".." : name;
 		// Show the original (pre-discount) price-list rate and amount, mirroring the
 		// online template's frappe.db.get_value("Item Price", ...) lookup. The invoice
 		// item already carries price_list_rate; fall back to the charged rate.
 		const priceListRate = Number(item.price_list_rate) || Number(item.rate) || 0;
 		const originalAmount = priceListRate * (Number(item.qty) || 0);
 		out.push(
-			padLeft(index + 1, 2) +
-				"    " +
-				padRight(displayName, 27) +
-				" " +
-				padLeft(Math.trunc(Number(item.qty) || 0), 3) +
-				" " +
-				padLeft(money(priceListRate), 12) +
-				" " +
-				padLeft(money(originalAmount), 12),
+			itemRow(
+				index + 1,
+				displayName,
+				Math.trunc(Number(item.qty) || 0),
+				money(priceListRate),
+				money(originalAmount),
+			) + LF,
 		);
 		let bcode = item.barcode;
-		if (!bcode && item.item_barcode && item.item_barcode[0]) {
-			bcode = item.item_barcode[0].barcode;
+		if (!bcode && Array.isArray(item.item_barcode) && item.item_barcode[0]) {
+			const first = item.item_barcode[0];
+			bcode = typeof first === "string" ? first : first.barcode;
 		}
 		if (bcode) {
-			out.push(
-				padLeft("", 2) +
-					"    " +
-					padRight("(" + bcode + ")", 27) +
-					" " +
-					padLeft("", 3) +
-					" " +
-					padLeft("", 12) +
-					" " +
-					padLeft("", 12) +
-					LF,
-			);
+			out.push(itemRow("", "(" + bcode + ")", "", "", "") + LF);
 		}
 	});
 
@@ -194,14 +195,16 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 
 	// custom_total_items_discount is only set server-side (invoice.py); offline we derive it
 	// from the per-item discount_amount, replicating that formula: sum(item.discount_amount).
-	const itemsDiscount =
+	const itemDiscount = Math.abs(
 		Number(doc.custom_total_items_discount) ||
-		(doc.items || []).reduce(
-			(sum: number, it: any) => sum + (Number(it.discount_amount) || 0),
-			0,
-		);
-	const totalDiscount = itemsDiscount + (Number(doc.discount_amount) || 0);
-	const invoiceTotal = (Number(doc.grand_total) || 0) + itemsDiscount;
+			(doc.items || []).reduce(
+				(sum: number, it: any) => sum + (Number(it.discount_amount) || 0),
+				0,
+			),
+	);
+	const invoiceDiscount = Math.abs(Number(doc.discount_amount) || 0);
+	const totalDiscount = itemDiscount + invoiceDiscount;
+	const invoiceTotal = (Number(doc.grand_total) || 0) + totalDiscount;
 
 	out.push(padRight("Invoice Total", 25) + padLeft(money(invoiceTotal), 22) + LF);
 	if (totalDiscount > 0) {

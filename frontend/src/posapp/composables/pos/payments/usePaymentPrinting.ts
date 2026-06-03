@@ -80,6 +80,11 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 		if (profile?.posa_silent_print) {
 			try {
 				const raw = await renderOfflineInvoiceRaw(invoice);
+				// Debug: toggle with localStorage.setItem("posa_debug_raw_print", "1").
+				// Strips invisible ESC/GS control bytes so columns are readable in the console.
+				if (localStorage.getItem("posa_debug_raw_print")) {
+					console.log("RAW RECEIPT >>>\n" + raw.split("\x1B").join("·").split("\x1D").join("·"));
+				}
 				await printHtmlViaQz(raw, {
 					printerName: profile.custom_pos_printer || null,
 				});
