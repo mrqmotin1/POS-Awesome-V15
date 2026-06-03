@@ -363,7 +363,7 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
 
         <div style="margin-top: 1px;">
             <div class="summary-line" style="font-weight: bold;">
-                <span>Total | AED</span>
+                <span>Total</span>
                 <span>${fmt(payableGrand)}</span>
             </div>
             
