@@ -170,6 +170,7 @@ import posLogo from "./pos/pos.png";
 import { forceClearAllCache } from "../../offline/index";
 import { clearAllCaches } from "../../utils/clearAllCaches";
 import { isOffline } from "../../offline/index";
+import { isManagerMode, isSessionUserManager } from "../utils/useManagerMode";
 import { useRtl } from "../composables/core/useRtl";
 
 const ServerUsageGadget = defineAsyncComponent(() => import("./navbar/ServerUsageGadget.vue"));
@@ -351,6 +352,9 @@ export default {
 		appBarColor() {
 			return this.isDark ? this.$vuetify.theme.themes.dark.colors.surface : "white";
 		},
+		canClearCache() {
+			return isManagerMode.value || isSessionUserManager.value;
+		},
 		offlineStatusState() {
 			return {
 				pendingInvoices: this.pendingInvoices,
@@ -395,6 +399,7 @@ export default {
 					subtitle: this.__("Remove cached data and reload the POS app"),
 					icon: "mdi-broom",
 					tone: "warning",
+					disabled: !this.canClearCache,
 				},
 				{
 					id: "open-diagnostics",
@@ -814,6 +819,13 @@ export default {
 		},
 		async clearCache() {
 			if (this.clearingCache) {
+				return;
+			}
+			if (!this.canClearCache) {
+				this.toastStore.show({
+					color: "warning",
+					title: this.__("Only a manager can clear the cache"),
+				});
 				return;
 			}
 			if (isOffline()) {
