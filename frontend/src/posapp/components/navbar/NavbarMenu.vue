@@ -548,7 +548,8 @@ export default {
 					icon: "mdi-delete-sweep-outline",
 					tone: "neutral",
 					handler: "clearCacheAction",
-					disabled: this.manualOffline || !this.networkOnline || !this.serverOnline,
+					disabled:
+						!this.isManagerMode || this.manualOffline || !this.networkOnline || !this.serverOnline,
 				},
 				{
 					id: "sync-offline-invoices",
