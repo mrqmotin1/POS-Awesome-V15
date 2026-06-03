@@ -75,30 +75,6 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 	const printOfflineInvoice = async (invoice: any) => {
 		if (!invoice) return;
 
-<<<<<<< HEAD
-		// When silent printing is enabled, render the ESC/POS receipt client-side and
-		// send it to QZ Tray as raw commands (QZ runs locally, so this works offline).
-		const profile = unref(posProfile);
-		if (profile?.posa_silent_print) {
-			try {
-				const raw = await renderOfflineInvoiceRaw(invoice);
-				// Debug: toggle with localStorage.setItem("posa_debug_raw_print", "1").
-				// Strips invisible ESC/GS control bytes so columns are readable in the console.
-				if (localStorage.getItem("posa_debug_raw_print")) {
-					console.log("RAW RECEIPT >>>\n" + raw.split("\x1B").join("·").split("\x1D").join("·"));
-				}
-				await printHtmlViaQz(raw, {
-					printerName: profile.custom_pos_printer || null,
-				});
-				return;
-			} catch (error) {
-				console.warn(
-					"Offline QZ raw print failed, falling back to browser print",
-					error,
-				);
-			}
-		}
-=======
 		// --- OFFLINE RAW (QZ ESC/POS) PRINTING DISABLED ---
 		// Temporarily reverted to the previous HTML/browser offline print.
 		// To re-enable, uncomment the block below.
@@ -117,7 +93,6 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 		// 		);
 		// 	}
 		// }
->>>>>>> 369b720a (offline print window pop up)
 
 		const html = await renderOfflineInvoiceHTML(invoice);
 		const win = window.open("", "_blank");
