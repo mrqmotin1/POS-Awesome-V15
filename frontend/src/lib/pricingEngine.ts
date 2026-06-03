@@ -557,6 +557,9 @@ export const evaluatePricingRules = ({
 
 	// Shared filters
 	const validCandidates = candidates
+		// Transaction (document-level) rules act on the invoice total, not lines;
+		// they are handled separately by evaluateTransactionDiscount.
+		.filter((rule) => String(rule.apply_on || "") !== "Transaction")
 		.filter((rule) =>
 			inDateRange(ctx?.date, rule.valid_from, rule.valid_upto),
 		)
@@ -662,6 +665,78 @@ export const evaluatePricingRules = ({
 	}
 
 	return { pricing, freebies };
+};
+
+/**
+ * Evaluate document-level (Apply On = Transaction) pricing rules against the
+ * invoice total. Returns the best matching rule's discount as both a percentage
+ * and an absolute amount, or null when none apply. Mirrors how the server's
+ * apply_pricing_rule() sets the invoice additional discount, but works offline.
+ */
+export const evaluateTransactionDiscount = ({
+	rules = [],
+	ctx = {},
+	total = 0,
+}: {
+	rules?: AnyRecord[];
+	ctx?: AnyRecord;
+	total?: number;
+}): {
+	rule: AnyRecord;
+	discount_percentage: number;
+	discount_amount: number;
+	apply_discount_on: string;
+} | null => {
+	const docTotal = Number.isFinite(total) ? Math.abs(total) : 0;
+	if (!Array.isArray(rules) || rules.length === 0) {
+		return null;
+	}
+
+	const rule = rules
+		.filter((r) => String(r?.apply_on || "") === "Transaction")
+		.filter((r) => inDateRange(ctx?.date, r.valid_from, r.valid_upto))
+		.filter((r) =>
+			matchParty(r, ctx?.customer, ctx?.customer_group, ctx?.territory),
+		)
+		.filter((r) =>
+			matchPriceListAndCurrency(r, ctx?.price_list, ctx?.currency),
+		)
+		.filter((r) => {
+			const minAmt = parseOptionalFloat(r.min_amt) ?? 0;
+			const maxAmt = parseOptionalFloat(r.max_amt) ?? 0;
+			if (minAmt > 0 && docTotal < minAmt) return false;
+			if (maxAmt > 0 && docTotal > maxAmt) return false;
+			return true;
+		})
+		.sort(ruleSort)[0];
+
+	if (!rule) {
+		return null;
+	}
+
+	const value = Math.abs(parseOptionalFloat(rule.rate_or_discount) ?? 0);
+	if (value <= 0) {
+		return null;
+	}
+
+	let discount_percentage = 0;
+	let discount_amount = 0;
+	if (String(rule.discount_type || "") === "Amount") {
+		discount_amount = Math.min(value, docTotal);
+		discount_percentage =
+			docTotal > 0 ? (discount_amount / docTotal) * 100 : 0;
+	} else {
+		// Rate (percentage) discount
+		discount_percentage = value;
+		discount_amount = (docTotal * value) / 100;
+	}
+
+	return {
+		rule,
+		discount_percentage,
+		discount_amount,
+		apply_discount_on: String(rule.apply_discount_on || "Grand Total"),
+	};
 };
 
 // Deprecated: Wrappers for backward compatibility

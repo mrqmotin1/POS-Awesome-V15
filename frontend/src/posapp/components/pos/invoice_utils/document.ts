@@ -369,6 +369,28 @@ export function get_invoice_doc(context: any) {
 		}
 	}
 
+	// Grand-Total transaction-rule discount: the cashier pays doc.grand_total and the
+	// server recomputes the discount on (net + tax). Offline we computed it on net, so
+	// re-derive it on the grand total here so payment == server grand total (no GL gap).
+	if (
+		context._additional_discount_from_rule &&
+		context._additional_discount_apply_on === "Grand Total" &&
+		flt(context.additional_discount_percentage) > 0 &&
+		!isReturn
+	) {
+		const pct = Math.abs(flt(context.additional_discount_percentage));
+		const netDiscount = Math.abs(flt(context.additional_discount));
+		// grandTotal currently has the net-based discount removed; add it back to get
+		// the pre-discount grand total, then apply the percentage on that.
+		const preDiscountGrand = grandTotal + netDiscount;
+		discountAmount = (preDiscountGrand * pct) / 100;
+		grandTotal = preDiscountGrand - discountAmount;
+
+		doc.discount_amount = discountAmount;
+		doc.base_discount_amount = discountAmount * (context.conversion_rate || 1);
+		doc.apply_discount_on = "Grand Total";
+	}
+
 	if (isReturn && grandTotal > 0) grandTotal = -Math.abs(grandTotal);
 
 	doc.grand_total = grandTotal;

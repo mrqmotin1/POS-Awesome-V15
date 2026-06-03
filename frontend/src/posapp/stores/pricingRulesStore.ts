@@ -91,13 +91,14 @@ const compareRules = (a: PricingRule, b: PricingRule) => {
 };
 
 const buildContextKey = (ctx: RuleContext = {}) => {
+	// Customer-independent: one snapshot holds every selling rule and the local
+	// engine (matchParty) filters per customer. Excluding party fields from the
+	// key means switching customers reuses the cached snapshot — essential
+	// offline, where we cannot re-fetch per customer.
 	const payload = {
 		company: ctx.company || "",
 		price_list: ctx.price_list || "",
 		currency: ctx.currency || "",
-		customer: ctx.customer || "",
-		customer_group: ctx.customer_group || "",
-		territory: ctx.territory || "",
 		date: ctx.date ? String(ctx.date).slice(0, 10) : "",
 	};
 	return JSON.stringify(payload);
@@ -268,9 +269,12 @@ export const usePricingRulesStore = defineStore("pricing-rules", () => {
 					price_list: ctx.price_list,
 					currency: ctx.currency,
 					date: ctx.date,
-					customer: ctx.customer,
-					customer_group: ctx.customer_group,
-					territory: ctx.territory,
+					// Fetch ALL selling rules (no party filter) so one cached
+					// snapshot covers every customer; matchParty filters per line.
+					// This is what makes offline customer switching work.
+					customer: null,
+					customer_group: null,
+					territory: null,
 				},
 			});
 			const snapshot = Array.isArray(response?.message) ? response.message : [];

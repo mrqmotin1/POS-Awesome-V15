@@ -116,6 +116,12 @@ const invoiceWatchers: Record<string, unknown> & ThisType<InvoiceWatchersVm> = {
 		}
 		this.set_delivery_charges();
 		this.sync_invoice_customer_details();
+		// Re-apply pricing rules for the new customer. This runs independently of
+		// fetch_customer_details (which needs the server and fails offline), so the
+		// item-level rules and transaction Additional Discount update offline too.
+		if (typeof this.schedulePricingRuleApplication === "function") {
+			this.schedulePricingRuleApplication(true);
+		}
 	},
 	// Watch for customer_info change and emit to edit form
 	customer_info() {
