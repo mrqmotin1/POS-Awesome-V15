@@ -228,7 +228,39 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
         paymentHtml += `<div class="summary-line"><span>Paid</span><span>${fmt(paidAmount)}</span></div>`;
     }
 
-    const changeAmount = paidAmount - (invoice.grand_total || 0);
+    // --- Totals / discount ---
+    // Item-level discounts are already baked into rate/amount/grand_total. The invoice-level
+    // additional discount (`discount_amount`), however, is NOT applied to the totals offline —
+    // the server only applies it on submit. So offline, grand_total/net_total/VAT are the
+    // pre-(invoice-discount) gross figures. Reconstruct the post-discount values so the offline
+    // receipt matches the online (server-rendered) one.
+    const grossGrand = Number(invoice.grand_total) || 0;
+    const grossNet = Number(invoice.net_total) || 0;
+    const grossTax = Number(invoice.total_taxes_and_charges) || 0;
+
+    const itemDiscount = Math.abs(
+        Number(invoice.custom_total_items_discount) ||
+            (invoice.items || []).reduce(
+                (s: number, it: any) => s + (Number(it.discount_amount) || 0),
+                0,
+            ),
+    );
+    const invoiceDiscount = Math.abs(Number(invoice.discount_amount) || 0);
+    const totalDiscount = itemDiscount + invoiceDiscount;
+
+    // Apply the (unapplied-offline) invoice-level discount to derive the real payable + split.
+    const payableGrand = grossGrand - invoiceDiscount;
+    const ratio = grossGrand > 0 ? payableGrand / grossGrand : 1;
+    const displayNet = grossNet * ratio;
+    const displayTax = grossTax * ratio;
+    // Original total before all discounts (add item discounts back; grossGrand already excludes them).
+    const invoiceTotal = grossGrand + itemDiscount;
+
+    const changeAmount = paidAmount - payableGrand;
+    const discountHtml =
+        totalDiscount > 0
+            ? `<div class="summary-line"><span>Discount</span><span>-${fmt(totalDiscount)}</span></div>`
+            : "";
 
     const termsSection = terms
         ? `<hr><div style="font-size: 12px; margin-top: 5px; text-align: left;"><strong>Terms & Conditions</strong><br>${terms}</div>`
@@ -278,14 +310,15 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
     <div class="receipt">
         <div style="text-align: center; line-height: 1.1;">
             <strong style="font-size: 14px; font-weight: bold;">${invoice.company || "Company Name"}</strong><br>
-            ${company.registration_details || ""}<br>
+            Po. Box No. 60235 - Doha Qatar<br>
+            Alkhore Industrial Area<br>
+            Street No.27 - Zone 74 - Building No: 38<br>
             Tel: ${company.phone_no || 'N/A'}<br>
-            TRN: ${company.tax_id || 'N/A'}
         </div>
         
         <hr>
 
-        <div class="header-title">TAX INVOICE / فاتورة ضريبية</div>
+        <div class="header-title">TAX INVOICE</div>
 
         <div class="info-block" style="margin-top: 2px;">
             <p><span>Date: ${formattedDate}</span><span>Time: ${invoice.posting_time || ""}</span></p>
@@ -312,16 +345,17 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
 
         <div style="margin-top: 2px;">
             <div class="summary-line">
-                <span>Total w/o VAT | المجموع غير شامل الضريبة</span>
-                <span>${fmt(invoice.net_total)}</span>
+                <span>Invoice Total</span>
+                <span>${fmt(invoiceTotal)}</span>
+            </div>
+            ${discountHtml}
+            <div class="summary-line">
+                <span>Total w/o VAT</span>
+                <span>${fmt(displayNet)}</span>
             </div>
             <div class="summary-line">
-                <span>VAT | الضريبة</span>
-                <span>${fmt(invoice.total_taxes_and_charges)}</span>
-            </div>
-            <div class="summary-line" style="font-weight: bold;">
-                <span>Total with VAT | المجموع شامل الضريبة</span>
-                <span>${fmt(invoice.grand_total)}</span>
+                <span>VAT</span>
+                <span>${fmt(displayTax)}</span>
             </div>
         </div>
 
@@ -329,8 +363,8 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
 
         <div style="margin-top: 1px;">
             <div class="summary-line" style="font-weight: bold;">
-                <span>Total | المجموع AED</span>
-                <span>${fmt(invoice.grand_total)}</span>
+                <span>Total | AED</span>
+                <span>${fmt(payableGrand)}</span>
             </div>
             
             ${paymentHtml}
