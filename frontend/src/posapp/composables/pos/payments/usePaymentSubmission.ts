@@ -304,7 +304,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 		// Loyalty Points redeemed value cannot exceed the invoice total
 		const loyaltyValue =
 			(options.loyaltyAmount && unref(options.loyaltyAmount)) || 0;
-		if (loyaltyValue > invoice_total + 0.001) {
+		if (!doc.is_return && loyaltyValue > invoice_total + 0.001) {
 			throw new Error(
 				__(
 					"You can't redeem Loyalty Points having more value than the Total Amount.",
