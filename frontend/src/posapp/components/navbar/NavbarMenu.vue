@@ -660,17 +660,22 @@ export default {
 					title: __("System"),
 					description: __("Terminal controls and maintenance actions."),
 					actions: [
-						// {
-						// 	id: "toggle-offline",
-						// 	label: this.manualOffline ? __("Go Online") : __("Go Offline"),
-						// 	subtitle: this.manualOffline
-						// 		? __("Disable offline mode")
-						// 		: __("Work without server connection"),
-						// 	icon: "mdi-wifi-off",
-						// 	tone: "warning",
-						// 	handler: "toggleOfflineAction",
-						// },
-						
+						{
+							id: "toggle-offline",
+							label: this.manualOffline ? __("Go Online") : __("Go Offline"),
+							subtitle: !this.isManagerMode
+								? __("Manager login required")
+								: this.manualOffline
+									? __("Disable offline mode")
+									: __("Work without server connection"),
+							icon: this.manualOffline
+								? "mdi-cloud-check-outline"
+								: "mdi-cloud-off-outline",
+							tone: "warning",
+							handler: "toggleOfflineAction",
+							disabled: !this.isManagerMode,
+						},
+
 						{
 							id: "check-for-updates",
 							label: __("Check for Updates"),
@@ -805,6 +810,10 @@ export default {
 				case "syncInvoices":
 					this.closeMenu();
 					this.$emit("sync-invoices");
+					break;
+				case "toggleOfflineAction":
+					this.closeMenu();
+					this.$emit("toggle-offline");
 					break;
 				case "closeShift":
 					this.closeMenu();

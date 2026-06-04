@@ -76,6 +76,7 @@
 					:server-online="serverOnline"
 					@close-shift="openCloseShift"
 					@sync-invoices="syncPendingInvoices"
+					@toggle-offline="toggleManualOffline"
 					@open-employee-switch="openEmployeeSwitch"
 					@lock-pos="lockPosScreen"
 					@open-customer-display="$emit('open-customer-display')"
