@@ -1,16 +1,16 @@
 import { unref, type Ref } from "vue";
 import renderOfflineInvoiceHTML from "../../../../offline_print_template";
-// Offline raw (QZ ESC/POS) printing temporarily disabled — see printOfflineInvoice/loadPrintPage.
-// import renderOfflineInvoiceRaw from "../../../../offline_raw_print_template";
+import renderOfflineInvoiceRaw from "../../../../offline_raw_print_template";
 import {
 	appendDebugPrintParam,
 	isDebugPrintEnabled,
 	silentPrint,
 	watchPrintWindow,
 } from "../../../plugins/print";
-import { printDocumentViaQz } from "../../../services/qzTray";
+import { printDocumentViaQz, printHtmlViaQz } from "../../../services/qzTray";
 import { isOffline } from "../../../../offline/index";
 import { resolvePaymentPrintDoctype } from "../../../utils/paymentPrintDoctype";
+import { useToastStore } from "../../../stores/toastStore";
 
 declare const frappe: any;
 
@@ -75,24 +75,34 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 	const printOfflineInvoice = async (invoice: any) => {
 		if (!invoice) return;
 
-		// --- OFFLINE RAW (QZ ESC/POS) PRINTING DISABLED ---
-		// Temporarily reverted to the previous HTML/browser offline print.
-		// To re-enable, uncomment the block below.
-		// const profile = unref(posProfile);
-		// if (profile?.posa_silent_print) {
-		// 	try {
-		// 		const raw = await renderOfflineInvoiceRaw(invoice);
-		// 		await printHtmlViaQz(raw, {
-		// 			printerName: profile.custom_pos_printer || null,
-		// 		});
-		// 		return;
-		// 	} catch (error) {
-		// 		console.warn(
-		// 			"Offline QZ raw print failed, falling back to browser print",
-		// 			error,
-		// 		);
-		// 	}
-		// }
+		// When silent printing is enabled, render the ESC/POS receipt client-side and send
+		// it to QZ Tray as raw commands (QZ runs locally, so this works offline). The printer
+		// name comes from posa_qz_printer_name (set by the QZ dialog); custom_pos_printer is a
+		// fallback. On failure, surface a toast and fall back to the HTML browser print below.
+		const profile = unref(posProfile);
+		if (profile?.posa_silent_print) {
+			try {
+				const raw = await renderOfflineInvoiceRaw(invoice);
+				await printHtmlViaQz(raw, {
+					printerName:
+						profile.posa_qz_printer_name ||
+						profile.custom_pos_printer ||
+						undefined,
+				});
+				return;
+			} catch (error: any) {
+				console.warn(
+					"Offline QZ raw print failed, falling back to browser print",
+					error,
+				);
+				useToastStore().show({
+					title: __("Raw print failed: {0}", [
+						error?.message || __("QZ Tray error"),
+					]),
+					color: "error",
+				});
+			}
+		}
 
 		const html = await renderOfflineInvoiceHTML(invoice);
 		const win = window.open("", "_blank");
@@ -133,6 +143,8 @@ export function usePaymentPrinting(options: PaymentPrintingOptions) {
 		const printOptions = {
 			invoiceDoc: doc,
 			allowOfflineFallback: isOffline(),
+			silentPrint: Boolean(profile.posa_silent_print),
+			printerName: profile.custom_pos_printer || null,
 			triggerPrint: "1",
 			debugPrint,
 			debugInfo: {

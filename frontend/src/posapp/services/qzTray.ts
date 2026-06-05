@@ -443,8 +443,11 @@ export async function printHtmlViaQz(html: string, options: QzPrintHtmlOptions =
 		}
 	}
 
-	//let printer = options.printerName || selectedQzPrinter.value || getSavedPrinterName();
-	let printer = options.printerName;
+	// Resolve the printer from the explicit option, the in-memory selection, or the saved
+	// printer name (localStorage `posa_qz_printer_name`, set by the QZ dialog). The POS
+	// Profile's custom_pos_printer field is often empty, so the saved name is the reliable
+	// source for both online and offline silent printing.
+	let printer = options.printerName || selectedQzPrinter.value || getSavedPrinterName();
 	console.log("Requested printer:-------------------", printer);
 	// if (!printer) {
 	// 	const printers = await findQzPrinters();

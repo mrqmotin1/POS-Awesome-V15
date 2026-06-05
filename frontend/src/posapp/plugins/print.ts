@@ -1,4 +1,6 @@
 import renderOfflineInvoiceHTML from "../../offline_print_template";
+import renderOfflineInvoiceRaw from "../../offline_raw_print_template";
+import { printHtmlViaQz } from "../services/qzTray";
 
 interface PrintDebugInfo {
 	printFormat?: string;
@@ -15,6 +17,8 @@ interface PrintOptions {
 	shouldPrint?: boolean;
 	showSessionMessage?: boolean;
 	debugInfo?: PrintDebugInfo;
+	silentPrint?: boolean;
+	printerName?: string | null;
 }
 
 interface PrintDebugPayload {
@@ -264,6 +268,19 @@ async function fallbackToOfflinePrint(
 ) {
 	if (!invoiceDoc) {
 		return false;
+	}
+
+	// When silent printing is enabled, render the ESC/POS receipt and send it to QZ Tray
+	// as raw commands (QZ runs locally, so this works offline). Fall through to the HTML
+	// browser-print path below if QZ fails.
+	if (options.silentPrint) {
+		try {
+			const raw = await renderOfflineInvoiceRaw(invoiceDoc);
+			await printHtmlViaQz(raw, { printerName: options.printerName || undefined });
+			return true;
+		} catch (err) {
+			console.warn("Offline QZ raw fallback failed, using HTML", err);
+		}
 	}
 
 	try {
