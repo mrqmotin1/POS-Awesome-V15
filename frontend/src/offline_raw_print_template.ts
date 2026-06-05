@@ -64,19 +64,34 @@ function money(value: any): string {
 	});
 }
 
-// Single shared column layout for the item table (header + item rows + barcode rows).
-// Widths total 56 chars, which fits Font B (~64 chars on 80mm) used for the table.
+// Column layouts mirror the online Jinja template exactly.
+// Header uses cols = "{:<2} {:<20} {:>4} {:>8} {:>9}".
+function headerRow(): string {
+	return (
+		padRight("SL", 2) +
+		" " +
+		padRight(" Items", 20) +
+		" " +
+		padLeft("Qty", 4) +
+		" " +
+		padLeft("Price", 8) +
+		" " +
+		padLeft("Amount", 9)
+	);
+}
+
+// Item & barcode rows use "{:>2}    {:<27} {:>3} {:>12} {:>12}" (4 spaces after SL).
 function itemRow(sl: any, name: any, qty: any, price: any, amount: any): string {
 	return (
-		padRight(sl, 2) +
-		" " +
+		padLeft(sl, 2) +
+		"    " +
 		padRight(name, 27) +
 		" " +
 		padLeft(qty, 3) +
 		" " +
-		padLeft(price, 10) +
+		padLeft(price, 12) +
 		" " +
-		padLeft(amount, 10)
+		padLeft(amount, 12)
 	);
 }
 
@@ -113,6 +128,7 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	// Clone before any await so reactive Vue mutations (invoice cleared after submit)
 	// cannot affect the data we render.
 	const doc = JSON.parse(JSON.stringify(invoice));
+	console.log("Rendering offline invoice to raw ESC/POS:", doc);
 
 	// Pull barcodes from the offline items DB when missing (replaces the template's
 	// frappe.get_all("Item Barcode", ...) lookup).
@@ -138,8 +154,14 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	out.push(LINE + LF);
 	out.push(BOLD_ON + padCenter("TAX INVOICE", 46) + BOLD_OFF + LF);
 
-	const dateStr = formatPostingDate(doc.posting_date);
-	const timeStr = String(doc.posting_time || "").substring(0, 8);
+	// Fall back to the current date/time when the offline invoice has none yet.
+	const now = new Date();
+	const dateStr = doc.posting_date
+		? formatPostingDate(doc.posting_date)
+		: `${String(now.getDate()).padStart(2, "0")}-${String(now.getMonth() + 1).padStart(2, "0")}-${now.getFullYear()}`;
+	const timeStr = doc.posting_time
+		? String(doc.posting_time).substring(0, 8)
+		: now.toTimeString().substring(0, 8);
 	out.push(padRight("Date: " + dateStr, 25) + " " + padLeft("Time: " + timeStr, 21) + LF);
 	out.push(
 		padRight("Staff: " + staffName, 25) +
@@ -152,15 +174,18 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	out.push(LINE + LF);
 
 	// --- Item header row ---
-	// Switch to small font (Font B) before the header so the header and the item rows
-	// render in the same font and therefore align.
-	out.push(SMALL2);
-	out.push(BOLD_ON + itemRow("SL", "Items", "Qty", "Price", "Amount") + BOLD_OFF + LF);
+	// Match online: header is printed in normal font (bold), then switch to small font
+	// (Font B) for the item rows.
+	out.push(BOLD_ON + headerRow() + BOLD_OFF);
+	out.push(SMALL2 + LF);
 
 	// --- Items ---
 	(doc.items || []).forEach((item: any, index: number) => {
-		const name = String(item.item_name || "");
-		const displayName = name.length > 27 ? name.slice(0, 25) + ".." : name;
+		const name = String(item.item_name || "")
+			.replace(/\r/g, "")
+			.replace(/\n/g, " ")
+			.trim();
+		const displayName = name.length > 26 ? name.slice(0, 24) + ".." : name;
 		// Show the original (pre-discount) price-list rate and amount, mirroring the
 		// online template's frappe.db.get_value("Item Price", ...) lookup. The invoice
 		// item already carries price_list_rate; fall back to the charged rate.
@@ -195,6 +220,13 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 
 	// custom_total_items_discount is only set server-side (invoice.py); offline we derive it
 	// from the per-item discount_amount, replicating that formula: sum(item.discount_amount).
+	// The offline invoice doc now carries the true post-discount figures (document.ts computes
+	// net_total / total_taxes_and_charges / grand_total on the additional-discount-reduced base),
+	// so render them directly. Mirrors the HTML renderer.
+	const displayNet = Number(doc.net_total) || 0;
+	const displayTax = Number(doc.total_taxes_and_charges) || 0;
+	const payableGrand = Number(doc.grand_total) || 0;
+
 	const itemDiscount = Math.abs(
 		Number(doc.custom_total_items_discount) ||
 			(doc.items || []).reduce(
@@ -204,17 +236,19 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	);
 	const invoiceDiscount = Math.abs(Number(doc.discount_amount) || 0);
 	const totalDiscount = itemDiscount + invoiceDiscount;
-	const invoiceTotal = (Number(doc.grand_total) || 0) + totalDiscount;
+
+	// Original total before all discounts (grand_total is post-discount).
+	const invoiceTotal = payableGrand + totalDiscount;
 
 	out.push(padRight("Invoice Total", 25) + padLeft(money(invoiceTotal), 22) + LF);
 	if (totalDiscount > 0) {
 		out.push(padRight("Discount", 25) + padLeft("-" + money(totalDiscount), 22) + LF);
 	}
-	out.push(padRight("Total w/o VAT", 25) + padLeft(money(doc.net_total), 22) + LF);
-	out.push(padRight("VAT", 25) + padLeft(money(doc.total_taxes_and_charges), 22) + LF);
+	out.push(padRight("Total w/o VAT", 25) + padLeft(money(displayNet), 22) + LF);
+	out.push(padRight("VAT", 25) + padLeft(money(displayTax), 22) + LF);
 	out.push(LINE + LF);
 	out.push(
-		BOLD_ON + padRight("Total | AED", 25) + padLeft(money(doc.grand_total), 22) + BOLD_OFF,
+		BOLD_ON + padRight("Total", 25) + padLeft(money(payableGrand), 22) + BOLD_OFF,
 	);
 
 	const cash = sumPayments(doc.payments, ["Cash"]);
@@ -231,7 +265,7 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 		out.push(padRight("Customer Credit", 25) + padLeft(money(customerCredit), 22) + LF);
 	}
 
-	const change = cash + card + customerCredit - (Number(doc.grand_total) || 0);
+	const change = cash + card + customerCredit - payableGrand;
 	if (change > 0) {
 		out.push(padRight("Change", 25) + padLeft(money(change), 22) + LF);
 	}

@@ -193,15 +193,19 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
 			barcode = item.barcode || (item.item_barcode && item.item_barcode[0] && item.item_barcode[0].barcode) || "";
             // 2. Wrap it in HTML ONLY if a barcode actually exists
             const barcodeHtml = barcode ? `<br><small>(${barcode})</small>` : "";
+			// Show the original price-list rate/amount, not the item-discounted figures, to
+			// mirror the RAW renderer (offline_raw_print_template.ts).
+			const priceListRate = Number(item.price_list_rate) || Number(item.rate) || 0;
+			const originalAmount = priceListRate * (Number(item.qty) || 0);
 			return `<div class="item-line">
 				<span style="width: 8%;">${index + 1}</span>
 				<span class="name" style="width: 40%;">
-					${item.item_name} 
+					${item.item_name}
 					${barcodeHtml}
 				</span>
 				<span style="width: 10%; text-align: center;">${Number(item.qty || 0).toFixed(0)}</span>
-				<span style="width: 15%; text-align: center;">${fmt(item.rate)}</span>
-				<span style="width: 22%; text-align: right;">${fmt(item.amount)}</span>
+				<span style="width: 15%; text-align: center;">${fmt(priceListRate)}</span>
+				<span style="width: 22%; text-align: right;">${fmt(originalAmount)}</span>
 			</div>`;
 		})
 		.join("");
@@ -229,14 +233,12 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
     }
 
     // --- Totals / discount ---
-    // Item-level discounts are already baked into rate/amount/grand_total. The invoice-level
-    // additional discount (`discount_amount`), however, is NOT applied to the totals offline —
-    // the server only applies it on submit. So offline, grand_total/net_total/VAT are the
-    // pre-(invoice-discount) gross figures. Reconstruct the post-discount values so the offline
-    // receipt matches the online (server-rendered) one.
-    const grossGrand = Number(invoice.grand_total) || 0;
-    const grossNet = Number(invoice.net_total) || 0;
-    const grossTax = Number(invoice.total_taxes_and_charges) || 0;
+    // The offline invoice doc now carries the true post-discount figures (document.ts computes
+    // net_total / total_taxes_and_charges / grand_total on the additional-discount-reduced base),
+    // so render them directly.
+    const displayNet = Number(invoice.net_total) || 0;
+    const displayTax = Number(invoice.total_taxes_and_charges) || 0;
+    const payableGrand = Number(invoice.grand_total) || 0;
 
     const itemDiscount = Math.abs(
         Number(invoice.custom_total_items_discount) ||
@@ -248,18 +250,18 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
     const invoiceDiscount = Math.abs(Number(invoice.discount_amount) || 0);
     const totalDiscount = itemDiscount + invoiceDiscount;
 
-    // Apply the (unapplied-offline) invoice-level discount to derive the real payable + split.
-    const payableGrand = grossGrand - invoiceDiscount;
-    const ratio = grossGrand > 0 ? payableGrand / grossGrand : 1;
-    const displayNet = grossNet * ratio;
-    const displayTax = grossTax * ratio;
-    // Original total before all discounts (add item discounts back; grossGrand already excludes them).
-    const invoiceTotal = grossGrand + itemDiscount;
+    // Original total before all discounts (grand_total is post-discount).
+    const invoiceTotal = payableGrand + totalDiscount;
 
     const changeAmount = paidAmount - payableGrand;
     const discountHtml =
         totalDiscount > 0
             ? `<div class="summary-line"><span>Discount</span><span>-${fmt(totalDiscount)}</span></div>`
+            : "";
+    // Only show Change when there is actually change to give back.
+    const changeHtml =
+        changeAmount > 0
+            ? `<div class="summary-line"><span>Change</span><span>${fmt(changeAmount)}</span></div>`
             : "";
 
     const termsSection = terms
@@ -270,13 +272,23 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
     // const time = invoice.posting_time ? String(invoice.posting_time).substring(0, 8) : "";
 
 	// --- 📅 FORMAT DATE (YYYY-MM-DD to DD-MM-YYYY) ---
+    // Fall back to the current date/time when the offline invoice has none yet.
+    const _now = new Date();
     let formattedDate = invoice.posting_date;
     if (formattedDate && typeof formattedDate === "string" && formattedDate.includes("-")) {
         const parts = formattedDate.split("-");
         if (parts.length === 3) {
-            formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+            formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
     }
+    if (!formattedDate) {
+        formattedDate = `${String(_now.getDate()).padStart(2, "0")}-${String(_now.getMonth() + 1).padStart(2, "0")}-${_now.getFullYear()}`;
+    }
+    const formattedTime = invoice.posting_time
+        ? String(invoice.posting_time).substring(0, 8)
+        : _now.toTimeString().substring(0, 8);
+    // Offline invoices often lack `owner`; fall back to the logged-in user (mirrors raw template).
+    const staffName = frappe?.boot?.user?.first_name || invoice.owner || "";
     const invNo = invoice.name ? String(invoice.name).split('-').pop() : "";
     return `<!DOCTYPE html>
 <html>
@@ -321,8 +333,8 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
         <div class="header-title">TAX INVOICE</div>
 
         <div class="info-block" style="margin-top: 2px;">
-            <p><span>Date: ${formattedDate}</span><span>Time: ${invoice.posting_time || ""}</span></p>
-            <p><span>Staff ID: ${invoice.owner || ""}</span><span>POS ID: ${invoice.pos_profile || ""}</span></p>
+            <p><span>Date: ${formattedDate}</span><span>Time: ${formattedTime}</span></p>
+            <p><span>Staff ID: ${staffName}</span><span>POS ID: ${invoice.pos_profile || ""}</span></p>
             <p><span>Invoice No.: ${invNo}</span></p>
         </div>
 
@@ -369,10 +381,7 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
             
             ${paymentHtml}
 
-            <div class="summary-line">
-                <span>Change</span>
-                <span>${fmt(changeAmount)}</span>
-            </div>
+            ${changeHtml}
         </div>
 
         <p style="margin-top: 1px; font-size: 12px; text-align: left;">

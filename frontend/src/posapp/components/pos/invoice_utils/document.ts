@@ -324,6 +324,11 @@ export function get_invoice_doc(context: any) {
 				tmpl.taxes.some(
 					(row: any) => flt(row.included_in_print_rate) === 1,
 				) || getTaxInclusiveSetting();
+			// Invoice-level additional discount is not baked into item rates (unlike
+			// item-level discounts), so extract inclusive tax from the discounted gross
+			// to keep net/VAT/grand consistent with the payable.
+			const additionalDiscount = Math.abs(flt(context.additional_discount || 0));
+			const taxedGross = doc.total - additionalDiscount;
 			let runningTotal = grandTotal;
 			let totalTax = 0;
 			tmpl.taxes.forEach((row) => {
@@ -331,10 +336,10 @@ export function get_invoice_doc(context: any) {
 				if (row.charge_type === "Actual") {
 					tax_amount = flt(row.tax_amount || 0);
 				} else if (inclusive) {
-					// Tax is included in doc.total (gross), so extract it out of the
-					// total rather than adding it on top: gross * r / (100 + r).
+					// Tax is included in the (discounted) gross, so extract it out
+					// rather than adding it on top: gross * r / (100 + r).
 					tax_amount = flt(
-						(doc.total * flt(row.rate)) / (100 + flt(row.rate)),
+						(taxedGross * flt(row.rate)) / (100 + flt(row.rate)),
 					);
 				} else {
 					tax_amount = flt((doc.net_total * flt(row.rate)) / 100);
@@ -358,10 +363,11 @@ export function get_invoice_doc(context: any) {
 				});
 			});
 			if (inclusive) {
-				doc.net_total = doc.total - totalTax;
+				doc.net_total = taxedGross - totalTax;
 				doc.base_net_total =
 					doc.net_total * (context.conversion_rate || 1);
-				grandTotal = doc.total;
+				// taxedGross + delivery, with return-sign handling — context.subtotal.
+				grandTotal = context.subtotal;
 			} else {
 				grandTotal = runningTotal;
 			}
