@@ -745,6 +745,55 @@ def update_invoice(data):
 #     invoice_doc.base_paid_amount = flt(sum(p.base_amount for p in invoice_doc.payments))
 
 
+def _ensure_loyalty_redemption_points(invoice_doc):
+    """Ensure loyalty_points is set when redeeming so ERPNext's on_submit
+    deduction (apply_loyalty_points) actually runs. The frontend-supplied
+    value can be 0/missing depending on when customer info loaded, which
+    silently skips the deduction while still applying loyalty_amount."""
+    if not invoice_doc.redeem_loyalty_points or not invoice_doc.loyalty_program:
+        return
+    loyalty_amount = flt(invoice_doc.get("loyalty_amount"))
+    if loyalty_amount <= 0:
+        return
+    if cint(invoice_doc.get("loyalty_points")):
+        return  # already set correctly by the client
+    conversion_factor = flt(
+        frappe.db.get_value("Loyalty Program", invoice_doc.loyalty_program, "conversion_factor")
+    )
+    if conversion_factor <= 0:
+        return
+    base_amount = loyalty_amount * flt(invoice_doc.get("conversion_rate") or 1)
+    # floor (matches the frontend's parseInt) to avoid redeeming more
+    # points than the redeemed amount is worth
+    invoice_doc.loyalty_points = int(base_amount / conversion_factor)
+
+
+def _validate_loyalty_redemption_account(invoice_doc):
+    """When redeeming loyalty points, ERPNext posts a GL entry to the
+    Loyalty Program's expense account. If it can't be resolved, fail early
+    with a clear message instead of a cryptic 'Account is required' GL error."""
+    if not invoice_doc.redeem_loyalty_points:
+        return
+    if flt(invoice_doc.get("loyalty_amount")) <= 0:
+        return
+    if invoice_doc.get("loyalty_redemption_account"):
+        return
+    program = invoice_doc.get("loyalty_program")
+    if program:
+        frappe.throw(
+            _(
+                "Cannot redeem loyalty points: please set an Expense Account on "
+                "Loyalty Program {0}."
+            ).format(program)
+        )
+    frappe.throw(
+        _(
+            "Cannot redeem loyalty points: no Loyalty Program / redemption "
+            "account is configured for customer {0}."
+        ).format(invoice_doc.get("customer"))
+    )
+
+
 @frappe.whitelist()
 def submit_invoice(invoice, data, submit_in_background=False):
     data = json.loads(data)
@@ -814,6 +863,10 @@ def submit_invoice(invoice, data, submit_in_background=False):
             invoice_doc.loyalty_redemption_cost_center = invoice_doc.cost_center or frappe.db.get_value(
                 "POS Profile", pos_profile, "cost_center"
             )
+
+        _ensure_loyalty_redemption_points(invoice_doc)
+
+    _validate_loyalty_redemption_account(invoice_doc)
 
     # Ensure item name overrides are respected on submit
     #_apply_item_name_overrides(invoice_doc)
@@ -986,6 +1039,10 @@ def submit_in_background_job(kwargs):
 
             if not invoice_doc.loyalty_redemption_cost_center:
                 invoice_doc.loyalty_redemption_cost_center = invoice_doc.cost_center
+
+            _ensure_loyalty_redemption_points(invoice_doc)
+
+        _validate_loyalty_redemption_account(invoice_doc)
 
         _apply_invoice_gift_card_settlement(invoice_doc, data)
 

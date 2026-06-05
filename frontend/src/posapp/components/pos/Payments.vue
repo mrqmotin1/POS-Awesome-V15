@@ -1571,6 +1571,13 @@ const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {})
 				show_change_dialog.value = true;
 				is_credit_return.value = false;
 				sales_person.value = "";
+				// Synchronous (non-background) submit is already committed here,
+				// so refresh the customer's loyalty balance in the UI. Background
+				// submissions are refreshed via the pos_invoice_processed event
+				// once the worker commits (deduction isn't done yet at this point).
+				if (!pos_profile.value?.posa_allow_submissions_in_background_job) {
+					customersStore.refreshSelectedCustomerInfo();
+				}
 			},
 			onFinishNavigation: (clearInvoice) => {
 				finishSubmissionNavigation(clearInvoice);

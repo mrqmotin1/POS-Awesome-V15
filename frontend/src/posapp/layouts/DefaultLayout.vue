@@ -1011,6 +1011,10 @@ const handleSyncInvoices = async () => {
 				title: `${result.synced} offline invoice${result.synced > 1 ? "s" : ""} synced`,
 				color: "success",
 			});
+			// Run once after the whole batch is synced: invoices are committed
+			// server-side (incl. loyalty redemption), so refresh the selected
+			// customer's loyalty balance in the UI.
+			customersStore.refreshSelectedCustomerInfo();
 		}
 		if (result.drafted) {
 			toastStore.show({

@@ -30,6 +30,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useToastStore } from "./toastStore";
 import { useUIStore } from "./uiStore";
+import { useCustomersStore } from "./customersStore";
 import { dispatchRealtimeStockPayload } from "../utils/realtimeStock";
 
 type InvoiceProcessingPayload = {
@@ -177,6 +178,15 @@ export const useSocketStore = defineStore("socket", () => {
       };
       processedInvoices.value[invoice] = state;
       resolveWaiters(invoiceWaiters, invoice, state);
+
+      // The background job has committed the invoice (incl. any loyalty point
+      // redemption). Refresh the selected customer so the displayed loyalty
+      // balance reflects the deduction without needing to reselect the customer.
+      try {
+        useCustomersStore().requestCustomerRefresh();
+      } catch (_err) {
+        /* customers store not ready; ignore */
+      }
 
       if (hasPostSubmitPaymentWork) {
         toastStore.show({

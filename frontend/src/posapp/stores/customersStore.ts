@@ -231,6 +231,27 @@ export const useCustomersStore = defineStore("customers", () => {
 		refreshToken.value += 1;
 	}
 
+	// Directly re-fetch the selected customer's info (incl. loyalty points) and
+	// write it into the store. Unlike requestCustomerRefresh (which only bumps a
+	// token the payment screen watches), this updates state for every view, so it
+	// works after offline sync when the user is no longer on the payment screen.
+	async function refreshSelectedCustomerInfo() {
+		const customer = selectedCustomer.value;
+		if (!customer) return;
+		try {
+			const r = await frappe.call({
+				method: "posawesome.posawesome.api.customers.get_customer_info",
+				args: { customer, company: posProfile.value?.company || null },
+			});
+			if (r?.message && !r.exc) {
+				setCustomerInfo({ ...r.message });
+			}
+		} catch (error) {
+			console.error("Failed to refresh customer info after sync", error);
+		}
+		requestCustomerRefresh();
+	}
+
 	function syncBootstrapCustomerReadiness(count: number | boolean) {
 		refreshBootstrapSnapshotFromCacheState({
 			customersCount: count,
@@ -720,6 +741,7 @@ export const useCustomersStore = defineStore("customers", () => {
 		backgroundLoadCustomers,
 		addOrUpdateCustomer,
 		requestCustomerRefresh,
+		refreshSelectedCustomerInfo,
 		reloadCustomers,
 		clearLocalState,
 		isUpdateCustomerDialogOpen,
