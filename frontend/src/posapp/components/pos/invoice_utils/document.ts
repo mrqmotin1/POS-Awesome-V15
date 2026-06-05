@@ -277,6 +277,12 @@ export function get_invoice_doc(context: any) {
 	doc.discount_amount = discountAmount;
 	doc.base_discount_amount = discountAmount * (context.conversion_rate || 1);
 
+	// Reduce net total by the invoice-level additional discount so the dialog shows the
+	// correct net whether or not a tax template exists. The tax branches below recompute
+	// tax from this discounted base (exclusive) or override net_total (inclusive).
+	doc.net_total = total - discountAmount;
+	doc.base_net_total = doc.net_total * (context.conversion_rate || 1);
+
 	let discountPercentage = flt(context.additional_discount_percentage);
 	if (context.pos_profile?.posa_use_percentage_discount) {
 		discountPercentage = Math.abs(discountPercentage);
