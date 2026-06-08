@@ -359,12 +359,26 @@ export async function getAllStoredItems(scope = "") {
  * No-op when the item already has a barcode, or when offline data is unavailable.
  */
 export async function enrichItemWithBarcode(item) {
-	if (!item || !item.item_code || item.barcode) return;
+	// [TEMP-BARCODE-DEBUG] remove later
+	console.log("[BARCODE-DEBUG] enrichItemWithBarcode IN", item?.item_code, {
+		existing_barcode: item?.barcode,
+		in_memory_item_barcode: item?.item_barcode,
+	});
+	if (!item || !item.item_code || item.barcode) {
+		// [TEMP-BARCODE-DEBUG] remove later
+		console.log("[BARCODE-DEBUG] enrichItemWithBarcode SKIP", item?.item_code, {
+			reason: !item ? "no item" : !item.item_code ? "no item_code" : "already has barcode",
+			barcode: item?.barcode,
+		});
+		return;
+	}
 
 	// 1) Derive from an in-memory item_barcode array first (no DB hit).
 	if (Array.isArray(item.item_barcode) && item.item_barcode.length) {
 		const first = item.item_barcode[0];
 		item.barcode = typeof first === "string" ? first : first?.barcode || "";
+		// [TEMP-BARCODE-DEBUG] remove later
+		console.log("[BARCODE-DEBUG] enrichItemWithBarcode from in-memory", item.item_code, item.barcode);
 		if (item.barcode) return;
 	}
 
@@ -377,6 +391,12 @@ export async function enrichItemWithBarcode(item) {
 			.where("item_code")
 			.equals(item.item_code)
 			.first();
+		// [TEMP-BARCODE-DEBUG] remove later
+		console.log("[BARCODE-DEBUG] enrichItemWithBarcode DB lookup", item.item_code, {
+			found: !!stored,
+			stored_barcodes: stored?.barcodes,
+			stored_item_barcode: stored?.item_barcode,
+		});
 		if (!stored) return;
 		if (Array.isArray(stored.barcodes) && stored.barcodes.length) {
 			item.barcode = stored.barcodes[0];
@@ -384,6 +404,8 @@ export async function enrichItemWithBarcode(item) {
 			const first = stored.item_barcode[0];
 			item.barcode = typeof first === "string" ? first : first?.barcode || "";
 		}
+		// [TEMP-BARCODE-DEBUG] remove later
+		console.log("[BARCODE-DEBUG] enrichItemWithBarcode OUT", item.item_code, item.barcode);
 	} catch (e) {
 		console.error("Failed to enrich item with barcode", item?.item_code, e);
 	}

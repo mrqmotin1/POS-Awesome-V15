@@ -424,6 +424,11 @@ export function useItemAddition() {
 				// Attach barcode from the offline items cache so offline receipts can show it
 				// (the cart/invoice line often lacks item_barcode/barcode). No-op if already set.
 				await enrichItemWithBarcode(new_item);
+				// [TEMP-BARCODE-DEBUG] remove later
+				console.log("[BARCODE-DEBUG] cart add", new_item.item_code, {
+					barcode: new_item.barcode,
+					item_barcode: new_item.item_barcode,
+				});
 
 				// Handle serial number logic
 				if (item.has_serial_no && item.to_set_serial_no) {

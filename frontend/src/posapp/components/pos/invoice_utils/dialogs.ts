@@ -32,6 +32,16 @@ export async function show_payment(context: any) {
 			return;
 		}
 
+		// [TEMP-BARCODE-DEBUG] remove later
+		console.log(
+			"[BARCODE-DEBUG] pay click — items barcodes",
+			(context.items || []).map((it: any) => ({
+				item_code: it.item_code,
+				barcode: it.barcode,
+				item_barcode: it.item_barcode,
+			})),
+		);
+
 		const isValid = context.validate ? await context.validate() : true;
 
 		if (!isValid) {

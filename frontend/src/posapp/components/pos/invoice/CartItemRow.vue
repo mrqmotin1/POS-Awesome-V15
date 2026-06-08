@@ -505,6 +505,11 @@ const memoDeps = computed(() => {
 		price_list_rate: props.item.price_list_rate,
 		qty: props.item.qty,
 	});
+	// [TEMP-BARCODE-DEBUG] remove later
+	console.log("[BARCODE-DEBUG] CartItemRow", props.item.item_code, {
+		barcode: props.item.barcode,
+		item_barcode: props.item.item_barcode,
+	});
 	return deps;
 });
 
