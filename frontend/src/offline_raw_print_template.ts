@@ -208,6 +208,13 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 			const first = item.item_barcode[0];
 			bcode = typeof first === "string" ? first : first.barcode;
 		}
+		// [TEMP-BARCODE-DEBUG] remove later
+		console.log("[BARCODE-DEBUG] raw render", item.item_code, {
+			resolved_bcode: bcode,
+			will_print: !!bcode,
+			barcode: item.barcode,
+			item_barcode: item.item_barcode,
+		});
 		if (bcode) {
 			out.push(itemRow("", "(" + bcode + ")", "", "", "") + LF);
 		}

@@ -414,10 +414,22 @@ export async function enrichItemsWithBarcodes(items: any[]) {
 		if (!itemCodes.length) return;
 		const storedItems: any[] = await db.table("items").where("item_code").anyOf(itemCodes).toArray();
 		const map = new Map(storedItems.map((it: any) => [it.item_code, it]));
+		// [TEMP-BARCODE-DEBUG] remove later
+		console.log("[BARCODE-DEBUG] enrich start. cart codes:", itemCodes);
+		console.log("[BARCODE-DEBUG] codes found in offline DB:", [...map.keys()]);
+		console.log("[BARCODE-DEBUG] codes MISSING from DB:", itemCodes.filter((c) => !map.has(c)));
 		items.forEach((item: any) => {
 			const hasBarcode = item.barcode || (Array.isArray(item.item_barcode) && item.item_barcode.length);
+			const stored = map.get(item.item_code);
+			// [TEMP-BARCODE-DEBUG] remove later
+			console.log("[BARCODE-DEBUG]", item.item_code, {
+				cart_barcode: item.barcode,
+				cart_item_barcode: item.item_barcode,
+				hasBarcode,
+				stored_item_barcode: stored?.item_barcode,
+				stored_barcodes: stored?.barcodes,
+			});
 			if (!hasBarcode) {
-				const stored = map.get(item.item_code);
 				if (stored) {
 					if (Array.isArray(stored.item_barcode) && stored.item_barcode.length) {
 						item.item_barcode = stored.item_barcode;
@@ -425,6 +437,11 @@ export async function enrichItemsWithBarcodes(items: any[]) {
 					if (!item.barcode && Array.isArray(stored.barcodes) && stored.barcodes.length) {
 						item.barcode = stored.barcodes[0];
 					}
+					// [TEMP-BARCODE-DEBUG] remove later
+					console.log("[BARCODE-DEBUG] after enrich", item.item_code, {
+						barcode: item.barcode,
+						item_barcode: item.item_barcode,
+					});
 				}
 			}
 		});
