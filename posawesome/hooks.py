@@ -10,6 +10,11 @@ app_url = "https://github.com/defendicon/POS-Awesome-V15"
 app_source_link = "https://github.com/defendicon/POS-Awesome-V15"
 source_link = "https://github.com/defendicon/POS-Awesome-V15"
 
+# POS Awesome extends ERPNext heavily (custom fields, controller overrides,
+# and many `from erpnext...` imports). Declare the hard dependency so bench
+# installs/loads ERPNext first and refuses to install without it.
+required_apps = ["erpnext"]
+
 # Includes in <head>
 # ------------------
 
