@@ -56,23 +56,6 @@ export function renderSeries(
 	return out;
 }
 
-/**
- * Compute the period key used to decide when the sequence resets. We reset on
- * the finest date granularity present in the series (day > month > year), so a
- * year-only series rolls over annually, a series with .DD. rolls over daily.
- */
-function periodFor(series: string, now: Date): string {
-	const s = series || DEFAULT_SERIES;
-	const yyyy = String(now.getFullYear());
-	const mm = pad2(now.getMonth() + 1);
-	const dd = pad2(now.getDate());
-
-	if (/\.DD\./.test(s)) return `${yyyy}-${mm}-${dd}`;
-	if (/\.MM\./.test(s)) return `${yyyy}-${mm}`;
-	if (/\.YYYY\./.test(s) || /\.YY\./.test(s)) return yyyy;
-	return "ALL"; // no date token -> never reset
-}
-
 function counters(): AnyRecord {
 	if (!memory[SEQ_KEY] || typeof memory[SEQ_KEY] !== "object") {
 		memory[SEQ_KEY] = {};
@@ -95,13 +78,14 @@ export async function nextOfflineInvoiceId(profile: string): Promise<string> {
 	const effectiveSeries = DEFAULT_SERIES;
 	const profileKey = profile || "default";
 	const now = new Date();
-	const period = periodFor(effectiveSeries, now);
 
+	// Counter never resets — it just keeps incrementing per profile. The year in
+	// the rendered id reflects the current year, but the sequence does not roll over.
 	const store = counters();
-	const current: SeqRecord = store[profileKey] || { period, seq: 0 };
+	const current: SeqRecord = store[profileKey] || { period: "ALL", seq: 0 };
 
-	const seq = current.period === period ? current.seq + 1 : 1;
-	store[profileKey] = { period, seq };
+	const seq = current.seq + 1;
+	store[profileKey] = { period: "ALL", seq };
 	persist(SEQ_KEY);
 
 	return renderSeries(effectiveSeries, profileKey, seq, now);

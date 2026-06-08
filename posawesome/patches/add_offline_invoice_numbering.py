@@ -70,17 +70,23 @@ def execute():
             frappe.delete_doc("Custom Field", custom_field_name, ignore_permissions=True)
     frappe.clear_cache(doctype="POS Profile")
 
-    # Drop the unique index created by earlier versions. The offline id is not
-    # unique anymore (online invoices share a blank value), so the index must go
-    # to avoid duplicate-entry errors on online sales.
+    # Drop EVERY index on the offline-id column, whatever its name. Earlier
+    # versions created a UNIQUE index (Frappe auto-names it `posa_offline_invoice_id`
+    # when the custom field had unique=1, plus a legacy `posa_offline_invoice_id_index`).
+    # Flipping unique=0 via db.set_value does NOT drop that index, so the live UNIQUE
+    # constraint kept rejecting offline syncs with "must be unique". Remove all of them.
     for doctype in FIELDS_BY_DOCTYPE:
         try:
-            if frappe.db.has_index(f"tab{doctype}", "posa_offline_invoice_id_index"):
+            rows = frappe.db.sql(
+                "SHOW INDEX FROM `tab%s` WHERE Column_name='posa_offline_invoice_id'" % doctype,
+                as_dict=True,
+            )
+            for index_name in {r["Key_name"] for r in rows}:
                 frappe.db.sql_ddl(
-                    f"ALTER TABLE `tab{doctype}` DROP INDEX `posa_offline_invoice_id_index`"
+                    "ALTER TABLE `tab%s` DROP INDEX `%s`" % (doctype, index_name)
                 )
         except Exception:
             frappe.log_error(
-                title="add_offline_invoice_numbering index drop",
+                title="add_offline_invoice_numbering drop index",
                 message=frappe.get_traceback(),
             )

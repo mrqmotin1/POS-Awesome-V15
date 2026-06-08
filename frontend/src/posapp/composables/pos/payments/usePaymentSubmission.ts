@@ -713,7 +713,7 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 				stores?.syncStore?.updatePendingCount();
 				stores?.toastStore?.show({
 					title: __("Invoice saved offline"),
-					color: "warning",
+					color: "success",
 				});
 
 				if (print && onPrint) {

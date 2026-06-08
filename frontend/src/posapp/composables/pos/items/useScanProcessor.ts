@@ -217,12 +217,21 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		// Clone the item to avoid mutating list data
 		const newItem = { ...item };
 		newItem._scanned_barcode = scannedCode;
+
+		// A serial/batch scan resolves scannedCode to a serial/batch number, not an item barcode.
+		const isSerialOrBatchScan = Boolean(
+			scanAssignment?.serialNo || scanAssignment?.batchNo,
+		);
+
 		if (scanMeta?.isScaleBarcode) {
 			newItem._is_scale_barcode = true;
 			newItem._scanned_scale_barcode = scannedCode;
-			if (!String(newItem.barcode || "").trim()) {
-				newItem.barcode = scannedCode;
-			}
+		}
+
+		// Stamp the actually-scanned code as the line barcode for every barcode scan
+		// so the cart/receipt shows the scanned code (not item_barcode[0]).
+		if (!isSerialOrBatchScan && String(scannedCode || "").trim()) {
+			newItem.barcode = scannedCode;
 		}
 
 		// If the scanned barcode has a specific UOM, apply it
@@ -278,6 +287,7 @@ export function useScanProcessor(context: ScanProcessorContext) {
 						if (conversionFactor) {
 							newItem.conversion_factor = conversionFactor;
 						}
+						newItem.barcode=scannedCode;
 						newItem._manual_rate_set = true;
 						newItem.skip_force_update = true;
 					} else if (conversionFactor) {
@@ -290,6 +300,7 @@ export function useScanProcessor(context: ScanProcessorContext) {
 						newItem.conversion_factor = conversionFactor;
 						newItem._manual_rate_set = true;
 						newItem.skip_force_update = true;
+						newItem.barcode=scannedCode;
 					}
 				} catch (e) {
 					console.error("Failed to fetch UOM price", e);

@@ -603,6 +603,10 @@ export function get_invoice_items(context: any) {
 			batch_no: item.batch_no,
 			posa_notes: item.posa_notes,
 			posa_delivery_date: itemDeliveryDate,
+			// Persist the exact scanned/typed barcode to the SI/POS Invoice Item
+			// (standard child field). Keeps the specific code for multi-barcode
+			// and alphanumeric items, and feeds the offline receipt.
+			barcode: item.barcode || "",
 		};
 
 		if (requiresDeliveryDate && itemDeliveryDate) {
