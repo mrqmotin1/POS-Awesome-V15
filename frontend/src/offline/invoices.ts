@@ -2,6 +2,7 @@ import { isOffline, memory, persist } from "./db";
 import { syncOfflineCustomers } from "./customers";
 import { reduceCacheUsage } from "./cache";
 import { ensureOfflineInvoiceRequest } from "./idempotency";
+import { nextOfflineInvoiceId } from "./offlineInvoiceId";
 import { updateLocalStock } from "./stock";
 import {
 	claimRetryableQueueEntries,
@@ -102,8 +103,28 @@ export function validateStockForOfflineInvoice(items: AnyRecord[]) {
 	};
 }
 
-function prepareOfflineInvoiceEntry(entry: AnyRecord) {
+async function ensureOfflineInvoiceId(entry: AnyRecord) {
+	// Immutable: never regenerate if this entry was already assigned an id
+	// (e.g. a re-save or sync retry of the same queued invoice).
+	if (String(entry?.invoice?.posa_offline_invoice_id || "").trim()) {
+		return;
+	}
+
+	const posProfile = memory.pos_opening_storage?.pos_profile || {};
+	if (!asBoolean(posProfile?.posa_enable_offline_invoice_numbering)) {
+		return;
+	}
+
+	const profileName = String(posProfile?.name || "").trim();
+	const id = await nextOfflineInvoiceId(profileName);
+
+	entry.invoice.posa_offline_invoice_id = id;
+	entry.data.offline_invoice_id = id;
+}
+
+async function prepareOfflineInvoiceEntry(entry: AnyRecord) {
 	ensureOfflineInvoiceRequest(entry);
+	await ensureOfflineInvoiceId(entry);
 
 	if (
 		!entry.invoice ||
@@ -149,7 +170,7 @@ function prepareOfflineInvoiceEntry(entry: AnyRecord) {
 }
 
 export async function saveOfflineInvoice(entry: AnyRecord) {
-	const cleanEntry = prepareOfflineInvoiceEntry(entry);
+	const cleanEntry = await prepareOfflineInvoiceEntry(entry);
 	const createdEntry = await enqueueWriteQueueEntry(INVOICE_ENTITY, cleanEntry);
 
 	if (entry.invoice?.items) {

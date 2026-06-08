@@ -35,6 +35,8 @@ from posawesome.posawesome.api.idempotency import (
     set_invoice_client_request_id,
     strip_invoice_client_request_id,
     doctype_supports_client_request_id,
+    extract_offline_invoice_id,
+    set_invoice_offline_invoice_id,
 )
 import json
 from frappe.utils import money_in_words
@@ -492,6 +494,7 @@ def update_invoice(data):
 
     invoice_doc = _get_mutable_invoice_doc(data, doctype)
     set_invoice_client_request_id(invoice_doc, client_request_id)
+    set_invoice_offline_invoice_id(invoice_doc, extract_offline_invoice_id(data))
 
     # Set currency from data before set_missing_values
     # Validate return items if this is a return invoice
@@ -798,6 +801,11 @@ def submit_invoice(invoice, data, submit_in_background=False):
         invoice_doc.update(invoice)
 
     set_invoice_client_request_id(invoice_doc, client_request_id)
+
+    # Persist the offline id on synced offline invoices. Not enforced unique:
+    # posa_client_request_id already prevents duplicate syncs, and online sales
+    # legitimately carry no offline id.
+    set_invoice_offline_invoice_id(invoice_doc, extract_offline_invoice_id(invoice, data))
 
     _deduplicate_free_items(invoice_doc)
 

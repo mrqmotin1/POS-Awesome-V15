@@ -289,7 +289,10 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
         : _now.toTimeString().substring(0, 8);
     // Offline invoices often lack `owner`; fall back to the logged-in user (mirrors raw template).
     const staffName = frappe?.boot?.user?.first_name || invoice.owner || "";
-    const invNo = invoice.name ? String(invoice.name).split('-').pop() : "";
+    const offlineId = invoice.posa_offline_invoice_id || "";
+    const erpName = invoice.name || "";
+    // Prefer the locally-generated offline id; fall back to the ERP name suffix.
+    const invNo = offlineId || (erpName ? String(erpName).split('-').pop() : "");
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -335,7 +338,7 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
         <div class="info-block" style="margin-top: 2px;">
             <p><span>Date: ${formattedDate}</span><span>Time: ${formattedTime}</span></p>
             <p><span>Staff ID: ${staffName}</span><span>POS ID: ${invoice.pos_profile || ""}</span></p>
-            <p><span>Invoice No.: ${invNo}</span></p>
+            <p><span>Invoice No: ${invNo}</span></p>
         </div>
 
         <hr>

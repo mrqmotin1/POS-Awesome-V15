@@ -74,6 +74,7 @@ after_migrate = [
     "posawesome.patches.add_gift_card_pos_profile_settings.execute",
     "posawesome.patches.add_gift_card_invoice_redemption_fields.execute",
     "posawesome.patches.add_gift_card_to_workspace.execute",
+    "posawesome.patches.add_offline_invoice_numbering.execute",
 ]
 
 # Desk Notifications
@@ -348,6 +349,9 @@ fixtures = [
                     "Sales Invoice-posa_return_valid_upto",
                     "User-posa_pos_pin",
                     "User-posa_is_pos_supervisor",
+                    "Sales Invoice-posa_offline_invoice_id",
+                    "POS Invoice-posa_offline_invoice_id",
+                    "POS Profile-posa_enable_offline_invoice_numbering",
                 ),
             ]
         ],

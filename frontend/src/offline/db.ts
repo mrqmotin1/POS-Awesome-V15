@@ -243,6 +243,9 @@ const MEMORY_DEFAULTS: AnyRecord = {
 	offline_customers: [],
 	offline_payments: [],
 	offline_cash_movements: [],
+	// Per-POS-profile offline invoice numbering counters. Intentionally NOT part
+	// of DERIVED_OFFLINE_CACHE_KEYS so it survives cache reconciliation/clears.
+	offline_invoice_seq: {},
 	pos_last_sync_totals: { pending: 0, synced: 0, drafted: 0 },
 	uom_cache: {},
 	offers_cache: [],

@@ -169,8 +169,11 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 			padLeft("POS: " + (doc.pos_profile || "POS ID"), 21) +
 			LF,
 	);
-	const invNo = doc.name ? String(doc.name).split("-").pop() : "";
-	out.push(padRight("Invoice No: " + invNo, 25) + " " + padLeft("", 21) + LF);
+	const offlineId = doc.posa_offline_invoice_id || "";
+	const erpName = doc.name || "";
+	// Prefer the locally-generated offline id; fall back to the ERP name suffix.
+	const invNo = offlineId || (erpName ? String(erpName).split("-").pop() : "");
+	out.push(padRight("Invoice No: " + invNo, 47) + LF);
 	out.push(LINE + LF);
 
 	// --- Item header row ---
