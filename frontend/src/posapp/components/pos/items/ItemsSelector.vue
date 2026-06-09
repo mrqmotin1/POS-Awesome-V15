@@ -322,7 +322,7 @@ const qty = ref(1);
 const search_input = ref("");
 const first_search = ref("");
 const items_view = ref("card");
-const itemsPerPage = ref(10);
+const itemsPerPage = ref(50);
 const clearingSearch = ref(false);
 const isDragging = ref(false);
 const new_line = ref(false);
@@ -415,11 +415,11 @@ const displayedItems = computed(() => {
 	const baseItems = Array.isArray(filteredItems.value) ? filteredItems.value : [];
 
 	if (items_view.value === "card") {
-		const shortcutItems = baseItems.filter((item) => item.custom_desktop_shortcut);
 		const rawTerm = first_search.value;
 		const term = (typeof rawTerm === "string" ? rawTerm : "").trim().toLowerCase();
+		// While searching (>=3 chars): match across ALL items (shortcut + normal).
 		if (term.length >= 3) {
-			return filterAndPaginate(shortcutItems, {
+			return filterAndPaginate(baseItems, {
 				searchTerm: term,
 				hideZeroRate: hide_zero_rate_items.value,
 				hideVariants: pos_profile.value?.posa_hide_variants_items,
@@ -427,7 +427,8 @@ const displayedItems = computed(() => {
 				limit: 9999,
 			});
 		}
-		return shortcutItems;
+		// Default (no/short search): only desktop-shortcut items.
+		return baseItems.filter((item) => item.custom_desktop_shortcut);
 	}
 
 	const rawTerm = first_search.value;
