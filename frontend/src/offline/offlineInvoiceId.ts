@@ -53,11 +53,8 @@ function randomToken(): string {
  * browser instances. Each terminal uses a unique POS profile, so ids never collide
  * across terminals either.
  */
-export async function nextOfflineInvoiceId(profile: string): Promise<string> {
+export async function nextOfflineInvoiceId(_profile?: string): Promise<string> {
 	await initPromise;
 
-	const profileKey = profile || "default";
-	const year = new Date().getFullYear();
-
-	return `${profileKey}-${year}-${randomToken()}`;
+	return `OFFLINE-${randomToken()}`;
 }
