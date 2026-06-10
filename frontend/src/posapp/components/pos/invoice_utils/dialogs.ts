@@ -32,6 +32,26 @@ export async function show_payment(context: any) {
 			return;
 		}
 
+		// Item-level max discount guard (mirrors ERPNext validate_max_discount).
+		// Block opening the payment dialog when any item exceeds its max_discount.
+		// Skip for return invoices, matching backend behavior.
+		if (!context.isReturnInvoice) {
+			for (const it of context.items) {
+				const maxDisc = Number(it.max_discount) || 0;
+				const disc = Number(it.discount_percentage) || 0;
+				if (maxDisc && disc > maxDisc) {
+					context.toastStore.show({
+						title: __("Maximum discount for Item {0} is {1}%", [
+							it.item_code,
+							maxDisc,
+						]),
+						color: "error",
+					});
+					return;
+				}
+			}
+		}
+
 		// [TEMP-BARCODE-DEBUG] remove later
 		console.log(
 			"[BARCODE-DEBUG] pay click — items barcodes",

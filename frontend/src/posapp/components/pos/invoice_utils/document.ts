@@ -600,6 +600,9 @@ export function get_invoice_items(context: any) {
 			// where O(N) cache lookups occur if this flag is missing.
 			is_stock_item: item.is_stock_item,
 			discount_percentage: flt(item.discount_percentage),
+			// Carry item-level max discount so client-side validation can run
+			// offline (mirrors ERPNext validate_max_discount).
+			max_discount: flt(item.max_discount),
 			batch_no: item.batch_no,
 			posa_notes: item.posa_notes,
 			posa_delivery_date: itemDeliveryDate,
@@ -693,6 +696,7 @@ export function get_order_items(context: any) {
 			serial_no: item.serial_no,
 			discount_percentage: flt(item.discount_percentage),
 			discount_amount: flt(item.discount_amount),
+			max_discount: flt(item.max_discount),
 			batch_no: item.batch_no,
 			posa_notes: item.posa_notes,
 			posa_delivery_date: item.posa_delivery_date,
