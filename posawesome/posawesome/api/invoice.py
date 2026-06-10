@@ -24,14 +24,9 @@ def validate(doc, method):
 
 
 def before_submit(doc, method):
-    set_total_items_discount(doc)
     add_loyalty_point(doc)
     create_sales_order(doc)
     update_coupon(doc, "used")
-
-
-def set_total_items_discount(doc):
-    doc.custom_total_items_discount = sum(flt(item.discount_amount) for item in doc.items)
 
 
 def before_cancel(doc, method):

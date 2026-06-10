@@ -248,6 +248,9 @@ export function get_invoice_doc(context: any) {
 	// Calculate amounts in selected currency
 	const items = get_invoice_items(context);
 	doc.items = items;
+	// Reuse the already-computed item-level discount total shown in the cart summary
+	// instead of recalculating server-side.
+	doc.custom_total_items_discount = flt(context.total_items_discount_amount);
 	doc.packed_items = (context.packed_items || []).map((pi) => ({
 		parent_item: pi.parent_item,
 		item_code: pi.item_code,

@@ -228,8 +228,8 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	// --- Invoice summary ---
 	out.push(BOLD_ON + padCenter("INVOICE SUMMARY", 48) + BOLD_OFF + LF);
 
-	// custom_total_items_discount is only set server-side (invoice.py); offline we derive it
-	// from the per-item discount_amount, replicating that formula: sum(item.discount_amount).
+	// custom_total_items_discount is set on the doc in document.ts (get_invoice_doc) from the
+	// already-computed cart total; the fallback below derives it as sum(qty * discount_amount).
 	// The offline invoice doc now carries the true post-discount figures (document.ts computes
 	// net_total / total_taxes_and_charges / grand_total on the additional-discount-reduced base),
 	// so render them directly. Mirrors the HTML renderer.
@@ -240,7 +240,8 @@ export default async function renderOfflineInvoiceRaw(invoice: any): Promise<str
 	const itemDiscount = Math.abs(
 		Number(doc.custom_total_items_discount) ||
 			(doc.items || []).reduce(
-				(sum: number, it: any) => sum + (Number(it.discount_amount) || 0),
+				(sum: number, it: any) =>
+					sum + (Number(it.qty) || 0) * (Number(it.discount_amount) || 0),
 				0,
 			),
 	);

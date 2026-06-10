@@ -243,7 +243,8 @@ async function defaultOfflineHTML(invoice: any, terms = "") {
     const itemDiscount = Math.abs(
         Number(invoice.custom_total_items_discount) ||
             (invoice.items || []).reduce(
-                (s: number, it: any) => s + (Number(it.discount_amount) || 0),
+                (s: number, it: any) =>
+                    s + (Number(it.qty) || 0) * (Number(it.discount_amount) || 0),
                 0,
             ),
     );
