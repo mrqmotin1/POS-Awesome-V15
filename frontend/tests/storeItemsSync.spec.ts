@@ -15,10 +15,13 @@ const offlineMocks = vi.hoisted(() => ({
 	setStockCacheReady: vi.fn(),
 }));
 
+const itemServiceMocks = vi.hoisted(() => ({
+	getItemGroupsData: vi.fn(async () => []),
+	getItemsCountData: vi.fn(async () => 0),
+}));
+
 vi.mock("../src/posapp/services/itemService", () => ({
-	default: {
-		getItemGroupsData: vi.fn(async () => []),
-	},
+	default: itemServiceMocks,
 }));
 
 vi.mock("../src/offline/index", () => ({
@@ -41,11 +44,19 @@ import { useItemsSync } from "../src/posapp/composables/pos/items/store/useItems
 describe("store useItemsSync background progress", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		itemServiceMocks.getItemsCountData.mockResolvedValue(0);
 	});
 
 	it("tracks progress from remaining catalog instead of already loaded bootstrap items", async () => {
 		const sync = useItemsSync();
 		const setItems = vi.fn();
+		const observedProgress: number[] = [];
+		const stopWatching = watch(
+			sync.loadProgress,
+			(value) => observedProgress.push(value),
+			{ flush: "sync" },
+		);
+		itemServiceMocks.getItemsCountData.mockResolvedValue(4);
 		const frappeCall = vi.fn(async ({ args }) => {
 			if (args.offset === 1) {
 				return {
@@ -76,8 +87,11 @@ describe("store useItemsSync background progress", () => {
 				value: [{ item_code: "ITEM-1", item_name: "Item 1" }],
 			},
 		);
+		stopWatching();
 
 		expect(sync.loadProgress.value).toBe(100);
+		expect(observedProgress).toContain(33);
+		expect(observedProgress).toContain(67);
 		expect(sync.syncedItemsCount.value).toBe(2);
 		expect(setItems).toHaveBeenCalledWith(
 			[
@@ -237,10 +251,21 @@ describe("store useItemsSync background progress", () => {
 			item_code: `ITEM-${index + 1}`,
 			item_name: `Item ${index + 1}`,
 		}));
+		itemServiceMocks.getItemsCountData.mockResolvedValue(catalog.length);
 		const frappeCall = vi.fn(async ({ args }) => ({
 			message: catalog.slice(args.offset, args.offset + args.limit),
 		}));
 		const setItems = vi.fn();
+		const requestsAtFirstProgress: number[] = [];
+		const stopWatching = watch(
+			sync.syncedItemsCount,
+			(value) => {
+				if (value === 1) {
+					requestsAtFirstProgress.push(frappeCall.mock.calls.length);
+				}
+			},
+			{ flush: "sync" },
+		);
 		(globalThis as any).frappe = { call: frappeCall };
 
 		const appended = await sync.backgroundSyncItems(
@@ -256,13 +281,16 @@ describe("store useItemsSync background progress", () => {
 			{ value: false },
 			{ value: initialBatch },
 		);
+		stopWatching();
 
 		expect(appended).toHaveLength(12);
-		expect(setItems).toHaveBeenCalledTimes(6);
+		expect(setItems).toHaveBeenCalledTimes(2);
 		expect(
 			frappeCall.mock.calls.map(([request]) => request.args.offset),
 		).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19]);
+		expect(requestsAtFirstProgress).toEqual([10]);
 		expect(sync.syncedItemsCount.value).toBe(12);
+		expect(sync.loadProgress.value).toBe(100);
 	});
 
 	it("throttles cached pagination refresh while background batches continue", async () => {
@@ -303,7 +331,7 @@ describe("store useItemsSync background progress", () => {
 			{ value: [] },
 		);
 
-		expect(setItems).toHaveBeenCalledTimes(6);
+		expect(setItems).toHaveBeenCalledTimes(2);
 		expect(updateCachedPaginationFromStorage).toHaveBeenCalledTimes(2);
 	});
 });
