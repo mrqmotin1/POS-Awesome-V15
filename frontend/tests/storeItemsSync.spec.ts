@@ -1,3 +1,4 @@
+import { watch } from "vue";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const offlineMocks = vi.hoisted(() => ({
@@ -87,6 +88,45 @@ describe("store useItemsSync background progress", () => {
 			],
 			{ append: true },
 		);
+	});
+
+	it("publishes the synced item count one item at a time", async () => {
+		const sync = useItemsSync();
+		const observedCounts: number[] = [];
+		const stopWatching = watch(
+			sync.syncedItemsCount,
+			(value) => observedCounts.push(value),
+			{ flush: "sync" },
+		);
+		const frappeCall = vi
+			.fn()
+			.mockResolvedValueOnce({
+				message: [
+					{ item_code: "ITEM-1", item_name: "Item 1" },
+					{ item_code: "ITEM-2", item_name: "Item 2" },
+					{ item_code: "ITEM-3", item_name: "Item 3" },
+				],
+			})
+			.mockResolvedValueOnce({ message: [] });
+		(globalThis as any).frappe = { call: frappeCall };
+
+		await sync.backgroundSyncItems(
+			{},
+			{ name: "POS-1", warehouse: "WH-1" } as any,
+			"Retail",
+			"POS-1_WH-1",
+			true,
+			() => 3,
+			vi.fn(),
+			vi.fn(async () => {}),
+			{ value: 3 },
+			{ value: false },
+			{ value: [] },
+		);
+		stopWatching();
+
+		expect(observedCounts).toEqual([1, 2, 3]);
+		expect(sync.syncedItemsCount.value).toBe(3);
 	});
 
 	it("marks stock cache ready after background item sync stores stock quantities", async () => {

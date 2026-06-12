@@ -30,6 +30,16 @@ const containsStockQuantities = (items: Item[]) =>
 const DELTA_SYNC_LIMIT = 1000;
 const BACKGROUND_SYNC_PAGE_SIZE = 1000;
 const BACKGROUND_PAGINATION_REFRESH_BATCHES = 5;
+const BACKGROUND_PROGRESS_YIELD_INTERVAL = 10;
+
+const yieldToBrowser = () =>
+	new Promise<void>((resolve) => {
+		if (typeof requestAnimationFrame === "function") {
+			requestAnimationFrame(() => resolve());
+			return;
+		}
+		setTimeout(resolve, 0);
+	});
 
 export function useItemsSync() {
 	const isLoading = ref(false);
@@ -262,6 +272,42 @@ export function useItemsSync() {
 			totalItemCount.value > bootstrapCount
 				? totalItemCount.value - bootstrapCount
 				: 0;
+		const limit = resolvePageSize(BACKGROUND_SYNC_PAGE_SIZE);
+		const updateLiveProgress = (count: number) => {
+			syncedItemsCount.value = count;
+			if (remainingCatalogEstimate > 0) {
+				loadProgress.value = Math.min(
+					99,
+					Math.round((count / remainingCatalogEstimate) * 100),
+				);
+				return;
+			}
+			if (count > 0) {
+				loadProgress.value = Math.min(
+					99,
+					Math.round((count / (count + limit)) * 100),
+				);
+			}
+		};
+		const publishBatchProgress = async (
+			previousCount: number,
+			batchSize: number,
+		) => {
+			for (let index = 1; index <= batchSize; index += 1) {
+				if (backgroundSyncState.value.token !== token) {
+					return previousCount + index - 1;
+				}
+				const nextCount = previousCount + index;
+				updateLiveProgress(nextCount);
+				if (
+					index % BACKGROUND_PROGRESS_YIELD_INTERVAL === 0 ||
+					index === batchSize
+				) {
+					await yieldToBrowser();
+				}
+			}
+			return previousCount + batchSize;
+		};
 
 		try {
 			if (reset) {
@@ -286,8 +332,6 @@ export function useItemsSync() {
 			let lastItemName = items.value.length
 				? items.value[items.value.length - 1]?.item_name || null
 				: null;
-
-			const limit = resolvePageSize(BACKGROUND_SYNC_PAGE_SIZE);
 
 			while (
 				backgroundSyncState.value.token === token &&
@@ -335,25 +379,13 @@ export function useItemsSync() {
 				setItems(batch, { append: true });
 				appended.push(...batch);
 				loaded += batch.length;
-				syncedCount += batch.length;
-				syncedItemsCount.value = syncedCount;
+				syncedCount = await publishBatchProgress(
+					syncedCount,
+					batch.length,
+				);
 				lastItemName =
 					batch[batch.length - 1]?.item_name || lastItemName;
 				batchesSincePaginationRefresh += 1;
-
-				if (remainingCatalogEstimate > 0) {
-					loadProgress.value = Math.min(
-						99,
-						Math.round(
-							(syncedCount / remainingCatalogEstimate) * 100,
-						),
-					);
-				} else if (syncedCount > 0) {
-					loadProgress.value = Math.min(
-						99,
-						Math.round((syncedCount / (syncedCount + limit)) * 100),
-					);
-				}
 
 				const reachedEnd = batch.length < limit;
 				if (
