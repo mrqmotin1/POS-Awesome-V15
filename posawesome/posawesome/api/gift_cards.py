@@ -468,7 +468,7 @@ def _create_redemption_entry(profile_doc, invoice_doc, amount, cashier):
                 "credit_in_account_currency": redeem_amount,
                 # Use the invoice's recorded rate for the receivable so the base
                 # amount matches the invoice instead of a drifting system rate.
-                "exchange_rate": _to_float(_doc_value(invoice_doc, "conversion_rate")) or 1,
+                "exchange_rate": frappe.utils.flt(_doc_value(invoice_doc, "conversion_rate")) or 1,
                 "cost_center": cost_center,
                 "user_remark": cashier,
             },
