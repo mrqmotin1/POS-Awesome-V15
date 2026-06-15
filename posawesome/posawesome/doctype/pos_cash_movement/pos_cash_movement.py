@@ -22,9 +22,9 @@ class POSCashMovement(Document):
         # and submitted before movement_doc.submit(), leaving an orphan JE on
         # any submit-time failure.
         if not self.journal_entry:
-            cost_center = frappe.db.get_value(
+            cost_center = frappe.get_cached_value(
                 "POS Profile", self.pos_profile, "cost_center"
-            ) or frappe.db.get_value("Company", self.company, "cost_center")
+            ) or frappe.get_cached_value("Company", self.company, "cost_center")
             journal_entry = create_journal_entry(
                 company=self.company,
                 posting_date=self.posting_date,
