@@ -28,6 +28,19 @@
 					{{ __("Submit & Print") }}
 				</v-btn>
 			</v-col>
+			<v-col cols="12" class="pt-2">
+				<v-btn
+					block
+					size="large"
+					color="info"
+					theme="dark"
+					prepend-icon="mdi-share-variant"
+					@click="$emit('share-last-payment')"
+					:disabled="disabled || loading"
+				>
+					{{ __("Share Last Payment") }}
+				</v-btn>
+			</v-col>
 		</v-row>
 	</div>
 </template>
@@ -38,5 +51,5 @@ defineProps({
 	disabled: Boolean,
 });
 
-defineEmits(["submit", "submit-and-print"]);
+defineEmits(["submit", "submit-and-print", "share-last-payment"]);
 </script>

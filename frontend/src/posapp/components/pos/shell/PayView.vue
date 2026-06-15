@@ -194,6 +194,7 @@
 						:disabled="false"
 						@submit="submit"
 						@submit-and-print="submit_and_print"
+						@share-last-payment="share_last_payment"
 					/>
 				</v-card>
 			</v-col>
@@ -1032,6 +1033,83 @@ export default {
 		const submit = () => processPayment({ printAfter: false });
 		const submit_and_print = () => processPayment({ printAfter: true });
 
+		const share_last_payment = async () => {
+			try {
+				const party = customer_name.value;
+				if (!party) {
+					proxy?.eventBus?.emit("show_message", {
+						title: __("Please select a party first."),
+						color: "warning",
+					});
+					return;
+				}
+				const { message: payments } = await frappe.call({
+					method: "frappe.client.get_list",
+					args: {
+						doctype: "Payment Entry",
+						fields: ["name"],
+						filters: { party, docstatus: 1 },
+						order_by: "creation desc",
+						limit_page_length: 1,
+					},
+				});
+				if (!payments || payments.length === 0) {
+					proxy?.eventBus?.emit("show_message", {
+						title: __("No previous payments found for this party."),
+						color: "warning",
+					});
+					return;
+				}
+				const payment_name = payments[0].name;
+				const print_format =
+					pos_profile.value?.print_format_for_online ||
+					pos_profile.value?.print_format ||
+					"Standard";
+				const pdf_url = `/api/method/frappe.utils.print_format.download_pdf?doctype=Payment%20Entry&name=${encodeURIComponent(payment_name)}&format=${encodeURIComponent(print_format)}&no_letterhead=0`;
+				const response = await fetch(pdf_url, {
+					headers: { "X-Frappe-CSRF-Token": frappe.csrf_token },
+				});
+				if (!response.ok) {
+					throw new Error(__("Failed to download payment. Status: {0}", [response.status]));
+				}
+				const blob = await response.blob();
+				const file = new File([blob], `${payment_name}.pdf`, { type: "application/pdf" });
+				if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+					try {
+						await navigator.share({
+							title: __("Payment Entry"),
+							text: __("Payment No: {0}", [payment_name]),
+							files: [file],
+						});
+					} catch (shareError) {
+						// User dismissed the native share sheet: fall back to download.
+						if (shareError.name !== "AbortError") {
+							download_pdf_blob(blob, payment_name);
+						}
+					}
+				} else {
+					// Web Share API (with files) unavailable: download instead.
+					download_pdf_blob(blob, payment_name);
+				}
+			} catch (error) {
+				proxy?.eventBus?.emit("show_message", {
+					title: error.message || __("Failed to share payment"),
+					color: "error",
+				});
+			}
+		};
+
+		const download_pdf_blob = (blob, name) => {
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `${name}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
+		};
+
 		// Lifecycle & Watchers
 		const payTotalsSidebarRef = ref(null);
 
@@ -1253,6 +1331,7 @@ export default {
 			handleInvoiceSelection,
 			submit,
 			submit_and_print,
+			share_last_payment,
 			rtlStyles,
 			rtlClasses,
 			customersStore,
