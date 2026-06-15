@@ -207,8 +207,14 @@ def _get_or_create_submission_ledger(client_request_id, invoice, data, document_
     try:
         ledger_doc = frappe.get_doc(payload)
         return _save_submission_ledger(ledger_doc)
-    except Exception:
-        return _get_submission_ledger_by_key(ledger_key)
+    except frappe.DuplicateEntryError:
+        # A concurrent request already created this ledger row — fall back to
+        # fetching it. Any other error (e.g. validation) must propagate so the
+        # invoice is never processed without idempotency protection.
+        ledger = _get_submission_ledger_by_key(ledger_key)
+        if not ledger:
+            frappe.throw(_("A concurrent request is already processing this invoice. Please try again."))
+        return ledger
 
 
 def _ledger_response(ledger_doc, replayed=True):
