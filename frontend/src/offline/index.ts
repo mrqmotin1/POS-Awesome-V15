@@ -20,8 +20,9 @@
  *   `syncState`, `SyncCoordinator`, `useSyncCoordinator`, and per-resource
  *   `adapters`.
  *
- * `memoryInitPromise` is a backward-compatible alias for `initPromise` (from `db`).
- * Await it before reading any `memory` value at application startup.
+ * `startupInitPromise` covers only boot-critical state. `memoryInitPromise` is a
+ * backward-compatible alias for the full `initPromise`; await it before reading
+ * non-critical `memory` values.
  *
  * @module offline
  */

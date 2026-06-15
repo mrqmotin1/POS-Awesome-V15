@@ -13,10 +13,11 @@
  *
  * **In-memory store (`memory`)**
  * `memory` is a plain object that holds all cache values in RAM for synchronous
- * access. `initPromise` populates it at startup by reading each key from Dexie
- * first, then falling back to `localStorage` (prefix `posa_`), then retaining
- * the default value declared in the object literal. Await `initPromise` before
- * reading any `memory` value in application code.
+ * access. `startupInitPromise` hydrates the small boot-critical subset
+ * immediately. `initPromise` remains the full-memory readiness contract for
+ * cache-dependent flows and completes during idle time. Both read Dexie first,
+ * then legacy `keyval`, then `localStorage` (prefix `posa_`), retaining defaults
+ * when no persisted value exists.
  *
  * **Persist write path (`persist`)**
  * `persist(key)` is the single write path for all `memory` entries. On each call
@@ -131,6 +132,18 @@ const LOCAL_STORAGE_KEYS = new Set([
 ]);
 
 const MEMORY_ONLY_KEYS = new Set(["customer_storage"]);
+
+export const STARTUP_MEMORY_KEYS = Object.freeze([
+	"manual_offline",
+	"invoice_outbox_mode",
+	"bootstrap_snapshot",
+	"bootstrap_snapshot_status",
+	"bootstrap_limited_mode",
+	"cache_ready",
+	"stock_cache_ready",
+	"schema_signature",
+	"tax_inclusive",
+]);
 
 export const PENDING_OFFLINE_QUEUE_KEYS = Object.freeze([
 	"offline_invoices",
@@ -309,6 +322,12 @@ export const memory: AnyRecord = {
 	...MEMORY_DEFAULTS,
 };
 
+const memoryMutationVersions = new Map<string, number>();
+
+function markMemoryKeyChanged(key: string) {
+	memoryMutationVersions.set(key, (memoryMutationVersions.get(key) || 0) + 1);
+}
+
 function cloneDefaultValue<T>(value: T): T {
 	if (value === null || typeof value !== "object") {
 		return value;
@@ -322,6 +341,7 @@ function cloneDefaultValue<T>(value: T): T {
 }
 
 function resetMemoryKey(key: string) {
+	markMemoryKeyChanged(key);
 	if (Object.prototype.hasOwnProperty.call(MEMORY_DEFAULTS, key)) {
 		memory[key] = cloneDefaultValue(MEMORY_DEFAULTS[key]);
 		return;
@@ -373,53 +393,146 @@ async function deletePersistedKey(key: string) {
 	await Promise.all(tasks);
 }
 
-export const initPromise = new Promise<void>((resolve) => {
-	const init = async () => {
-		try {
-			await db.open();
-			for (const key of Object.keys(memory)) {
-				const table = tableForKey(key);
-				let stored = await db.table(table).get(key);
-				if (
-					(!stored || stored.value === undefined) &&
-					table !== "keyval"
-				) {
-					stored = await db.table("keyval").get(key);
-				}
-				if (stored && stored.value !== undefined) {
-					memory[key] = stored.value;
-					continue;
-				}
-				if (typeof localStorage !== "undefined") {
-					const ls = localStorage.getItem(`posa_${key}`);
-					if (ls) {
-						try {
-							memory[key] = JSON.parse(ls);
-							continue;
-						} catch (err) {
-							console.error(
-								"Failed to parse localStorage for",
-								key,
-								err,
-							);
-						}
-					}
-				}
-			}
-		} catch (e) {
-			console.error("Failed to initialize offline DB", e);
-		} finally {
-			scheduleIdleOfflinePruning();
-			resolve();
-		}
-	};
+type PersistedValueRecord = { key?: string; value?: unknown } | undefined;
 
-	if (typeof requestIdleCallback === "function") {
-		requestIdleCallback(init);
-	} else {
-		setTimeout(init, 0);
+function readLocalStorageValue(key: string): PersistedValueRecord {
+	if (typeof localStorage === "undefined") {
+		return undefined;
 	}
-});
+
+	try {
+		const stored = localStorage.getItem(`posa_${key}`);
+		if (stored === null) {
+			return undefined;
+		}
+		return { key, value: JSON.parse(stored) };
+	} catch (error) {
+		console.error("Failed to parse localStorage for", key, error);
+		return undefined;
+	}
+}
+
+export async function hydrateMemoryKeys(keys: readonly string[]): Promise<void> {
+	const uniqueKeys = Array.from(new Set(keys)).filter((key) =>
+		Object.prototype.hasOwnProperty.call(memory, key),
+	);
+	if (!uniqueKeys.length) {
+		return;
+	}
+
+	const mutationVersions = new Map(
+		uniqueKeys.map((key) => [key, memoryMutationVersions.get(key) || 0]),
+	);
+	const primaryGroups = new Map<string, string[]>();
+	for (const key of uniqueKeys) {
+		const tableName = tableForKey(key);
+		if (tableName === "keyval") {
+			continue;
+		}
+		const tableKeys = primaryGroups.get(tableName) || [];
+		tableKeys.push(key);
+		primaryGroups.set(tableName, tableKeys);
+	}
+
+	const primaryRecords = new Map<string, PersistedValueRecord>();
+	const legacyRecords = new Map<string, PersistedValueRecord>();
+	await Promise.all([
+		...Array.from(primaryGroups.entries()).map(async ([tableName, tableKeys]) => {
+			const rows = (await db.table(tableName).bulkGet(tableKeys)) as PersistedValueRecord[];
+			tableKeys.forEach((key, index) => {
+				primaryRecords.set(key, rows[index]);
+			});
+		}),
+		(async () => {
+			// One keyval read covers both keys owned by keyval and legacy fallback
+			// rows left behind before KEY_TABLE_MAP routed them elsewhere.
+			const rows = (await db.table("keyval").bulkGet(
+				uniqueKeys,
+			)) as PersistedValueRecord[];
+			uniqueKeys.forEach((key, index) => {
+				legacyRecords.set(key, rows[index]);
+			});
+		})(),
+	]);
+
+	for (const key of uniqueKeys) {
+		if (
+			(memoryMutationVersions.get(key) || 0) !== mutationVersions.get(key)
+		) {
+			continue;
+		}
+
+		const primary =
+			tableForKey(key) === "keyval"
+				? legacyRecords.get(key)
+				: primaryRecords.get(key);
+		const legacy = legacyRecords.get(key);
+		const stored =
+			primary?.value !== undefined
+				? primary
+				: legacy?.value !== undefined
+					? legacy
+					: readLocalStorageValue(key);
+
+		if (stored?.value !== undefined) {
+			memory[key] = stored.value;
+		}
+	}
+}
+
+async function initializeMemoryKeys(keys: readonly string[]) {
+	try {
+		await db.open();
+		await hydrateMemoryKeys(keys);
+	} catch (error) {
+		console.error("Failed to initialize offline DB", error);
+	}
+}
+
+function scheduleIdleTask(task: () => void) {
+	if (typeof requestIdleCallback === "function") {
+		requestIdleCallback(task, { timeout: 2_000 });
+	} else {
+		setTimeout(task, 0);
+	}
+}
+
+type PostHydrationTask = () => Promise<void> | void;
+const postHydrationTasks = new Set<PostHydrationTask>();
+
+export function registerPostHydrationTask(task: PostHydrationTask) {
+	postHydrationTasks.add(task);
+	return () => postHydrationTasks.delete(task);
+}
+
+async function runPostHydrationTasks() {
+	for (const task of Array.from(postHydrationTasks)) {
+		try {
+			await task();
+		} catch (error) {
+			console.error("Offline post-hydration task failed", error);
+		}
+	}
+}
+
+export const startupInitPromise = initializeMemoryKeys(STARTUP_MEMORY_KEYS);
+
+export const initPromise = startupInitPromise.then(
+	() =>
+		new Promise<void>((resolve) => {
+			scheduleIdleTask(() => {
+				const startupKeys = new Set<string>(STARTUP_MEMORY_KEYS);
+				const remainingKeys = Object.keys(memory).filter(
+					(key) => !startupKeys.has(key),
+				);
+				void initializeMemoryKeys(remainingKeys).then(async () => {
+					await runPostHydrationTasks();
+					scheduleIdleOfflinePruning();
+					resolve();
+				});
+			});
+		}),
+);
 
 export async function withDbTransaction<T>(
 	mode: "r" | "rw",
@@ -589,6 +702,7 @@ export function scheduleIdleOfflinePruning() {
 }
 
 export function persist(key: string, value: unknown = memory[key]) {
+	markMemoryKeyChanged(key);
 	if (!shouldPersistToIndexedDb(key) && !shouldPersistToLocalStorage(key)) {
 		if (typeof localStorage !== "undefined") {
 			localStorage.removeItem(`posa_${key}`);

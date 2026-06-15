@@ -897,7 +897,6 @@ const pollForFrappeNav = (maxAttempts = 50, interval = 100) => {
 
 const initializeData = async () => {
 	await initPromise;
-	await memoryInitPromise;
 	await ensureOfflineQueueReady();
 	await hydrateOfflineSyncResourceStates();
 	checkDbHealth().catch(() => {});
