@@ -221,11 +221,11 @@ describe("operational offline sync adapters", () => {
 		expect(result.status).toBe("fresh");
 	});
 
-	it("streams every initial item page before marking the snapshot fresh", async () => {
-		const fetcher = vi.fn(async ({ watermark, offset, limit }) => {
+	it("streams every initial item page by item-code cursor before marking the snapshot fresh", async () => {
+		const fetcher = vi.fn(async ({ watermark, startAfter, limit }) => {
 			expect(watermark).toBeNull();
 			expect(limit).toBe(1000);
-			if (!offset) {
+			if (!startAfter) {
 				return {
 					schema_version: "2026-05-20",
 					next_watermark: "2026-05-20T10:00:00",
@@ -244,7 +244,7 @@ describe("operational offline sync adapters", () => {
 					deleted: [],
 				};
 			}
-			expect(offset).toBe(1);
+			expect(startAfter).toBe("ITEM-001");
 			return {
 				schema_version: "2026-05-20",
 				next_watermark: "2026-05-20T10:05:00",

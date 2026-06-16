@@ -117,6 +117,11 @@ def sync_items(
             or []
         )
     else:
+        pagination_args = {}
+        if start_after is not None or offset is None:
+            pagination_args["start_after_item_code"] = start_after or ""
+        else:
+            pagination_args["offset"] = offset
         rows = (
             get_items(
                 serialized_profile,
@@ -124,9 +129,8 @@ def sync_items(
                 item_group="",
                 search_value="",
                 customer=customer,
-                offset=offset,
-                start_after=start_after,
                 limit=fetch_limit,
+                **pagination_args,
             )
             or []
         )

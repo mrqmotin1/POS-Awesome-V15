@@ -184,7 +184,7 @@ export async function runSupportedOfflineSyncResource({
 					priceList,
 					customer,
 					watermark,
-					offset,
+					startAfter,
 					limit,
 					schemaVersion,
 				}) =>
@@ -195,7 +195,7 @@ export async function runSupportedOfflineSyncResource({
 							price_list: priceList,
 							customer: customer || null,
 							watermark,
-							offset: offset || 0,
+							start_after: startAfter || null,
 							limit: limit || null,
 							schema_version: schemaVersion,
 						},

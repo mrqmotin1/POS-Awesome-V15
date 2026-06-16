@@ -28,7 +28,7 @@ type ItemsFetcher = (_args: {
 	priceList?: string | null;
 	customer?: string | null;
 	watermark?: string | null;
-	offset?: number;
+	startAfter?: string | null;
 	limit?: number;
 	schemaVersion?: string | null;
 }) => Promise<SyncResponse>;
@@ -63,6 +63,21 @@ function extractDeletedItemCodes(response: SyncResponse) {
 			return key.startsWith("item::") ? key.slice("item::".length) : "";
 		})
 		.filter(Boolean);
+}
+
+function getLastItemCursor(response: SyncResponse) {
+	const changes = Array.isArray(response?.changes) ? response.changes : [];
+	for (let index = changes.length - 1; index >= 0; index -= 1) {
+		const itemCode = String(changes[index]?.data?.item_code || "").trim();
+		if (itemCode) {
+			return itemCode;
+		}
+		const key = String(changes[index]?.key || "").trim();
+		if (key.startsWith("item::")) {
+			return key.slice("item::".length);
+		}
+	}
+	return null;
 }
 
 function laterWatermark(
@@ -149,7 +164,7 @@ async function fetchAndStoreItemPages({
 	schemaVersion?: string | null;
 	storageScope: string;
 }) {
-	let offset = 0;
+	let startAfter: string | null = null;
 	let latestWatermark = watermark;
 	let schemaVersionSeen = schemaVersion || null;
 	let lastResponse: SyncResponse = {};
@@ -160,7 +175,7 @@ async function fetchAndStoreItemPages({
 			priceList: args.priceList || null,
 			customer: args.customer || null,
 			watermark,
-			offset,
+			startAfter,
 			limit: ITEM_SYNC_PAGE_SIZE,
 			schemaVersion,
 		});
@@ -178,17 +193,15 @@ async function fetchAndStoreItemPages({
 		schemaVersionSeen =
 			response?.schema_version || schemaVersionSeen || null;
 
-		// Initial snapshots page by offset so duplicate item names cannot be skipped.
-		// Delta responses use a timestamp watermark and remain limited when truncated.
 		if (!response?.has_more || watermark) {
 			break;
 		}
 
-		const pageSize = extractChangedItems(response).length;
-		if (!pageSize) {
-			throw new Error("Item sync pagination offset did not advance");
+		const nextStartAfter = getLastItemCursor(response);
+		if (!nextStartAfter || nextStartAfter === startAfter) {
+			throw new Error("Item sync pagination cursor did not advance");
 		}
-		offset += pageSize;
+		startAfter = nextStartAfter;
 	}
 
 	return {
