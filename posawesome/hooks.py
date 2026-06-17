@@ -122,8 +122,26 @@ doc_events = {
         "after_insert": "posawesome.posawesome.api.customer.after_insert",
     },
     "Bin": {
-        "after_insert": "posawesome.posawesome.stock_realtime.publish_bin_stock_change",
-        "on_update": "posawesome.posawesome.stock_realtime.publish_bin_stock_change",
+        "after_insert": [
+            "posawesome.posawesome.stock_realtime.publish_bin_stock_change",
+            "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
+        ],
+        "on_update": [
+            "posawesome.posawesome.stock_realtime.publish_bin_stock_change",
+            "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
+        ],
+    },
+    "Stock Ledger Entry": {
+        "after_insert": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
+        "on_cancel": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
+    },
+    "Serial No": {
+        "after_insert": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
+        "on_update": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
+    },
+    "Batch": {
+        "after_insert": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
+        "on_update": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
     },
 }
 
@@ -321,6 +339,8 @@ fixtures = [
                     "POS Profile-posa_allow_reconcile_payments",
                     "POS Profile-column_break_uolvm",
                     "POS Profile-posa_allow_mpesa_reconcile_payments",
+                    "POS Profile-posa_enable_print_audit",
+                    "POS Profile-posa_default_printer_profile",
                     "POS Profile-posa_enable_camera_scanning",
                     "POS Profile-posa_camera_scan_type",
                     "POS Profile-posa_language",
@@ -389,3 +409,7 @@ fixtures = [
         ],
     },
 ]
+
+# Permissions for Custom DocTypes
+# --------------------------------
+permissions = []

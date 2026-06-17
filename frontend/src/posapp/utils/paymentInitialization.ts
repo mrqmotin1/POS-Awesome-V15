@@ -1,3 +1,5 @@
+import { toCompanyCurrency } from "./erpnextCurrency";
+
 export type PaymentLine = {
 	mode_of_payment?: string;
 	amount?: number;
@@ -11,6 +13,9 @@ export type PaymentInitDoc = {
 	payments?: PaymentLine[];
 	rounded_total?: number;
 	grand_total?: number;
+	currency?: string;
+	selected_currency?: string;
+	pos_profile?: { currency?: string };
 	conversion_rate?: number;
 	is_return?: number | boolean;
 	// Max cash refundable on a return (= amount paid on the original invoice).
@@ -147,7 +152,7 @@ export const initializePaymentLinesForDialog = (
 
 	preferredPayment.amount = normalizedTotal;
 	if (preferredPayment.base_amount !== undefined) {
-		preferredPayment.base_amount = normalizedTotal * conversionRate;
+		preferredPayment.base_amount = toCompanyCurrency(doc, normalizedTotal);
 	}
 
 	return preferredPayment;
@@ -176,7 +181,6 @@ export const rebalancePreferredPaymentLine = (
 
 	const precision = options.precision ?? 2;
 	const invoiceTotal = toNumber(doc.rounded_total || doc.grand_total);
-	const conversionRate = toNumber(doc.conversion_rate) || 1;
 	const coveredAmount =
 		toNumber(options.loyaltyAmount) +
 		toNumber(options.redeemedCustomerCredit) +
@@ -205,7 +209,7 @@ export const rebalancePreferredPaymentLine = (
 
 	if (preferredPayment.base_amount !== undefined) {
 		preferredPayment.base_amount = roundToPrecision(
-			normalizedAmount * conversionRate,
+			toCompanyCurrency(doc, normalizedAmount),
 			precision,
 		);
 	}

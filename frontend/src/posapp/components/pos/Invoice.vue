@@ -302,6 +302,11 @@ import { useInvoicePrinting } from "../../composables/pos/invoice/useInvoicePrin
 import { useInvoiceStock } from "../../composables/pos/invoice/useInvoiceStock";
 import { usePaymentPrinting } from "../../composables/pos/payments/usePaymentPrinting";
 import {
+	buildInvoicePdfUrl,
+	resolveInvoiceDoctype,
+	shouldDownloadPdfForShareError,
+} from "../../utils/invoiceSharing";
+import {
 	createInvoiceShortcutListeners,
 	registerInvoiceShortcutListener,
 	unregisterInvoiceShortcutListener,
@@ -377,6 +382,7 @@ export default {
 	},
 	data() {
 		return {
+			is_sharing: false,
 			pos_profile: "",
 			pos_opening_shift: "",
 			stock_settings: "",
@@ -571,6 +577,87 @@ export default {
 
 		handleExpandedUpdate(ids) {
 			this.expanded = Array.isArray(ids) ? ids.slice(-1) : [];
+		},
+
+		async share_last_invoice() {
+			if (this.is_sharing) {
+				return;
+			}
+			this.is_sharing = true;
+			this.eventBus.emit("show_message", {
+				title: __("Preparing invoice for sharing..."),
+				color: "info",
+			});
+			try {
+				const profile_name = this.pos_profile?.name;
+				if (!profile_name) {
+					throw new Error(__("POS Profile is not available."));
+				}
+				const doctype = resolveInvoiceDoctype(this.pos_profile);
+				const result = await frappe.call({
+					method: "frappe.client.get_list",
+					args: {
+						doctype,
+						filters: { pos_profile: profile_name, docstatus: 1 },
+						fields: ["name"],
+						order_by: "creation desc",
+						limit_page_length: 1,
+					},
+				});
+				if (!result.message || result.message.length === 0) {
+					throw new Error(__("No submitted invoices found for this profile."));
+				}
+				const invoice_name = result.message[0].name;
+				const format =
+					this.pos_profile.print_format_for_online || this.pos_profile.print_format || "Standard";
+				const pdf_url = buildInvoicePdfUrl({ doctype, name: invoice_name, format });
+				const response = await fetch(pdf_url, {
+					method: "GET",
+					headers: { "X-Frappe-CSRF-Token": frappe.csrf_token },
+				});
+				if (!response.ok) {
+					throw new Error(__("Failed to download invoice. Status: {0}", [response.status]));
+				}
+				const blob = await response.blob();
+				const file = new File([blob], `${invoice_name}.pdf`, { type: "application/pdf" });
+				const canShare =
+					navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+				if (canShare) {
+					try {
+						await navigator.share({
+							title: __("Sales Invoice"),
+							text: __("Invoice No: {0}", [invoice_name]),
+							files: [file],
+						});
+					} catch (shareError) {
+						// User dismissed the native share sheet: fall back to download.
+						if (shouldDownloadPdfForShareError(shareError)) {
+							this.download_pdf_blob(blob, invoice_name);
+						}
+					}
+				} else {
+					// Web Share API (with files) unavailable: download instead.
+					this.download_pdf_blob(blob, invoice_name);
+				}
+			} catch (error) {
+				this.eventBus.emit("show_message", {
+					title: error.message || __("Failed to share invoice"),
+					color: "error",
+				});
+			} finally {
+				this.is_sharing = false;
+			}
+		},
+
+		download_pdf_blob(blob, invoice_name) {
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `${invoice_name}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
 		},
 
 		applyReturnDiscountProration(options = {}) {
@@ -1057,6 +1144,7 @@ export default {
 			update_invoice_coupons: this.handleUpdateInvoiceCoupons,
 			set_all_items: this.handleSetAllItems,
 			load_return_invoice: this.handleLoadReturnInvoice,
+			share_last_invoice: this.share_last_invoice,
 			set_new_line: this.handleSetNewLine,
 			calc_uom: this.calc_uom,
 			recalculate_return_discount: (payload) => this.applyReturnDiscountProration(payload),

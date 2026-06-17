@@ -315,6 +315,7 @@ import {
 import { resolvePaymentPrintFormatDoctypes } from "../../utils/paymentPrintDoctype";
 import { resolvePaymentPrintFormat } from "../../utils/paymentPrintFormat";
 import { parseBooleanSetting } from "../../utils/stock";
+import { toCompanyCurrency } from "../../utils/erpnextCurrency";
 
 // Components
 import PaymentSummary from "./payments/PaymentSummary.vue";
@@ -1076,6 +1077,11 @@ const buildProfilePaymentLines = () => {
 		}));
 };
 
+const paymentCurrencyContext = (doc = invoice_doc.value) => ({
+	...(doc || {}),
+	pos_profile: pos_profile.value,
+});
+
 const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
 	if (!doc || !Array.isArray(doc.payments) || !doc.payments.length || is_credit_sale.value) {
 		return null;
@@ -1119,7 +1125,10 @@ const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
 
 	preferredPayment.amount = normalizedTotal;
 	if (preferredPayment.base_amount !== undefined) {
-		preferredPayment.base_amount = flt(normalizedTotal * conversionRate, currency_precision.value);
+		preferredPayment.base_amount = flt(
+			toCompanyCurrency(paymentCurrencyContext(doc), normalizedTotal),
+			currency_precision.value,
+		);
 	}
 
 	return preferredPayment;
@@ -1308,16 +1317,20 @@ const handlePaymentAmountChange = (payment, event) => {
 		payment.amount = -payment.amount;
 	}
 	if (payment.base_amount !== undefined) {
-		const conversion_rate = invoice_doc.value.conversion_rate || 1;
-		payment.base_amount = flt(payment.amount * conversion_rate, currency_precision.value);
+		payment.base_amount = flt(
+			toCompanyCurrency(paymentCurrencyContext(), payment.amount),
+			currency_precision.value,
+		);
 	}
 };
 
 const setPaymentToDenomination = (payment, amount) => {
 	payment.amount = amount;
 	if (payment.base_amount !== undefined) {
-		const conversion_rate = invoice_doc.value.conversion_rate || 1;
-		payment.base_amount = flt(amount * conversion_rate, currency_precision.value);
+		payment.base_amount = flt(
+			toCompanyCurrency(paymentCurrencyContext(), amount),
+			currency_precision.value,
+		);
 	}
 	last_payment_change_was_cash.value = isCashLikePayment(payment);
 };
@@ -1762,12 +1775,8 @@ watch(loyalty_amount, (value) => {
 		invoice_doc.value.redeem_loyalty_points = 1;
 
 		let baseAmount = amount;
-		const docCurrency = invoice_doc.value.currency;
-		const baseCurrency = pos_profile.value.currency;
 
-		if (docCurrency && baseCurrency && docCurrency !== baseCurrency) {
-			baseAmount = amount * (invoice_doc.value.conversion_rate || 1);
-		}
+		baseAmount = toCompanyCurrency(paymentCurrencyContext(), amount);
 
 		invoice_doc.value.loyalty_points = parseInt(
 			baseAmount / (customer_info.value.conversion_factor || 1),
@@ -1799,7 +1808,6 @@ watch(is_credit_sale, (newVal) => {
 	if (!invoice_doc.value || !Array.isArray(invoice_doc.value.payments)) return;
 
 	const doc = invoice_doc.value;
-	const conversionRate = doc.conversion_rate || 1;
 
 	// Always clear all payment methods first to prevent stale paid amounts.
 	doc.payments.forEach((payment) => {
@@ -1819,7 +1827,10 @@ watch(is_credit_sale, (newVal) => {
 		if (defaultPayment) {
 			defaultPayment.amount = amount;
 			if (defaultPayment.base_amount !== undefined) {
-				defaultPayment.base_amount = flt(amount * conversionRate, currency_precision.value);
+				defaultPayment.base_amount = flt(
+					toCompanyCurrency(paymentCurrencyContext(doc), amount),
+					currency_precision.value,
+				);
 			}
 		}
 	}
