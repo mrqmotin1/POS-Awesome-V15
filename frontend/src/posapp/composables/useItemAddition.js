@@ -2,6 +2,7 @@ import { nextTick } from "vue";
 import _ from "lodash";
 import { useBundles } from "./useBundles.js";
 import { withPerf } from "../utils/perf.js";
+import { parseBooleanSetting } from "../utils/stock.js";
 
 /* global frappe, __ */
 
@@ -124,9 +125,8 @@ export function useItemAddition() {
 	const addItem = withPerf("pos:add-item", async function addItemMeasured(item, context) {
 		const blockSale = context.pos_profile?.posa_block_sale_beyond_available_qty;
 		const allowNegativeStock =
-			item.allow_negative_stock === 1 ||
-			item.allow_negative_stock === true ||
-			item.allow_negative_stock === "1";
+			parseBooleanSetting(context.stock_settings?.allow_negative_stock) ||
+			parseBooleanSetting(item?.allow_negative_stock);
 
 		if (item.is_stock_item && item.actual_qty <= 0 && !allowNegativeStock) {
 			context.eventBus.emit("show_message", {
