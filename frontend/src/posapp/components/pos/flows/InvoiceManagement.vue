@@ -1447,6 +1447,7 @@ import {
 } from "../../../plugins/print";
 import { printDocumentViaQz } from "../../../services/qzTray";
 import { isOffline } from "../../../../offline/index";
+import { buildInvoicePdfUrl, shouldDownloadPdfForShareError } from "../../../utils/invoiceSharing";
 import DocumentSourceSelector from "../shared/DocumentSourceSelector.vue";
 import {
 	canDeleteDocumentSourceRecord,
@@ -1544,6 +1545,7 @@ export default {
 		returnDateTo: "",
 		unpaidInvoices: [],
 		historyInvoices: [],
+		isSharingInvoice: false,
 		draftRecordsBySource: {
 			invoice: [],
 			order: [],
@@ -2700,12 +2702,14 @@ export default {
 			if (printWindow) watchPrintWindow(printWindow, printOptions);
 		},
 		async shareInvoice(invoice) {
+			if (this.isSharingInvoice) return;
+			this.isSharingInvoice = true;
 			try {
 				const profile = this.posProfile;
 				if (!invoice?.name || !profile) return;
 				const doctype = invoice.doctype || this.currentInvoiceDoctype;
 				const printFormat = profile.print_format_for_online || profile.print_format || "Standard";
-				const pdf_url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent(doctype)}&name=${encodeURIComponent(invoice.name)}&format=${encodeURIComponent(printFormat)}&no_letterhead=0`;
+				const pdf_url = buildInvoicePdfUrl({ doctype, name: invoice.name, format: printFormat });
 				const response = await fetch(pdf_url, {
 					headers: { "X-Frappe-CSRF-Token": frappe.csrf_token },
 				});
@@ -2720,7 +2724,7 @@ export default {
 							files: [file],
 						});
 					} catch (shareError) {
-						if (shareError.name !== "AbortError") {
+						if (shouldDownloadPdfForShareError(shareError)) {
 							this.downloadInvoicePdf(blob, invoice.name);
 						}
 					}
@@ -2732,6 +2736,8 @@ export default {
 					title: error.message || __("Failed to share invoice"),
 					color: "error",
 				});
+			} finally {
+				this.isSharingInvoice = false;
 			}
 		},
 		downloadInvoicePdf(blob, name) {

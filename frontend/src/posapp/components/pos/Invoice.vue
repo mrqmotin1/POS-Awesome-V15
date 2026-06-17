@@ -303,6 +303,11 @@ import { useInvoicePrinting } from "../../composables/pos/invoice/useInvoicePrin
 import { useInvoiceStock } from "../../composables/pos/invoice/useInvoiceStock";
 import { usePaymentPrinting } from "../../composables/pos/payments/usePaymentPrinting";
 import {
+	buildInvoicePdfUrl,
+	resolveInvoiceDoctype,
+	shouldDownloadPdfForShareError,
+} from "../../utils/invoiceSharing";
+import {
 	createInvoiceShortcutListeners,
 	registerInvoiceShortcutListener,
 	unregisterInvoiceShortcutListener,
@@ -589,10 +594,11 @@ export default {
 				if (!profile_name) {
 					throw new Error(__("POS Profile is not available."));
 				}
+				const doctype = resolveInvoiceDoctype(this.pos_profile);
 				const result = await frappe.call({
 					method: "frappe.client.get_list",
 					args: {
-						doctype: "Sales Invoice",
+						doctype,
 						filters: { pos_profile: profile_name, docstatus: 1 },
 						fields: ["name"],
 						order_by: "creation desc",
@@ -605,7 +611,7 @@ export default {
 				const invoice_name = result.message[0].name;
 				const format =
 					this.pos_profile.print_format_for_online || this.pos_profile.print_format || "Standard";
-				const pdf_url = `/api/method/frappe.utils.print_format.download_pdf?doctype=Sales%20Invoice&name=${encodeURIComponent(invoice_name)}&format=${encodeURIComponent(format)}&no_letterhead=0`;
+				const pdf_url = buildInvoicePdfUrl({ doctype, name: invoice_name, format });
 				const response = await fetch(pdf_url, {
 					method: "GET",
 					headers: { "X-Frappe-CSRF-Token": frappe.csrf_token },
@@ -626,7 +632,7 @@ export default {
 						});
 					} catch (shareError) {
 						// User dismissed the native share sheet: fall back to download.
-						if (shareError.name !== "AbortError") {
+						if (shouldDownloadPdfForShareError(shareError)) {
 							this.download_pdf_blob(blob, invoice_name);
 						}
 					}
