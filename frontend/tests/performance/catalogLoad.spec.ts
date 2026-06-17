@@ -56,6 +56,12 @@ describe("catalog load performance", () => {
 				collector.add(result);
 				expect(loaded.length).toBe(items.length);
 				assertUnderThreshold(`load ${size} items`, result.durationMs, THRESHOLDS[size].load);
+				if (result.memoryMB !== undefined) {
+					expect(
+						result.memoryMB,
+						`load ${size} items delta memory ${result.memoryMB.toFixed(1)}MB > 200MB`,
+					).toBeLessThan(200);
+				}
 			}, TEST_TIMEOUTS[size]);
 
 			it(`searches item_code from ${(size / 1000).toFixed(0)}K catalog within time budget`, async () => {
