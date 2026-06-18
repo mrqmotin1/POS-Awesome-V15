@@ -236,7 +236,8 @@ export function silentPrint(url, options = {}) {
 
 
 //for raw silent print using QZ Tray #################
-export function rawSilentPrint(doc, print_format) {
+export function rawSilentPrint(doc, print_format, copies = 1) {
+    copies = Math.max(1, parseInt(copies, 10) || 1);
     // 1. Fetch the Raw Content from Server
     frappe.call({
         method: 'frappe.www.printview.get_html_and_style',
@@ -272,13 +273,15 @@ export function rawSilentPrint(doc, print_format) {
                     //     data: rawContent
                     // }];
 
-					var data = [ 
-						'\x10' + '\x14' + '\x01' + '\x00' + '\x05',             // Line break after top image
-						rawContent,
-									
-					];
+					var data = [];
+					for (let i = 0; i < copies; i++) {
+						data.push(
+							'\x10' + '\x14' + '\x01' + '\x00' + '\x05',             // Line break after top image
+							rawContent,
+						);
+					}
 
-                    await qz.print(config, data);              
+                    await qz.print(config, data);
 
                 } catch (err) {
                     console.error("QZ Error:", err);

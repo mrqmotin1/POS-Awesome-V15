@@ -1545,6 +1545,7 @@ export default {
 		}
 	},
 	load_print_page(invoice_doc=null, invoice_name) {
+		const copies = Math.max(1, parseInt(this.pos_profile.custom_draft_print_copies, 10) || 1);
 		const print_format = this.pos_profile.print_format_for_online || this.pos_profile.print_format;
 		const letter_head = this.pos_profile.letter_head || 0;
 		const doctype = this.pos_profile.create_pos_invoice_instead_of_sales_invoice
@@ -1564,20 +1565,24 @@ export default {
 			console.log("Generated print URL:", invoice_name, print_format);
 		if(this.pos_profile.custom_enable_raw_silent_print) {
 				console.log("Using custom raw silent print for invoice:", this.invoice_name);
-				rawSilentPrint(invoice_doc, print_format); 				
+				rawSilentPrint(invoice_doc, print_format, copies);
 			}
 		else if (this.pos_profile.posa_silent_print) {
-			silentPrint(url, { allowOfflineFallback: isOffline() });
+			for (let i = 0; i < copies; i++) {
+				silentPrint(url, { allowOfflineFallback: isOffline() });
+			}
 		}
 		 else {
-			const printWindow = window.open(url, "Print");
-			printWindow.addEventListener(
-				"load",
-				function () {
-					printWindow.print();
-				},
-				{ once: true },
-			);
+			for (let i = 0; i < copies; i++) {
+				const printWindow = window.open(url, "Print_" + i);
+				printWindow.addEventListener(
+					"load",
+					function () {
+						printWindow.print();
+					},
+					{ once: true },
+				);
+			}
 		}
 	},
 
