@@ -310,10 +310,12 @@ import {
 	initializePaymentLinesForDialog,
 	rebalancePreferredPaymentLine,
 	resolvePreferredPaymentLine,
+	resolveReturnDefaultAmount,
 } from "../../utils/paymentInitialization";
 import { resolvePaymentPrintFormatDoctypes } from "../../utils/paymentPrintDoctype";
 import { resolvePaymentPrintFormat } from "../../utils/paymentPrintFormat";
 import { parseBooleanSetting } from "../../utils/stock";
+import { toCompanyCurrency } from "../../utils/erpnextCurrency";
 
 // Components
 import PaymentSummary from "./payments/PaymentSummary.vue";
@@ -1075,8 +1077,19 @@ const buildProfilePaymentLines = () => {
 		}));
 };
 
+const paymentCurrencyContext = (doc = invoice_doc.value) => ({
+	...(doc || {}),
+	pos_profile: pos_profile.value,
+});
+
 const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
-	if (!doc || !Array.isArray(doc.payments) || !doc.payments.length || is_credit_sale.value) {
+	if (
+		!doc ||
+		!Array.isArray(doc.payments) ||
+		!doc.payments.length ||
+		is_credit_sale.value ||
+		is_credit_return.value
+	) {
 		return null;
 	}
 
@@ -1102,7 +1115,9 @@ const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
 	}
 
 	const total = netInvoiceSettlementAmount.value;
-	const normalizedTotal = doc.is_return ? -Math.abs(total) : Math.abs(total);
+	// For returns, cap the auto-filled refund at what was paid on the original
+	// invoice (0 for an unpaid/credit invoice → recorded as a credit note).
+	const normalizedTotal = resolveReturnDefaultAmount(doc, total);
 	const conversionRate = flt(doc.conversion_rate || 1, currency_precision.value);
 
 	payments.forEach((payment) => {
@@ -1116,7 +1131,10 @@ const syncPreferredPaymentToCurrentTotal = (doc = invoice_doc.value) => {
 
 	preferredPayment.amount = normalizedTotal;
 	if (preferredPayment.base_amount !== undefined) {
-		preferredPayment.base_amount = flt(normalizedTotal * conversionRate, currency_precision.value);
+		preferredPayment.base_amount = flt(
+			toCompanyCurrency(paymentCurrencyContext(doc), normalizedTotal),
+			currency_precision.value,
+		);
 	}
 
 	return preferredPayment;
@@ -1182,6 +1200,20 @@ const ensurePaymentLinesInitialized = (doc = invoice_doc.value) => {
 	// For returns, always show all profile payment methods so user can split refund
 	if (doc.is_return) {
 		mergeProfilePaymentsIntoReturn(doc);
+		// Decide whether this return should default to a credit note (no cash)
+		// based on how much was actually paid on the original invoice.
+		applyReturnCreditDefault(doc);
+		if (is_credit_return.value) {
+			// Credit return: keep every payment row at 0 so it is recorded as a
+			// credit note that reduces the customer's balance (no cash refund).
+			doc.payments.forEach((payment) => {
+				payment.amount = 0;
+				if (payment.base_amount !== undefined) {
+					payment.base_amount = 0;
+				}
+			});
+			return null;
+		}
 	}
 
 	const initializedPayment = initializePaymentLinesForDialog(
@@ -1197,6 +1229,26 @@ const ensurePaymentLinesInitialized = (doc = invoice_doc.value) => {
 	syncPreferredPaymentToCurrentTotal(doc);
 
 	return initializedPayment;
+};
+
+// Default a return to "Store as Credit?" (is_credit_return) when the original
+// invoice was not fully paid. For an unpaid (credit) invoice this avoids paying
+// out cash that was never collected and instead reduces the customer's balance,
+// while the toggle is visibly ON; a fully paid invoice keeps the normal cash
+// refund. The cap comes from posa_refundable_amount (= amount paid on the
+// original) set when the return is loaded; if unknown we leave behaviour as is.
+const applyReturnCreditDefault = (doc) => {
+	if (!doc || !doc.is_return) {
+		return;
+	}
+	const refundable = doc.posa_refundable_amount;
+	if (refundable === undefined || refundable === null) {
+		return;
+	}
+	const returnTotal = Math.abs(flt(doc.rounded_total || doc.grand_total, currency_precision.value));
+	const shouldCredit = flt(refundable, currency_precision.value) < returnTotal - 0.0001;
+	is_credit_return.value = shouldCredit;
+	is_cashback.value = !shouldCredit;
 };
 
 const restorePaymentLinesAfterFailedSubmit = () => {
@@ -1305,16 +1357,20 @@ const handlePaymentAmountChange = (payment, event) => {
 		payment.amount = -payment.amount;
 	}
 	if (payment.base_amount !== undefined) {
-		const conversion_rate = invoice_doc.value.conversion_rate || 1;
-		payment.base_amount = flt(payment.amount * conversion_rate, currency_precision.value);
+		payment.base_amount = flt(
+			toCompanyCurrency(paymentCurrencyContext(), payment.amount),
+			currency_precision.value,
+		);
 	}
 };
 
 const setPaymentToDenomination = (payment, amount) => {
 	payment.amount = amount;
 	if (payment.base_amount !== undefined) {
-		const conversion_rate = invoice_doc.value.conversion_rate || 1;
-		payment.base_amount = flt(amount * conversion_rate, currency_precision.value);
+		payment.base_amount = flt(
+			toCompanyCurrency(paymentCurrencyContext(), amount),
+			currency_precision.value,
+		);
 	}
 	last_payment_change_was_cash.value = isCashLikePayment(payment);
 };
@@ -1759,12 +1815,8 @@ watch(loyalty_amount, (value) => {
 		invoice_doc.value.redeem_loyalty_points = 1;
 
 		let baseAmount = amount;
-		const docCurrency = invoice_doc.value.currency;
-		const baseCurrency = pos_profile.value.currency;
 
-		if (docCurrency && baseCurrency && docCurrency !== baseCurrency) {
-			baseAmount = amount * (invoice_doc.value.conversion_rate || 1);
-		}
+		baseAmount = toCompanyCurrency(paymentCurrencyContext(), amount);
 
 		invoice_doc.value.loyalty_points = parseInt(
 			baseAmount / (customer_info.value.conversion_factor || 1),
@@ -1796,7 +1848,6 @@ watch(is_credit_sale, (newVal) => {
 	if (!invoice_doc.value || !Array.isArray(invoice_doc.value.payments)) return;
 
 	const doc = invoice_doc.value;
-	const conversionRate = doc.conversion_rate || 1;
 
 	// Always clear all payment methods first to prevent stale paid amounts.
 	doc.payments.forEach((payment) => {
@@ -1816,7 +1867,10 @@ watch(is_credit_sale, (newVal) => {
 		if (defaultPayment) {
 			defaultPayment.amount = amount;
 			if (defaultPayment.base_amount !== undefined) {
-				defaultPayment.base_amount = flt(amount * conversionRate, currency_precision.value);
+				defaultPayment.base_amount = flt(
+					toCompanyCurrency(paymentCurrencyContext(doc), amount),
+					currency_precision.value,
+				);
 			}
 		}
 	}
@@ -1928,7 +1982,8 @@ onMounted(() => {
 
 			if (doc.is_return) {
 				is_return.value = true;
-				is_credit_return.value = false;
+				// is_credit_return is decided inside ensurePaymentLinesInitialized
+				// from the original invoice's paid amount; don't override it here.
 			} else if (initializedPayment) {
 				is_credit_return.value = false;
 			}

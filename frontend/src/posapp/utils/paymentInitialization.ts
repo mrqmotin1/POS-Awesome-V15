@@ -1,3 +1,5 @@
+import { toCompanyCurrency } from "./erpnextCurrency";
+
 export type PaymentLine = {
 	mode_of_payment?: string;
 	amount?: number;
@@ -11,8 +13,14 @@ export type PaymentInitDoc = {
 	payments?: PaymentLine[];
 	rounded_total?: number;
 	grand_total?: number;
+	currency?: string;
+	selected_currency?: string;
+	pos_profile?: { currency?: string };
 	conversion_rate?: number;
 	is_return?: number | boolean;
+	// Max cash refundable on a return (= amount paid on the original invoice).
+	// Undefined means "no cap known" → fall back to the full return total.
+	posa_refundable_amount?: number;
 };
 
 export type PreferredPaymentRebalanceOptions = {
@@ -39,6 +47,31 @@ const hasMeaningfulAmount = (
 ): boolean => {
 	const epsilon = Math.pow(10, -(Math.max(precision, 0) + 1));
 	return Math.abs(toNumber(payment?.amount)) > epsilon;
+};
+
+/**
+ * Default payment amount to pre-fill for a document.
+ *
+ * For normal invoices this is the positive grand total. For returns it is the
+ * negative grand total, BUT capped at how much the customer actually paid on
+ * the original invoice (`posa_refundable_amount`). For a return of an unpaid
+ * (credit) invoice the cap is 0, so nothing is refunded as cash and the return
+ * is recorded as a credit note that reduces the customer's outstanding balance.
+ * When the cap is unknown (undefined) we fall back to the full return total to
+ * preserve the previous behaviour for paid invoices.
+ */
+export const resolveReturnDefaultAmount = (
+	doc: PaymentInitDoc | null | undefined,
+	total: number,
+): number => {
+	if (!doc?.is_return) {
+		return Math.abs(total);
+	}
+	const refundable = doc.posa_refundable_amount;
+	if (refundable === undefined || refundable === null) {
+		return -Math.abs(total);
+	}
+	return -Math.min(Math.abs(total), Math.max(0, toNumber(refundable)));
 };
 
 export const resolvePreferredPaymentLine = (
@@ -86,8 +119,7 @@ export const initializePaymentLinesForDialog = (
 	}
 
 	const total = toNumber(doc.rounded_total || doc.grand_total);
-	const normalizedTotal =
-		doc.is_return ? -Math.abs(total) : Math.abs(total);
+	const normalizedTotal = resolveReturnDefaultAmount(doc, total);
 	const conversionRate = toNumber(doc.conversion_rate) || 1;
 	const existingAmounts = payments.some((payment) =>
 		hasMeaningfulAmount(payment, precision),
@@ -120,7 +152,7 @@ export const initializePaymentLinesForDialog = (
 
 	preferredPayment.amount = normalizedTotal;
 	if (preferredPayment.base_amount !== undefined) {
-		preferredPayment.base_amount = normalizedTotal * conversionRate;
+		preferredPayment.base_amount = toCompanyCurrency(doc, normalizedTotal);
 	}
 
 	return preferredPayment;
@@ -149,7 +181,6 @@ export const rebalancePreferredPaymentLine = (
 
 	const precision = options.precision ?? 2;
 	const invoiceTotal = toNumber(doc.rounded_total || doc.grand_total);
-	const conversionRate = toNumber(doc.conversion_rate) || 1;
 	const coveredAmount =
 		toNumber(options.loyaltyAmount) +
 		toNumber(options.redeemedCustomerCredit) +
@@ -164,6 +195,11 @@ export const rebalancePreferredPaymentLine = (
 	let nextAmount = invoiceTotal - coveredAmount - otherPaymentsTotal;
 	if (doc.is_return) {
 		nextAmount = -Math.abs(nextAmount);
+		// Never auto-refund more cash than was paid on the original invoice.
+		const refundable = doc.posa_refundable_amount;
+		if (refundable !== undefined && refundable !== null) {
+			nextAmount = Math.max(nextAmount, -Math.max(0, toNumber(refundable)));
+		}
 	} else {
 		nextAmount = Math.max(nextAmount, 0);
 	}
@@ -173,7 +209,7 @@ export const rebalancePreferredPaymentLine = (
 
 	if (preferredPayment.base_amount !== undefined) {
 		preferredPayment.base_amount = roundToPrecision(
-			normalizedAmount * conversionRate,
+			toCompanyCurrency(doc, normalizedAmount),
 			precision,
 		);
 	}
