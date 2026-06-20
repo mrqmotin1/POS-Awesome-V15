@@ -14,21 +14,39 @@
  * **Payment confirmation dialog**
  * `confirmPaymentSubmission()` opens `confirm_payment_dialog` and returns a
  * `Promise<boolean>` that resolves when `resolvePaymentConfirmation(result)` is
- * called by the dialog component. The resolver is stored in a closure-local
- * variable and cleared after resolution to prevent double-resolve.
+ * called by the dialog component. Closing the dialog directly (for example with
+ * Escape) resolves the pending confirmation as `false`. The resolver is stored
+ * in a closure-local variable and cleared after resolution to prevent
+ * double-resolve.
  *
  * **Drag feedback**
  * `showDropFeedback(isDragging, target)` adds or removes the `drag-over` CSS
  * class from the `.modern-items-table` element inside `target`, providing visual
  * feedback during item drag-and-drop onto the cart.
  */
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 export function useInvoiceUI() {
 	const invoiceHeight = ref<string | null>(null);
 	const confirm_payment_dialog = ref(false);
 	let payment_confirmation_resolver: ((_result: boolean) => void) | null =
 		null;
+
+	const settlePaymentConfirmation = (result: boolean) => {
+		const resolver = payment_confirmation_resolver;
+		payment_confirmation_resolver = null;
+		resolver?.(result);
+	};
+
+	watch(
+		confirm_payment_dialog,
+		(isOpen) => {
+			if (!isOpen) {
+				settlePaymentConfirmation(false);
+			}
+		},
+		{ flush: "sync" },
+	);
 
 	const getViewportHeight = () => {
 		if (typeof window === "undefined") {
@@ -138,11 +156,8 @@ export function useInvoiceUI() {
 	};
 
 	const resolvePaymentConfirmation = (result: boolean) => {
+		settlePaymentConfirmation(result);
 		confirm_payment_dialog.value = false;
-		if (payment_confirmation_resolver) {
-			payment_confirmation_resolver(result);
-			payment_confirmation_resolver = null;
-		}
 	};
 
 	const resolveElement = (target: any): Element | null => {
