@@ -5,6 +5,10 @@ import { resolveBooleanSetting } from "./selectorSearch/resolveBooleanSetting";
 
 declare const flt: (_value: unknown) => number;
 
+// Safety threshold: above this catalog size, skip the O(1) barcode index Map
+// and fall back to O(n) linear scan to avoid OOM from the Map entries.
+const MAX_BARCODE_INDEX_SIZE = 100_000;
+
 type SearchDeps = {
 	getVM?: () => any;
 	scannerInput?: any;
@@ -301,9 +305,10 @@ export const useItemsSelectorSearch = ({
 		// First try synchronous barcode index lookup (supports ALL barcode formats: EAN, UPC, CODE-39, GS1, ISBN, etc.)
 		if (typeof ensureBarcodeIndex === "function" && typeof lookupItemByBarcode === "function") {
 			const index = ensureBarcodeIndex();
-			// Only populate index when empty to avoid O(n) rebuild on every Enter
-			if ((!index || index.size === 0) && typeof replaceBarcodeIndex === "function" && typeof getItems === "function") {
-				replaceBarcodeIndex(getItems());
+			const allItems = typeof getItems === "function" ? getItems() : [];
+			// Only populate index when empty and within the 100K safety threshold to avoid OOM
+			if ((!index || index.size === 0) && allItems && allItems.length <= MAX_BARCODE_INDEX_SIZE && typeof replaceBarcodeIndex === "function") {
+				replaceBarcodeIndex(allItems);
 			}
 			if (lookupItemByBarcode(trimmedQuery)) {
 				// Guard: auto-add watcher already triggered scan pipeline for this code
@@ -312,8 +317,8 @@ export const useItemsSelectorSearch = ({
 				}
 				if (typeof vm.onBarcodeScanned === "function") {
 					vm.onBarcodeScanned(trimmedQuery);
-				} else if (scannerInput.onBarcodeScanned) {
-					scannerInput.onBarcodeScanned(trimmedQuery);
+				} else if (scannerInput?.onBarcodeScanned) {
+					scannerInput?.onBarcodeScanned(trimmedQuery);
 				}
 				return;
 			}
@@ -323,8 +328,8 @@ export const useItemsSelectorSearch = ({
 		if (/^\d{12,}$/.test(trimmedQuery)) {
 			if (typeof vm.onBarcodeScanned === "function") {
 				vm.onBarcodeScanned(trimmedQuery);
-			} else if (scannerInput.onBarcodeScanned) {
-				scannerInput.onBarcodeScanned(trimmedQuery);
+			} else if (scannerInput?.onBarcodeScanned) {
+				scannerInput?.onBarcodeScanned(trimmedQuery);
 			}
 			return;
 		}

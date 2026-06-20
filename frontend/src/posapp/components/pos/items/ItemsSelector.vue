@@ -1183,6 +1183,22 @@ const onListScroll = (e) => handleListScroll(e);
 const findItemByBarcodeOnly = (code: string): any => {
 	const normalized = String(code).toLowerCase().trim();
 	if (!normalized || normalized.length < 3) return null;
+
+	if (typeof lookupItemByBarcode === "function") {
+		const indexedItem = lookupItemByBarcode(normalized);
+		if (indexedItem) {
+			const isBarcodeMatch =
+				(indexedItem.barcode && String(indexedItem.barcode).toLowerCase() === normalized) ||
+				(Array.isArray(indexedItem.item_barcode) && indexedItem.item_barcode.some(
+					(b: any) => b.barcode && String(b.barcode).toLowerCase() === normalized
+				)) ||
+				(Array.isArray(indexedItem.barcodes) && indexedItem.barcodes.some(
+					(bc: any) => String(bc).toLowerCase() === normalized
+				));
+			if (isBarcodeMatch) return indexedItem;
+		}
+	}
+
 	return (items.value || []).find(item =>
 		(item.barcode && String(item.barcode).toLowerCase() === normalized) ||
 		(Array.isArray(item.item_barcode) && item.item_barcode.some(
