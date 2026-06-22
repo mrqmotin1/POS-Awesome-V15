@@ -155,7 +155,7 @@ class TestPosPaymentProcessing(unittest.TestCase):
             "posawesome.posawesome.api.payment_processing.utils",
             payment_processing_dir / "utils.py",
         )
-        _load_module(
+        cls.creation = _load_module(
             "posawesome.posawesome.api.payment_processing.creation",
             payment_processing_dir / "creation.py",
         )
@@ -171,6 +171,20 @@ class TestPosPaymentProcessing(unittest.TestCase):
             "posawesome.posawesome.api.payment_processing.reconciliation",
             payment_processing_dir / "reconciliation.py",
         )
+
+    def test_party_bank_account_uses_lazy_erpnext_compat_resolver(self):
+        resolved_helper = Mock(return_value="BANK-ACCOUNT-0001")
+
+        with patch.object(
+            self.creation,
+            "resolve_get_party_bank_account",
+            return_value=resolved_helper,
+        ) as resolver:
+            result = self.creation.get_party_bank_account("Customer", "CUST-0001")
+
+        resolver.assert_called_once_with()
+        resolved_helper.assert_called_once_with("Customer", "CUST-0001")
+        self.assertEqual(result, "BANK-ACCOUNT-0001")
 
     @patch("posawesome.posawesome.api.payment_processing.processor.create_payment_entry")
     @patch("posawesome.posawesome.api.payment_processing.processor.frappe")
