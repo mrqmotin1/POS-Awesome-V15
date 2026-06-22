@@ -49,6 +49,11 @@ STATE_POST_SUBMIT_DONE = "POST_SUBMIT_DONE"
 STATE_FAILED = "FAILED"
 FINAL_LEDGER_STATES = {STATE_SUBMITTED, STATE_POST_SUBMIT_DONE}
 
+RETURN_OUTSTANDING_MESSAGE_MARKERS = (
+    "Updating the outstanding to this invoice.",
+    "Update Outstanding for Self",
+)
+
 
 def _json_dumps(value):
     try:
@@ -768,6 +773,53 @@ def _normalize_return_payment_rows(invoice_doc, conversion_rate=1):
     _guard_return_cash_refund(invoice_doc)
 
 
+def _apply_return_outstanding_policy(invoice_doc):
+    """Match ERPNext's credit-note target before validation mutates the draft."""
+    if not invoice_doc.get("is_return") or not invoice_doc.get("return_against"):
+        return
+
+    if invoice_doc.get("is_pos") or invoice_doc.get("is_paid"):
+        return
+
+    against_voucher_outstanding = flt(
+        frappe.db.get_value(
+            invoice_doc.doctype,
+            invoice_doc.return_against,
+            "outstanding_amount",
+        )
+    )
+    return_total = abs(flt(invoice_doc.get("rounded_total")) or flt(invoice_doc.get("grand_total")))
+    invoice_doc.update_outstanding_for_self = cint(return_total > against_voucher_outstanding)
+
+
+def _is_return_outstanding_message(message):
+    if isinstance(message, dict):
+        text = message.get("message") or ""
+    else:
+        text = getattr(message, "message", "") or ""
+    return any(marker in str(text) for marker in RETURN_OUTSTANDING_MESSAGE_MARKERS)
+
+
+def _run_without_return_outstanding_prompts(invoice_doc, operation):
+    """Remove only ERPNext's expected linked-credit-note info dialogs."""
+    if not invoice_doc.get("is_return") or not invoice_doc.get("return_against"):
+        return operation()
+
+    local = getattr(frappe, "local", None)
+    message_log = getattr(local, "message_log", None)
+    start = len(message_log) if isinstance(message_log, list) else None
+
+    try:
+        return operation()
+    finally:
+        if start is not None:
+            local.message_log = message_log[:start] + [
+                message
+                for message in message_log[start:]
+                if not _is_return_outstanding_message(message)
+            ]
+
+
 def _guard_return_cash_refund(invoice_doc):
     """Block a cash refund larger than what was actually paid on the original.
 
@@ -1018,10 +1070,15 @@ def update_invoice(data):
 
     _normalize_return_payment_rows(invoice_doc, conversion_rate)
 
+    _apply_return_outstanding_policy(invoice_doc)
+
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True
     invoice_doc.docstatus = 0
-    invoice_doc = _save_draft_with_latest_timestamp(invoice_doc)
+    invoice_doc = _run_without_return_outstanding_prompts(
+        invoice_doc,
+        lambda: _save_draft_with_latest_timestamp(invoice_doc),
+    )
 
     # Return both the invoice doc and the updated data
     response = invoice_doc.as_dict()
@@ -1185,6 +1242,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
 
     _apply_invoice_gift_card_settlement(invoice_doc, data)
     _normalize_return_payment_rows(invoice_doc, invoice_doc.get("conversion_rate") or 1)
+    _apply_return_outstanding_policy(invoice_doc)
 
     payments = [
         row
@@ -1205,7 +1263,10 @@ def submit_invoice(invoice, data, submit_in_background=False):
     invoice_doc.flags.ignore_permissions = True
     frappe.flags.ignore_account_permission = True
     invoice_doc.posa_is_printed = 1
-    invoice_doc = _save_draft_with_latest_timestamp(invoice_doc)
+    invoice_doc = _run_without_return_outstanding_prompts(
+        invoice_doc,
+        lambda: _save_draft_with_latest_timestamp(invoice_doc),
+    )
     _normalize_return_payment_rows(invoice_doc, invoice_doc.get("conversion_rate") or 1)
 
     if data.get("due_date"):
@@ -1257,7 +1318,7 @@ def submit_invoice(invoice, data, submit_in_background=False):
             },
         )
     else:
-        invoice_doc.submit()
+        _run_without_return_outstanding_prompts(invoice_doc, invoice_doc.submit)
         if ledger_doc:
             _update_submission_ledger(
                 ledger_doc,
