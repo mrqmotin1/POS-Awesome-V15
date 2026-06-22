@@ -31,7 +31,7 @@
 							color="warning"
 							:prefix="currencySymbol(pos_profile.currency)"
 							:disabled="
-								!pos_profile.posa_allow_user_to_edit_additional_discount ||
+								!(pos_profile.posa_allow_user_to_edit_additional_discount || isManagerMode) ||
 								!!discount_percentage_offer_name
 							"
 							class="summary-field"
@@ -51,7 +51,7 @@
 							density="compact"
 							color="warning"
 							:disabled="
-								!pos_profile.posa_allow_user_to_edit_additional_discount ||
+								!(pos_profile.posa_allow_user_to_edit_additional_discount || isManagerMode) ||
 								!!discount_percentage_offer_name
 							"
 							class="summary-field"

@@ -20,3 +20,12 @@ export function initManagerMode() {
 export function setManagerMode(value) {
   isManagerMode.value = value
 }
+
+// Revert only temporary (borrowed) elevation; leave real manager-role users intact
+export function revertManagerElevation() {
+  if (isManagerMode.value && !isSessionUserManager.value) {
+    isManagerMode.value = false
+    return true
+  }
+  return false
+}

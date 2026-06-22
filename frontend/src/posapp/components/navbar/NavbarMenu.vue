@@ -391,36 +391,76 @@
 			</v-card-title>
 
 			<v-card-text>
-				<div class="text-body-2 mb-3">
-					{{ __("Only managers can continue") }}
-				</div>
+				<!-- Primary: barcode scan login -->
+				<template v-if="!usePasswordLogin">
+					<div class="text-body-2 mb-3">
+						{{ __("Scan manager barcode to continue") }}
+					</div>
 
-				<v-text-field
-					density="compact"
-					variant="outlined"
-					color="primary"
-					:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-					class="dark-field"
-					v-model="username"
-					label="Email or Username"
-					placeholder="jane@example.com"
-					prepend-inner-icon="mdi-account"
-				></v-text-field>
+					<v-text-field
+						ref="managerBarcodeField"
+						density="compact"
+						variant="outlined"
+						color="primary"
+						:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
+						class="dark-field"
+						v-model="managerBarcode"
+						:label="frappe._('Scan Barcode')"
+						type="password"
+						prepend-inner-icon="mdi-barcode-scan"
+						name="mgr-barcode"
+						autocomplete="new-password"
+						:loading="barcodeChecking"
+						autofocus
+						@keydown.enter.prevent="submitManagerBarcode"
+					></v-text-field>
+				</template>
 
-				<v-text-field
-					density="compact"
-					variant="outlined"
+				<!-- Secondary: username + password login -->
+				<template v-else>
+					<div class="text-body-2 mb-3">
+						{{ __("Only managers can continue") }}
+					</div>
+
+					<v-text-field
+						density="compact"
+						variant="outlined"
+						color="primary"
+						:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
+						class="dark-field"
+						v-model="username"
+						label="Email or Username"
+						placeholder="jane@example.com"
+						prepend-inner-icon="mdi-account"
+						name="mgr-user"
+						autocomplete="off"
+					></v-text-field>
+
+					<v-text-field
+						density="compact"
+						variant="outlined"
+						color="primary"
+						:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
+						class="dark-field"
+						v-model="password"
+						:label="frappe._('Password')"
+						placeholder="•••••"
+						type="password"
+						prepend-inner-icon="mdi-lock"
+						name="mgr-pass"
+						autocomplete="new-password"
+					></v-text-field>
+				</template>
+
+				<v-btn
+					variant="text"
+					size="small"
 					color="primary"
-					:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-					class="dark-field"
-					v-model="password"
-					:label="frappe._('Password')"
-					placeholder="•••••"
-					:type="showPassword ? 'text' : 'password'"
-					prepend-inner-icon="mdi-lock"
-					:append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-					@click:append-inner="togglePassword"
-				></v-text-field>
+					class="px-0"
+					@click="toggleManagerLoginMode"
+				>
+					{{ usePasswordLogin ? __("Use barcode scan") : __("Use username & password") }}
+				</v-btn>
 			</v-card-text>
 
 			<v-card-actions class="pa-4 pt-0">
@@ -428,6 +468,7 @@
 					{{ __("Cancel") }}
 				</v-btn>
 				<v-btn
+					v-if="usePasswordLogin"
 					color="primary"
 					:loading="changing"
 					@click="submitManagerLogin"
@@ -485,7 +526,9 @@ export default {
 			},
 			username: "",
 			password: "",
-			showPassword: false,
+			managerBarcode: "",
+			barcodeChecking: false,
+			usePasswordLogin: false,
 		};
 	},
 	mounted() {
@@ -684,18 +727,56 @@ export default {
 			this.notification.show = false;
 		},
 
-		togglePassword() {
-			this.showPassword = !this.showPassword
-		},
-
 		handleManagerLogin() {
 			if (this.isManagerMode) {
 				// If already in manager mode, log out
 				setManagerMode(false);
 				this.showNotification("Manager logged out", "info");
 			} else {
-				// Show login dialog
+				// Clear any previous credentials before showing dialog
+				this.username = "";
+				this.password = "";
+				this.managerBarcode = "";
+				this.usePasswordLogin = false;
 				this.showManagerLoginDialog = true;
+			}
+		},
+
+		toggleManagerLoginMode() {
+			this.usePasswordLogin = !this.usePasswordLogin;
+			this.username = "";
+			this.password = "";
+			this.managerBarcode = "";
+		},
+
+		async submitManagerBarcode() {
+			const barcode = (this.managerBarcode || "").trim();
+			if (!barcode) {
+				return;
+			}
+			this.barcodeChecking = true;
+			try {
+				const res = await frappe.call({
+					method: "mondayposhyper.pos.api.validate_manager_barcode",
+					args: { barcode },
+				});
+				if (res.message && res.message.success) {
+					this.showNotification(`Manager ${res.message.username} logged in...`, "success");
+					setManagerMode(true);
+					this.showManagerLoginDialog = false;
+					this.managerBarcode = "";
+				} else {
+					this.managerBarcode = "";
+					frappe.show_alert({
+						message: (res.message && res.message.error) || "Invalid barcode",
+						indicator: "red",
+					});
+				}
+			} catch (err) {
+				this.managerBarcode = "";
+				frappe.show_alert({ message: err.message || "Login failed", indicator: "red" });
+			} finally {
+				this.barcodeChecking = false;
 			}
 		},
 
@@ -719,6 +800,8 @@ export default {
 					this.showNotification(`Manager ${this.username} logged in...`, "success");
 					setManagerMode(true)
 					this.showManagerLoginDialog = false
+					this.username = ""
+					this.password = ""
 				} else {
 					frappe.show_alert({ message: res.message.error || "Invalid credentials", indicator: 'red' })
 				}

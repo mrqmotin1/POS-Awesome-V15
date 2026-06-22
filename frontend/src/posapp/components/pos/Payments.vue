@@ -812,6 +812,7 @@
 // Importing format mixin for currency and utility functions
 import format, { formatUtils } from "../../format";
 import { parseBooleanSetting } from "../../utils/stock.js";
+import { revertManagerElevation } from "../../utils/useManagerMode.js";
 import { getSmartTenderSuggestions } from "../../../utils/smartTender.js";
 import {
 	saveOfflineInvoice,
@@ -1582,6 +1583,16 @@ export default {
 		},
 
 		// Submit invoice to backend after all validations
+		revertBorrowedManager() {
+			// After a sale is submitted, drop temporary manager elevation so the
+			// cashier continues without manager rights. Real manager-role users stay.
+			if (revertManagerElevation()) {
+				this.eventBus.emit("show_message", {
+					title: __("Manager logged out"),
+					color: "info",
+				});
+			}
+		},
 		async submit_invoice(print) {
 			// For return invoices, ensure payments are negative one last time
 			if (this.invoice_doc.is_return) {
@@ -1638,6 +1649,7 @@ export default {
 					if (print) {
 						this.print_offline_invoice(this.invoice_doc);
 					}
+					this.revertBorrowedManager();
 					this.eventBus.emit("clear_invoice");
 					this.eventBus.emit("focus_item_search");
 					this.eventBus.emit("reset_posting_date");
@@ -1710,6 +1722,7 @@ export default {
 					timestamp: Date.now(),
 				});
 				this.addresses = [];
+				this.revertBorrowedManager();
 				this.eventBus.emit("clear_invoice");
 				this.eventBus.emit("focus_item_search");
 				this.eventBus.emit("reset_posting_date");

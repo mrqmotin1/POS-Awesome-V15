@@ -275,7 +275,7 @@
 						:autofocus="true"
 						type="number"
 						:disabled="
-							!pos_profile.posa_allow_user_to_edit_item_discount ||
+							!canEditItemDiscount ||
 							!!item.posa_is_replace ||
 							!!item.posa_offer_applied
 						"
@@ -310,7 +310,7 @@
 						:autofocus="true"
 						type="number"
 						:disabled="
-							!pos_profile.posa_allow_user_to_edit_item_discount ||
+							!canEditItemDiscount ||
 							!!item.posa_is_replace ||
 							!!item.posa_offer_applied
 						"
@@ -491,7 +491,7 @@
 												calcPrices(item, $event.target.value, $event),
 											]"
 											:disabled="
-												!pos_profile.posa_allow_user_to_edit_item_discount ||
+												!canEditItemDiscount ||
 												!!item.posa_is_replace ||
 												!!item.posa_offer_applied
 											"
@@ -521,7 +521,7 @@
 												calcPrices(item, $event.target.value, $event),
 											]"
 											:disabled="
-												!pos_profile.posa_allow_user_to_edit_item_discount ||
+												!canEditItemDiscount ||
 												!!item.posa_is_replace ||
 												!!item.posa_offer_applied
 											"
@@ -1147,6 +1147,10 @@ export default {
 		isRemoveDisabled (){
 			return !isManagerMode.value // Remember to use .value with refs in script
 		},
+		canEditItemDiscount (){
+			// Counter Manager can edit item discount even if POS Profile flag is off
+			return !!this.pos_profile?.posa_allow_user_to_edit_item_discount || isManagerMode.value
+		},
 	},
 	methods: {
 		getSerialOptions(item) {
@@ -1561,7 +1565,7 @@ export default {
 		},
 		openDiscountPercentEdit(item) {
 			if (
-				!this.pos_profile.posa_allow_user_to_edit_item_discount ||
+				!this.canEditItemDiscount ||
 				item.posa_is_replace ||
 				item.posa_offer_applied
 			) {
@@ -1595,7 +1599,7 @@ export default {
 		},
 		openDiscountAmountEdit(item) {
 			if (
-				!this.pos_profile.posa_allow_user_to_edit_item_discount ||
+				!this.canEditItemDiscount ||
 				item.posa_is_replace ||
 				item.posa_offer_applied
 			) {
