@@ -64,7 +64,9 @@ export function catalogThreshold(size: CatalogSize): CatalogThresholds {
 	if (envOverride) {
 		try {
 			return JSON.parse(envOverride);
-		} catch {}
+		} catch {
+			// Ignore malformed overrides and retain the checked-in thresholds.
+		}
 	}
 	return t;
 }

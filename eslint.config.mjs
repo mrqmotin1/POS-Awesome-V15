@@ -8,6 +8,9 @@ import vueParser from "vue-eslint-parser";
 export default [
   {
     ignores: [
+      ".codex-reference/**",
+      ".worktrees/**",
+      "__reference_erpnext/**",
       "frontend/src/libs/**",
       "frontend/src/posawesome.bundle.js",
       "frontend/src/posawesome.bundle.*.js",
@@ -85,6 +88,14 @@ export default [
       globals: {
         ...globals.node,
         ...globals.vitest,
+      },
+    },
+  },
+  {
+    files: ["frontend/tests/performance/k6-load-test.js"],
+    languageOptions: {
+      globals: {
+        __ENV: "readonly",
       },
     },
   },

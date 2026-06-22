@@ -22,7 +22,9 @@ function getMemoryMB(): number | undefined {
 		if (typeof process !== "undefined" && process.memoryUsage) {
 			return process.memoryUsage().heapUsed / 1_048_576;
 		}
-	} catch {}
+	} catch {
+		// Memory metrics are optional and unavailable in some runtimes.
+	}
 	return undefined;
 }
 

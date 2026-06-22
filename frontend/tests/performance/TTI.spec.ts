@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const POS_PATH = process.env.POSA_SMOKE_PATH || "/app/posapp";
-const SKIP_TESTS = Boolean(process.env.CI) && !Boolean(process.env.POSA_SMOKE_BASE_URL);
+const SKIP_TESTS = Boolean(process.env.CI) && !process.env.POSA_SMOKE_BASE_URL;
 
 async function loginIfCredentialsProvided(page: Page) {
 	const username = process.env.POSA_SMOKE_USER;
