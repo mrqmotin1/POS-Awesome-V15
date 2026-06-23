@@ -49,25 +49,29 @@ frappe.ui.form.on("POS Profile", {
 			};
 		});
 
-		frm.set_query("account", "posa_allowed_expense_accounts", function (doc) {
-			return {
-				filters: {
-					company: doc.company,
-					is_group: 0,
-					root_type: "Expense",
-				},
-			};
-		});
+		if (frm.fields_dict["posa_allowed_expense_accounts"]) {
+			frm.set_query("account", "posa_allowed_expense_accounts", function (doc) {
+				return {
+					filters: {
+						company: doc.company,
+						is_group: 0,
+						root_type: "Expense",
+					},
+				};
+			});
+		}
 
-		frm.set_query("account", "posa_allowed_source_accounts", function (doc) {
-			return {
-				filters: {
-					company: doc.company,
-					is_group: 0,
-					account_type: "Cash",
-				},
-			};
-		});
+		if (frm.fields_dict["posa_allowed_source_accounts"]) {
+			frm.set_query("account", "posa_allowed_source_accounts", function (doc) {
+				return {
+					filters: {
+						company: doc.company,
+						is_group: 0,
+						account_type: "Cash",
+					},
+				};
+			});
+		}
 
 		frappe.call({
 			method: "posawesome.posawesome.api.utilities.get_language_options",

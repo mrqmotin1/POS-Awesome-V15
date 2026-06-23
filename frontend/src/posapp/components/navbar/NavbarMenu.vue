@@ -556,14 +556,16 @@ export default {
 					tone: "info",
 					handler: "syncInvoices",
 				},
-				{
-					id: "manager-login",
-					label: this.isManagerMode ? __("Manager Logout") : __("Manager Login"),
-					subtitle: this.isManagerMode ? __("Exit manager mode") : __("Authenticate as manager"),
-					icon: this.isManagerMode ? "mdi-shield-off-outline" : "mdi-shield-account-outline",
-					tone: "warning",
-					handler: "managerLogin",
-				},
+				this.isSessionUserNotManager
+					? {
+							id: "manager-login",
+							label: this.isManagerMode ? __("Manager Logout") : __("Manager Login"),
+							subtitle: this.isManagerMode ? __("Exit manager mode") : __("Authenticate as manager"),
+							icon: this.isManagerMode ? "mdi-shield-off-outline" : "mdi-shield-account-outline",
+							tone: "warning",
+							handler: "managerLogin",
+						}
+					: null,
 				!this.posProfile?.posa_hide_closing_shift
 					? {
 							id: "close-shift",
@@ -640,6 +642,14 @@ export default {
 							tone: "info",
 							handler: "checkForUpdatesAction",
 							disabled: this.manualOffline || !this.networkOnline || !this.serverOnline,
+						},
+						{
+							id: "clear-cache",
+							label: __("Clear Cache"),
+							subtitle: __("Reset local cached data"),
+							icon: "mdi-broom",
+							tone: "neutral",
+							handler: "clearCacheAction",
 						},
 						{
 							id: "about",
