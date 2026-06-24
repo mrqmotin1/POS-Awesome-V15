@@ -216,6 +216,7 @@ export const useItemsSelectorSearch = ({
 			new_item.item_barcode.forEach((element) => {
 				if (search === element.barcode) {
 					new_item.uom = element.uom;
+					new_item.barcode = element.barcode;				
 					match = true;
 				}
 			});
@@ -232,6 +233,16 @@ export const useItemsSelectorSearch = ({
 		}
 		if (vm.flags && vm.flags.batch_no) {
 			new_item.to_set_batch_no = vm.flags.batch_no;
+		}
+
+		// Stamp the actually-scanned/typed code as the line barcode so the
+		// cart/receipt shows the scanned code (not item_barcode[0]). Skip when the
+		// code resolved to a serial/batch number, which is not an item barcode.
+		const isSerialOrBatchScan = Boolean(
+			vm.flags && (vm.flags.serial_no || vm.flags.batch_no),
+		);
+		if (match && !isSerialOrBatchScan && String(search || "").trim()) {
+			new_item.barcode = search;
 		}
 
 		if (match) {

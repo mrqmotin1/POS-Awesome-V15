@@ -961,8 +961,21 @@ def update_invoice(data):
 
     _deduplicate_free_items(invoice_doc)
 
+    # Preserve the scanned/typed barcode supplied by the POS so set_missing_values
+    # cannot replace it with the item's default barcode.
+    scanned_barcodes = {
+        d.get("posa_row_id"): d.get("barcode")
+        for d in invoice_doc.items
+        if d.get("posa_row_id") and d.get("barcode")
+    }
+
     # Set missing values first
     invoice_doc.set_missing_values()
+
+    for item in invoice_doc.items:
+        preserved = scanned_barcodes.get(item.get("posa_row_id"))
+        if preserved:
+            item.barcode = preserved
     if effective_price_list:
         invoice_doc.selling_price_list = effective_price_list
 

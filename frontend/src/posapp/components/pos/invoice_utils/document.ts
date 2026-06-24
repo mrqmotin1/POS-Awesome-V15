@@ -561,6 +561,7 @@ export function get_invoice_items(context: any) {
 			batch_no: item.batch_no,
 			posa_notes: item.posa_notes,
 			posa_delivery_date: itemDeliveryDate,
+			barcode: item.barcode || "",
 		};
 
 		if (requiresDeliveryDate && itemDeliveryDate) {
@@ -651,6 +652,7 @@ export function get_order_items(context: any) {
 			posa_notes: item.posa_notes,
 			posa_delivery_date: item.posa_delivery_date,
 			price_list_rate: item.price_list_rate,
+			barcode: item.barcode || "",
 		};
 		items_list.push(new_item);
 	});
