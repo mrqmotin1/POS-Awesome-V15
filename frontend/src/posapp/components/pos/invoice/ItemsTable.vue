@@ -30,6 +30,16 @@
 			:search="itemSearch"
 			:custom-filter="customItemFilter"
 		>
+			<template v-slot:header.qty="{ column }">
+				<span class="posa-cart-header-nudge posa-cart-header-nudge--qty">{{ column.title }}</span>
+			</template>
+			<template v-slot:header.rate="{ column }">
+				<span class="posa-cart-header-nudge posa-cart-header-nudge--rate">{{ column.title }}</span>
+			</template>
+			<template v-slot:header.amount="{ column }">
+				<span class="posa-cart-header-nudge posa-cart-header-nudge--amount">{{ column.title }}</span>
+			</template>
+
 			<template #no-data>
 				<div class="posa-cart-empty-state">
 					<div class="posa-cart-empty-state__icon-wrap">

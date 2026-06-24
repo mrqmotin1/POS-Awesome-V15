@@ -88,7 +88,7 @@
 			<!-- Quantity Column -->
 			<td v-else-if="column.key === 'qty'" class="text-center" :data-column-key="'qty'">
 				<div class="posa-cart-table__qty-counter" :class="{ 'rtl-layout': isRTL }">
-					<v-btn
+					<!-- <v-btn
 						:disabled="disableDecrement"
 						size="small"
 						variant="flat"
@@ -97,7 +97,7 @@
 						:aria-label="__('Decrease quantity')"
 					>
 						<v-icon size="small">mdi-minus</v-icon>
-					</v-btn>
+					</v-btn> -->
 					<div
 						v-if="!isEditingQty"
 						class="posa-cart-table__qty-display amount-value number-field-rtl"
@@ -130,7 +130,7 @@
 						type="number"
 						:disabled="disableInput"
 					></v-text-field>
-					<v-btn
+					<!-- <v-btn
 						:disabled="disableIncrement"
 						size="small"
 						variant="flat"
@@ -139,7 +139,7 @@
 						:aria-label="__('Increase quantity')"
 					>
 						<v-icon size="small">mdi-plus</v-icon>
-					</v-btn>
+					</v-btn> -->
 				</div>
 			</td>
 

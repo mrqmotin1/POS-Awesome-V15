@@ -199,6 +199,17 @@
 	box-sizing: border-box;
 }
 
+/* Per-column header label nudges to align headings over body values */
+.posa-cart-header-nudge--qty {
+	transform: translateX(8px);
+}
+.posa-cart-header-nudge--rate {
+	transform: translateX(8px);
+}
+.posa-cart-header-nudge--amount {
+	transform: translateX(-8px);
+}
+
 .posa-cart-table th:hover .v-data-table-header__content {
 	color: var(--pos-primary);
 	font-weight: 600;
@@ -254,7 +265,7 @@
 	justify-content: center;
 	gap: 6px;
 	padding: 4px;
-	min-width: 140px;
+	min-width: 60px;
 	max-width: 160px;
 	width: auto;
 	height: auto;
@@ -762,7 +773,7 @@
 
 /* Container-aware responsive adjustments */
 .posa-responsive-table-container.compact-view .posa-cart-table__qty-counter {
-	min-width: 110px;
+	min-width: 50px;
 	max-width: 140px;
 	gap: 4px;
 }
@@ -850,14 +861,14 @@
 		white-space: normal;
 		overflow: visible;
 		text-overflow: clip;
-		word-break: break-word;
+		word-break: no-break;
 	}
 
 	.posa-cart-table th .v-data-table-header__content {
 		white-space: normal;
 		overflow: visible;
 		text-overflow: clip;
-		word-break: break-word;
+		word-break: no-break;
 	}
 
 	.posa-cart-table__qty-counter {
