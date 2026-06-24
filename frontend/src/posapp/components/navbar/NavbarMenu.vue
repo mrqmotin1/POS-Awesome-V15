@@ -304,16 +304,11 @@
 				{{ __("Manager Login") }}
 			</v-card-title>
 
-			<v-tabs v-model="loginTab" color="primary" density="compact" class="px-4">
-				<v-tab :value="0" prepend-icon="mdi-barcode-scan">{{ __("Scan Card") }}</v-tab>
-				<v-tab :value="1" prepend-icon="mdi-lock">{{ __("Password") }}</v-tab>
-			</v-tabs>
-
 			<v-card-text class="pt-4">
-				<!-- Tab 0: Barcode scan -->
-				<div v-if="loginTab === 0">
+				<!-- Primary: barcode scan login -->
+				<template v-if="!usePasswordLogin">
 					<div class="text-body-2 mb-4 text-medium-emphasis">
-						{{ __("Scan your manager card or type the barcode and press Enter") }}
+						{{ __("Scan manager barcode to continue") }}
 					</div>
 					<v-text-field
 						ref="barcodeField"
@@ -324,15 +319,18 @@
 						class="dark-field"
 						v-model="barcodeInput"
 						:label="__('Barcode')"
+						type="password"
 						prepend-inner-icon="mdi-barcode-scan"
+						name="mgr-barcode"
+						autocomplete="new-password"
 						:loading="barcodeLoading"
 						autofocus
 						@keydown.enter.prevent="submitBarcodeLogin"
 					></v-text-field>
-				</div>
+				</template>
 
-				<!-- Tab 1: Username + password -->
-				<div v-else>
+				<!-- Secondary: username + password login -->
+				<template v-else>
 					<v-text-field
 						density="compact"
 						variant="outlined"
@@ -343,6 +341,8 @@
 						:label="__('Email or Username')"
 						placeholder="jane@example.com"
 						prepend-inner-icon="mdi-account"
+						name="mgr-user"
+						autocomplete="off"
 					></v-text-field>
 
 					<v-text-field
@@ -357,9 +357,22 @@
 						:type="showPassword ? 'text' : 'password'"
 						prepend-inner-icon="mdi-lock"
 						:append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+						name="mgr-pass"
+						autocomplete="new-password"
 						@click:append-inner="togglePassword"
+						@keydown.enter.prevent="submitManagerLogin"
 					></v-text-field>
-				</div>
+				</template>
+
+				<v-btn
+					variant="text"
+					size="small"
+					color="primary"
+					class="px-0 mt-1"
+					@click="toggleManagerLoginMode"
+				>
+					{{ usePasswordLogin ? __("Use barcode scan") : __("Use username & password") }}
+				</v-btn>
 			</v-card-text>
 
 			<v-card-actions class="pa-4 pt-0">
@@ -368,15 +381,7 @@
 				</v-btn>
 				<v-spacer />
 				<v-btn
-					v-if="loginTab === 0"
-					color="primary"
-					:loading="barcodeLoading"
-					@click="submitBarcodeLogin"
-				>
-					{{ __("Login") }}
-				</v-btn>
-				<v-btn
-					v-else
+					v-if="usePasswordLogin"
 					color="primary"
 					:loading="loading"
 					@click="submitManagerLogin"
@@ -430,7 +435,7 @@ export default {
 			activePanel: "main",
 			showLanguageDialog: false,
 			showManagerLoginDialog: false,
-			loginTab: 0,
+			usePasswordLogin: false,
 			barcodeInput: "",
 			barcodeLoading: false,
 			showPassword: false,
@@ -465,7 +470,7 @@ export default {
 		},
 		showManagerLoginDialog(val) {
 			if (val) {
-				this.loginTab = 0;
+				this.usePasswordLogin = false;
 				this.barcodeInput = "";
 				this.$nextTick(() => {
 					this.$refs.barcodeField && this.$refs.barcodeField.focus();
@@ -970,6 +975,18 @@ export default {
 			this.showPassword = !this.showPassword
 		},
 
+		toggleManagerLoginMode() {
+			this.usePasswordLogin = !this.usePasswordLogin;
+			this.username = "";
+			this.password = "";
+			this.barcodeInput = "";
+			if (!this.usePasswordLogin) {
+				this.$nextTick(() => {
+					this.$refs.barcodeField && this.$refs.barcodeField.focus();
+				});
+			}
+		},
+
 		handleManagerLogin() {
 			if (this.isManagerMode) {
 				console.log("Logging out of manager mode");
@@ -987,13 +1004,13 @@ export default {
 			this.barcodeLoading = true;
 			try {
 				const res = await frappe.call({
-					method: "posawesome.posawesome.api.validate_manager.validate_manager",
+					method: "mondayposhyper.pos.api.validate_manager_barcode",
 					args: { barcode: this.barcodeInput.trim() },
 				});
 				if (res.message.success) {
 					setManagerMode(true);
 					this.showNotification(
-						`Manager ${res.message.full_name} logged in`,
+						`Manager ${res.message.username} logged in`,
 						"success"
 					);
 					this.showManagerLoginDialog = false;

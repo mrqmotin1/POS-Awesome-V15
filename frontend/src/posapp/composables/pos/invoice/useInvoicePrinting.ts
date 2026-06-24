@@ -54,14 +54,20 @@ export function useInvoicePrinting(
 				throw new Error("Invoice could not be saved before printing");
 			}
 
-			await load_print_page({
+			const print_input = {
 				doc: saved_doc?.name
 					? saved_doc
 					: {
 							...(unref(invoice_doc) || {}),
 							name: invoice_name,
 					  },
-			});
+			};
+
+			// Print N copies for draft invoices only (custom_draft_print_copies).
+			const copies = Math.max(1, parseInt(profile?.custom_draft_print_copies, 10) || 1);
+			for (let i = 0; i < copies; i++) {
+				await load_print_page(print_input);
+			}
 		} catch (error) {
 			console.error("Failed to print draft invoice:", error);
 			toastStore.show({

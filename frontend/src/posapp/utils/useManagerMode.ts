@@ -23,5 +23,14 @@ export function setManagerMode(value: boolean): void {
   isManagerMode.value = value
 }
 
+// Revert only temporary (borrowed) elevation; leave real manager-role users intact
+export function revertManagerElevation(): boolean {
+  if (isManagerMode.value && !isSessionUserManager.value) {
+    isManagerMode.value = false
+    return true
+  }
+  return false
+}
+
 // Auto-initialize on module load — frappe.user_roles is available before any component mounts
 initManagerMode()

@@ -321,6 +321,7 @@ import { resolvePaymentPrintFormatDoctypes } from "../../utils/paymentPrintDocty
 import { resolvePaymentPrintFormat } from "../../utils/paymentPrintFormat";
 import { parseBooleanSetting } from "../../utils/stock";
 import { toCompanyCurrency } from "../../utils/erpnextCurrency";
+import { revertManagerElevation } from "../../utils/useManagerMode";
 
 // Components
 import PaymentSummary from "./payments/PaymentSummary.vue";
@@ -1049,10 +1050,22 @@ const back_to_invoice = () => {
 	queueSearchRefocusRecovery();
 };
 
+// After a sale is submitted, drop temporary manager elevation so the cashier
+// continues without manager rights. Real manager-role users stay.
+const revertBorrowedManager = () => {
+	if (revertManagerElevation() && eventBus && typeof eventBus.emit === "function") {
+		eventBus.emit("show_message", {
+			title: __("Manager logged out"),
+			color: "info",
+		});
+	}
+};
+
 const finishSubmissionNavigation = (clearInvoice = false) => {
 	const submittedType = invoiceType.value;
 	back_to_invoice();
 	if (clearInvoice) {
+		revertBorrowedManager();
 		addresses.value = [];
 		invoiceStore.clear();
 		invoiceStore.resetPostingDate();
