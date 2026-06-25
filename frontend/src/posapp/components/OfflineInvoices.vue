@@ -47,7 +47,7 @@
 						</div>
 						<div class="header-close-section">
 							<v-btn
-								icon="mdi-close"
+								icon
 								variant="text"
 								size="large"
 								color="error"
@@ -55,6 +55,7 @@
 								@click="dialog = false"
 								:aria-label="__('Close offline invoices dialog')"
 							>
+								<v-icon>mdi-close</v-icon>
 								<v-tooltip activator="parent" location="bottom">
 									{{ __("Close Dialog") }}
 								</v-tooltip>
