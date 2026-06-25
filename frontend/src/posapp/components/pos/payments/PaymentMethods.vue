@@ -187,7 +187,31 @@ const focusCardDigits = (mode_of_payment) => {
 	});
 };
 
-defineExpose({ focusCardDigits });
+const focusCardMissingDigits = () => {
+	const payments = Array.isArray(props.payments) ? props.payments : [];
+	const cardPayments = payments.filter(
+		(p) => p?.mode_of_payment && p.mode_of_payment.toLowerCase().includes("card"),
+	);
+	const index = cardPayments.findIndex(
+		(p) =>
+			Number(p.amount) > 0 &&
+			(!p.custom_card_last_4_digits ||
+				String(p.custom_card_last_4_digits).length !== 4),
+	);
+	if (index === -1) return false;
+	nextTick(() => {
+		const inputs = cardDigitsInputs.value;
+		const list = Array.isArray(inputs) ? inputs : [inputs];
+		const target = list[index];
+		if (target) {
+			const el = target.$el?.querySelector("input") || target.$el;
+			if (el) el.focus();
+		}
+	});
+	return true;
+};
+
+defineExpose({ focusCardDigits, focusCardMissingDigits });
 </script>
 
 <style scoped>

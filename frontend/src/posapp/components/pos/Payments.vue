@@ -1671,6 +1671,8 @@ const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {})
 		const isCardDigitsError = error?.message?.includes("last 4 digits");
 		if (!isCardDigitsError) {
 			restorePaymentLinesAfterFailedSubmit();
+		} else {
+			paymentMethodsRef.value?.focusCardMissingDigits?.();
 		}
 
 		if (error?.message) {
