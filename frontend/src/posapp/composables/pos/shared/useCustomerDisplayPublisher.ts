@@ -107,6 +107,9 @@ export function useCustomerDisplayPublisher({
 		const discount_magnitude = Math.abs(additional_discount);
 		const subtotal = gross_total - discount_magnitude + delivery_charges;
 		const total_amount = toFiniteOrNull(subtotal) ?? item_total;
+		const item_discount = Math.abs(toNumber(invoiceStore.discountTotal));
+		const discount_total = item_discount + discount_magnitude;
+		const gross_total_pre_discount = gross_total + item_discount;
 		const customer_name = getCustomerName(
 			invoiceStore.invoiceDoc,
 			customersStore.customerInfo,
@@ -123,6 +126,8 @@ export function useCustomerDisplayPublisher({
 			items,
 			total_qty,
 			total_amount,
+			gross_total: gross_total_pre_discount,
+			discount_total,
 			updated_at: new Date().toISOString(),
 		};
 	};
@@ -242,6 +247,7 @@ export function useCustomerDisplayPublisher({
 		() => [
 			invoiceStore.additionalDiscount,
 			invoiceStore.additionalDiscountPercentage,
+			invoiceStore.discountTotal,
 			invoiceStore.deliveryChargesRate,
 			invoiceStore.invoiceDoc?.is_return,
 		],

@@ -50,9 +50,25 @@
 			</table>
 		</div>
 
-		<footer class="display-footer">
-			<div class="display-total-label">{{ __("Total") }}</div>
-			<div class="display-total-value">{{ formatCurrency(totalAmount) }}</div>
+		<footer class="display-footer" :class="{ 'display-footer--breakdown': hasDiscount }">
+			<template v-if="hasDiscount">
+				<div class="display-total-row">
+					<div class="display-total-label">{{ __("Total") }}</div>
+					<div class="display-total-value display-total-value--sub">{{ formatCurrency(grossTotal) }}</div>
+				</div>
+				<div class="display-total-row">
+					<div class="display-total-label">{{ __("Discount") }}</div>
+					<div class="display-total-value display-total-value--sub">{{ formatCurrency(discountTotal) }}</div>
+				</div>
+				<div class="display-total-row display-total-row--payable">
+					<div class="display-total-label">{{ __("Total Payable") }}</div>
+					<div class="display-total-value">{{ formatCurrency(totalAmount) }}</div>
+				</div>
+			</template>
+			<template v-else>
+				<div class="display-total-label">{{ __("Total") }}</div>
+				<div class="display-total-value">{{ formatCurrency(totalAmount) }}</div>
+			</template>
 		</footer>
 	</section>
 </template>
@@ -85,6 +101,8 @@ const emptySnapshot = (): CustomerDisplaySnapshot => ({
 	items: [],
 	total_qty: 0,
 	total_amount: 0,
+	gross_total: 0,
+	discount_total: 0,
 	updated_at: "",
 });
 
@@ -134,6 +152,18 @@ const totalAmount = computed(() =>
 		? Number(snapshot.value.total_amount)
 		: rows.value.reduce((sum, row) => sum + Number(row.amount || 0), 0),
 );
+
+const discountTotal = computed(() => {
+	const value = Number(snapshot.value.discount_total);
+	return Number.isFinite(value) ? value : 0;
+});
+
+const grossTotal = computed(() => {
+	const value = Number(snapshot.value.gross_total);
+	return Number.isFinite(value) && value > 0 ? value : totalAmount.value;
+});
+
+const hasDiscount = computed(() => discountTotal.value > 0);
 
 const customerLabel = computed(() =>
 	snapshot.value.customer_name
@@ -311,6 +341,29 @@ const formatCurrency = (value: number) => {
 	font-size: clamp(26px, 3vw, 44px);
 	font-weight: 900;
 	color: blue;
+}
+
+.display-footer--breakdown {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+
+.display-total-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.display-total-value--sub {
+	font-size: clamp(18px, 1.8vw, 26px);
+	color: #222;
+}
+
+.display-total-row--payable {
+	border-top: 1px solid #d0d0d0;
+	padding-top: 8px;
+	margin-top: 2px;
 }
 
 @media (max-width: 768px) {

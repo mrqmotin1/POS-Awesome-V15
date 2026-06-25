@@ -28,6 +28,8 @@ export interface CustomerDisplaySnapshot {
 	items: CustomerDisplayLineItem[];
 	total_qty: number;
 	total_amount: number;
+	gross_total?: number;
+	discount_total?: number;
 	updated_at: string;
 }
 
