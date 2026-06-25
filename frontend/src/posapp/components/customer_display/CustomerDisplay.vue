@@ -257,8 +257,8 @@ const formatCurrency = (value: number) => {
     min-height: 0; /* IMPORTANT */
     max-height: calc(100vh - 140px);
     border: 1px solid rgba(148, 163, 184, 0.2);
-	/* overflow: auto;
-	border-radius: 14px;
+	overflow: auto;
+	/*border-radius: 14px;
 	border: 1px solid rgba(148, 163, 184, 0.2);
 	background: #fff; */
 }
