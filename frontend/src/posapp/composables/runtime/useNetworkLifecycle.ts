@@ -31,6 +31,8 @@ type UseNetworkLifecycleOptions = {
 export function useNetworkLifecycle(options: UseNetworkLifecycleOptions) {
 	let started = false;
 	let stopWatchers: Array<() => void> = [];
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	const POLL_INTERVAL = 15000;
 	const realtimeHandlers: Array<[string, (...args: any[]) => void]> = [];
 
 	const networkProxy = {
@@ -169,6 +171,37 @@ export function useNetworkLifecycle(options: UseNetworkLifecycleOptions) {
 			(window as any).serverOnline = true;
 			void options.onConnectivityRecovered?.();
 		});
+
+		// Seed from an already-connected socket (connect event may have fired
+		// before these handlers were registered).
+		const socketConnected = Boolean(
+			(options.realtime as any)?.connected ||
+				(options.realtime as any)?.socketio_connected,
+		);
+		if (socketConnected && !options.isManualOffline()) {
+			options.serverOnline.value = true;
+			(window as any).serverOnline = true;
+			options.serverConnecting.value = false;
+		}
+
+		// Fast initial connectivity check so status doesn't wait on socketio.
+		if (navigator.onLine && !options.isManualOffline()) {
+			if (!options.serverOnline.value) {
+				options.serverConnecting.value = true;
+			}
+			void networkProxy
+				.checkNetworkConnectivity({ forceImmediate: true })
+				.finally(() => {
+					options.serverConnecting.value = false;
+				});
+		}
+
+		// Periodic re-check so status stays accurate without depending on socket events.
+		pollTimer = setInterval(() => {
+			if (navigator.onLine && !options.isManualOffline()) {
+				void networkProxy.checkNetworkConnectivity();
+			}
+		}, POLL_INTERVAL);
 	}
 
 	function stop() {
@@ -182,6 +215,10 @@ export function useNetworkLifecycle(options: UseNetworkLifecycleOptions) {
 			"visibilitychange",
 			handleVisibilityChange,
 		);
+		if (pollTimer) {
+			clearInterval(pollTimer);
+			pollTimer = null;
+		}
 		stopWatchers.forEach((stopWatcher) => stopWatcher());
 		stopWatchers = [];
 		realtimeHandlers.splice(0).forEach(([event, handler]) => {
