@@ -108,6 +108,11 @@ defineEmits(["update:modelValue", "update:itemsView", "open-offers", "open-coupo
 	border-radius: var(--pos-radius-sm);
 }
 
+.view-toggle-btn :deep(.v-btn) {
+	min-width: 0;
+	padding-inline: 8px;
+}
+
 .dynamic-padding {
 	padding: var(--dynamic-sm);
 }
