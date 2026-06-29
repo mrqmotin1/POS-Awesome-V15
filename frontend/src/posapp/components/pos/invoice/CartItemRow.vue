@@ -44,14 +44,6 @@
 					>
 						{{ __("Offer Item") }}
 					</v-chip>
-					<v-tooltip v-if="item.pricing_rule_badge" location="bottom">
-						<template #activator="{ props }">
-							<v-chip v-bind="props" color="primary" size="x-small" class="ml-1">
-								{{ item.pricing_rule_badge.label }}
-							</v-chip>
-						</template>
-						<span>{{ item.pricing_rule_badge.tooltip }}</span>
-					</v-tooltip>
 					<v-btn
 						v-if="posProfile.posa_allow_line_item_name_override && !item.posa_is_replace"
 						icon
@@ -75,6 +67,17 @@
 						<v-icon size="small">mdi-undo</v-icon>
 					</v-btn>
 				</div>
+
+					<div v-if="item.pricing_rule_badge" class="pricing-rule-display">
+						<v-tooltip location="bottom">
+							<template #activator="{ props }">
+								<v-chip v-bind="props" color="primary" size="x-small">
+									{{ item.pricing_rule_badge.label }}
+								</v-chip>
+							</template>
+							<span>{{ item.pricing_rule_badge.tooltip }}</span>
+						</v-tooltip>
+					</div>
 
 					<div
 						v-if="item.barcode || (item.item_barcode && item.item_barcode.length > 0)"
