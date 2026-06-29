@@ -124,9 +124,12 @@ export function validateStockForOfflineInvoice(
 	});
 
 	requestedByItem.forEach((item) => {
-		const currentStock = Number(
-			stockCache[item.item_code]?.actual_qty || 0,
-		);
+		const cacheEntry = stockCache[item.item_code];
+		// Unknown stock (item not in offline cache) -> cannot verify, don't block
+		if (!cacheEntry || cacheEntry.actual_qty === undefined) {
+			return;
+		}
+		const currentStock = Number(cacheEntry.actual_qty || 0);
 
 		if (currentStock - item.requested_qty < 0) {
 			invalidItems.push({
