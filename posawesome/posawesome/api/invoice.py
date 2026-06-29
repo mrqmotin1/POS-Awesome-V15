@@ -23,6 +23,7 @@ def validate(doc, method):
     auto_set_delivery_charges(doc)
     calc_delivery_charges(doc)
     apply_tax_inclusive(doc)
+    set_total_items_discount(doc)
 
 
 def before_submit(doc, method):
@@ -30,7 +31,11 @@ def before_submit(doc, method):
     create_sales_order(doc)
     update_coupon(doc, "used")
 
-
+def set_total_items_discount(doc):
+    doc.custom_total_items_discount = sum(
+        flt(item.discount_amount) * flt(item.qty) for item in doc.items
+    )
+    
 def before_cancel(doc, method):
     update_coupon(doc, "cancelled")
 
