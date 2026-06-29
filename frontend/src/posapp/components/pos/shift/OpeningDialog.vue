@@ -211,7 +211,7 @@ watch(company, (val) => {
 watch(pos_profile, (val) => {
 	payments_methods.value = [];
 	payments_method_data.value.forEach((element) => {
-		if (element.parent === val) {
+		if (element.parent === val && element.mode_of_payment === "Cash") {
 			payments_methods.value.push({
 				mode_of_payment: element.mode_of_payment,
 				amount: 0,
