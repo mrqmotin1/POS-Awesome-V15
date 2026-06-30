@@ -498,8 +498,8 @@ export async function sendRawToQz(data: string, printerName?: string) {
   const printData = [
     {
       type: "raw",
-      format: "plain",
-      flavor: "command",
+      format: "command",
+      flavor: "plain",
       data: data,
     },
   ];

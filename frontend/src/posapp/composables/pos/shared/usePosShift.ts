@@ -15,6 +15,8 @@ import {
 } from "../../../../offline/index";
 import { getValidCachedOpeningForCurrentUser } from "../../../utils/openingCache";
 import { createBootstrapSnapshotFromRegisterData } from "../../../../offline/bootstrapSnapshot";
+import { sendRawToQz } from "../../../services/qzTray";
+import { silentPrint } from "../../../plugins/print";
 
 declare const __BUILD_VERSION__: string;
 declare const frappe: any;
@@ -231,6 +233,10 @@ export function usePosShift(openDialog?: () => void) {
 			.then((r: any) => {
 				console.log("Submit result", r);
 				if (r.message) {
+					const activeProfile = uiStore.posProfile || pos_profile.value;
+					const useSilent = !!activeProfile?.posa_silent_print;
+					const printerName = activeProfile?.custom_pos_printer || null;
+					console.log("Use Silent Print", useSilent, "Printer Name", printerName, "activeProfile", activeProfile);
 					pos_profile.value = null;
 					pos_opening_shift.value = null;
 					uiStore.posOpeningShift = null;
@@ -243,7 +249,7 @@ export function usePosShift(openDialog?: () => void) {
 					//console.log("Print Value", CustomPrint);
 					if (CustomPrint === true) {
 						console.log("Print is true");
-						load_print_page(r.message);
+						load_print_page(r.message, useSilent, printerName);
 						console.log("Print page loaded", r.message);
 					}
 					check_opening_entry();
@@ -255,7 +261,11 @@ export function usePosShift(openDialog?: () => void) {
 	}
 
 	// Open print page for pos clsoing shift
-		function load_print_page(x) {
+		async function load_print_page(
+			x: string,
+			useSilent = false,
+			printerName: string | null = null,
+		) {
 			console.log("XxXXXXX",x);
 			const print_format = "POS Closing Report";
 			const doctype = "POS Closing Shift";
@@ -268,9 +278,33 @@ export function usePosShift(openDialog?: () => void) {
 				"&format=" +
 				print_format;
 
+			if (useSilent) {
+				if (!isOffline()) {
+					try {
+						const r: any = await frappe.call(
+							"posawesome.posawesome.doctype.pos_closing_shift.closing_processing.escpos.get_closing_shift_escpos",
+							{ name: x },
+						);
+						const escpos = r?.message;
+						if (!escpos) {
+							throw new Error("Empty ESC/POS payload from server.");
+						}
+						await sendRawToQz(escpos, printerName || undefined);
+						return;
+					} catch (error) {
+						console.warn(
+							"QZ Tray closing-shift raw print failed, falling back to browser print",
+							error,
+						);
+					}
+				}
+				silentPrint(url, {});
+				return;
+			}
+
 			//console.log("Print URL", url);
 			window.open(url, "Print");
-			
+
 		}
 
 	return {
