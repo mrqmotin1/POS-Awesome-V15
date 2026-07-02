@@ -380,4 +380,36 @@ defineExpose({ scrollToIndex, getTableElement, tableRef });
 :deep(.nowrap-col) {
 	white-space: nowrap !important;
 }
+
+/* Balanced column layout on 1024x768 only */
+@media (min-width: 1000px) and (max-width: 1024px) and (max-height: 800px) {
+	.sleek-data-table :deep(table) {
+		table-layout: fixed;
+		width: 100%;
+	}
+
+	.sleek-data-table :deep(th),
+	.sleek-data-table :deep(td) {
+		box-sizing: border-box;
+	}
+
+	/* AVL. QTY = last column */
+	.sleek-data-table :deep(th:last-child),
+	.sleek-data-table :deep(td:last-child) {
+		width: 32%;
+		text-align: center;
+	}
+
+	/* Rate = second-from-last column */
+	.sleek-data-table :deep(th:nth-last-child(2)),
+	.sleek-data-table :deep(td:nth-last-child(2)) {
+		width: 21%;
+		text-align: center;
+	}
+
+	/* right-align inline rate box */
+	.sleek-data-table :deep(td:nth-last-child(2)) .rate-cell-primary {
+		justify-content: flex-end;
+	}
+}
 </style>
