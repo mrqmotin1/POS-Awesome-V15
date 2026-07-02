@@ -10,7 +10,8 @@
 					class="pos-themed-button notification-bell-trigger"
 					:aria-label="__('View notifications') + (unreadCount ? ` (${unreadCount})` : '')"
 				>
-					<v-badge
+					<!-- Notification count badge disabled -->
+					<!-- <v-badge
 						:model-value="unreadCount > 0"
 						:content="unreadCount"
 						color="error"
@@ -18,8 +19,8 @@
 						v-if="notifications.length"
 					>
 						<v-icon class="pos-text-primary">mdi-bell-outline</v-icon>
-					</v-badge>
-					<v-icon v-else class="pos-text-primary">mdi-bell-outline</v-icon>
+					</v-badge> -->
+					<v-icon class="pos-text-primary">mdi-bell-outline</v-icon>
 				</v-btn>
 			</template>
 
