@@ -208,7 +208,7 @@ const loadingApi = (() => {
 const globalLoading = loadingApi?.overlayVisible || ref(false);
 const getScopeState =
 	typeof loadingApi?.getScopeState === "function" ? loadingApi.getScopeState : createFallbackLoadingScope;
-const { get_closing_data } = usePosShift();
+const { get_closing_data, check_opening_entry } = usePosShift();
 const syncStore = useSyncStore();
 const customersStore = useCustomersStore();
 const itemsStore = useItemsStore();
@@ -910,6 +910,8 @@ const initializeData = async () => {
 		if (navigator.onLine) {
 			await refreshTaxInclusiveSetting();
 		}
+	} else if (navigator.onLine) {
+		await check_opening_entry();
 	}
 
 	if (queueHealthCheck()) {
