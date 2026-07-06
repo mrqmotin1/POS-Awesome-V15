@@ -238,7 +238,8 @@ export default {
 
 		const openPaymentDialog = () => {
 			if (!supplier.value) {
-				errorMessage.value = __("Supplier is required.");
+				errorMessage.value = "";
+				toastStore.show({ title: __("Supplier is required."), color: "error", timeout: 2000 });
 				return;
 			}
 			if (!purchaseItems.value.length) {
