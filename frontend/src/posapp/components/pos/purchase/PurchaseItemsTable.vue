@@ -3,7 +3,7 @@
 		:headers="headers"
 		:items="items"
 		item-key="line_id"
-		class="elevation-1 border rounded"
+		class="elevation-1 border rounded pos-purchase-table"
 		density="compact"
 		hide-default-footer
 		:items-per-page="-1"
@@ -19,7 +19,7 @@
 
 		<template v-slot:item.uom="{ item }">
 			<div class="pos-table__editor-box uom-editor" @click.stop>
-				<v-btn
+				<!-- <v-btn
 					size="x-small"
 					variant="flat"
 					class="pos-table__editor-btn uom-arrow"
@@ -28,7 +28,7 @@
 					:aria-label="__('Previous unit of measure')"
 				>
 					<v-icon size="small">mdi-chevron-left</v-icon>
-				</v-btn>
+				</v-btn> -->
 				<v-select
 					:model-value="item.uom"
 					@update:model-value="(val) => $emit('update-uom', { item, value: val })"
@@ -43,7 +43,7 @@
 					@focus="item._isEditingUom = true"
 					@blur="item._isEditingUom = false"
 				></v-select>
-				<v-btn
+				<!-- <v-btn
 					size="x-small"
 					variant="flat"
 					class="pos-table__editor-btn uom-arrow"
@@ -52,13 +52,13 @@
 					:aria-label="__('Next unit of measure')"
 				>
 					<v-icon size="small">mdi-chevron-right</v-icon>
-				</v-btn>
+				</v-btn> -->
 			</div>
 		</template>
 
 		<template v-slot:item.qty="{ item }">
 			<div class="pos-table__qty-counter">
-				<v-btn
+				<!-- <v-btn
 					size="small"
 					variant="flat"
 					class="pos-table__qty-btn minus-btn qty-control-btn"
@@ -66,7 +66,7 @@
 					:aria-label="__('Decrease quantity')"
 				>
 					<v-icon size="small">mdi-minus</v-icon>
-				</v-btn>
+				</v-btn> -->
 				<div
 					v-if="!item._isEditingQty"
 					class="pos-table__qty-display"
@@ -87,7 +87,7 @@
 					type="number"
 					min="0"
 				></v-text-field>
-				<v-btn
+				<!-- <v-btn
 					size="small"
 					variant="flat"
 					class="pos-table__qty-btn plus-btn qty-control-btn"
@@ -95,7 +95,7 @@
 					:aria-label="__('Increase quantity')"
 				>
 					<v-icon size="small">mdi-plus</v-icon>
-				</v-btn>
+				</v-btn> -->
 			</div>
 		</template>
 
@@ -141,7 +141,7 @@
 		</template>
 
 		<template v-slot:item.amount="{ item }">
-			<div class="text-right font-weight-bold">
+			<div class="pos-table__amount-value">
 				{{ formatCurrency(item.qty * item.rate) }}
 			</div>
 		</template>
@@ -472,5 +472,106 @@ export default {
 	opacity: 0.7;
 	margin-right: 2px;
 	font-size: 0.85em;
+}
+
+.pos-table__amount-value {
+	text-align: right;
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* 1024×768 LAYOUT OVERRIDES */
+@media (max-width: 1024px) {
+	.pos-purchase-table :deep(table) {
+		table-layout: fixed !important;
+		width: 100%;
+	}
+
+	.pos-purchase-table td {
+		height: auto;
+		min-height: 60px;
+	}
+
+	.pos-purchase-table th {
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		word-break: no-break;
+	}
+
+	.pos-purchase-table th :deep(.v-data-table-header__content) {
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		word-break: no-break;
+	}
+
+	.pos-purchase-table :deep(td:first-child) {
+		white-space: normal;
+		word-break: break-word;
+		overflow: visible;
+		height: auto;
+		min-height: 60px;
+	}
+
+	.pos-table__qty-counter {
+		min-width: 50px;
+		max-width: 80px;
+		flex-shrink: 1;
+		background: transparent;
+		border-radius: 0;
+		border: none;
+	}
+
+	.pos-table__qty-display {
+		min-width: 20px;
+		max-width: 55px;
+	}
+
+	.pos-table__editor-box {
+		min-width: 50px;
+		max-width: 90px;
+		background: transparent;
+		border: none;
+		border-radius: 0;
+	}
+
+	.pos-table__editor-display {
+		min-width: 20px;
+		max-width: 65px;
+	}
+
+	/* Shift UOM/Qty/Rate/Amount left by adjusting column widths */
+	.pos-purchase-table :deep(th:nth-child(1)),
+	.pos-purchase-table :deep(td:nth-child(1)) {
+		width: 22% !important;
+	}
+
+	.pos-purchase-table :deep(th:nth-child(2)),
+	.pos-purchase-table :deep(td:nth-child(2)) {
+		width: 10% !important;
+	}
+
+	.pos-purchase-table :deep(th:nth-child(3)),
+	.pos-purchase-table :deep(td:nth-child(3)) {
+		width: 10% !important;
+	}
+
+	.pos-purchase-table :deep(th:nth-child(4)),
+	.pos-purchase-table :deep(td:nth-child(4)) {
+		width: 12% !important;
+	}
+
+	.pos-purchase-table :deep(th:nth-child(5)),
+	.pos-purchase-table :deep(td:nth-child(5)) {
+		width: 12% !important;
+	}
+
+	.pos-purchase-table :deep(th:last-child),
+	.pos-purchase-table :deep(td:last-child) {
+		width: 6% !important;
+	}
 }
 </style>

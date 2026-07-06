@@ -2,12 +2,12 @@
 	<div class="pa-0 h-100">
 		<v-row class="h-100 ma-0">
 			<!-- Left Column: Item Selector -->
-			<v-col cols="12" md="5" class="h-100 pa-0 border-e">
+			<v-col cols="12" md="4" class="h-100 pa-0 border-e">
 				<ItemsSelector context="purchase" @add-item="onAddItem" />
 			</v-col>
 
 			<!-- Right Column: Purchase Order Form (Cart) -->
-			<v-col cols="12" md="7" class="h-100 pa-0">
+			<v-col cols="12" md="8" class="h-100 pa-0">
 				<v-card class="h-100 d-flex flex-column pos-themed-card" flat>
 					<v-card-title class="py-2 px-4 bg-primary text-white d-flex align-center">
 						<span class="text-h6">{{ __("Create Purchase Order") }}</span>
@@ -449,8 +449,8 @@ export default {
 				{ title: __("Qty"), key: "qty", align: "center", width: "15%" },
 				{ title: __("Rate"), key: "rate", align: "center", width: "15%" },
 			];
-			if (this.receiveNow)
-				h.push({ title: __("Received"), key: "received_qty", align: "center", width: "10%" });
+			// if (this.receiveNow)
+			// 	h.push({ title: __("Received"), key: "received_qty", align: "center", width: "10%" });
 			h.push(
 				{ title: __("Amount"), key: "amount", align: "end", width: "10%" },
 				{ title: "", key: "actions", align: "center", width: "50px" },
