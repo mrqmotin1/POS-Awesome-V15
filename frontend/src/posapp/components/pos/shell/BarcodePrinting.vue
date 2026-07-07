@@ -2,7 +2,14 @@
 	<div class="pa-0 h-100">
 		<v-row class="h-100 ma-0">
 			<!-- Left Column: Item Selector -->
-			<v-col cols="12" md="5" class="h-100 pa-0 border-e d-flex flex-column">
+			<v-col
+				cols="12"
+				sm="4"
+				md="4"
+				lg="4"
+				xl="4"
+				class="h-100 pa-0 border-e d-flex flex-column"
+			>
 				<ItemsSelector
 					context="barcode"
 					:showOnlyBarcodeItems="true"
@@ -13,7 +20,14 @@
 			</v-col>
 
 			<!-- Right Column: Barcode Printing -->
-			<v-col cols="12" md="7" class="h-100 pa-0">
+			<v-col
+				cols="12"
+				sm="8"
+				md="8"
+				lg="8"
+				xl="8"
+				class="h-100 pa-0"
+			>
 				<v-card class="h-100 d-flex flex-column pos-themed-card" flat>
 					<v-card-title class="py-2 px-4 bg-primary text-white d-flex align-center">
 						<span class="text-h6">{{ __("Barcode Label Printing") }}</span>
@@ -44,7 +58,7 @@
 							:title="__('Barcode Verification')"
 							:aria-label="__('Verify printed barcodes')"
 						></v-btn>
-						<v-menu>
+						<!-- <v-menu>
 							<template v-slot:activator="{ props }">
 								<v-btn
 									v-bind="props"
@@ -72,23 +86,23 @@
 									<v-list-item-subtitle>{{ __("Item data as spreadsheet") }}</v-list-item-subtitle>
 								</v-list-item>
 							</v-list>
-						</v-menu>
-						<v-btn
+						</v-menu> -->
+						<!-- <v-btn
 							icon="mdi-package-variant-closed"
 							variant="text"
 							color="white"
 							@click="importDialog = true"
 							:title="__('Import from Document')"
 							:aria-label="__('Import items from Sales Order, Delivery Note or BOM')"
-						></v-btn>
-						<v-btn
+						></v-btn> -->
+						<!-- <v-btn
 							icon="mdi-upload"
 							variant="text"
 							color="white"
 							@click="bulkImportDialog = true"
 							:title="__('Bulk Import')"
 							:aria-label="__('Bulk import barcode items')"
-						></v-btn>
+						></v-btn> -->
 						<v-btn
 							icon="mdi-delete"
 							variant="text"
@@ -102,6 +116,7 @@
 					<v-card-text v-if="viewMode === 'labels'" class="flex-grow-1 overflow-y-auto pa-4">
 						<!-- Configuration -->
 						<v-row dense class="mb-2 align-center">
+							<!--
 							<v-col cols="12" md="2">
 								<v-select
 									v-model="pageFormat"
@@ -191,6 +206,7 @@
 									class="pos-themed-input"
 								></v-select>
 							</v-col>
+							-->
 							<v-col cols="12" md="4" class="d-flex gap-2">
 								<v-tooltip :text="__('Preview labels before printing')" location="top">
 									<template v-slot:activator="{ props }">
@@ -206,7 +222,7 @@
 										</v-btn>
 									</template>
 								</v-tooltip>
-								<v-btn
+								<!-- <v-btn
 									color="secondary"
 									class="flex-grow-1 mr-1"
 									height="40"
@@ -215,17 +231,18 @@
 								>
 									<v-icon start class="mr-2">mdi-file-pdf-box</v-icon>
 									{{ __("PDF") }}
-								</v-btn>
+								</v-btn> -->
 								<v-btn
 									color="primary"
 									class="flex-grow-1 ml-1"
 									height="40"
-									@click="printLabels(items)"
+									@click="printBarcodeLabelsViaZpl(items)"
 									:disabled="!items.length"
 								>
 									<v-icon start class="mr-2">mdi-printer</v-icon>
 									{{ __("Print") }}
 								</v-btn>
+								<!--
 								<v-tooltip :text="__('Print via QZ Tray thermal printer')" location="top">
 									<template v-slot:activator="{ props }">
 										<v-btn
@@ -242,9 +259,11 @@
 										</v-btn>
 									</template>
 								</v-tooltip>
+								-->
 							</v-col>
 						</v-row>
 
+						<!--
 						<v-row dense class="mb-2">
 							<v-col cols="12" md="4">
 						<v-checkbox
@@ -304,7 +323,9 @@
 								></v-checkbox>
 							</v-col>
 						</v-row>
+						-->
 
+						<!--
 						<v-alert
 							v-if="sizeWarnings.length"
 							type="warning"
@@ -314,6 +335,7 @@
 						>
 							{{ sizeWarnings[0] }}
 						</v-alert>
+						-->
 
 						<v-alert
 							v-if="hasActiveTemplate"
@@ -359,6 +381,14 @@
 							:items-per-page="-1"
 							hide-default-footer
 						>
+							<template v-slot:item.item_name="{ item }">
+								<div class="d-flex flex-column">
+									<div>{{ item.item_name }}</div>
+									<div v-if="item.barcode" class="text-caption text-medium-emphasis mt-1">
+										{{ item.barcode }}
+									</div>
+								</div>
+							</template>
 							<template v-slot:item.uom="{ item }">
 								<v-select
 									v-if="getItemUomOptions(item).length"
@@ -373,11 +403,12 @@
 								<span v-else class="text-caption text-medium-emphasis">-</span>
 							</template>
 							<template v-slot:item.price="{ item }">
-								<span class="text-caption">{{ formatCurrency(item.price) }}</span>
+								<!-- <span class="text-caption">{{ formatCurrency(item.price) }}</span> -->
+								<span class="text-caption">{{ item.price?.toFixed(2) || "0.00" }}</span>
 							</template>
 							<template v-slot:item.qty="{ item }">
 								<div class="pos-table__qty-counter">
-									<v-btn
+									<!-- <v-btn
 										size="small"
 										variant="flat"
 										class="pos-table__qty-btn pos-table__qty-btn--minus minus-btn qty-control-btn"
@@ -385,7 +416,7 @@
 										:aria-label="__('Decrease quantity')"
 									>
 										<v-icon size="small">mdi-minus</v-icon>
-									</v-btn>
+									</v-btn> -->
 									<div
 										v-if="!item._editingQty"
 										class="pos-table__qty-display amount-value"
@@ -410,7 +441,7 @@
 										type="number"
 										hide-details
 									></v-text-field>
-									<v-btn
+									<!-- <v-btn
 										size="small"
 										variant="flat"
 										class="pos-table__qty-btn pos-table__qty-btn--plus plus-btn qty-control-btn"
@@ -418,7 +449,7 @@
 										:aria-label="__('Increase quantity')"
 									>
 										<v-icon size="small">mdi-plus</v-icon>
-									</v-btn>
+									</v-btn> -->
 								</div>
 							</template>
 							<template v-slot:item.barcode="{ item }">
@@ -590,6 +621,21 @@
 						class="mb-2 pos-themed-input"
 						@update:modelValue="onPendingUomChange"
 					></v-select>
+					<v-select
+						v-if="pendingAddItem && getAvailableBarcodes(pendingAddItem).length > 1"
+						v-model="pendingAddItem.barcode"
+						:items="getAvailableBarcodes(pendingAddItem)"
+						item-title="barcode"
+						item-value="barcode"
+						:label="__('Barcode')"
+						variant="outlined"
+						density="compact"
+						class="mb-2 pos-themed-input"
+						@update:modelValue="(v) => pendingAddItem && selectBarcode(pendingAddItem, v)"
+					></v-select>
+					<div v-else-if="pendingAddItem && pendingAddItem.barcode" class="mb-2 text-caption text-medium-emphasis">
+						<span class="font-weight-medium">{{ __("Barcode:") }}</span> {{ pendingAddItem.barcode }}
+					</div>
 					<v-text-field
 						v-model.number="addItemQty"
 						:label="
@@ -892,14 +938,14 @@
 					>
 						{{ __("Print") }}
 					</v-btn>
-					<v-btn
+					<!-- <v-btn
 						color="secondary"
 						size="large"
 						prepend-icon="mdi-file-pdf-box"
 						@click="pdfFromPreview"
 					>
 						{{ __("Download PDF") }}
-					</v-btn>
+					</v-btn> -->
 					<v-btn variant="text" size="large" @click="previewDialog = false">
 						{{ __("Close") }}
 					</v-btn>
@@ -920,6 +966,7 @@ import { useBarcodePrintOutput, PAGE_FORMAT_PRESETS, validateBarcodeItem, getBar
 import { useScaleBarcodeSettings } from "../../../composables/pos/items/useScaleBarcodeSettings";
 import { useLabelDesigner } from "../../../composables/pos/items/useLabelDesigner";
 import { useSsccGenerator } from "../../../composables/pos/items/useSsccGenerator";
+import { useMondayZplPrint } from "../../../composables/pos/items/useMondayZplPrint";
 import LabelDesigner from "./LabelDesigner.vue";
 import LabelDesignerPanel from "./LabelDesignerPanel.vue";
 import TemplateLibrary from "./TemplateLibrary.vue";
@@ -933,6 +980,7 @@ const uiStore = useUIStore();
 const printQueue = useBarcodePrintQueue();
 const printOutput = useBarcodePrintOutput();
 const scaleSettings = useScaleBarcodeSettings();
+const { printBarcodeLabelsViaZpl } = useMondayZplPrint();
 
 const {
 	items,
@@ -944,8 +992,6 @@ const {
 	addOrMergePrintableItem,
 	removeItem,
 	clearAll,
-	incrementQty,
-	decrementQty,
 	openQtyEdit,
 	closeQtyEdit,
 	onAddItem,
@@ -989,13 +1035,12 @@ const {
 	selectedPrinterProfile,
 	printerProfiles,
 	getPrintableItems,
-	printLabels,
 	printLabelsThermalWithFailover,
 	printLabelsRawWithFailover,
 	qzThermalAvailable,
 	downloadPdf,
 	getLabelSizeWarnings,
-	formatCurrency,
+	// formatCurrency,
 	hasActiveTemplate,
 	setDesignerTemplate,
 	clearDesignerTemplate,
@@ -1395,7 +1440,23 @@ const generateLabelsHtml = (items) => {
 	${content}
 	<script src="/assets/posawesome/dist/js/libs/JsBarcode.all.min.js"><\/script>
 	<script>
-		JsBarcode(".barcode").init();
+		if (window.JsBarcode) {
+			const svgElements = document.querySelectorAll("svg.barcode");
+			svgElements.forEach(svg => {
+				const barcodeValue = svg.getAttribute("data-barcode-value");
+				const format = svg.getAttribute("data-format") || "CODE128";
+				if (barcodeValue) {
+					JsBarcode(svg, barcodeValue, {
+						format: format,
+						displayValue: false,
+						textMargin: 0,
+						fontSize: 12,
+						height: 60,
+						margin: 5
+					});
+				}
+			});
+		}
 	<\/script>
 </body>
 </html>`;
@@ -1413,19 +1474,19 @@ const openPreview = () => {
 
 const printFromPreview = () => {
 	if (previewContent.value) {
-		printLabels(items.value);
+		printBarcodeLabelsViaZpl(items.value);
 		previewDialog.value = false;
 	}
 };
 
-const pdfFromPreview = () => {
+const _pdfFromPreview = () => {
 	if (previewContent.value) {
 		downloadPdf(items.value);
 		previewDialog.value = false;
 	}
 };
 
-const onExportPng = () => {
+const _onExportPng = () => {
 	const printable = getPrintableItems(items.value, { notify: false });
 	if (!printable.length) return;
 	const style = printOutput.getPrintStyles();
@@ -1433,7 +1494,7 @@ const onExportPng = () => {
 	exportPng(content, style);
 };
 
-const onExportSvg = () => {
+const _onExportSvg = () => {
 	const printable = getPrintableItems(items.value, { notify: false });
 	if (!printable.length) return;
 	const style = printOutput.getPrintStyles();
@@ -1441,7 +1502,7 @@ const onExportSvg = () => {
 	exportSvg(content, style);
 };
 
-const onExportCsv = () => {
+const _onExportCsv = () => {
 	const printable = getPrintableItems(items.value, { notify: false });
 	if (!printable.length) return;
 	exportCsv(printable);
@@ -1450,16 +1511,16 @@ const onExportCsv = () => {
 const { shouldShowScaleGramsInput } = scaleSettings;
 
 const headers = computed(() => [
-	{ title: __("Item Code"), key: "item_code", width: "13%" },
-	{ title: __("Item Name"), key: "item_name", width: "17%" },
-	{ title: __("UOM"), key: "uom", width: "10%" },
-	{ title: __("Price"), key: "price", width: "10%" },
-	{ title: __("Barcode"), key: "barcode", width: "20%" },
-	{ title: __("Weight (g)"), key: "grams", width: "10%" },
-	{ title: __("Location"), key: "warehouseLocation", width: "10%" },
-	{ title: __("Quantity"), key: "qty", align: "center" as const, width: "10%" },
-	{ title: "", key: "variableData", align: "center" as const, sortable: false, width: "5%" },
-	{ title: "", key: "actions", align: "center" as const, sortable: false, width: "5%" },
+	// { title: __("Item Code"), key: "item_code", width: "13%" },
+	{ title: __("Item "), key: "item_name", width: "40%" },
+	{ title: __("UOM"), key: "uom", width: "20%" },
+	{ title: __("Price"), key: "price", width: "12%" },
+	// { title: __("Barcode"), key: "barcode", width: "20%" },
+	//{ title: __("Weight (g)"), key: "grams", width: "10%" },
+	// { title: __("Location"), key: "warehouseLocation", width: "10%" },
+	{ title: __("Qty"), key: "qty", align: "center" as const, width: "20%" },
+	// { title: "", key: "variableData", align: "center" as const, sortable: false, width: "2%" },
+	{ title: "", key: "actions", align: "center" as const, sortable: false, width: "6%" },
 ]);
 
 watch(
@@ -1531,18 +1592,18 @@ onUnmounted(() => {
 	max-width: 100px;
 	width: auto;
 	height: auto;
-	background: var(--pos-surface-variant);
+	background: transparent;
 	border-radius: 8px;
 	backdrop-filter: blur(10px);
-	border: 1px solid var(--pos-border-light);
+	/* border: 1px solid var(--pos-border-light); */
 	transition: all 0.3s ease;
-	margin: 0 auto;
+	/* margin: 0 auto; */
 	flex-shrink: 0;
-	box-sizing: border-box;
+	/* box-sizing: border-box; */
 }
 
 .pos-table__qty-counter:hover {
-	background: var(--pos-hover-bg);
+	background: transparent;
 	box-shadow: 0 4px 16px var(--pos-shadow);
 	transform: translateY(-1px);
 }

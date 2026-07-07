@@ -602,6 +602,7 @@ export function useBarcodePrintOutput() {
 				}
 				.item-name { font-size: 11px; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 95%; margin-bottom: 1px; line-height: 1.2; }
 				.barcode-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; flex-grow: 1; overflow: hidden; padding: 0 1mm; }
+				.barcode-number { font-size: 10px; font-weight: bold; margin-top: 2px; line-height: 1.2; }
 				.price { font-size: 11px; font-weight: bold; margin-top: 2px; line-height: 1.2; }
 				.uom-label { font-size: 10px; margin-top: 1px; line-height: 1.2; }
 				.batch-serial { font-size: 9px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 95%; line-height: 1.2; }
@@ -625,19 +626,20 @@ export function useBarcodePrintOutput() {
 				text-align: center;
 				display: flex;
 				flex-direction: column;
-				justify-content: flex-start;
+				justify-content: center;
 				align-items: center;
 				page-break-after: always;
-				overflow: hidden;
 				box-sizing: border-box;
 				padding: ${paddingMm};
+				gap: 2px;
 			}
-			.item-name { font-size: ${nameSize}; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 95%; line-height: 1.1; flex-shrink: 0; }
-			.barcode-wrapper { display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; flex-shrink: 1; flex-grow: 1; min-height: 0; padding: 0 1mm; }
+			.item-name { font-size: ${nameSize}; font-weight: bold; white-space: nowrap; text-overflow: ellipsis; max-width: 95%; line-height: 1.1; flex-shrink: 0; }
+			.barcode-wrapper { display: flex; align-items: center; justify-content: center; width: 100%; flex-shrink: 0; flex-grow: 0; padding: 0 1mm; max-height: ${dims.heightPx}px; }
+			.barcode-number { font-size: ${metaSize}; font-weight: bold; line-height: 1.1; flex-shrink: 0; }
 			.price { font-size: ${priceSize}; font-weight: bold; line-height: 1.1; flex-shrink: 0; }
 			.uom-label { font-size: ${uomSize}; line-height: 1.1; flex-shrink: 0; }
 			.batch-serial { font-size: ${metaSize}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 95%; flex-shrink: 0; line-height: 1.1; }
-			img.barcode { max-width: 100%; height: auto; max-height: ${dims.heightPx}px; object-fit: contain; display: block; }
+			img.barcode { max-width: 100%; height: auto; max-height: 100%; object-fit: contain; display: block; }
 		`;
 	};
 
@@ -719,22 +721,20 @@ export function useBarcodePrintOutput() {
 		}
 		let html = "";
 		const size = parseLabelSize();
-		const ctx = getPrintContext(false);
 
 		if (size.type === "A4") html += '<div class="label-container">';
 
-		items.forEach((item) => {
+		items.forEach((item, itemIdx) => {
 			const itemSym = getItemSymbology(item);
 			const effectiveSym = itemSym === "auto" ? guessSymbologyFromBarcode(item.barcode) : itemSym;
-			const dims = calculateBarcodeDimensions(effectiveSym, ctx, item.barcode?.length);
 			const jsBarcode = getSymbologyForJsBarcode(effectiveSym);
-			const ean128Attr = jsBarcode.ean128 ? ' jsbarcode-ean128="true"' : "";
 			const labelsCount = Math.max(1, Math.round(Number(item.qty) || 1));
 			const safeItemName = escapeHtml(item.item_name || item.item_code || "");
 			const safeBarcode = escapeHtml(item.barcode || "");
 			const safeUom = escapeHtml(item.uom || "");
 
 			for (let i = 0; i < labelsCount; i++) {
+				const barcodeSvgId = `barcode_${itemIdx}_${i}`;
 				let batchSerialHtml = "";
 				if (includeBatchSerial.value) {
 					let text = "";
@@ -766,22 +766,14 @@ export function useBarcodePrintOutput() {
 				html += `
 					<div class="label">
 						<div class="item-name">${safeItemName}</div>
-						${uomHtml}
 						<div class="barcode-wrapper">
-							<img class="barcode"
-								jsbarcode-format="${jsBarcode.format}"
-								jsbarcode-value="${safeBarcode}"
-								jsbarcode-textmargin="0"
-								jsbarcode-fontoptions="bold"
-								jsbarcode-height="${dims.heightPx}"
-								jsbarcode-width="${dims.moduleWidthPx}"
-								jsbarcode-margin="${dims.quietZonePx}"
-								jsbarcode-displayValue="true"
-								jsbarcode-fontSize="${dims.fontSize}"${ean128Attr}>
+							<svg id="${barcodeSvgId}" class="barcode" data-barcode-value="${safeBarcode}" data-format="${jsBarcode.format}"></svg>
 						</div>
+						<div class="barcode-number">${safeBarcode}</div>
+						${priceHtml}
+						${uomHtml}
 						${warehouseHtml}
 						${batchSerialHtml}
-						${priceHtml}
 					</div>
 				`;
 			}

@@ -314,7 +314,18 @@ export function useBarcodePrintQueue() {
 
 	const onPendingUomChange = async () => {
 		if (!pendingAddItem.value) return;
-		await onItemUomChange(pendingAddItem.value);
+		const item = pendingAddItem.value;
+		await onItemUomChange(item);
+
+		// Auto-select matching barcode for the new UOM
+		const availableBarcodes = getAvailableBarcodes(item);
+		const matchingBarcode = availableBarcodes.find(
+			(b) => b.uom === item.uom
+		);
+		if (matchingBarcode) {
+			selectBarcode(item, matchingBarcode.barcode);
+		}
+
 		if (scaleBarcode.shouldShowScaleGramsInput(pendingAddItem.value)) {
 			if (!pendingScaleGrams.value) {
 				pendingScaleGrams.value = scaleBarcode.normalizeScaleGrams(pendingAddItem.value.scale_grams) || 1000;
