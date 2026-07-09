@@ -164,7 +164,7 @@ export default {
 				this.get_closing_data();
 			});
 			this.eventBus.on("submit_closing_pos", (data) => {
-				this.submit_closing_pos(data);
+				this.submit_closing_pos(data, true);
 			});
 
 			this.eventBus.on("items_loaded", () => {

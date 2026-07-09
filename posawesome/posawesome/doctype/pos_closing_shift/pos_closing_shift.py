@@ -10,7 +10,7 @@ from erpnext.accounts.doctype.pos_invoice_merge_log.pos_invoice_merge_log import
 )
 from frappe import _, DoesNotExistError
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, get_datetime
 
 
 def get_base_value(doc, fieldname, base_fieldname=None, conversion_rate=None):
@@ -82,6 +82,8 @@ class POSClosingShift(Document):
         opening_entry.save()
         # link invoices with this closing shift so ERPNext can block edits
         self._set_closing_entry_invoices()
+        # populate cash_returns / card_returns for the closing report
+        self._set_returns_breakdown()
 
         if frappe.db.get_value(
             "POS Profile",
@@ -114,6 +116,42 @@ class POSClosingShift(Document):
 
                 for invoices in invoices_by_currency.values():
                     consolidate_pos_invoices(pos_invoices=invoices)
+
+    def _set_returns_breakdown(self):
+        """Populate cash_returns / card_returns from this shift's return invoices."""
+        if not frappe.db.has_column("POS Closing Shift", "cash_returns"):
+            return
+
+        data = frappe.db.sql(
+            """
+            SELECT sip.mode_of_payment AS mode_of_payment, SUM(sip.amount) AS amount
+            FROM `tabSales Invoice` si
+            LEFT JOIN `tabSales Invoice Payment` sip ON sip.parent = si.name
+            WHERE si.is_return = 1
+              AND si.pos_profile = %s
+              AND si.owner = %s
+              AND si.creation BETWEEN %s AND %s
+            GROUP BY sip.mode_of_payment
+            """,
+            (
+                self.pos_profile,
+                self.owner,
+                get_datetime(self.period_start_date),
+                get_datetime(self.period_end_date),
+            ),
+            as_dict=True,
+        )
+
+        cash_return = 0
+        card_return = 0
+        for row in data:
+            if row.mode_of_payment == "Cash":
+                cash_return = row.amount
+            elif row.mode_of_payment == "Card":
+                card_return = row.amount
+
+        self.db_set("cash_returns", cash_return)
+        self.db_set("card_returns", card_return)
 
     def on_cancel(self):
         if frappe.db.exists("POS Opening Shift", self.pos_opening_shift):

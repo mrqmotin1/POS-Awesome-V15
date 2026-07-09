@@ -103,7 +103,24 @@ export function usePosShift(openDialog) {
 			});
 	}
 
-	function submit_closing_pos(data) {
+	// Open the Frappe printview popup for the submitted closing shift
+	function load_print_page(name) {
+		const print_format = "POS Closing Report";
+		const doctype = "POS Closing Shift";
+		const url =
+			frappe.urllib.get_base_url() +
+			"/printview?doctype=" +
+			encodeURIComponent(doctype) +
+			"&name=" +
+			encodeURIComponent(name) +
+			"&trigger_print=1" +
+			"&format=" +
+			encodeURIComponent(print_format);
+		//console.log("Print URL", url);
+		window.open(url, "Print");
+	}
+
+	function submit_closing_pos(data, CustomPrint = false) {
 		frappe
 			.call("posawesome.posawesome.doctype.pos_closing_shift.pos_closing_shift.submit_closing_shift", {
 				closing_shift: data,
@@ -117,6 +134,10 @@ export function usePosShift(openDialog) {
 						title: `POS Shift Closed`,
 						color: "success",
 					});
+					if (CustomPrint === true) {
+						load_print_page(r.message);
+						//console.log("Print page loaded", r.message);
+					}
 					check_opening_entry();
 				}
 			});
