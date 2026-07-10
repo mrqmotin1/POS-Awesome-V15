@@ -16,6 +16,7 @@ CLOSING_RAW_TEMPLATE = r"""{%- set company = frappe.get_doc("Company", doc.compa
 {%- set DOUBLE_ON = GS + "\x21\x11" -%}
 {%- set DOUBLE_OFF = GS + "\x21\x00" -%}
 {%- set CUT = GS + "\x56\x00" -%}
+{%- set LF = "\x0A" -%}
 
 {%- set LINE = "------------------------------------------" -%}
 
@@ -61,8 +62,8 @@ CLOSING_RAW_TEMPLATE = r"""{%- set company = frappe.get_doc("Company", doc.compa
     ((cash_sales or []) | sum(attribute='closing_amount') | default(0.0))
 -%}
 
-{{ INIT }}{{ CENTER }}{{ BOLD_ON }}{{ company.name }}{{ BOLD_OFF }}
-{{ company.registration_details or "" }}
+{{ INIT }}{{ CENTER }}{{ BOLD_ON }}{{ company.name }}{{ BOLD_OFF }}{{ LF }}
+{%- if company.registration_details -%}{{ company.registration_details.replace("\n", " ") }}{{ LF }}{%- endif -%}
 Tel : {{ company.phone_no or "N/A" }}
 TRN : {{ company.tax_id or "N/A" }}
 {{ LEFT }}{{ LINE }}
@@ -96,10 +97,7 @@ Total Quantity  : {{ "%0.2f"|format(doc.total_quantity) }}
 Net Cash Balance: {{ "%0.2f"|format(total_cash) }}
 Cash Count      : {{ "%0.2f"|format(total_cash_count) }}
 Over Cash       : {{ "%0.2f"|format(total_cash_count - total_cash) }}
-{{ LINE }}
-
-
-{{ CUT }}"""
+{{ LF }}{{ LF }}{{ LF }}{{ LF }}{{ CUT }}"""
 
 
 @frappe.whitelist()
