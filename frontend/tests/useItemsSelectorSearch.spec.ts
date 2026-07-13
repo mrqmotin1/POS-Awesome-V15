@@ -110,6 +110,60 @@ describe("useItemsSelectorSearch", () => {
 		expect(vm.search).toBe("");
 	});
 
+	it("routes an alphanumeric barcode via the server scan pipeline under limit search", async () => {
+		const scannerInput = createScannerInput();
+		const searchItems = vi.fn().mockResolvedValue([]);
+		const resolveBarcodeOnServer = vi.fn().mockResolvedValue(true);
+		const vm = {
+			first_search: "DL955-502",
+			search_input: "DL955-502",
+			search: "",
+			search_from_scanner: false,
+			isBackgroundLoading: false,
+			pos_profile: { posa_use_limit_search: 1 },
+			itemsIntegration: { searchItems },
+		};
+
+		const api = useItemsSelectorSearch({
+			getVM: () => vm,
+			scannerInput,
+			resolveBarcodeOnServer,
+		});
+
+		await api._performSearch();
+
+		expect(resolveBarcodeOnServer).toHaveBeenCalledWith("DL955-502");
+		expect(scannerInput.onBarcodeScanned).toHaveBeenCalledWith("DL955-502");
+		expect(searchItems).not.toHaveBeenCalled();
+	});
+
+	it("falls back to a normal limit search when the server finds no barcode", async () => {
+		const scannerInput = createScannerInput();
+		const searchItems = vi.fn().mockResolvedValue([]);
+		const resolveBarcodeOnServer = vi.fn().mockResolvedValue(false);
+		const vm = {
+			first_search: "shoe",
+			search_input: "shoe",
+			search: "",
+			search_from_scanner: false,
+			isBackgroundLoading: false,
+			pos_profile: { posa_use_limit_search: 1 },
+			itemsIntegration: { searchItems },
+		};
+
+		const api = useItemsSelectorSearch({
+			getVM: () => vm,
+			scannerInput,
+			resolveBarcodeOnServer,
+		});
+
+		await api._performSearch();
+
+		expect(resolveBarcodeOnServer).toHaveBeenCalledWith("shoe");
+		expect(scannerInput.onBarcodeScanned).not.toHaveBeenCalled();
+		expect(searchItems).toHaveBeenCalledWith("shoe");
+	});
+
 	it("prioritizes search over highlighted selection when enter is pressed in limit search mode", async () => {
 		const searchItems = vi.fn().mockResolvedValue([]);
 		const selectHighlightedItem = vi.fn();

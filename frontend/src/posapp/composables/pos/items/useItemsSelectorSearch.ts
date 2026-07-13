@@ -15,6 +15,7 @@ type SearchDeps = {
 	runLimitSearch?: (_term: string) => Promise<unknown> | unknown;
 	clearHighlightedItem?: () => void;
 	resolveItemByBarcode?: (_code: string) => any;
+	resolveBarcodeOnServer?: (_code: string) => Promise<boolean>;
 };
 
 export const useItemsSelectorSearch = ({
@@ -27,8 +28,14 @@ export const useItemsSelectorSearch = ({
 	runLimitSearch,
 	clearHighlightedItem,
 	resolveItemByBarcode,
+	resolveBarcodeOnServer,
 }: SearchDeps) => {
 	const getVm = (): any => (typeof getVM === "function" ? getVM() : null);
+
+	// Alphanumeric + dash token. min length 3 so short barcodes (incl. 4-5 digit
+	// NUMERIC barcodes, which the /^\d{12,}$/ route does NOT cover) still resolve.
+	const isBarcodeToken = (v: string): boolean =>
+		/^[A-Za-z0-9][A-Za-z0-9-]*$/.test(v) && v.length >= 3;
 
 	const usesLimitSearch = (vm: any): boolean => {
 		if (typeof isLimitSearchEnabled === "function") {
@@ -314,6 +321,26 @@ export const useItemsSelectorSearch = ({
 					vm.onBarcodeScanned(trimmedQuery);
 				} else if (scannerInput?.onBarcodeScanned) {
 					scannerInput?.onBarcodeScanned(trimmedQuery);
+				}
+				return;
+			}
+		}
+
+		// Limit Search loads only a subset client-side, so a real barcode of an
+		// unloaded item won't resolve locally. Confirm against the server's exact
+		// Item Barcode table before treating the input as a scan.
+		if (
+			usesLimitSearch(vm) &&
+			typeof resolveBarcodeOnServer === "function" &&
+			isBarcodeToken(trimmedQuery)
+		) {
+			const isBarcode = await resolveBarcodeOnServer(trimmedQuery);
+			if (isBarcode) {
+				if (scannerInput?.pendingScanCode?.value === trimmedQuery) return;
+				if (typeof vm.onBarcodeScanned === "function") {
+					vm.onBarcodeScanned(trimmedQuery);
+				} else if (scannerInput?.onBarcodeScanned) {
+					scannerInput.onBarcodeScanned(trimmedQuery);
 				}
 				return;
 			}

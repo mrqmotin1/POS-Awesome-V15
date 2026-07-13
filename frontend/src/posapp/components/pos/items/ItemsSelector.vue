@@ -41,7 +41,7 @@
 						@esc="esc_event"
 						@enter="onEnter"
 						@search-keydown="handleSearchKeydown"
-						@clear-search="clearSearch"
+						@clear-search="clearSearchAndRestore"
 						@clear-search-and-qty="clearSearchAndQty"
 						@search-input="handleSearchInput"
 						@search-paste="handleSearchPaste"
@@ -111,7 +111,7 @@
 								@dragstart="onDragStart"
 								@dragend="onDragEnd"
 								@virtual-range-update="onVirtualRangeUpdate"
-								@clear-search="clearSearch"
+								@clear-search="clearSearchAndRestore"
 							/>
 							<ItemsSelectorTable
 								v-else
@@ -572,6 +572,21 @@ const itemsSelectorSearch = useItemsSelectorSearch({
 	runLimitSearch: (term) => itemsIntegration.searchItems(term),
 	clearHighlightedItem: () => itemSelection.clearHighlightedItem(),
 	resolveItemByBarcode: (code) => resolveItemByBarcode(items.value, code),
+	resolveBarcodeOnServer: async (code) => {
+		try {
+			const res = await (window as any).frappe.call({
+				method: "posawesome.posawesome.api.items.search_serial_or_batch_or_barcode_number",
+				args: {
+					search_value: code,
+					search_serial_no: pos_profile.value?.posa_search_serial_no ? 1 : 0,
+					search_batch_no: pos_profile.value?.posa_search_batch_no ? 1 : 0,
+				},
+			});
+			return Boolean(res?.message?.item_code);
+		} catch (e) {
+			return false;
+		}
+	},
 });
 const itemsSelectorSettings = useItemsSelectorSettings({ getVM: () => settingsContext, itemSync });
 const itemsSelectorFocus = useItemsSelectorFocus({
@@ -789,6 +804,7 @@ const scanProcessor = useScanProcessor({
 const clearSearchAndQty = () => {
 	clearSearch();
 	clearQty();
+	void itemsIntegration.search_onchange("");
 };
 
 const onDragStart = (event, item) => {
@@ -1143,8 +1159,19 @@ const {
 	reloadItems: () => itemsIntegration.get_items(true),
 });
 
+// Clears the search box AND restores the full item list. The plain clearSearch only
+// blanks the input; under Limit Search the store still holds the last search results,
+// so the list would stay stuck (empty after a not-found scan, or on the searched item
+// when it couldn't be added). search_onchange("") resets the store to the loaded items.
+const clearSearchAndRestore = () => {
+	clearSearch();
+	void itemsIntegration.search_onchange("");
+};
+// Restore the list when a scan error is acknowledged too (scanner clear handler).
+scannerInput.setInputHandlers?.({ clear: clearSearchAndRestore });
+
 // Proxy functions for template
-const esc_event = () => clearSearch();
+const esc_event = () => clearSearchAndRestore();
 const onEnter = (e) => itemsSelectorSearch.onEnter(e);
 const handleSearchKeydown = (e) => itemsSelectorFocus.handleSearchKeydown(e);
 const handleSearchPaste = (e) => itemsSelectorFocus.handleSearchPaste(e);
@@ -1244,6 +1271,7 @@ defineExpose({
 	new_line,
 	temp_new_line,
 	clearSearchAndQty,
+	clearSearchAndRestore,
 	onQtyBlur,
 	hide_qty_decimals,
 	hide_zero_rate_items,
