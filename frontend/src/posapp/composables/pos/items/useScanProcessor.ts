@@ -456,16 +456,31 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		let scaleResponse: any = null;
 		let scanAssignment: ScanAssignment = emptyScanAssignment();
 
-		try {
-			const res = await frappe.call({
-				method: "posawesome.posawesome.api.items.parse_scale_barcode",
-				args: { barcode: scannedCode },
-			});
-			if (res && res.message) {
-				scaleResponse = res.message;
+		// Scale settings are already loaded client-side by ensureScaleBarcodeSettings
+		// above. When a scale prefix is configured, only a code that starts with it can
+		// be a scale barcode, so skip the per-scan server parse for every other code.
+		// This keeps a normal barcode scan fully client-side (no round-trip), matching
+		// the fast mon-develop-2 gun path. When no prefix is configured we cannot decide
+		// locally, so preserve the original behavior and call the server once.
+		const scalePrefix =
+			typeof scannerInput.getScaleBarcodePrefix === "function"
+				? scannerInput.getScaleBarcodePrefix() || ""
+				: "";
+		const mightBeScaleBarcode =
+			!scalePrefix || String(scannedCode || "").startsWith(scalePrefix);
+
+		if (mightBeScaleBarcode) {
+			try {
+				const res = await frappe.call({
+					method: "posawesome.posawesome.api.items.parse_scale_barcode",
+					args: { barcode: scannedCode },
+				});
+				if (res && res.message) {
+					scaleResponse = res.message;
+				}
+			} catch (error) {
+				console.error("Failed to parse scale barcode via API:", error);
 			}
-		} catch (error) {
-			console.error("Failed to parse scale barcode via API:", error);
 		}
 
 		if (
