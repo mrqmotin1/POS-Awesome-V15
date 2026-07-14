@@ -13,6 +13,10 @@ import {
 	type ScanAssignment,
 } from "./scanProcessor/scanAssignment";
 import { toCompanyCurrency } from "../../../utils/erpnextCurrency";
+import {
+	getScaleBarcodePrefix,
+	parseScaleBarcodeData,
+} from "../../../utils/scaleBarcode.js";
 // @ts-ignore
 import placeholderImage from "../../../components/pos/placeholder-image.png";
 
@@ -456,39 +460,19 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		let scaleResponse: any = null;
 		let scanAssignment: ScanAssignment = emptyScanAssignment();
 
-		// Scale settings are already loaded client-side by ensureScaleBarcodeSettings
-		// above. When a scale prefix is configured, only a code that starts with it can
-		// be a scale barcode, so skip the per-scan server parse for every other code.
-		// This keeps a normal barcode scan fully client-side (no round-trip), matching
-		// the fast mon-develop-2 gun path. When no prefix is configured we cannot decide
-		// locally, so preserve the original behavior and call the server once.
-		const scalePrefix =
-			typeof scannerInput.getScaleBarcodePrefix === "function"
-				? scannerInput.getScaleBarcodePrefix() || ""
-				: "";
-		const mightBeScaleBarcode =
-			!scalePrefix || String(scannedCode || "").startsWith(scalePrefix);
-
-		if (mightBeScaleBarcode) {
-			try {
-				const res = await frappe.call({
-					method: "posawesome.posawesome.api.items.parse_scale_barcode",
-					args: { barcode: scannedCode },
-				});
-				if (res && res.message) {
-					scaleResponse = res.message;
-				}
-			} catch (error) {
-				console.error("Failed to parse scale barcode via API:", error);
+		// Scale settings are already loaded once per session by
+		// ensureScaleBarcodeSettings above. Parse the scale barcode fully client-side
+		// so a normal scan makes zero server calls (no round-trip). When no scale
+		// prefix is configured, scale barcodes are off and parsing is skipped entirely.
+		try {
+			const scaleSettings = scannerInput.scaleBarcodeSettings
+				? scannerInput.scaleBarcodeSettings.value
+				: null;
+			if (scaleSettings && getScaleBarcodePrefix(scaleSettings)) {
+				scaleResponse = parseScaleBarcodeData(scaleSettings, scannedCode);
 			}
-		}
-
-		if (
-			scaleResponse &&
-			scaleResponse.settings &&
-			typeof scannerInput.updateScaleBarcodeSettings === "function"
-		) {
-			scannerInput.updateScaleBarcodeSettings(scaleResponse.settings);
+		} catch (error) {
+			console.error("Failed to parse scale barcode:", error);
 		}
 
 		const configuredPrefix =
