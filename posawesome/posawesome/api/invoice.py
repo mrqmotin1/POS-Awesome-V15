@@ -32,9 +32,17 @@ def before_submit(doc, method):
     update_coupon(doc, "used")
 
 def set_total_items_discount(doc):
-    doc.custom_total_items_discount = sum(
-        flt(item.discount_amount) * flt(item.qty) for item in doc.items
-    )
+    total = 0.0
+    for item in doc.items:
+        discount = flt(item.discount_amount)
+        if not discount:
+            # Manual rate cut: discount_amount stays 0 when the cashier
+            # lowers the rate directly below the price list rate.
+            discount = max(flt(item.price_list_rate) - flt(item.rate), 0)
+        total += discount * flt(item.qty)
+        # Item's share of the invoice-level Additional Discount (ERPNext v15+).
+        total += flt(getattr(item, "distributed_discount_amount", 0))
+    doc.custom_total_items_discount = flt(total, doc.precision("net_total"))
     
 def before_cancel(doc, method):
     update_coupon(doc, "cancelled")
