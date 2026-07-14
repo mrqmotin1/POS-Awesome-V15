@@ -406,30 +406,35 @@ export const useItemsSelectorSearch = ({
 	const onEnter = (event?: KeyboardEvent) => {
 		const vm = getVm();
 		if (!vm) return;
-
-		if (usesLimitSearch(vm)) {
-			if (event && typeof event.preventDefault === "function") {
-				event.preventDefault();
-			}
-			clearHighlightedSelection(vm);
-			if (search_onchange.cancel) {
-				search_onchange.cancel();
-			}
-			_performSearch();
-			return;
+		if (event && typeof event.preventDefault === "function") {
+			event.preventDefault();
 		}
 
-		if (getHighlightedIndex(itemSelection || vm.itemSelection) >= 0) {
-			if (event && typeof event.preventDefault === "function") {
-				event.preventDefault();
-			}
-			(itemSelection || vm.itemSelection).selectHighlightedItem();
-			return;
-		}
+		const trimmedQuery = String(getCurrentSearchInput(vm) || "").trim();
+
+		// Enter is an immediate scan (mon-develop-2 parity) — cancel any pending
+		// debounced search so it does not run a plain search after the scan.
 		if (search_onchange.cancel) {
 			search_onchange.cancel();
 		}
-		_performSearch();
+		if (!trimmedQuery) return;
+
+		// mon-develop-2 behavior: Enter always treats the value as a scanned barcode
+		// (numeric OR alphanumeric like DL955-174) and adds it — never a plain search.
+		// processScannedItem resolves it via the local index, else get_items() on the
+		// server, which handles alphanumeric barcodes in both Limit Search modes.
+		if (typeof vm.onBarcodeScanned === "function") {
+			vm.onBarcodeScanned(trimmedQuery);
+		} else if (scannerInput?.onBarcodeScanned) {
+			scannerInput.onBarcodeScanned(trimmedQuery);
+		}
+
+		// Clear immediately for rapid scanning (d2 cleared search_input in onBarcodeScanned).
+		syncSearchInput(vm, "");
+		vm.first_search = "";
+		if (scannerInput?.resetKeyboardScanDetection) {
+			scannerInput.resetKeyboardScanDetection();
+		}
 	};
 
 	const clearSearch = () => {
