@@ -81,7 +81,9 @@ export function useScannerInput(options: ScannerInputOptions = {}) {
 	const keyboardScanPendingValue = ref("");
 
 	// Config
-	const keyboardScanMinLength = 12;
+	// Restored mon-develop-2 baseline: min length 6 (was 12) so shorter barcodes
+	// (EAN-8, short internal codes) still trip the fast scanner-detection path.
+	const keyboardScanMinLength = 6;
 	const keyboardScanMaxInterval = 45;
 	const keyboardScanMaxDuration = 250;
 	const keyboardScanProcessingDelay = 100;
@@ -492,6 +494,27 @@ export function useScannerInput(options: ScannerInputOptions = {}) {
 			return false;
 		}
 
+		// mon-develop-2 fast path: an all-digit value at/above the min length is a
+		// completed scan, so fire immediately on the next tick (no 100ms idle delay).
+		// The 12ms dedupe inside onBarcodeScanned collapses the growing per-keystroke
+		// values into the final full barcode, keeping it safe for fast scanners.
+		if (/^\d+$/.test(currentValue)) {
+			resetKeyboardScanDetection();
+			nextTick(() => {
+				const latestValue = (
+					getSearchInputHandler.value
+						? (getSearchInputHandler.value as any)()
+						: currentValue
+				)
+					?.toString?.()
+					?.trim?.() || currentValue;
+				onBarcodeScanned(latestValue || currentValue);
+			});
+			return true;
+		}
+
+		// Non-numeric input (alphanumeric / virtual scanners without reliable key
+		// timing): keep the idle-value fallback.
 		keyboardScanTimer.value = setTimeout(() => {
 			const latestValue = (
 				getSearchInputHandler.value
