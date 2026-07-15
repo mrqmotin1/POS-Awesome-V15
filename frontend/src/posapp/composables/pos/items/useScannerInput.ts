@@ -485,56 +485,19 @@ export function useScannerInput(options: ScannerInputOptions = {}) {
 		keyboardScanPendingValue.value = currentValue;
 		keyboardScanLastTime.value = now;
 
-		if (keyboardScanTimer.value) {
-			clearTimeout(keyboardScanTimer.value);
-		}
-
 		if (currentValue.length < keyboardScanMinLength) {
-			keyboardScanTimer.value = null;
+			if (keyboardScanTimer.value) {
+				clearTimeout(keyboardScanTimer.value);
+				keyboardScanTimer.value = null;
+			}
 			return false;
 		}
 
-		// mon-develop-2 fast path: an all-digit value at/above the min length is a
-		// completed scan, so fire immediately on the next tick (no 100ms idle delay).
-		// The 12ms dedupe inside onBarcodeScanned collapses the growing per-keystroke
-		// values into the final full barcode, keeping it safe for fast scanners.
-		if (/^\d+$/.test(currentValue)) {
-			resetKeyboardScanDetection();
-			nextTick(() => {
-				const latestValue = (
-					getSearchInputHandler.value
-						? (getSearchInputHandler.value as any)()
-						: currentValue
-				)
-					?.toString?.()
-					?.trim?.() || currentValue;
-				onBarcodeScanned(latestValue || currentValue);
-			});
-			return true;
-		}
-
-		// Non-numeric input (alphanumeric / virtual scanners without reliable key
-		// timing): keep the idle-value fallback.
-		keyboardScanTimer.value = setTimeout(() => {
-			const latestValue = (
-				getSearchInputHandler.value
-					? (getSearchInputHandler.value as any)()
-					: currentValue
-			)
-				?.toString?.()
-				?.trim?.() || "";
-
-			if (!latestValue || latestValue !== currentValue) {
-				return;
-			}
-
-			// Virtual scanners (for example AHK-based tools) often populate the
-			// field without reliable key timing, so fall back to idle-value detection.
-			resetKeyboardScanDetection();
-			onBarcodeScanned(latestValue);
-		}, keyboardScanProcessingDelay);
-
-		return currentValue.length >= keyboardScanMinLength;
+		// mon-develop-2 parity: typed input never auto-fires — Enter or the keydown
+		// timing path (scanner-speed keystrokes, evaluateKeyboardScan) decide.
+		// Leave any keydown-scheduled evaluation timer alive so wedge scanners
+		// still auto-add; the bookkeeping above gives it the full current value.
+		return false;
 	};
 
 	const handleSearchPaste = (event: ClipboardEvent) => {
