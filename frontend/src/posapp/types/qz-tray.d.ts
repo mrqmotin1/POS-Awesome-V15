@@ -19,6 +19,7 @@ declare module "qz-tray" {
 		};
 		colorType?: string;
 		interpolation?: string;
+		forceRaw?: boolean;
 	}
 
 	interface QzPrintData {

@@ -436,21 +436,16 @@ export async function printHtmlViaQz(html: string, options: QzPrintHtmlOptions =
 		throw new Error("No QZ printer selected.");
 	}
 
-	const config = qz.configs.create(printer, {
-		// size: {
-		// 	width: options.widthMm || 80,
-		// 	height: null,
-		// },
-		// units: "mm",
-		// orientation: options.orientation || "portrait",
-		// margins: { top: 0, right: 0, bottom: 0, left: 0 },
-		// colorType: "grayscale",
-		// interpolation: "nearest-neighbor",
-	});
-
-	//const config = qz.configs.create(printer, { forceRaw: true });
+	const config = qz.configs.create(printer, { forceRaw: true });
 
 	const data = [
+		// ESC/POS drawer-kick pulse (DLE DC4 fn=1, drawer pin 2) — opens the cash drawer
+		{
+			type: "raw",
+			format: "command",
+			flavor: "plain",
+			data: "\x10\x14\x01\x00\x05",
+		},
 		{
 			type: "raw",
 			format: "command",
@@ -458,12 +453,6 @@ export async function printHtmlViaQz(html: string, options: QzPrintHtmlOptions =
 			data: html,
 		},
 	];
-
-	// var data = [ 
-	// 			'\x10' + '\x14' + '\x01' + '\x00' + '\x05',             // Line break after top image
-	// 			html,
-									
-	// 		];
 
 	await qz.print(config, data);
 	console.log("Print job sent to QZ Tray ------------", config);
