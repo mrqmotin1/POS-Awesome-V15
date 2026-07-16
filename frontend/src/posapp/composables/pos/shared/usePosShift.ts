@@ -303,7 +303,9 @@ export function usePosShift(openDialog?: () => void) {
 			}
 
 			//console.log("Print URL", url);
-			window.open(url, "Print");
+			// same-page print dialog like sales invoice printing; iframe is
+			// cleaned up right after the dialog is printed or cancelled
+			silentPrint(url, {});
 
 		}
 

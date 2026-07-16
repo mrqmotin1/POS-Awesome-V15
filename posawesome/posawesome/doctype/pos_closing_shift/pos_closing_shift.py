@@ -56,6 +56,7 @@ class POSClosingShift(Document):
                 title=_("Invalid Opening Entry"),
             )
         self.update_payment_reconciliation()
+        self.set_return_totals()
 
     def update_payment_reconciliation(self):
         # update the difference values in Payment Reconciliation child table
@@ -63,6 +64,50 @@ class POSClosingShift(Document):
         precision = frappe.get_cached_value("System Settings", None, "currency_precision") or 3
         for d in self.payment_reconciliation:
             d.difference = +flt(d.closing_amount, precision) - flt(d.expected_amount, precision)
+
+    def set_return_totals(self):
+        # populate cash_returns / card_returns custom fields used by the
+        # closing receipt templates; amounts keep the invoice sign (negative)
+        self.cash_returns = 0
+        self.card_returns = 0
+
+        if not self.meta.has_field("cash_returns") or not self.meta.has_field("card_returns"):
+            return
+
+        invoices_by_doctype = {}
+        for row in self.get("pos_transactions", []):
+            if row.get("sales_invoice"):
+                invoices_by_doctype.setdefault("Sales Invoice", []).append(row.sales_invoice)
+            elif row.get("pos_invoice"):
+                invoices_by_doctype.setdefault("POS Invoice", []).append(row.pos_invoice)
+
+        if not invoices_by_doctype:
+            return
+
+        cash_mode_of_payment = (
+            frappe.db.get_value("POS Profile", self.pos_profile, "posa_cash_mode_of_payment")
+            or "Cash"
+        )
+
+        for doctype, invoice_names in invoices_by_doctype.items():
+            data = frappe.db.sql(
+                f"""
+                select sip.mode_of_payment, sum(sip.base_amount) as amount
+                from `tab{doctype}` inv
+                inner join `tabSales Invoice Payment` sip on sip.parent = inv.name
+                where inv.name in %(invoice_names)s
+                    and inv.is_return = 1
+                    and inv.docstatus = 1
+                group by sip.mode_of_payment
+                """,
+                {"invoice_names": invoice_names},
+                as_dict=1,
+            )
+            for d in data:
+                if d.mode_of_payment == cash_mode_of_payment:
+                    self.cash_returns = flt(self.cash_returns) + flt(d.amount)
+                else:
+                    self.card_returns = flt(self.card_returns) + flt(d.amount)
 
     def on_submit(self):
         opening_entry = frappe.get_doc("POS Opening Shift", self.pos_opening_shift)
