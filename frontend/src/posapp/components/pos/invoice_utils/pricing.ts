@@ -218,7 +218,11 @@ export function _applyPricingToLine(
 		return;
 	}
 
-	const manualOverride = item._manual_rate_set === true;
+	// A UOM-derived rate (barcode UOM / cart UOM change) is a price-list read, not a
+	// cashier override — it must NOT block pricing rules. Only a true manual rate does.
+	const manualOverride =
+		item._manual_rate_set === true &&
+		item._manual_rate_set_from_uom !== true;
 	const allowRateUpdate =
 		!item.locked_price && !item.posa_offer_applied && !manualOverride;
 	const rawDocQty = Number.parseFloat(item.qty || 0);
@@ -862,7 +866,8 @@ export async function _applyServerPricingRules(context: any, ctx: any = {}) {
 		);
 
 		let allowServerRateUpdate =
-			item._manual_rate_set !== true &&
+			(item._manual_rate_set !== true ||
+				item._manual_rate_set_from_uom === true) &&
 			!priceLocked &&
 			!offerApplied &&
 			!lockReturnPricing;
