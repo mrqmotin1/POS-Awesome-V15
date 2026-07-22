@@ -167,8 +167,8 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 					key === "discount_value" ? "discount_percentage" : key,
 				);
 			} else {
-				// Base defaults (profile-independent so it works before the
-				// profile has loaded): required columns + price_list_rate.
+				// Base defaults: required columns only. Optional columns
+				// (price list rate, discounts) come from POS Profile flags below.
 				selected_columns.value = available_columns.value
 					.filter((col) => col.required)
 					.map((col) => col.key);
