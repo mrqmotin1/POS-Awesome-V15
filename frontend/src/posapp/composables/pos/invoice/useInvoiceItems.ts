@@ -136,6 +136,27 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		);
 	});
 
+	// POS Profile display flags are authoritative: a column enabled on the
+	// profile is always merged into the selection so it shows on open/reload,
+	// regardless of saved preferences. Additive + idempotent.
+	const applyProfileColumnDefaults = () => {
+		if (!pos_profile.value) return;
+		const cols = [...selected_columns.value];
+		let changed = false;
+		const ensure = (key: string, flag: any) => {
+			if (flag && !cols.includes(key)) {
+				cols.push(key);
+				changed = true;
+			}
+		};
+		ensure(
+			"discount_percentage",
+			pos_profile.value.posa_display_discount_percentage,
+		);
+		ensure("discount_amount", pos_profile.value.posa_display_discount_amount);
+		if (changed) selected_columns.value = cols;
+	};
+
 	const loadColumnPreferences = () => {
 		try {
 			const saved = localStorage.getItem("posawesome_selected_columns");
@@ -145,30 +166,23 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 				selected_columns.value = parsed.map((key) =>
 					key === "discount_value" ? "discount_percentage" : key,
 				);
-			} else if (pos_profile.value) {
-				// Default selection based on POS Profile
+			} else {
+				// Base defaults: required columns only. Optional columns
+				// (price list rate, discounts) come from POS Profile flags below.
 				selected_columns.value = available_columns.value
-					.filter((col) => {
-						if (col.required) return true;
-						if (col.key === "price_list_rate") return true;
-						if (
-							col.key === "discount_percentage" &&
-							pos_profile.value?.posa_display_discount_percentage
-						)
-							return true;
-						if (
-							col.key === "discount_amount" &&
-							pos_profile.value?.posa_display_discount_amount
-						)
-							return true;
-						return false;
-					})
+					.filter((col) => col.required)
 					.map((col) => col.key);
 			}
+			// Merge in any POS-Profile-mandated columns.
+			applyProfileColumnDefaults();
 		} catch (e) {
 			console.error("Failed to load column preferences:", e);
 		}
 	};
+
+	// The profile loads asynchronously after mount, so re-apply the profile
+	// defaults once it becomes available (and on any later profile change).
+	watch(pos_profile, () => applyProfileColumnDefaults());
 
 	const saveColumnPreferences = () => {
 		try {

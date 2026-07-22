@@ -25,38 +25,44 @@ export function getResponsiveVisibleHeaders(
 	headers: TableHeader[],
 	width: number,
 ) {
-	return headers
-		.filter((header) => {
-			if (
-				header.required ||
-				header.key === "item_name" ||
-				header.key === "qty" ||
-				header.key === "actions" ||
-				header.key === "amount"
-			) {
-				return true;
-			}
-
-			if (width < 450) {
-				return ["item_name", "qty", "amount", "actions"].includes(
-					header.key,
-				);
-			} else if (width < 650) {
-				return ![
-					"discount_percentage",
-					"discount_amount",
-					"price_list_rate",
-					"uom",
-					"posa_is_offer",
-				].includes(header.key);
-			}
+	const filtered = headers.filter((header) => {
+		if (
+			header.required ||
+			header.key === "item_name" ||
+			header.key === "qty" ||
+			header.key === "actions" ||
+			header.key === "amount"
+		) {
 			return true;
-		})
-		.map((header) => ({
-			...header,
-			width: calculateColumnWidth(header, width),
-			minWidth: calculateMinColumnWidth(header),
-		}));
+		}
+
+		if (width < 450) {
+			return ["item_name", "qty", "amount", "actions"].includes(
+				header.key,
+			);
+		} else if (width < 650) {
+			return ![
+				"discount_percentage",
+				"discount_amount",
+				"price_list_rate",
+				"uom",
+				"posa_is_offer",
+			].includes(header.key);
+		}
+		return true;
+	});
+
+	// +1 for the expand column appended by buildFinalVisibleColumns.
+	// When many columns are visible on a ≤1024px screen the fixed-layout table
+	// overflows, so switch to the tighter "dense" width set.
+	const visibleCount = filtered.length + 1;
+	const dense = visibleCount >= 8 && width < 1025;
+
+	return filtered.map((header) => ({
+		...header,
+		width: calculateColumnWidth(header, width, dense),
+		minWidth: calculateMinColumnWidth(header, dense),
+	}));
 }
 
 export function buildFinalVisibleColumns(
@@ -73,8 +79,25 @@ export function buildFinalVisibleColumns(
 	return [...visibleHeaders, DATA_TABLE_EXPAND_COLUMN];
 }
 
-const calculateColumnWidth = (header: TableHeader, width: number) => {
-	// Two sets of widths: compact for ~1024×768 (container < 600px), standard for larger screens.
+const calculateColumnWidth = (header: TableHeader, width: number, dense = false) => {
+	// Three sets of widths:
+	//   dense    — ≤1024px with 8+ visible columns (Price List Rate / Discount added); fits ~600px
+	//   compact  — ~1024×768 (container < 600px)
+	//   standard — larger screens
+	const denseWidths: Record<string, { min: number; max: number; ratio: number }> = {
+		sl: { min: 32, max: 40, ratio: 0.03 },
+		item_name: { min: 100, max: 150, ratio: 0.24 },
+		qty: { min: 74, max: 96, ratio: 0.13 },
+		rate: { min: 66, max: 90, ratio: 0.11 },
+		amount: { min: 55, max: 55, ratio: 0.12 },
+		discount_percentage: { min: 58, max: 84, ratio: 0.09 },
+		discount_amount: { min: 55, max: 60, ratio: 0.10 },
+		price_list_rate: { min: 62, max: 96, ratio: 0.11 },
+		actions: { min: 66, max: 66, ratio: 0.08 },
+		posa_is_offer: { min: 56, max: 72, ratio: 0.06 },
+		uom: { min: 56, max: 80, ratio: 0.07 },
+	};
+
 	const compactWidths: Record<string, { min: number; max: number; ratio: number }> = {
 		sl: { min: 50, max: 60, ratio: 0.04 },
 		item_name: { min: 120, max: 160, ratio: 0.28 },
@@ -101,13 +124,30 @@ const calculateColumnWidth = (header: TableHeader, width: number) => {
 			posa_is_offer: { min: 70, max: 90, ratio: 0.06 },
 	};
 
-	const baseWidths = width < 1025 ? compactWidths : standardWidths;
+	const baseWidths = dense
+		? denseWidths
+		: width < 1025
+			? compactWidths
+			: standardWidths;
 	const config = baseWidths[header.key] || { min: 65, max: 150, ratio: 0.1 };
 	const calculatedWidth = width * config.ratio;
 	return Math.max(config.min, Math.min(config.max, calculatedWidth));
 };
 
-const calculateMinColumnWidth = (header: TableHeader) => {
+const calculateMinColumnWidth = (header: TableHeader, dense = false) => {
+	const denseMinWidths: Record<string, number> = {
+		sl: 32,
+		item_name: 100,
+		qty: 70,
+		rate: 66,
+		amount: 55,
+		discount_percentage: 58,
+		discount_amount: 58,
+		price_list_rate: 62,
+		actions: 66,
+		posa_is_offer: 56,
+		uom: 56,
+	};
 	const minWidths: Record<string, number> = {
 		sl: 15,
 		item_name: 100,
@@ -120,7 +160,8 @@ const calculateMinColumnWidth = (header: TableHeader) => {
 		actions: 50,
 		posa_is_offer: 70,
 	};
-	return minWidths[header.key] || 65;
+	const table = dense ? denseMinWidths : minWidths;
+	return table[header.key] || (dense ? 50 : 65);
 };
 
 export function useItemsTableResponsive(
@@ -159,12 +200,19 @@ export function useItemsTableResponsive(
 		"--container-height": containerHeight.value + "px",
 	}));
 
+	// +1 for the expand column appended by buildFinalVisibleColumns.
+	const visibleColumnCount = computed(
+		() => responsiveHeaders.value.length + 1,
+	);
+
 	const containerClasses = computed(() => ({
 		[`breakpoint-${breakpoint.value}`]: true,
 		"compact-view": containerWidth.value < 600,
 		"medium-view":
 			containerWidth.value >= 600 && containerWidth.value < 900,
 		"large-view": containerWidth.value >= 900,
+		"dense-columns": visibleColumnCount.value >= 8,
+		"ultra-dense-columns": visibleColumnCount.value >= 9,
 	}));
 
 	const tableClasses = computed(() => ({
@@ -227,6 +275,7 @@ export function useItemsTableResponsive(
 		containerHeight,
 		breakpoint,
 		responsiveHeaders,
+		visibleColumnCount,
 		isColumnVisible,
 		containerStyles,
 		containerClasses,

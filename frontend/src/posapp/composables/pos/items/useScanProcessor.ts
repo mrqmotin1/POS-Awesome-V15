@@ -250,8 +250,11 @@ export function useScanProcessor(context: ScanProcessorContext) {
 							newItem.conversion_factor = conversionFactor;
 						}
 						newItem.barcode = scannedCode;
+						// Pin the UOM price against auto-refresh, but mark it as
+						// UOM-derived (not a cashier override) so pricing rules
+						// still apply — same convention as calcUom.
 						newItem._manual_rate_set = true;
-						newItem.skip_force_update = true;
+						newItem._manual_rate_set_from_uom = true;
 					} else if (conversionFactor) {
 						const newPrice = baseUnitRate * conversionFactor;
 
@@ -261,8 +264,11 @@ export function useScanProcessor(context: ScanProcessorContext) {
 						newItem.base_price_list_rate = baseUnitRate;
 						newItem.conversion_factor = conversionFactor;
 						newItem.barcode = scannedCode;
+						// Pin the UOM price against auto-refresh, but mark it as
+						// UOM-derived (not a cashier override) so pricing rules
+						// still apply — same convention as calcUom.
 						newItem._manual_rate_set = true;
-						newItem.skip_force_update = true;
+						newItem._manual_rate_set_from_uom = true;
 					}
 				} catch (e) {
 					console.error("Failed to fetch UOM price", e);

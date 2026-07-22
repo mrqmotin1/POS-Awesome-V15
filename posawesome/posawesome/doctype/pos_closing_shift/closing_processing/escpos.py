@@ -76,27 +76,27 @@ Closing Time : {{ frappe.utils.format_datetime(doc.period_end_date) }}
 {{ LINE }}
 Time         : {{ frappe.utils.format_datetime(doc.period_start_date) }}
 User         : {{ doc.user }}
-Opening Balance : {{ "%0.2f"|format(opening_amount) }}
+Opening Balance  : {{ "%0.2f"|format(opening_amount) }}
 {{ BOLD_ON }}SALES{{ BOLD_OFF }}
 {{ LINE }}
-Cash Sales      : {{ "%0.2f"|format(cash_total) }}
-Card Sales      : {{ "%0.2f"|format(card_total) }}
-Credit Sales    : {{ "%0.2f"|format(total_credit_sales) }}
-Total Sales     : {{ "%0.2f"|format(doc.grand_total) }}
-Total Bills     : {{ total_bills }}
-Average Bill    : {{ "%0.2f"|format(doc.grand_total / total_bills if total_bills else 0) }}
+Cash Sales       : {{ "%0.2f"|format(cash_total) }}
+Card Sales       : {{ "%0.2f"|format(card_total) }}
+Credit Sales     : {{ "%0.2f"|format(total_credit_sales) }}
+Total Sales      : {{ "%0.2f"|format(doc.grand_total) }}
+Total Bills      : {{ total_bills }}
+Average Bill     : {{ "%0.2f"|format(doc.grand_total / total_bills if total_bills else 0) }}
+Total Items Qty  : {{ "%0.2f"|format(doc.total_quantity) }}
 {{ BOLD_ON }}SALES RETURNS{{ BOLD_OFF }}
 {{ LINE }}
-Cash Returns    : {{ "%0.2f"|format(doc.cash_returns|abs) }}
-A/c Returns     : {{ "%0.2f"|format(doc.card_returns|abs) }}
-TOTAL RETURNS   : {{ "%0.2f"|format((doc.cash_returns + doc.card_returns)|abs) }}
-Total Quantity  : {{ "%0.2f"|format(doc.total_quantity) }}
+Cash Returns     : {{ "%0.2f"|format(doc.cash_returns|abs) }}
+A/c Returns      : {{ "%0.2f"|format(doc.card_returns|abs) }}
+TOTAL RETURNS    : {{ "%0.2f"|format((doc.cash_returns + doc.card_returns)|abs) }}
 
 {{ BOLD_ON }}NET CASH BALANCE{{ BOLD_OFF }}
 {{ LINE }}
-Net Cash Balance: {{ "%0.2f"|format(total_cash) }}
-Cash Count      : {{ "%0.2f"|format(total_cash_count) }}
-Over Cash       : {{ "%0.2f"|format(total_cash_count - total_cash) }}
+Net Cash Balance : {{ "%0.2f"|format(total_cash) }}
+Cash Count       : {{ "%0.2f"|format(total_cash_count) }}
+Over Cash        : {{ "%0.2f"|format(total_cash_count - total_cash) }}
 {{ LF }}{{ LF }}{{ LF }}{{ LF }}{{ CUT }}"""
 
 

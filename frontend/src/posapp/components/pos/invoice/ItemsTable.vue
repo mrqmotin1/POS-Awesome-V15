@@ -39,6 +39,9 @@
 			<template v-slot:header.amount="{ column }">
 				<span class="posa-cart-header-nudge posa-cart-header-nudge--amount">{{ column.title }}</span>
 			</template>
+			<template v-slot:header.discount_amount="{ column }">
+				<span class="posa-cart-header-nudge posa-cart-header-nudge--discount-amount">{{ column.title }}</span>
+			</template>
 
 			<template #no-data>
 				<div class="posa-cart-empty-state">
