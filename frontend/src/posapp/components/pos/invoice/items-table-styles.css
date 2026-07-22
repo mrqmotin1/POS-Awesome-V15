@@ -897,4 +897,111 @@
 	min-width: 30px;
 	max-width: 60px;
 	}
+
+	/* -------------------------------------------------------------
+	   DENSE COLUMNS — 8+ visible columns on ≤1024px.
+	   Shrink padding / font / inner pills so every column fits
+	   the ~600px cart container without horizontal scroll.
+	   ------------------------------------------------------------- */
+	.posa-responsive-table-container.dense-columns .posa-cart-table td,
+	.posa-responsive-table-container.dense-columns .posa-cart-table th {
+		padding: 6px 4px;
+	}
+	.posa-responsive-table-container.dense-columns .posa-cart-table td {
+		height: auto;
+		min-height: 52px;
+	}
+
+	.posa-responsive-table-container.dense-columns .posa-cart-table__qty-counter {
+		min-width: 60px;
+		max-width: 84px;
+		gap: 3px;
+		padding: 2px;
+	}
+	.posa-responsive-table-container.dense-columns .qty-control-btn,
+	.posa-responsive-table-container.dense-columns .posa-cart-table__qty-btn {
+		width: 20px !important;
+		height: 20px !important;
+		min-width: 20px !important;
+	}
+	.posa-responsive-table-container.dense-columns .posa-cart-table__qty-display {
+		min-width: 24px;
+		max-width: 48px;
+		font-size: 0.7rem;
+	}
+
+	.posa-responsive-table-container.dense-columns .posa-cart-table__editor-display {
+		min-width: 44px;
+		padding: 4px 6px;
+		font-size: 0.78rem;
+		height: 28px;
+		gap: 2px;
+	}
+
+	/* Tighten the expand toggle column */
+	.posa-responsive-table-container.dense-columns
+		.posa-cart-table
+		td.v-data-table__td--expanded-row,
+	.posa-responsive-table-container.dense-columns
+		.posa-cart-table
+		th.v-data-table__th--sortable[colspan],
+	.posa-responsive-table-container.dense-columns
+		.posa-cart-table
+		td:has(.v-data-table__expand-icon),
+	.posa-responsive-table-container.dense-columns
+		.posa-cart-table
+		.v-data-table__td.v-data-table-column--align-center:last-child {
+		padding-left: 2px;
+		padding-right: 2px;
+		width: 32px;
+	}
+
+	/* ultra-dense: 9+ columns (Discount % also on) — squeeze a touch more */
+	.posa-responsive-table-container.ultra-dense-columns .posa-cart-table td,
+	.posa-responsive-table-container.ultra-dense-columns .posa-cart-table th {
+		padding: 5px 3px;
+	}
+	.posa-responsive-table-container.ultra-dense-columns .posa-cart-table__editor-display {
+		min-width: 40px;
+		padding: 3px 4px;
+		font-size: 0.74rem;
+	}
+	.posa-responsive-table-container.ultra-dense-columns .posa-cart-table__qty-counter {
+		min-width: 54px;
+		max-width: 76px;
+	}
+
+	/* Column position fine-tuning (dense ≤1024 view only) */
+	/* QTY — nudge whole column slightly left, header stays aligned over data */
+	.posa-responsive-table-container.dense-columns .posa-cart-header-nudge--qty {
+		transform: translateX(2px);
+	}
+	.posa-responsive-table-container.dense-columns
+		.posa-cart-table
+		td[data-column-key="qty"]
+		> div {
+		transform: translateX(-6px);
+	}
+	/* Discount Amount — nudge header + data slightly left */
+	.posa-responsive-table-container.dense-columns .posa-cart-header-nudge--discount-amount {
+		transform: translateX(-6px);
+	}
+	.posa-responsive-table-container.dense-columns
+		.posa-cart-table
+		td[data-column-key="discount_amount"]
+		> div {
+		transform: translateX(-6px);
+	}
+	/* Amount — header only left, data position unchanged */
+	.posa-responsive-table-container.dense-columns .posa-cart-header-nudge--amount {
+		transform: translateX(-16px);
+	}
+
+	/* Safety: never clip — if even dense can't fit, scroll instead */
+	.posa-responsive-table-container.dense-columns {
+		overflow-x: auto;
+	}
+	.posa-responsive-table-container.dense-columns .posa-cart-table table {
+		min-width: 100%;
+	}
 }
