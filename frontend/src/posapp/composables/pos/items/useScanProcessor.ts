@@ -12,7 +12,10 @@ import {
 	emptyScanAssignment,
 	type ScanAssignment,
 } from "./scanProcessor/scanAssignment";
-import { toCompanyCurrency } from "../../../utils/erpnextCurrency";
+import {
+	toCompanyCurrency,
+	fromCompanyCurrency,
+} from "../../../utils/erpnextCurrency";
 // @ts-ignore
 import placeholderImage from "../../../components/pos/placeholder-image.png";
 
@@ -256,12 +259,27 @@ export function useScanProcessor(context: ScanProcessorContext) {
 						newItem._manual_rate_set = true;
 						newItem._manual_rate_set_from_uom = true;
 					} else if (conversionFactor) {
-						const newPrice = baseUnitRate * conversionFactor;
+						// baseUnitRate is derived from the base_* fields, so it is
+						// already company currency and per single unit. Scale it by
+						// the conversion factor and keep base_rate/base_price_list_rate
+						// on that same UOM basis — leaving them at the unit price makes
+						// _resolveBaseRate() re-price the line from the unscaled rate,
+						// charging one unit for a whole box.
+						const baseUomRate = baseUnitRate * conversionFactor;
+						const displayUomRate = fromCompanyCurrency(
+							{
+								pos_profile: pos_profile.value,
+								currency: context.selected_currency?.value,
+								selected_currency: context.selected_currency?.value,
+								conversion_rate: context.conversion_rate?.value,
+							},
+							baseUomRate,
+						);
 
-						newItem.rate = newPrice;
-						newItem.price_list_rate = newPrice;
-						newItem.base_rate = baseUnitRate;
-						newItem.base_price_list_rate = baseUnitRate;
+						newItem.rate = displayUomRate;
+						newItem.price_list_rate = displayUomRate;
+						newItem.base_rate = baseUomRate;
+						newItem.base_price_list_rate = baseUomRate;
 						newItem.conversion_factor = conversionFactor;
 						newItem.barcode = scannedCode;
 						// Pin the UOM price against auto-refresh, but mark it as
