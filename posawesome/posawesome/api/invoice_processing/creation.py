@@ -969,8 +969,22 @@ def update_invoice(data):
         if d.get("posa_row_id") and d.get("barcode")
     }
 
-    # Set missing values first
-    invoice_doc.set_missing_values()
+    # Set missing values first.
+    #
+    # Returns run with for_validate=True on purpose. ERPNext's set_pos_fields()
+    # only re-reads POS Profile defaults when for_validate is False, and one of
+    # those defaults is `ignore_pricing_rule` — so the default call silently
+    # overwrites the 1 set above with the profile's value and re-prices the
+    # return against live pricing rules. A return must keep the prices of the
+    # invoice it reverses (ERPNext's own return mapper sets ignore_pricing_rule
+    # on the target doc for the same reason), and re-pricing also trips an
+    # ERPNext bug: an Item Group / Brand rule carrying a UOM is evaluated with
+    # an empty item_code, which raises "Item None not found" at the POS.
+    invoice_doc.set_missing_values(for_validate=bool(invoice_doc.is_return))
+
+    if invoice_doc.is_return:
+        # Keep the flag through the save() below, which validates again.
+        invoice_doc.ignore_pricing_rule = 1
 
     for item in invoice_doc.items:
         preserved = scanned_barcodes.get(item.get("posa_row_id"))
