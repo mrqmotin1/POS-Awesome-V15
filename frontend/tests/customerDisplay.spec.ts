@@ -229,20 +229,20 @@ describe("customerDisplay screen targeting", () => {
 		expect(matchScreenByName(screens, "dell")?.label).toBe("DELL U2412M");
 	});
 
-	it("resolves the secondary, external and primary keywords", () => {
+	it("does not resolve generic screen names, only real labels", () => {
 		const screens = listScreens(dualScreenDetails);
-		expect(matchScreenByName(screens, "secondary")?.label).toBe("DELL U2412M");
-		expect(matchScreenByName(screens, "external")?.label).toBe("DELL U2412M");
-		expect(matchScreenByName(screens, "primary")?.label).toBe(
-			"Built-in Retina Display",
-		);
+		expect(matchScreenByName(screens, "secondary")).toBeNull();
+		expect(matchScreenByName(screens, "external")).toBeNull();
+		expect(matchScreenByName(screens, "primary")).toBeNull();
+		expect(matchScreenByName(screens, "other")).toBeNull();
 	});
 
-	it("resolves a 1-based screen number", () => {
+	it("does not treat a number as a screen position", () => {
 		const screens = listScreens(dualScreenDetails);
-		expect(matchScreenByName(screens, "1")?.label).toBe("Built-in Retina Display");
-		expect(matchScreenByName(screens, "2")?.label).toBe("DELL U2412M");
-		expect(matchScreenByName(screens, "3")).toBeNull();
+		// "1" used to mean "the first screen". Now it is only text: it matches
+		// DELL U2412M because that label contains a 1, not because of position.
+		expect(matchScreenByName(screens, "1")?.label).toBe("DELL U2412M");
+		expect(matchScreenByName(screens, "9")).toBeNull();
 	});
 
 	it("returns null for a blank or unknown name so the popup stays unchanged", () => {
@@ -252,7 +252,7 @@ describe("customerDisplay screen targeting", () => {
 		expect(matchScreenByName(screens, null)).toBeNull();
 		expect(matchScreenByName(screens, undefined)).toBeNull();
 		expect(matchScreenByName(screens, "Samsung LC24")).toBeNull();
-		expect(matchScreenByName([], "secondary")).toBeNull();
+		expect(matchScreenByName([], "DELL U2412M")).toBeNull();
 	});
 
 	it("labels unnamed screens by position", () => {
@@ -262,7 +262,7 @@ describe("customerDisplay screen targeting", () => {
 
 	it("builds window features from the working area of the target screen", () => {
 		const screens = listScreens(dualScreenDetails);
-		const target = matchScreenByName(screens, "secondary")!;
+		const target = matchScreenByName(screens, "DELL U2412M")!;
 
 		expect(buildWindowFeatures(target)).toBe(
 			"popup=yes,fullscreen=yes,left=1920,top=0,width=1280,height=1024,resizable=yes,scrollbars=yes",

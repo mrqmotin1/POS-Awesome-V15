@@ -22,3 +22,4 @@ posawesome.patches.remove_item_barcode_posa_uom
 posawesome.patches.add_pos_scale_indexes
 posawesome.patches.add_offline_sync_delta_indexes
 posawesome.patches.add_customer_display_name
+posawesome.patches.update_customer_display_name_field

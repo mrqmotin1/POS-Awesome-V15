@@ -68,10 +68,10 @@ export const listScreens = (details: any): CustomerDisplayScreen[] => {
 /**
  * Resolves the POS Profile "Customer Display Name" to a screen.
  *
- * Monitor labels are machine-specific ("DELL U2412M", "Built-in Retina
- * Display"), so a single POS Profile shared by terminals with different
- * hardware cannot rely on a literal name alone. Keywords and screen numbers
- * work on any terminal; a literal name covers the 3-monitor case.
+ * Real monitor labels only - "DELL U2412M", "Built-in Retina Display" - as
+ * detected on this computer and picked from the list on the POS Profile. Names
+ * are machine-specific, so a value set on one computer resolves to nothing on a
+ * computer without that monitor.
  *
  * Returns null for a blank name or no match - the caller then keeps the
  * existing popup behavior.
@@ -92,24 +92,9 @@ export const matchScreenByName = (
 	const exact = screens.find((screen) => screen.label.toLowerCase() === needle);
 	if (exact) return exact;
 
-	// Digits and keywords are checked before the loose substring match, or a
-	// screen number would be swallowed by a model name: "1" is a substring of
-	// "DELL U2412M". An exactly matching label already won above.
-	if (/^\d+$/.test(needle)) {
-		// 1-based, matching how operating systems number displays.
-		return screens[Number(needle) - 1] || null;
-	}
-
-	if (needle === "secondary") {
-		return screens.find((screen) => !screen.isPrimary) || null;
-	}
-	if (needle === "external") {
-		return screens.find((screen) => !screen.isInternal) || null;
-	}
-	if (needle === "primary") {
-		return screens.find((screen) => screen.isPrimary) || null;
-	}
-
+	// Only so a label that shifted slightly - "MI monitor" becoming
+	// "MI monitor (2)" after a replug - still resolves. Anything else is an
+	// exact label taken from the detected list.
 	return (
 		screens.find((screen) => screen.label.toLowerCase().includes(needle)) || null
 	);
