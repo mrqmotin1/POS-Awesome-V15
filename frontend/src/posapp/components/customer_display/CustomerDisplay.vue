@@ -1,5 +1,8 @@
 <template>
-	<section class="customer-display-screen">
+	<section
+		class="customer-display-screen"
+		:class="{ 'customer-display-screen--fullscreen': fullscreenActive }"
+	>
 		<header class="display-header">
 			<div class="display-title-block">
 				<h1>{{ __("Your Cart") }}</h1>
@@ -70,13 +73,20 @@
 				<div class="display-total-value">{{ formatCurrency(totalAmount) }}</div>
 			</template>
 		</footer>
+
+		<transition name="display-hint-fade">
+			<div v-if="showFullscreenHint" class="display-fullscreen-hint">
+				{{ __("Touch to go full screen") }}
+			</div>
+		</transition>
 	</section>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { createCustomerDisplayTransport, type CustomerDisplaySnapshot } from "../../utils/customerDisplay";
+import { findCurrentScreen, requestScreenDetails } from "../../utils/customerDisplayScreens";
 
 declare const __: (_text: string, _args?: any[]) => string;
 
@@ -107,14 +117,95 @@ const emptySnapshot = (): CustomerDisplaySnapshot => ({
 });
 
 const snapshot = ref<CustomerDisplaySnapshot>(emptySnapshot());
+const showFullscreenHint = ref(false);
+const fullscreenActive = ref(false);
 
 let unsubscribe: (() => void) | null = null;
+let unsubscribeControl: (() => void) | null = null;
 let transport: ReturnType<typeof createCustomerDisplayTransport> | null = null;
+let activationListenersAttached = false;
+let hintTimer: ReturnType<typeof setTimeout> | null = null;
+
+const ACTIVATION_EVENTS = ["pointerdown", "keydown", "touchstart"] as const;
+
+const isFullscreen = () =>
+	typeof document !== "undefined" && Boolean(document.fullscreenElement);
+
+/**
+ * Fullscreens onto the monitor this window already sits on. Chromium needs the
+ * `screen` option to keep it there.
+ *
+ * A rejection means the browser withheld transient activation - requestFullscreen
+ * cannot be called without a user gesture unless the origin is allow-listed by
+ * the AutomaticFullscreenAllowedForUrls enterprise policy. Rather than blocking
+ * the cart behind an overlay, arm a one-shot listener so the first touch
+ * anywhere promotes the window.
+ */
+const enterFullscreen = async () => {
+	if (typeof document === "undefined" || isFullscreen()) {
+		return;
+	}
+
+	const root = document.documentElement as any;
+	if (typeof root?.requestFullscreen !== "function") {
+		return;
+	}
+
+	try {
+		const details = await requestScreenDetails();
+		const screen = findCurrentScreen(details);
+		await (screen ? root.requestFullscreen({ screen }) : root.requestFullscreen());
+	} catch {
+		armActivationFallback();
+	}
+};
+
+const onActivation = () => {
+	activationListenersAttached = false;
+	detachActivationListeners();
+	enterFullscreen();
+};
+
+const detachActivationListeners = () => {
+	if (typeof document === "undefined") return;
+	ACTIVATION_EVENTS.forEach((event) => {
+		document.removeEventListener(event, onActivation);
+	});
+};
+
+const armActivationFallback = () => {
+	if (typeof document === "undefined" || activationListenersAttached) return;
+	activationListenersAttached = true;
+	ACTIVATION_EVENTS.forEach((event) => {
+		document.addEventListener(event, onActivation, { once: true });
+	});
+
+	// Brief, non-blocking hint. The cart stays visible and usable throughout.
+	showFullscreenHint.value = true;
+	if (hintTimer) clearTimeout(hintTimer);
+	hintTimer = setTimeout(() => {
+		hintTimer = null;
+		showFullscreenHint.value = false;
+	}, 6000);
+};
+
+const onFullscreenChange = () => {
+	fullscreenActive.value = isFullscreen();
+	if (fullscreenActive.value) {
+		showFullscreenHint.value = false;
+		detachActivationListeners();
+		activationListenersAttached = false;
+	}
+};
 
 const syncSubscription = () => {
 	if (unsubscribe) {
 		unsubscribe();
 		unsubscribe = null;
+	}
+	if (unsubscribeControl) {
+		unsubscribeControl();
+		unsubscribeControl = null;
 	}
 	if (transport) {
 		transport.close();
@@ -130,14 +221,37 @@ const syncSubscription = () => {
 	unsubscribe = transport.subscribe((nextSnapshot) => {
 		snapshot.value = nextSnapshot || emptySnapshot();
 	});
+	unsubscribeControl = transport.subscribeControl((action) => {
+		if (action === "enter_fullscreen") {
+			enterFullscreen();
+		}
+	});
 };
 
 watch(channelId, syncSubscription, { immediate: true });
 
+onMounted(() => {
+	if (typeof document === "undefined") return;
+	document.addEventListener("fullscreenchange", onFullscreenChange);
+});
+
 onBeforeUnmount(() => {
+	if (typeof document !== "undefined") {
+		document.removeEventListener("fullscreenchange", onFullscreenChange);
+	}
+	detachActivationListeners();
+	activationListenersAttached = false;
+	if (hintTimer) {
+		clearTimeout(hintTimer);
+		hintTimer = null;
+	}
 	if (unsubscribe) {
 		unsubscribe();
 		unsubscribe = null;
+	}
+	if (unsubscribeControl) {
+		unsubscribeControl();
+		unsubscribeControl = null;
 	}
 	if (transport) {
 		transport.close();
@@ -215,6 +329,38 @@ const formatCurrency = (value: number) => {
 	grid-template-rows: auto 1fr auto;
 	gap: 12px;
 	color: #f9fafb;
+	position: relative;
+}
+
+/* Customer-facing monitor: no pointer once it is running full screen. */
+.customer-display-screen--fullscreen,
+.customer-display-screen--fullscreen * {
+	cursor: none;
+}
+
+/* Passive hint only - never covers the cart, never blocks input. */
+.display-fullscreen-hint {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 20;
+	pointer-events: none;
+	padding: 8px 14px;
+	border-radius: 999px;
+	background: rgba(3, 7, 18, 0.72);
+	color: #f9fafb;
+	font-size: 0.85rem;
+	letter-spacing: 0.01em;
+}
+
+.display-hint-fade-enter-active,
+.display-hint-fade-leave-active {
+	transition: opacity 0.4s ease;
+}
+
+.display-hint-fade-enter-from,
+.display-hint-fade-leave-to {
+	opacity: 0;
 }
 
 .display-header {

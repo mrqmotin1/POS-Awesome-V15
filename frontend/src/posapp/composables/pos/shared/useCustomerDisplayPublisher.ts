@@ -17,6 +17,13 @@ import {
 	type CustomerDisplayLineItem,
 	type CustomerDisplaySnapshot,
 } from "../../../utils/customerDisplay";
+import {
+	buildWindowFeatures,
+	listScreens,
+	matchScreenByName,
+	requestScreenDetails,
+	type CustomerDisplayScreen,
+} from "../../../utils/customerDisplayScreens";
 
 declare const frappe: any;
 declare const __: (_text: string, _args?: any[]) => string;
@@ -27,6 +34,9 @@ interface UseCustomerDisplayPublisherOptions {
 }
 
 const CUSTOMER_DISPLAY_WINDOW_NAME = "POSA_CUSTOMER_DISPLAY_WINDOW";
+// Head start given to the POS window's own boot before the display window
+// starts its desk boot, so the two do not deadlock on the session row.
+const AUTO_OPEN_SETTLE_MS = 3000;
 const CUSTOMER_DISPLAY_WINDOW_FEATURES =
 	"popup=yes,width=1280,height=820,left=80,top=60,resizable=yes,scrollbars=yes";
 
@@ -95,6 +105,25 @@ export function useCustomerDisplayPublisher({
 	const autoOpenMarker = computed(() => getAutoOpenMarkerKey(channelId));
 
 	let publishTimer: ReturnType<typeof setTimeout> | null = null;
+	let autoOpenTimer: ReturnType<typeof setTimeout> | null = null;
+	let autoOpenIdleHandle: number | null = null;
+	const fullscreenTimers = new Set<ReturnType<typeof setTimeout>>();
+
+	const clearFullscreenTimers = () => {
+		fullscreenTimers.forEach((timer) => clearTimeout(timer));
+		fullscreenTimers.clear();
+	};
+
+	const clearAutoOpenWait = () => {
+		if (autoOpenTimer) {
+			clearTimeout(autoOpenTimer);
+			autoOpenTimer = null;
+		}
+		if (autoOpenIdleHandle !== null && typeof window !== "undefined") {
+			(window as any).cancelIdleCallback?.(autoOpenIdleHandle);
+			autoOpenIdleHandle = null;
+		}
+	};
 
 	const buildSnapshot = (): CustomerDisplaySnapshot => {
 		const items = (invoiceStore.items || []).map(toLineItem);
@@ -152,7 +181,45 @@ export function useCustomerDisplayPublisher({
 		}, 80);
 	};
 
-	const openCustomerDisplay = () => {
+	/**
+	 * Resolves the POS Profile "Customer Display Name" to a monitor.
+	 * Blank name, unsupported browser, denied permission or an unknown name all
+	 * return null, and the display then opens exactly as it did before.
+	 */
+	const resolveTargetScreen = async (): Promise<CustomerDisplayScreen | null> => {
+		const configuredName = toText(posProfile.value?.posa_customer_display_name);
+		if (!configuredName) {
+			return null;
+		}
+
+		// One retry: on the auto-open path getScreenDetails() can lose a race with
+		// the permission state during boot, and opening unplaced is worse than
+		// opening a moment later.
+		let details = await requestScreenDetails();
+		if (!details) {
+			await new Promise((resolve) => setTimeout(resolve, 1500));
+			details = await requestScreenDetails();
+		}
+		if (!details) {
+			return null;
+		}
+
+		const screen = matchScreenByName(listScreens(details), configuredName);
+		if (!screen) {
+			frappe?.show_alert?.(
+				{
+					message: __("Customer display screen not found: {0}", [
+						configuredName,
+					]),
+					indicator: "orange",
+				},
+				5,
+			);
+		}
+		return screen;
+	};
+
+	const openCustomerDisplay = async () => {
 		if (!isEnabled.value) {
 			frappe?.show_alert?.(
 				{
@@ -164,11 +231,14 @@ export function useCustomerDisplayPublisher({
 			return null;
 		}
 
+		const targetScreen = await resolveTargetScreen();
 		const url = buildCustomerDisplayUrl(channelId);
 		const displayWindow = window.open(
 			url,
 			CUSTOMER_DISPLAY_WINDOW_NAME,
-			CUSTOMER_DISPLAY_WINDOW_FEATURES,
+			targetScreen
+				? buildWindowFeatures(targetScreen)
+				: CUSTOMER_DISPLAY_WINDOW_FEATURES,
 		);
 		if (!displayWindow) {
 			frappe?.show_alert?.(
@@ -183,6 +253,24 @@ export function useCustomerDisplayPublisher({
 			return null;
 		}
 
+		if (targetScreen) {
+			// Window features only apply when a new window is created. A re-open
+			// reuses the named window and ignores them, so place it explicitly.
+			try {
+				displayWindow.moveTo(
+					Math.round(targetScreen.availLeft),
+					Math.round(targetScreen.availTop),
+				);
+				displayWindow.resizeTo(
+					Math.round(targetScreen.availWidth),
+					Math.round(targetScreen.availHeight),
+				);
+			} catch {
+				// Ignore: the browser may refuse to place a reused window.
+			}
+			requestDisplayFullscreen();
+		}
+
 		try {
 			displayWindow.focus?.();
 		} catch {
@@ -193,9 +281,29 @@ export function useCustomerDisplayPublisher({
 		return displayWindow;
 	};
 
+	/**
+	 * The display fullscreens itself, since only it can resolve the screen its
+	 * own window sits on. Retried because the popup may not have booted its
+	 * listener yet when the first message goes out.
+	 */
+	const requestDisplayFullscreen = () => {
+		[400, 1200, 2500].forEach((delay) => {
+			const timer = setTimeout(() => {
+				fullscreenTimers.delete(timer);
+				transport.publishControl("enter_fullscreen");
+			}, delay);
+			fullscreenTimers.add(timer);
+		});
+	};
+
 	const markAutoOpenDone = () => {
 		if (typeof window === "undefined" || !window.sessionStorage) return;
 		window.sessionStorage.setItem(autoOpenMarker.value, "1");
+	};
+
+	const clearAutoOpenMarker = () => {
+		if (typeof window === "undefined" || !window.sessionStorage) return;
+		window.sessionStorage.removeItem(autoOpenMarker.value);
 	};
 
 	const hasAutoOpened = () => {
@@ -203,13 +311,57 @@ export function useCustomerDisplayPublisher({
 		return window.sessionStorage.getItem(autoOpenMarker.value) === "1";
 	};
 
-	const tryAutoOpen = () => {
+	/**
+	 * Waits until this window has finished loading and gone idle.
+	 *
+	 * The display window loads /app/posapp, which is a full desk boot. Opening
+	 * it while the POS window is still booting puts two desk boots on one
+	 * session, and every request writes the same tabSessions row and
+	 * User.last_active - MariaDB deadlocks and Frappe reports
+	 * "concurrent conflicting request". Letting the POS boot finish first also
+	 * warms the session-update throttle, so the display's own boot no longer
+	 * writes those rows at all.
+	 */
+	const waitForPosToSettle = () =>
+		new Promise<void>((resolve) => {
+			if (typeof window === "undefined") {
+				resolve();
+				return;
+			}
+
+			const afterLoad = () => {
+				autoOpenTimer = setTimeout(() => {
+					autoOpenTimer = null;
+					const idle = (window as any).requestIdleCallback;
+					if (typeof idle === "function") {
+						autoOpenIdleHandle = idle(() => {
+							autoOpenIdleHandle = null;
+							resolve();
+						}, { timeout: 8000 });
+					} else {
+						resolve();
+					}
+				}, AUTO_OPEN_SETTLE_MS);
+			};
+
+			if (document.readyState === "complete") {
+				afterLoad();
+			} else {
+				window.addEventListener("load", afterLoad, { once: true });
+			}
+		});
+
+	const tryAutoOpen = async () => {
 		if (!isEnabled.value || !shouldAutoOpen.value || hasAutoOpened()) {
 			return;
 		}
-		const openedWindow = openCustomerDisplay();
-		if (openedWindow) {
-			markAutoOpenDone();
+		// Marked before awaiting: opening is async now, and the posProfile deep
+		// watcher can fire again mid-await and open a second window.
+		markAutoOpenDone();
+		await waitForPosToSettle();
+		const openedWindow = await openCustomerDisplay();
+		if (!openedWindow) {
+			clearAutoOpenMarker();
 		}
 	};
 
@@ -233,6 +385,8 @@ export function useCustomerDisplayPublisher({
 			clearTimeout(publishTimer);
 			publishTimer = null;
 		}
+		clearFullscreenTimers();
+		clearAutoOpenWait();
 		transport.close();
 	});
 

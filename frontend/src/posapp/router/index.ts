@@ -8,12 +8,20 @@ import {
 	recoverFromChunkLoadError,
 } from "../utils/chunkLoadRecovery";
 import { resolvePosAppRouteFullPath } from "../../loader-utils";
+import { isStandaloneCustomerDisplayMode } from "../utils/customerDisplay";
 import OfflineRouteUnavailable from "../components/system/OfflineRouteUnavailable.vue";
 
 const OFFLINE_ROUTE_UNAVAILABLE_NAME = "offline-route-unavailable";
 
 const routes = [
-	{ path: "/", redirect: "/pos" },
+	// The customer display window never renders Pos.vue (App.vue swaps the
+	// layout), but router.isReady() still runs this redirect's lazy loader and
+	// would pull in the whole Pos.vue import graph. Send it somewhere cheap.
+	{
+		path: "/",
+		redirect: () =>
+			isStandaloneCustomerDisplayMode() ? "/customer-display" : "/pos",
+	},
 	{
 		path: "/pos",
 		component: () => import("../components/pos/shell/Pos.vue"),
