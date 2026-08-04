@@ -214,6 +214,7 @@ fixtures = [
                     "POS Profile-posa_allow_user_to_edit_rate",
                     "POS Profile-posa_allow_user_to_edit_additional_discount",
                     "POS Profile-posa_allow_user_to_edit_item_discount",
+                    "POS Profile-posa_allow_user_to_delete_item",
                     "POS Profile-posa_display_items_in_stock",
                     "POS Profile-posa_allow_submissions_in_background_job",
                     "POS Profile-posa_allow_partial_payment",

@@ -373,7 +373,7 @@
 			<!-- Actions -->
 			<td v-else-if="column.key === 'actions'" class="text-center" :data-column-key="'actions'">
 				<v-btn
-					:disabled="!!item.posa_is_replace || !isManager"
+					:disabled="disableDeleteItem"
 					size="small"
 					variant="flat"
 					class="posa-cart-table__delete-btn delete-action-btn"
@@ -548,6 +548,12 @@ const disableDiscountEdit = computed(
 		!(isManager.value || props.posProfile.posa_allow_user_to_edit_item_discount) ||
 		!!props.item.posa_is_replace ||
 		!!props.item.posa_offer_applied,
+);
+
+const disableDeleteItem = computed(
+	() =>
+		!(isManager.value || props.posProfile.posa_allow_user_to_delete_item) ||
+		!!props.item.posa_is_replace,
 );
 
 function openQtyEdit() {
