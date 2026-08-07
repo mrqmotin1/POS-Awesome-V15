@@ -209,11 +209,25 @@ def _auto_set_return_batches(invoice_doc):
     items_to_process = []
     all_batch_nos = set()
 
+    candidate_item_codes = {
+        d.get("item_code")
+        for d in invoice_doc.items
+        if d.get("item_code") and d.get("warehouse")
+    }
+    batch_flags = {
+        row.name: row.has_batch_no
+        for row in frappe.get_all(
+            "Item",
+            filters={"name": ["in", list(candidate_item_codes)]},
+            fields=["name", "has_batch_no"],
+        )
+    } if candidate_item_codes else {}
+
     for d in invoice_doc.items:
         if not d.get("item_code") or not d.get("warehouse"):
             continue
 
-        has_batch = frappe.db.get_value("Item", d.item_code, "has_batch_no")
+        has_batch = batch_flags.get(d.item_code)
         if has_batch and not d.get("batch_no"):
             d.use_serial_batch_fields = 1
             # get_batch_qty returns batches sorted by default (usually FIFO/Expiration)

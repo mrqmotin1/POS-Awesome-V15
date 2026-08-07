@@ -145,9 +145,19 @@ def add_taxes_from_tax_template(item, parent_doc):
 
 def set_batch_nos_for_bundels(doc, warehouse_field, throw=False):
     """Automatically select `batch_no` for outgoing items in item table"""
+    packed_item_codes = {d.item_code for d in doc.packed_items if d.item_code}
+    batch_flags = {
+        row.name: row.has_batch_no
+        for row in frappe.get_all(
+            "Item",
+            filters={"name": ["in", list(packed_item_codes)]},
+            fields=["name", "has_batch_no"],
+        )
+    } if packed_item_codes else {}
+
     for d in doc.packed_items:
         qty = d.get("stock_qty") or d.get("transfer_qty") or d.get("qty") or 0
-        has_batch_no = frappe.db.get_value("Item", d.item_code, "has_batch_no")
+        has_batch_no = batch_flags.get(d.item_code)
         warehouse = d.get(warehouse_field, None)
         if has_batch_no and warehouse and qty > 0:
             if not d.batch_no:
