@@ -711,6 +711,22 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 		const profile = unref(posProfile);
 		const type = unref(invoiceType);
 		const prec = unref(options.currencyPrecision) || 2;
+
+		// Resync posting_date to today if it's still in default state (safety net for dialog left open across midnight)
+		if (stores?.invoiceStore?.postingDateIsDefault) {
+			const today = frappe.datetime.nowdate();
+			if (doc.posting_date !== today) {
+				doc.posting_date = today;
+				// Clear set_posting_time if it was only set due to the now-corrected staleness
+				if (doc.set_posting_time) {
+					doc.set_posting_time = 0;
+				}
+			}
+			// Also sync the store for consistency
+			if (stores.invoiceStore.postingDate !== today) {
+				stores.invoiceStore.setPostingDate(today);
+			}
+		}
 		const {
 			isCashback,
 			paidChange,

@@ -572,11 +572,22 @@ def _apply_manual_posting_controls(payload):
     if posting_date:
         payload["posting_date"] = posting_date
 
+    today = _safe_date_string(nowdate())
+
+    # Defense-in-depth: clamp posting_date to today if POS Profile disallows manual date changes
+    pos_profile = payload.get("pos_profile")
+    allow_manual_date = bool(
+        pos_profile
+        and frappe.get_cached_value("POS Profile", pos_profile, "posa_allow_change_posting_date")
+    )
+    if not allow_manual_date and posting_date and today and posting_date != today:
+        payload["posting_date"] = today
+        posting_date = today
+
     if cint(payload.get("set_posting_time")):
         payload["set_posting_time"] = 1
         return
 
-    today = _safe_date_string(nowdate())
     if posting_date and today and posting_date != today:
         payload["set_posting_time"] = 1
 

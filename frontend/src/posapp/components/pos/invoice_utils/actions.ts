@@ -144,7 +144,7 @@ export async function cancel_invoice(context: any) {
 	// Since we are refactoring, let's call the util directly if possible, or rely on context.
 	const doc = get_invoice_doc(context);
 
-	context.posting_date = frappe.datetime.nowdate();
+	context.invoiceStore?.resetPostingDate?.();
 
 	if (doc.name && context.pos_profile.posa_allow_delete) {
 		await frappe.call({
@@ -229,6 +229,8 @@ export async function new_order(context: any, data: any = {}) {
 		context.additional_discount_percentage = 0;
 		context.invoiceType = "Invoice";
 		context.invoiceTypes = ["Invoice", "Order", "Quotation"];
+		// Ensure brand-new cart starts in explicit default state for posting_date resync
+		context.invoiceStore?.resetPostingDate?.();
 	} else {
 		if (data.is_return) {
 			if (context._normalizeReturnDocTotals) {
