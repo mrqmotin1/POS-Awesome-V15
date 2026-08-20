@@ -27,9 +27,15 @@ function isValidEAN13(barcode: string): boolean {
 	return calculatedCheckDigit === digits[12];
 }
 
-function isValid13DigitNumeric(barcode: string): boolean {
-	return /^\d{13}$/.test(String(barcode || "").trim());
+// A leading zero is a valid EAN-13 per the spec, but the POS scanner strips it
+// and returns 12 digits that no longer match the stored barcode. Such codes have
+// to be regenerated, so they are not printable either.
+function isPrintableEAN13(barcode: string): boolean {
+	const value = String(barcode || "").trim();
+	return isValidEAN13(value) && !value.startsWith("0");
 }
+
+const OLD_BARCODE_MESSAGE = "The old barcode can't be printed. Generate and print a new EAN barcode.";
 
 export function useMondayZplPrint() {
 	const toastStore = useToastStore();
@@ -60,21 +66,16 @@ export function useMondayZplPrint() {
 			for (const item of items) {
 				const barcodeStr = String(item.barcode || "").trim();
 
-				if (!isValid13DigitNumeric(barcodeStr)) {
+				// Checked regardless of print format name: the default format
+				// "raw-barcode" uses ^BEN, which recomputes the 13th digit itself,
+				// so a wrong checksum gets silently printed as a different number.
+				// The server enforces this too (get_zpl_for_item_new); this pass
+				// only lets us report every bad item in one dialog.
+				if (!isPrintableEAN13(barcodeStr)) {
 					errors.push({
 						item_code: item.item_code || "",
 						barcode: item.barcode || "",
-						reason: `Invalid barcode format (must be 13 digits)`,
-					});
-					continue;
-				}
-
-				const formatNameLower = (printFormat || "").toLowerCase();
-				if (formatNameLower.includes("ben") && !isValidEAN13(barcodeStr)) {
-					errors.push({
-						item_code: item.item_code || "",
-						barcode: item.barcode || "",
-						reason: `BEN format requires valid EAN-13 checksum`,
+						reason: OLD_BARCODE_MESSAGE,
 					});
 					continue;
 				}
@@ -83,12 +84,16 @@ export function useMondayZplPrint() {
 			}
 
 			if (!validItems.length) {
+				// The reason is identical for every row here, so state it once and
+				// list the offending items under it rather than repeating the whole
+				// sentence per item.
 				frappe.msgprint({
-					title: __("No Valid Items"),
-					message: __("No valid items to print: {0}", [
-						errors.map((e) => `${e.item_code} (${e.reason})`).join(", "),
-					]),
-					indicator: "orange",
+					title: __("Old Barcode"),
+					message:
+						__(OLD_BARCODE_MESSAGE) +
+						"<br><br>" +
+						errors.map((e) => `${e.item_code}: ${e.barcode || "-"}`).join("<br>"),
+					indicator: "red",
 				});
 				return;
 			}
