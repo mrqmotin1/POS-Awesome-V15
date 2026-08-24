@@ -67,6 +67,28 @@ def clear_stock_caches(doc=None, method=None):
                     frappe.log_error(frappe.get_traceback(), "POSAwesome stock cache clear failed")
 
 
+def clear_item_caches(doc=None, method=None):
+    """Invalidate the price / barcode / meta / uom / bom redis caches.
+
+    Same bug as clear_stock_caches, on the Item / Item Price / Item Barcode
+    side: _price_cache and _barcode_cache are wrapped with
+    ``redis_cache(ttl=...)`` but were never invalidated, so a new barcode,
+    a new UOM, or a new Item Price stayed invisible to POS scans for up to
+    the configured TTL (posa_server_cache_duration, minutes) - reloading the
+    POS page does not help since the stale value is cached server-side, not
+    in the browser. Wired (via hooks) to Item and Item Price writes.
+    """
+    for store in (_price_cache, _barcode_cache, _meta_cache, _uom_cache, _bom_cache):
+        for cached_fn in list(store.values()):
+            clearer = getattr(cached_fn, "clear_cache", None)
+            if callable(clearer):
+                try:
+                    clearer()
+                except Exception:
+                    # Cache invalidation must never break the triggering write
+                    frappe.log_error(frappe.get_traceback(), "POSAwesome item cache clear failed")
+
+
 def _fetch_item_prices(
     price_list: str,
     currency: str,

@@ -129,6 +129,14 @@ doc_events = {
             "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
         ],
     },
+    "Item": {
+        "on_update": "posawesome.posawesome.api.item_fetchers.clear_item_caches",
+    },
+    "Item Price": {
+        "after_insert": "posawesome.posawesome.api.item_fetchers.clear_item_caches",
+        "on_update": "posawesome.posawesome.api.item_fetchers.clear_item_caches",
+        "on_trash": "posawesome.posawesome.api.item_fetchers.clear_item_caches",
+    },
     "Stock Ledger Entry": {
         "after_insert": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
         "on_cancel": "posawesome.posawesome.api.item_fetchers.clear_stock_caches",

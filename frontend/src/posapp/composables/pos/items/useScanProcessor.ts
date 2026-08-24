@@ -26,7 +26,10 @@ export interface ScanProcessorContext {
 	active_price_list: Ref<string>;
 	customer_price_list: Ref<string | null>;
 	itemDetailFetcher: {
-		update_items_details: (_items: any[]) => Promise<void>;
+		update_items_details: (
+			_items: any[],
+			_options?: { forceRefresh?: boolean; priceListOverride?: string | null },
+		) => Promise<void>;
 	};
 	itemAddition: {
 		addItem: (_item: any, _options?: any) => Promise<void>;
@@ -592,6 +595,28 @@ export function useScanProcessor(context: ScanProcessorContext) {
 							scanAssignment.batchNo = String(resolved.batch_no);
 						}
 						foundItem = barcodeIndex.lookupItemByBarcode(searchCode);
+
+						// This resolver just confirmed (fresh, uncached) that `resolved.barcode`
+						// exists on the item in the DB. If the locally cached item (loaded once
+						// at page load / from IndexedDB) doesn't have that barcode row yet, it's
+						// stale for this purpose — a barcode/UOM/price added after the catalog
+						// was loaded. Discard it so the code below falls through to a fresh
+						// server fetch instead of silently using outdated UOM/price data.
+						if (
+							foundItem &&
+							resolved?.barcode &&
+							!resolved?.serial_no &&
+							!resolved?.batch_no
+						) {
+							const hasFreshBarcodeRow =
+								Array.isArray(foundItem.item_barcode) &&
+								foundItem.item_barcode.some(
+									(b: any) => b.barcode === resolved.barcode,
+								);
+							if (!hasFreshBarcodeRow) {
+								foundItem = null;
+							}
+						}
 					}
 				} catch (error) {
 					console.error(
@@ -679,7 +704,16 @@ export function useScanProcessor(context: ScanProcessorContext) {
 				if (eventBus && eventBus.emit)
 					eventBus.emit("set_all_items", items.value);
 
-				await itemDetailFetcher.update_items_details([newItem]);
+				// forceRefresh: newItem just came straight from the server (this
+				// scan's own get_items/get_item_detail call), so it already carries
+				// live item_barcode/item_uoms/rate. Without this, update_items_details
+				// merges the 15-minute item_details_cache on top and can stomp a
+				// brand-new UOM/barcode/price with the pre-existing stale snapshot -
+				// the item was fetched fresh moments ago specifically because it
+				// wasn't recognized yet, so stale data here is never useful.
+				await itemDetailFetcher.update_items_details([newItem], {
+					forceRefresh: true,
+				});
 				const localAssignment = extractScanAssignmentFromItem(
 					newItem,
 					scannedCode,
