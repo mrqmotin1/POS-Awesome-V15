@@ -193,33 +193,20 @@ def _create_change_payment_entries(
             ]
         )
 
-    def _has_paid_configured_cash_row():
-        """Return True when change can be paid from the POS cash drawer."""
-
-        if not cash_mode_of_payment or not cash_account_name:
-            return False
-
-        cash_mode_lower = _normalized_text(cash_mode_of_payment)
-        cash_account_lower = _normalized_text(cash_account_name)
-
-        for row in invoice_doc.payments:
-            if flt(row.get("amount")) <= 0:
-                continue
-
-            mode_lower = _normalized_text(row.get("mode_of_payment"))
-            account_lower = _normalized_text(row.get("account"))
-
-            if mode_lower == cash_mode_lower and account_lower == cash_account_lower:
-                return True
-
-        return False
-
-    # When the tender includes the configured/default cash method, paid change is
-    # handled by the invoice's normal cash change fields instead of an extra Pay
-    # Payment Entry. Non-cash-only overpayments still need a Payment Entry so the
-    # source receive entry can be reconciled.
-    if paid_change_amount > 0 and _has_paid_configured_cash_row():
-        paid_change_amount = 0
+    # ERPNext writes change_amount on the invoice only when the payment ROWS alone
+    # exceed the grand total (taxes_and_totals.calculate_change_amount). The closing
+    # shift nets that figure off the cash row, so only the portion NOT already
+    # recorded there still needs a Payment Entry.
+    #
+    # Do not infer this from "the tender contains a cash row" - that was the old
+    # test and it was wrong. When customer credit, a gift card or loyalty covers
+    # part of the bill, those are not payment rows, so the cash row can sit well
+    # below the grand total: change_amount stays 0 while real cash still leaves the
+    # drawer. Subtracting rather than zeroing also covers the mixed case, where
+    # change_amount handles its share and this entry covers only the residual.
+    invoice_change_amount = flt(invoice_doc.get("change_amount"))
+    if paid_change_amount > 0 and invoice_change_amount > 0:
+        paid_change_amount = max(paid_change_amount - invoice_change_amount, 0)
 
     if credit_change_amount > 0:
         advance_payment_entry = frappe.new_doc("Payment Entry")
@@ -231,8 +218,14 @@ def _create_change_payment_entries(
         advance_payment_entry.party = invoice_doc.get("customer")
         advance_payment_entry.company = invoice_doc.get("company")
         advance_payment_entry.posting_date = posting_date
-        advance_payment_entry.paid_from = cash_account_name
-        advance_payment_entry.paid_to = party_account
+        # Direction matters: for a "Receive", ERPNext reads party_account from
+        # paid_from (see PaymentEntry.setup_party_account_field) and does not
+        # correct these, so the receivable belongs in paid_from and the drawer in
+        # paid_to. Reversed, this posts debit Debtors / credit Cash - cash leaving
+        # and the customer owing more - instead of cash in and the customer
+        # credited. Matches redeeming_customer_credit() in api/payments.py.
+        advance_payment_entry.paid_from = party_account
+        advance_payment_entry.paid_to = cash_account_name
         advance_payment_entry.paid_amount = credit_change_amount
         advance_payment_entry.received_amount = credit_change_amount
         advance_payment_entry.difference_amount = 0

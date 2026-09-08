@@ -336,13 +336,31 @@ def _run_post_submit_payments(invoice_doc, data, is_payment_entry, total_cash, c
     receive_entries = redeeming_customer_credit(
         invoice_doc, data, is_payment_entry, total_cash, cash_account, payments
     )
-    # _create_change_payment_entries(
-    #     invoice_doc,
-    #     data,
-    #     invoice_doc.pos_profile,
-    #     cash_account,
-    #     receive_entries,
-    # )
+
+    # Do NOT pre-zero `paid_change` here. _create_change_payment_entries() nets it
+    # against the invoice's own change_amount, so it already suppresses the Payment
+    # Entry for exactly the portion the closing shift deducts from cash - and only
+    # that portion.
+    #
+    # The remainder still needs the Payment Entry. It arises on an over-REDEMPTION:
+    # customer credit, a gift card or loyalty covering part or all of the bill with
+    # the excess handed back in cash. Those are added straight into the payment
+    # total on the client and are never rows in `doc.payments`, so they do not count
+    # toward the invoice's paid_amount - and ERPNext only sets change_amount when
+    # paid_amount alone exceeds the grand total
+    # (taxes_and_totals.calculate_change_amount). The Payment Entry is therefore the
+    # only record that cash left the drawer, and it is what triggers
+    # _reconcile_change_against_receive_payment_entry to clear the remainder still
+    # unallocated on the source advance. Zeroing here left that advance untouched -
+    # the customer keeping credit for cash already handed over, with the drawer short
+    # and nothing to explain it.
+    _create_change_payment_entries(
+        invoice_doc,
+        data,
+        invoice_doc.pos_profile,
+        cash_account,
+        receive_entries,
+    )
 
 
 def _process_post_submit_payments(

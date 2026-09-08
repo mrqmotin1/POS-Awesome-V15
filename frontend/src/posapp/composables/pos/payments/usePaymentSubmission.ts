@@ -11,7 +11,10 @@ import stockCoordinator from "../../../utils/stockCoordinator";
 import { parseBooleanSetting } from "../../../utils/stock";
 import { resolvePosDocumentDoctype } from "../../../utils/posDocumentMode";
 import { toCompanyCurrency } from "../../../utils/erpnextCurrency";
-import { shouldApplyReturnRefundCap } from "../../../utils/paymentInitialization";
+import {
+	isDrawerCashPayment,
+	shouldApplyReturnRefundCap,
+} from "../../../utils/paymentInitialization";
 
 declare const frappe: any;
 declare const __: (_str: string, _args?: any[]) => string;
@@ -542,7 +545,36 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 			}
 		}
 
-		// 5. Validate card last 4 digits
+		// 5. Reject a card over-tender. The Payments screen warns about this at entry
+		// but deliberately does not correct the amount, so this is what actually stops
+		// the tender - and it also covers paths that never touch the screen (offline
+		// replay, a stale draft, a programmatic edit).
+		//
+		// Measured on the CARD rows against the invoice total, never on the combined
+		// total. Cash may overpay - the change comes from the drawer. A card may not:
+		// over-charging a card and handing back cash is a cash advance. So
+		// Cash 100 + Card 50 on a 100 bill passes, Cash 100 + Card 150 does not.
+		if (!doc.is_return && !unref(options.is_credit_sale) && Array.isArray(doc.payments)) {
+			const configuredCashMop = profile?.posa_cash_mode_of_payment || "";
+			const cardTotal = doc.payments
+				.filter(
+					(payment: any) =>
+						!isDrawerCashPayment(payment, configuredCashMop) &&
+						formatFloat(payment?.amount || 0, prec) > 0,
+				)
+				.reduce(
+					(sum: number, payment: any) =>
+						sum + formatFloat(payment.amount || 0, prec),
+					0,
+				);
+			if (cardTotal > invoice_total + 0.001) {
+				throw new Error(
+					__("Can't make overpayment using card. Enter the exact amount."),
+				);
+			}
+		}
+
+		// 6. Validate card last 4 digits
 		if (doc.payments) {
 			const cardPaymentMissingDigits = doc.payments.some(
 				(payment: any) =>

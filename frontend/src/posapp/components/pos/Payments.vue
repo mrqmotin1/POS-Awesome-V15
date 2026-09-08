@@ -312,6 +312,7 @@ import GiftCardDialog from "./wallet/GiftCardDialog.vue";
 import {
 	applyPreferredPaymentAmount,
 	initializePaymentLinesForDialog,
+	isDrawerCashPayment,
 	rebalancePreferredPaymentLine,
 	resolvePreferredPaymentLine,
 	resolveReturnDefaultAmount,
@@ -1367,16 +1368,65 @@ const updateCreditChange = (rawValue) => {
 		invoice_doc.value.credit_change = requestedCredit;
 		invoice_doc.value.paid_change = remainingPaidChange;
 	}
+
 };
 
 const handleCardDigitsChange = (payment, event) => {
 	setCardLast4Digits(payment, "custom_card_last_4_digits", event);
 };
 
+const isPaymentRowCashLike = (payment) =>
+	isDrawerCashPayment(payment, pos_profile.value?.posa_cash_mode_of_payment);
+
+// Cash may overpay freely - the change comes out of the drawer and the closing shift
+// nets it off. A CARD may not: over-charging a card and handing back cash is a cash
+// advance, which card schemes prohibit and which is a standard till-fraud route. So
+// the test is on the card rows against the bill, never on the combined total:
+// Cash 100 + Card 50 on a 100 bill is a legitimate cash overpayment, while
+// Cash 100 + Card 150 is a card overpayment even though a cash row is present.
+//
+// Deliberately changes NO amount. A POS that silently rewrites what the cashier typed
+// is worse than one that says no - warn, put the cursor back on the card field, and
+// let them retype. usePaymentSubmission refuses the tender at submit.
+// The paid card rows when they exceed the bill between them, else null.
+const findCardOverpaymentRows = () => {
+	const doc = invoice_doc.value;
+	if (!doc || doc.is_return || !Array.isArray(doc.payments)) return null;
+
+	const prec = currency_precision.value;
+	const cardRows = doc.payments.filter(
+		(row) => !isPaymentRowCashLike(row) && flt(row?.amount || 0, prec) > 0,
+	);
+	if (!cardRows.length) return null;
+
+	const cardTotal = cardRows.reduce(
+		(sum, row) => sum + flt(row.amount || 0, prec),
+		0,
+	);
+	const invoiceTotal = flt(doc.rounded_total || doc.grand_total, prec);
+	return flt(cardTotal - invoiceTotal, prec) > 0 ? cardRows : null;
+};
+
+const warnOnCardOverpayment = (editedPayment = null) => {
+	// A cash edit can never create a card overpayment.
+	if (isPaymentRowCashLike(editedPayment)) return false;
+
+	const cardRows = findCardOverpaymentRows();
+	if (!cardRows) return false;
+
+	toastStore.show({
+		title: __("Can't make overpayment using card"),
+		color: "warning",
+	});
+	paymentMethodsRef.value?.focusAmount(
+		cardRows.includes(editedPayment) ? editedPayment : cardRows[0],
+	);
+	return true;
+};
+
 const handlePaymentAmountChange = (payment, event) => {
 	last_payment_change_was_cash.value = isCashLikePayment(payment);
 	setFormatedCurrency(payment, "amount", null, false, event);
-	paymentMethodsRef.value?.focusCardDigits(payment.mode_of_payment);
 
 	// For return invoices: user enters a positive number but we store it as negative (refund)
 	if (invoice_doc.value?.is_return && payment.amount > 0) {
@@ -1388,16 +1438,22 @@ const handlePaymentAmountChange = (payment, event) => {
 			currency_precision.value,
 		);
 	}
+	// The card-overpayment cursor wins over the last-4-digits one; running both
+	// would race in nextTick and land the caret on the wrong field.
+	if (!warnOnCardOverpayment(payment)) {
+		paymentMethodsRef.value?.focusCardDigits(payment.mode_of_payment);
+	}
 };
 
 const setPaymentToDenomination = (payment, amount) => {
 	payment.amount = amount;
 	if (payment.base_amount !== undefined) {
 		payment.base_amount = flt(
-			toCompanyCurrency(paymentCurrencyContext(), amount),
+			toCompanyCurrency(paymentCurrencyContext(), payment.amount),
 			currency_precision.value,
 		);
 	}
+	warnOnCardOverpayment(payment);
 	last_payment_change_was_cash.value = isCashLikePayment(payment);
 };
 
@@ -1669,10 +1725,18 @@ const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {})
 	} catch (error) {
 		console.error("Submission failed propagate:", error);
 		const isCardDigitsError = error?.message?.includes("last 4 digits");
-		if (!isCardDigitsError) {
-			restorePaymentLinesAfterFailedSubmit();
-		} else {
+		// Restoring runs syncPreferredPaymentToCurrentTotal(), which zeroes every
+		// non-default row and puts the whole bill on the default (cash) line. On a
+		// card over-tender that silently moves the money OFF the card the cashier
+		// just typed - the exact thing the rule exists to prevent. Leave the rows
+		// alone and point at the card row instead; the amount is what has to change.
+		const overpaidCardRows = findCardOverpaymentRows();
+		if (isCardDigitsError) {
 			paymentMethodsRef.value?.focusCardMissingDigits?.();
+		} else if (overpaidCardRows) {
+			paymentMethodsRef.value?.focusAmount(overpaidCardRows[0]);
+		} else {
+			restorePaymentLinesAfterFailedSubmit();
 		}
 
 		if (error?.message) {

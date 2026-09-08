@@ -171,8 +171,6 @@ def make_closing_shift_from_opening(opening_shift):
             existing_pay = [pay for pay in payments if pay.mode_of_payment == p.mode_of_payment]
             conversion_rate = d.get("conversion_rate")
             amount = get_base_value(p, "amount", "base_amount", conversion_rate)
-            if p.mode_of_payment == cash_mode_of_payment and not d.get("is_return"):
-                amount -= get_base_value(d, "change_amount", "base_change_amount", conversion_rate)
             if existing_pay:
                 existing_pay[0].expected_amount += flt(amount)
             else:
@@ -186,14 +184,43 @@ def make_closing_shift_from_opening(opening_shift):
                     )
                 )
 
+        # Change always leaves the cash drawer, so deduct it from the cash mode once
+        # per invoice - NOT inside the payment-row loop above. Gating it on a row
+        # whose mode_of_payment matched the cash mode silently skipped any invoice
+        # that carries no cash row at all (a card-only tender), overstating expected
+        # cash by the change that was handed over anyway.
+        invoice_change = flt(
+            get_base_value(d, "change_amount", "base_change_amount", d.get("conversion_rate"))
+        )
+        if invoice_change and not d.get("is_return") and cash_mode_of_payment:
+            existing_cash = [pay for pay in payments if pay.mode_of_payment == cash_mode_of_payment]
+            if existing_cash:
+                existing_cash[0].expected_amount -= invoice_change
+            else:
+                payments.append(
+                    frappe._dict(
+                        {
+                            "mode_of_payment": cash_mode_of_payment,
+                            "opening_amount": 0,
+                            "expected_amount": -invoice_change,
+                        }
+                    )
+                )
+
     pos_payments = get_payments_entries(opening_shift.get("name"))
 
     for py in pos_payments:
         pos_payments_table.append(build_pos_payment_reference(py))
-        # Skip change-return entries (Pay to Customer) — change already deducted from
-        # cash in the invoice loop above; counting them again double-deducts cash.
-        if py.payment_type == "Pay" and py.get("party_type") == "Customer":
-            continue
+        # Every change-return entry (Pay to Customer) is counted in full, and there
+        # is deliberately no skip here. _create_change_payment_entries() creates one
+        # only for the change NOT already recorded in the invoice's change_amount,
+        # so it never overlaps the deduction made in the invoice loop above.
+        #
+        # Do not reintroduce a "is this a legacy full-change entry?" test based on
+        # amounts: a residual entry equal to change_amount is indistinguishable from
+        # a legacy one, and legacy entries reconciled against a source Receive entry
+        # carry no invoice reference at all. Legacy entries are instead handled
+        # operationally - close every open shift before deploying.
         existing_pay = [pay for pay in payments if pay.mode_of_payment == py.mode_of_payment]
         multiplier = -1 if py.payment_type == "Pay" else 1
         signed_amount = multiplier * abs(get_base_value(py, "paid_amount", "base_paid_amount"))
