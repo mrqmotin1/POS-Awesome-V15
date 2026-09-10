@@ -21,6 +21,7 @@ import { pinia } from "./stores";
 import { useToastStore } from "./stores/toastStore";
 import { useSocketStore } from "./stores/socketStore";
 import { createPosAppRouter } from "./router";
+import { isStandaloneCustomerDisplayMode } from "./utils/customerDisplay";
 import {
 	installGlobalErrorHandlers,
 	isBenignGlobalError,
@@ -95,6 +96,14 @@ export async function runPosBootSync() {
 }
 
 async function startOptionalRuntimeServices() {
+	// The customer display window is a read-only mirror fed over
+	// BroadcastChannel. It needs neither realtime nor its own service worker,
+	// and registering a second SW at /sw.js?v=<build> makes the two windows
+	// fight over the active registration and its precache.
+	if (isStandaloneCustomerDisplayMode()) {
+		return;
+	}
+
 	const socketStore = useSocketStore();
 	socketStore.init();
 

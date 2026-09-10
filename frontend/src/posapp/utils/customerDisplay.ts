@@ -39,11 +39,29 @@ type SnapshotEnvelope = {
 	sent_at: string;
 };
 
+/**
+ * `display_ready`: display -> POS, sent once the display window is listening.
+ * `enter_fullscreen`: POS -> display, the reply when a monitor was targeted.
+ * BroadcastChannel does not queue, so the POS window must not send before
+ * the display has booted; the ready message is what tells it when.
+ */
+export type CustomerDisplayControlAction = "display_ready" | "enter_fullscreen";
+
+type ControlEnvelope = {
+	type: "control";
+	action: CustomerDisplayControlAction;
+	sent_at: string;
+};
+
 export interface CustomerDisplayTransport {
 	publish: (_snapshot: CustomerDisplaySnapshot) => void;
 	subscribe: (
 		_handler: (_snapshot: CustomerDisplaySnapshot) => void,
 		_emitInitial?: boolean,
+	) => () => void;
+	publishControl: (_action: CustomerDisplayControlAction) => void;
+	subscribeControl: (
+		_handler: (_action: CustomerDisplayControlAction) => void,
 	) => () => void;
 	getLastSnapshot: () => CustomerDisplaySnapshot | null;
 	close: () => void;
@@ -223,6 +241,45 @@ export const createCustomerDisplayTransport = (
 		};
 	};
 
+	/**
+	 * Control messages ride the BroadcastChannel only, never the localStorage
+	 * mirror: parseSnapshotEnvelope is lenient and would coerce one into an
+	 * empty snapshot the next time the display replays the cached cart.
+	 */
+	const publishControl = (action: CustomerDisplayControlAction) => {
+		if (!channel) return;
+		const envelope: ControlEnvelope = {
+			type: "control",
+			action,
+			sent_at: new Date().toISOString(),
+		};
+		try {
+			channel.postMessage(envelope);
+		} catch (error) {
+			console.warn("Customer display control broadcast failed", error);
+		}
+	};
+
+	const subscribeControl = (
+		handler: (_action: CustomerDisplayControlAction) => void,
+	) => {
+		if (!channel) {
+			return () => {};
+		}
+
+		const onMessage = (event: MessageEvent) => {
+			const envelope = event?.data as ControlEnvelope;
+			if (envelope?.type === "control" && envelope.action) {
+				handler(envelope.action);
+			}
+		};
+
+		channel.addEventListener("message", onMessage as EventListener);
+		return () => {
+			channel.removeEventListener("message", onMessage as EventListener);
+		};
+	};
+
 	const close = () => {
 		if (channel) {
 			channel.close();
@@ -232,6 +289,8 @@ export const createCustomerDisplayTransport = (
 	return {
 		publish,
 		subscribe,
+		publishControl,
+		subscribeControl,
 		getLastSnapshot,
 		close,
 	};
