@@ -17,6 +17,14 @@ import {
 	type CustomerDisplayLineItem,
 	type CustomerDisplaySnapshot,
 } from "../../../utils/customerDisplay";
+import {
+	buildWindowFeatures,
+	listScreens,
+	matchScreenByName,
+	requestScreenDetails,
+	supportsScreenDetails,
+	type CustomerDisplayScreen,
+} from "../../../utils/customerDisplayScreens";
 
 declare const frappe: any;
 declare const __: (_text: string, _args?: any[]) => string;
@@ -27,6 +35,9 @@ interface UseCustomerDisplayPublisherOptions {
 }
 
 const CUSTOMER_DISPLAY_WINDOW_NAME = "POSA_CUSTOMER_DISPLAY_WINDOW";
+// Head start given to the POS window's own boot before the display window
+// starts its desk boot, so the two do not deadlock on the session row.
+const AUTO_OPEN_SETTLE_MS = 3000;
 const CUSTOMER_DISPLAY_WINDOW_FEATURES =
 	"popup=yes,width=1280,height=820,left=80,top=60,resizable=yes,scrollbars=yes";
 
@@ -95,6 +106,27 @@ export function useCustomerDisplayPublisher({
 	const autoOpenMarker = computed(() => getAutoOpenMarkerKey(channelId));
 
 	let publishTimer: ReturnType<typeof setTimeout> | null = null;
+	// Set by onBeforeUnmount; async opens still in flight check it so a
+	// composable whose transport is already closed never opens a window.
+	let disposed = false;
+	// Resolves the pending waitForPosToSettle() with false, if any.
+	let cancelAutoOpenWait: (() => void) | null = null;
+	// True from opening on a target monitor until the display reports ready.
+	let fullscreenPending = false;
+
+	/**
+	 * The display fullscreens itself, since only it can resolve the screen its
+	 * own window sits on. It is told to once it says it is listening: the
+	 * BroadcastChannel does not queue, and the popup's desk boot takes an
+	 * unknown time, so sending on a timer would race it.
+	 */
+	const unsubscribeControl = transport.subscribeControl((action) => {
+		if (action !== "display_ready" || !fullscreenPending) {
+			return;
+		}
+		fullscreenPending = false;
+		transport.publishControl("enter_fullscreen");
+	});
 
 	const buildSnapshot = (): CustomerDisplaySnapshot => {
 		const items = (invoiceStore.items || []).map(toLineItem);
@@ -152,7 +184,51 @@ export function useCustomerDisplayPublisher({
 		}, 80);
 	};
 
-	const openCustomerDisplay = () => {
+	/**
+	 * Resolves the POS Profile "Customer Display Name" to a monitor.
+	 * Blank name, unsupported browser, denied permission or an unknown name all
+	 * return null, and the display then opens exactly as it did before.
+	 *
+	 * Nothing here may take long on a click: window.open() runs after it and
+	 * the click's activation expires, then the popup is blocked. So the
+	 * unsupported case returns at once, and the retry is auto-open only.
+	 */
+	const resolveTargetScreen = async (
+		retryLookup: boolean,
+	): Promise<CustomerDisplayScreen | null> => {
+		const configuredName = toText(posProfile.value?.posa_customer_display_name);
+		if (!configuredName || !supportsScreenDetails()) {
+			return null;
+		}
+
+		// One retry: on the auto-open path getScreenDetails() can lose a race with
+		// the permission state during boot, and opening unplaced is worse than
+		// opening a moment later.
+		let details = await requestScreenDetails();
+		if (!details && retryLookup) {
+			await new Promise((resolve) => setTimeout(resolve, 1500));
+			details = await requestScreenDetails();
+		}
+		if (!details) {
+			return null;
+		}
+
+		const screen = matchScreenByName(listScreens(details), configuredName);
+		if (!screen) {
+			frappe?.show_alert?.(
+				{
+					message: __("Customer display screen not found: {0}", [
+						configuredName,
+					]),
+					indicator: "orange",
+				},
+				5,
+			);
+		}
+		return screen;
+	};
+
+	const openCustomerDisplay = async ({ retryLookup = false } = {}) => {
 		if (!isEnabled.value) {
 			frappe?.show_alert?.(
 				{
@@ -164,11 +240,17 @@ export function useCustomerDisplayPublisher({
 			return null;
 		}
 
+		const targetScreen = await resolveTargetScreen(retryLookup);
+		if (disposed) {
+			return null;
+		}
 		const url = buildCustomerDisplayUrl(channelId);
 		const displayWindow = window.open(
 			url,
 			CUSTOMER_DISPLAY_WINDOW_NAME,
-			CUSTOMER_DISPLAY_WINDOW_FEATURES,
+			targetScreen
+				? buildWindowFeatures(targetScreen)
+				: CUSTOMER_DISPLAY_WINDOW_FEATURES,
 		);
 		if (!displayWindow) {
 			frappe?.show_alert?.(
@@ -182,6 +264,26 @@ export function useCustomerDisplayPublisher({
 			);
 			return null;
 		}
+
+		if (targetScreen) {
+			// Window features only apply when a new window is created. A re-open
+			// reuses the named window and ignores them, so place it explicitly.
+			try {
+				displayWindow.moveTo(
+					Math.round(targetScreen.availLeft),
+					Math.round(targetScreen.availTop),
+				);
+				displayWindow.resizeTo(
+					Math.round(targetScreen.availWidth),
+					Math.round(targetScreen.availHeight),
+				);
+			} catch {
+				// Ignore: the browser may refuse to place a reused window.
+			}
+		}
+		// Answered when the display says it is ready; a re-open navigates the
+		// named window, so it boots and reports ready again.
+		fullscreenPending = Boolean(targetScreen);
 
 		try {
 			displayWindow.focus?.();
@@ -198,18 +300,95 @@ export function useCustomerDisplayPublisher({
 		window.sessionStorage.setItem(autoOpenMarker.value, "1");
 	};
 
+	const clearAutoOpenMarker = () => {
+		if (typeof window === "undefined" || !window.sessionStorage) return;
+		window.sessionStorage.removeItem(autoOpenMarker.value);
+	};
+
 	const hasAutoOpened = () => {
 		if (typeof window === "undefined" || !window.sessionStorage) return false;
 		return window.sessionStorage.getItem(autoOpenMarker.value) === "1";
 	};
 
-	const tryAutoOpen = () => {
+	/**
+	 * Waits until this window has finished loading and gone idle.
+	 *
+	 * The display window loads /app/posapp, which is a full desk boot. Opening
+	 * it while the POS window is still booting puts two desk boots on one
+	 * session, and every request writes the same tabSessions row and
+	 * User.last_active - MariaDB deadlocks and Frappe reports
+	 * "concurrent conflicting request". Letting the POS boot finish first also
+	 * warms the session-update throttle, so the display's own boot no longer
+	 * writes those rows at all.
+	 *
+	 * Resolves true when settled, false when cancelled by unmount. It must
+	 * always resolve: the caller has already set the auto-open marker and needs
+	 * to clear it again, or auto-open stays dead for the rest of the tab session.
+	 */
+	const waitForPosToSettle = () =>
+		new Promise<boolean>((resolve) => {
+			if (typeof window === "undefined") {
+				resolve(true);
+				return;
+			}
+
+			let settleTimer: ReturnType<typeof setTimeout> | null = null;
+			let idleHandle: number | null = null;
+
+			const finish = (settled: boolean) => {
+				cancelAutoOpenWait = null;
+				window.removeEventListener("load", afterLoad);
+				if (settleTimer) {
+					clearTimeout(settleTimer);
+					settleTimer = null;
+				}
+				if (idleHandle !== null) {
+					(window as any).cancelIdleCallback?.(idleHandle);
+					idleHandle = null;
+				}
+				resolve(settled);
+			};
+
+			const afterLoad = () => {
+				settleTimer = setTimeout(() => {
+					settleTimer = null;
+					const idle = (window as any).requestIdleCallback;
+					if (typeof idle === "function") {
+						idleHandle = idle(
+							() => {
+								idleHandle = null;
+								finish(true);
+							},
+							{ timeout: 8000 },
+						);
+					} else {
+						finish(true);
+					}
+				}, AUTO_OPEN_SETTLE_MS);
+			};
+
+			cancelAutoOpenWait = () => finish(false);
+
+			if (document.readyState === "complete") {
+				afterLoad();
+			} else {
+				window.addEventListener("load", afterLoad, { once: true });
+			}
+		});
+
+	const tryAutoOpen = async () => {
 		if (!isEnabled.value || !shouldAutoOpen.value || hasAutoOpened()) {
 			return;
 		}
-		const openedWindow = openCustomerDisplay();
-		if (openedWindow) {
-			markAutoOpenDone();
+		// Marked before awaiting: opening is async now, and the posProfile deep
+		// watcher can fire again mid-await and open a second window.
+		markAutoOpenDone();
+		const settled = await waitForPosToSettle();
+		const openedWindow = settled
+			? await openCustomerDisplay({ retryLookup: true })
+			: null;
+		if (!openedWindow) {
+			clearAutoOpenMarker();
 		}
 	};
 
@@ -233,6 +412,10 @@ export function useCustomerDisplayPublisher({
 			clearTimeout(publishTimer);
 			publishTimer = null;
 		}
+		disposed = true;
+		fullscreenPending = false;
+		cancelAutoOpenWait?.();
+		unsubscribeControl();
 		transport.close();
 	});
 

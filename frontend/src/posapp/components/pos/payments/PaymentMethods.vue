@@ -28,11 +28,12 @@
 						:label="frappe._('Amount')"
 						:class="['sleek-field pos-themed-input', isReturn ? 'pos-themed-input--refund' : '']"
 						hide-details
+						ref="amountInputs"
 						:model-value="payment.amount === 0 ? '' : formatCurrency(payment.amount)"
 						@change="$emit('update-amount', payment, $event)"
 						:rules="[isNumber]"
 						:prefix="currencySymbol(currency)"
-						@focus="$emit('set-rest-amount', payment, isReturn)"
+						@focus="onAmountFocus(payment)"
 						:readonly="isGiftCardPayment(payment)"
 					></v-text-field>
 				</v-col>
@@ -133,6 +134,13 @@ const frappe = window.frappe;
 const __ = window.__;
 
 const cardDigitsInputs = ref([]);
+const amountInputs = ref([]);
+
+// focusAmount() below focuses the amount field programmatically. A user focusing it
+// means "I want to type the rest of the bill here", so @focus fills the field in;
+// but when WE focus it to point at a rejected amount, filling it in would overwrite
+// the very number the cashier has to correct. This flag suppresses that one emit.
+let suppressNextRestAmount = false;
 
 const props = defineProps({
 	payments: Array,
@@ -175,6 +183,45 @@ const showQuickTenderActions = (payment) =>
 	props.isCashLikePayment(payment) &&
 	payment?.default === 1;
 
+const onAmountFocus = (payment) => {
+	if (suppressNextRestAmount) {
+		suppressNextRestAmount = false;
+		return;
+	}
+	emit("set-rest-amount", payment, props.isReturn);
+};
+
+// Put the cursor on one payment row's amount field and select its contents, so the
+// cashier can retype straight over a rejected figure. The amount column is behind
+// v-if="!isMpesaC2bPayment(payment)", so amountInputs is indexed by the VISIBLE rows,
+// not by props.payments.
+const focusAmount = (payment) => {
+	if (!payment) return false;
+	const visible = (Array.isArray(props.payments) ? props.payments : []).filter(
+		(p) => !props.isMpesaC2bPayment(p),
+	);
+	const index = visible.indexOf(payment);
+	if (index === -1) return false;
+
+	nextTick(() => {
+		const inputs = amountInputs.value;
+		const list = Array.isArray(inputs) ? inputs : [inputs];
+		const target = list[index];
+		const el = target?.$el?.querySelector("input") || target?.$el;
+		if (!el) return;
+
+		// focus() on an already-focused element fires no focus event, so arming the
+		// flag there would leave it set and swallow the next genuine click into an
+		// amount field. Only arm it when the focus will actually move.
+		if (document.activeElement !== el) {
+			suppressNextRestAmount = true;
+			el.focus();
+		}
+		if (typeof el.select === "function") el.select();
+	});
+	return true;
+};
+
 const focusCardDigits = (mode_of_payment) => {
 	if (!mode_of_payment.toLowerCase().includes("card")) return;
 	nextTick(() => {
@@ -211,7 +258,7 @@ const focusCardMissingDigits = () => {
 	return true;
 };
 
-defineExpose({ focusCardDigits, focusCardMissingDigits });
+defineExpose({ focusCardDigits, focusCardMissingDigits, focusAmount });
 </script>
 
 <style scoped>

@@ -145,6 +145,9 @@ function clearStalePartyFieldsForCustomerChange(
  */
 
 export function get_invoice_doc(context: any) {
+	// Resync posting_date to today if it's still in default state (not manually overridden)
+	context.invoiceStore?.resyncPostingDateIfDefault?.();
+
 	let doc: any = {};
 	const sourceDoc = context.invoice_doc || {};
 	const previousCustomer = sourceDoc.customer || null;
@@ -420,10 +423,9 @@ export function get_invoice_doc(context: any) {
 	doc.posa_notes = sourceDoc.posa_notes ?? null;
 	doc.posa_authorization_code = sourceDoc.posa_authorization_code ?? null;
 	doc.posa_return_valid_upto = sourceDoc.posa_return_valid_upto ?? null;
-	doc.posting_date = normalizeBackendDate(
-		context,
-		context.posting_date_display ?? context.posting_date,
-	);
+	// Read posting_date directly from store to avoid stale display-field values from deferred Vue watchers
+	const postingDateValue = context.invoiceStore?.postingDate ?? context.posting_date_display ?? context.posting_date;
+	doc.posting_date = normalizeBackendDate(context, postingDateValue);
 	if (shouldEnableManualPostingDate(context, sourceDoc, doc.posting_date)) {
 		doc.set_posting_time = 1;
 	}

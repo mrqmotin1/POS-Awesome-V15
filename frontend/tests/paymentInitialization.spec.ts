@@ -321,3 +321,51 @@ describe("paymentInitialization", () => {
 		expect(doc.payments[0].base_amount).toBe(19600);
 	});
 });
+
+describe("isDrawerCashPayment", () => {
+	const { isDrawerCashPayment } = paymentInitialization;
+
+	it("does not treat a Cash-TYPE card mode as the drawer", () => {
+		// The regression: "Card" is type "Cash" on these sites, which made the
+		// card-overpayment guard skip every card row.
+		expect(
+			isDrawerCashPayment({ mode_of_payment: "Card", type: "Cash" }, "Cash"),
+		).toBe(false);
+	});
+
+	it("matches the mode configured on the POS Profile", () => {
+		expect(
+			isDrawerCashPayment({ mode_of_payment: "Cash", type: "Cash" }, "Cash"),
+		).toBe(true);
+	});
+
+	it("matches the configured mode regardless of its name or type", () => {
+		expect(
+			isDrawerCashPayment({ mode_of_payment: "Efectivo", type: "Bank" }, "Efectivo"),
+		).toBe(true);
+	});
+
+	it("ignores a cash-sounding mode that is not the configured one", () => {
+		expect(
+			isDrawerCashPayment(
+				{ mode_of_payment: "Pay at Cash Counter", type: "Cash" },
+				"Cash",
+			),
+		).toBe(false);
+	});
+
+	it("falls back to name matching when the profile has no cash mode set", () => {
+		expect(isDrawerCashPayment({ mode_of_payment: "Cash" }, "")).toBe(true);
+		expect(isDrawerCashPayment({ mode_of_payment: "نقدي" }, undefined)).toBe(true);
+		expect(isDrawerCashPayment({ mode_of_payment: "Card" }, "")).toBe(false);
+	});
+
+	it("is case- and whitespace-insensitive on the configured mode", () => {
+		expect(isDrawerCashPayment({ mode_of_payment: "cash" }, " Cash ")).toBe(true);
+	});
+
+	it("returns false for a missing row", () => {
+		expect(isDrawerCashPayment(null, "Cash")).toBe(false);
+		expect(isDrawerCashPayment({}, "Cash")).toBe(false);
+	});
+});

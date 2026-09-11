@@ -98,6 +98,7 @@
 								@update:posting_date_display="
 									(val) => {
 										posting_date_display = val;
+										invoiceStore.markPostingDateIntentional();
 									}
 								"
 								@update:priceList="

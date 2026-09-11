@@ -255,7 +255,10 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
         self.assertEqual(reconcile_args[0]["party"], "CUST-0001")
         self.assertEqual(reconcile_args[0]["dr_or_cr"], "credit_in_account_currency")
 
-    def test_paid_change_entry_is_not_created_when_cash_payment_can_return_change(self):
+    def test_paid_change_entry_is_not_created_when_invoice_already_records_the_change(self):
+        # Cash 600 + Card 500 against a 1000 bill: the payment rows alone exceed the
+        # grand total, so ERPNext writes change_amount = 100 on the invoice and the
+        # closing shift nets it off the cash row. No Payment Entry needed.
         invoice_doc = FakeInvoiceDoc(
             docstatus=1,
             doctype="Sales Invoice",
@@ -265,6 +268,7 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
             debit_to="Debtors - TC",
             posting_date="2026-03-26",
             posa_pos_opening_shift="POS-OPEN-0001",
+            change_amount=100,
             payments=[
                 {
                     "amount": 600,
@@ -290,6 +294,75 @@ class TestCreateChangePaymentEntries(unittest.TestCase):
 
         self.assertEqual(self.created_entries, [])
         self.assertEqual(self.reconcile_calls, [])
+
+    def test_paid_change_entry_is_created_when_credit_covers_the_bill(self):
+        # 1000 bill settled by 1000 of customer credit with 100 cash also tendered
+        # and handed straight back. Redeemed credit is not a payment row, so
+        # paid_amount (100) never exceeds the grand total and ERPNext leaves
+        # change_amount at 0 - a cash row exists, but nothing records the payout.
+        # The Payment Entry is the only trace that cash left the drawer.
+        invoice_doc = FakeInvoiceDoc(
+            docstatus=1,
+            doctype="Sales Invoice",
+            name="SINV-0002",
+            customer="CUST-0001",
+            company="Test Company",
+            debit_to="Debtors - TC",
+            posting_date="2026-03-26",
+            posa_pos_opening_shift="POS-OPEN-0001",
+            change_amount=0,
+            payments=[
+                {
+                    "amount": 100,
+                    "type": "Cash",
+                    "mode_of_payment": "Cash",
+                    "account": "Cash",
+                },
+            ],
+        )
+
+        self.module._create_change_payment_entries(
+            invoice_doc,
+            {"paid_change": 100, "credit_change": 0},
+            pos_profile="Main POS",
+            cash_account={"account": "Cash"},
+        )
+
+        self.assertEqual(len(self.created_entries), 1)
+        self.assertEqual(self.created_entries[0].paid_amount, 100)
+
+    def test_paid_change_entry_covers_only_the_amount_not_already_recorded(self):
+        # Mixed: change_amount records 40, the remaining 60 came from an
+        # over-redemption and is not recorded anywhere, so only 60 needs an entry.
+        invoice_doc = FakeInvoiceDoc(
+            docstatus=1,
+            doctype="Sales Invoice",
+            name="SINV-0003",
+            customer="CUST-0001",
+            company="Test Company",
+            debit_to="Debtors - TC",
+            posting_date="2026-03-26",
+            posa_pos_opening_shift="POS-OPEN-0001",
+            change_amount=40,
+            payments=[
+                {
+                    "amount": 500,
+                    "type": "Cash",
+                    "mode_of_payment": "Cash",
+                    "account": "Cash",
+                },
+            ],
+        )
+
+        self.module._create_change_payment_entries(
+            invoice_doc,
+            {"paid_change": 100, "credit_change": 0},
+            pos_profile="Main POS",
+            cash_account={"account": "Cash"},
+        )
+
+        self.assertEqual(len(self.created_entries), 1)
+        self.assertEqual(self.created_entries[0].paid_amount, 60)
 
     def test_credit_change_entry_is_created_without_invoice_allocation(self):
         invoice_doc = FakeInvoiceDoc(

@@ -251,6 +251,7 @@ export const useInvoiceStore = defineStore("invoice", () => {
 	const flowToLoad = ref<any>(null);
 	const flowContext = ref<any | null>(null);
 	const postingDate = ref(frappe.datetime.nowdate());
+	const postingDateIsDefault = ref(true);
 
 	// Sticky fields moved from local component state
 	const discountAmount = ref(0);
@@ -299,6 +300,22 @@ export const useInvoiceStore = defineStore("invoice", () => {
 	/** Resets `postingDate` to today's date via `frappe.datetime.nowdate()`. */
 	const resetPostingDate = () => {
 		postingDate.value = frappe.datetime.nowdate();
+		postingDateIsDefault.value = true;
+	};
+
+	/** Marks the `postingDate` as intentionally set by the user (e.g., manual date override). */
+	const markPostingDateIntentional = () => {
+		postingDateIsDefault.value = false;
+	};
+
+	/** Resyncs `postingDate` to today if it's still in default state (i.e., not manually overridden). */
+	const resyncPostingDateIfDefault = () => {
+		if (postingDateIsDefault.value) {
+			const today = frappe.datetime.nowdate();
+			if (postingDate.value !== today) {
+				postingDate.value = today;
+			}
+		}
 	};
 
 	/** Sets the line-level discount amount. Non-numeric values are coerced to `0`. */
@@ -689,8 +706,11 @@ export const useInvoiceStore = defineStore("invoice", () => {
 		recalculateTotals, // Exposed for manual trigger if needed
 		invoiceToLoad,
 		postingDate,
+		postingDateIsDefault,
 		setPostingDate,
 		resetPostingDate,
+		markPostingDateIntentional,
+		resyncPostingDateIfDefault,
 		/**
 		 * Signals that `doc` should be loaded as the active invoice.
 		 * Sets `invoiceToLoad`, which is watched by the invoice-loading composable.

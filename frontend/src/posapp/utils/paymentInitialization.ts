@@ -50,6 +50,34 @@ const hasMeaningfulAmount = (
 	return Math.abs(toNumber(payment?.amount)) > epsilon;
 };
 
+/**
+ * Is this payment row the cash drawer, for overpayment purposes?
+ *
+ * Keyed on `POS Profile.posa_cash_mode_of_payment` because that is exactly the mode
+ * the closing shift nets change against - the drawer the change comes out of.
+ *
+ * Deliberately NOT keyed on `type`: a Mode of Payment named "Card" can be typed
+ * "Cash" (it is, on these sites), which made the card-overpayment guard treat every
+ * card row as cash and skip it. Name matching is only a fallback for a profile with
+ * no cash mode configured, so a Cash-type mode named "Efectivo" or "Till 2" is still
+ * handled correctly once the profile field is set.
+ */
+export const isDrawerCashPayment = (
+	payment: PaymentLine | null | undefined,
+	configuredCashMode?: string | null,
+): boolean => {
+	if (!payment) return false;
+
+	const configured = String(configuredCashMode || "").trim();
+	const mode = String(payment.mode_of_payment || "").trim();
+	if (configured) return mode.toLowerCase() === configured.toLowerCase();
+
+	const lower = mode.toLowerCase();
+	return (
+		lower.includes("cash") || lower.includes("money") || lower.includes("نقدي")
+	);
+};
+
 export const shouldApplyReturnRefundCap = (
 	doc: PaymentInitDoc | null | undefined,
 ): boolean =>

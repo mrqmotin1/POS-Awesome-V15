@@ -125,7 +125,6 @@ def get_closing_shift_overview(pos_opening_shift):
     shift_invoice_names = {invoice.get("name") for invoice in invoices}
     invoice_shift_link_field_cache = {}
     invoice_membership_cache = {}
-    overpayment_invoice_names = set()
 
     def resolve_shift_link_field(doctype_name):
         if doctype_name in invoice_shift_link_field_cache:
@@ -194,26 +193,6 @@ def get_closing_shift_overview(pos_opening_shift):
 
         for reference in reference_rows:
             references_by_entry[reference.get("parent")].append(reference)
-
-    for entry in payment_entries:
-        if entry.get("payment_type") != "Pay":
-            continue
-
-        references = references_by_entry.get(entry.get("name")) or []
-
-        for reference in references:
-            reference_doctype = reference.get("reference_doctype")
-            reference_name = reference.get("reference_name")
-            belongs_to_shift = False
-
-            if reference_doctype and reference_name:
-                belongs_to_shift = reference_belongs_to_shift(
-                    reference_doctype,
-                    reference_name,
-                )
-
-            if belongs_to_shift and reference_doctype in {"POS Invoice", "Sales Invoice"}:
-                overpayment_invoice_names.add(reference_name)
 
     def reference_base_amount(reference, fallback_rate=None):
         for fieldname in (
@@ -305,9 +284,8 @@ def get_closing_shift_overview(pos_opening_shift):
                     loyalty_entry["exchange_rates"].add(rate)
 
         change_amount = flt(invoice.get("change_amount") or 0)
-        has_overpayment_entry = invoice.get("name") in overpayment_invoice_names
 
-        if change_amount and not has_overpayment_entry:
+        if change_amount:
             change_entry = change_totals_by_currency.setdefault(
                 invoice_currency,
                 {
@@ -425,19 +403,33 @@ def get_closing_shift_overview(pos_opening_shift):
             amount = flt(payment.get("amount") or 0)
             base_amount = get_base_value(payment, "amount", "base_amount", conversion_rate)
 
-            if mode == cash_mode_of_payment and change_amount and not has_overpayment_entry and not invoice.get("is_return"):
-                change_base_amount = flt(
-                    get_base_value(invoice, "change_amount", "base_change_amount", conversion_rate)
-                )
-                amount -= change_amount
-                base_amount -= change_base_amount
-
             accumulate_payment(
                 payments_by_mode,
                 mode,
                 payment_currency,
                 amount,
                 base_amount,
+                conversion_rate,
+            )
+
+        # Change always leaves the cash drawer, so deduct it from the cash mode once
+        # per invoice - NOT inside the payment-row loop above, which skipped any
+        # invoice carrying no cash row (a card-only tender) and overstated cash.
+        #
+        # Always deduct, with no "does a Pay entry reference this invoice?" guard: a
+        # change Payment Entry records only the portion NOT already in change_amount,
+        # so the two never overlap, and skipping this under-deducted whenever such an
+        # entry was a partial residual.
+        if change_amount and not invoice.get("is_return") and cash_mode_of_payment:
+            change_base_amount = flt(
+                get_base_value(invoice, "change_amount", "base_change_amount", conversion_rate)
+            )
+            accumulate_payment(
+                payments_by_mode,
+                cash_mode_of_payment,
+                invoice_currency,
+                -change_amount,
+                -change_base_amount,
                 conversion_rate,
             )
 
