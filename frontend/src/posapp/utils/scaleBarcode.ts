@@ -9,6 +9,7 @@ export interface ScaleBarcodeSettings {
     prefix: string;
     prefix_included_or_not: number;
     no_of_prefix_characters: number;
+    item_code_total_digits: number;
 }
 
 /**
@@ -24,11 +25,14 @@ export const normalizeScaleBarcodeSettings = (rawSettings: any = {}): ScaleBarco
 
     const prefixIncluded = Number.isFinite(prefixIncludedRaw) ? prefixIncludedRaw : 0;
     const prefixLength = Number.isFinite(prefixLengthRaw) ? prefixLengthRaw : 0;
+    const itemDigitsRaw = Number(settings.item_code_total_digits);
 
     return {
         prefix,
         prefix_included_or_not: prefixIncluded,
         no_of_prefix_characters: prefixLength,
+        // 0 = backend parser cannot decode anything (no item-code segment).
+        item_code_total_digits: Number.isFinite(itemDigitsRaw) ? itemDigitsRaw : 0,
     };
 };
 

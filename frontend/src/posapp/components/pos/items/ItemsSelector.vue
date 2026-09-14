@@ -751,7 +751,12 @@ const scanProcessor = useScanProcessor({
 	itemDetailFetcher,
 	itemAddition: { addItem: add_item },
 	barcodeIndex: {
-		lookupItemByBarcode,
+		// Store index is maintained incrementally on every catalog load / sync
+		// (O(1), never rebuilt); the local index below is reset on each search
+		// clear and rebuilt O(n) on a miss, so only fall back to it for codes
+		// the store does not key (item_code, serial, batch).
+		lookupItemByBarcode: (code) =>
+			itemsIntegration.getItemByBarcode(String(code ?? "").trim()) || lookupItemByBarcode(code),
 		searchItemsByCode: searchItemsByCodeFn,
 		ensureBarcodeIndex,
 		replaceBarcodeIndex,

@@ -263,8 +263,12 @@ export function useScanProcessor(context: ScanProcessorContext) {
 
 						newItem.rate = newPrice;
 						newItem.price_list_rate = newPrice;
-						newItem.base_rate = baseUnitRate;
-						newItem.base_price_list_rate = baseUnitRate;
+						// base_* is the line price in company currency (same as the
+						// UOM-price branch above and calcUom). Storing the per-unit
+						// rate here let calcItemPrice / pricing rules rebuild `rate`
+						// from base_rate and silently revert to the stock-UOM price.
+						newItem.base_rate = newPrice;
+						newItem.base_price_list_rate = newPrice;
 						newItem.conversion_factor = conversionFactor;
 						newItem.barcode = scannedCode;
 						// Pin the UOM price against auto-refresh, but mark it as
@@ -465,16 +469,30 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		let scaleResponse: any = null;
 		let scanAssignment: ScanAssignment = emptyScanAssignment();
 
-		try {
-			const res = await frappe.call({
-				method: "posawesome.posawesome.api.items.parse_scale_barcode",
-				args: { barcode: scannedCode },
-			});
-			if (res && res.message) {
-				scaleResponse = res.message;
+		// Skip the parse_scale_barcode round trip when the cached settings show
+		// it cannot decode anything (no item-code segment) or the code lacks the
+		// configured prefix - it would return nothing and only slow every scan.
+		const scaleSettings = scannerInput.scaleBarcodeSettings?.value || {};
+		const scalePrefix =
+			typeof scannerInput.getScaleBarcodePrefix === "function"
+				? scannerInput.getScaleBarcodePrefix()
+				: "";
+		const mayBeScaleBarcode =
+			Number(scaleSettings.item_code_total_digits) > 0 &&
+			(!scalePrefix || String(scannedCode || "").startsWith(scalePrefix));
+
+		if (mayBeScaleBarcode) {
+			try {
+				const res = await frappe.call({
+					method: "posawesome.posawesome.api.items.parse_scale_barcode",
+					args: { barcode: scannedCode },
+				});
+				if (res && res.message) {
+					scaleResponse = res.message;
+				}
+			} catch (error) {
+				console.error("Failed to parse scale barcode via API:", error);
 			}
-		} catch (error) {
-			console.error("Failed to parse scale barcode via API:", error);
 		}
 
 		if (

@@ -553,6 +553,11 @@ describe("ItemsSelector stock wiring", () => {
 		await Promise.resolve();
 		await wrapper.vm.$nextTick();
 
+		// Supervisor-only rate info is additionally gated by the cashier's
+		// "show last invoice rate" item setting (off by default).
+		wrapper.vm.show_last_invoice_rate = true;
+		await wrapper.vm.$nextTick();
+
 		const lastBuyingRateContext = lastBuyingRateSpies.contexts.at(-1);
 		const entries = wrapper.vm.getItemRateInfo({
 			item_code: "ITEM-1",

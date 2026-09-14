@@ -87,6 +87,12 @@ def clear_item_caches(doc=None, method=None):
                 except Exception:
                     # Cache invalidation must never break the triggering write
                     frappe.log_error(frappe.get_traceback(), "POSAwesome item cache clear failed")
+    # get_items() caches its whole result (catalog / search rows incl. barcodes,
+    # UOMs, prices) in a redis_cache'd closure that no store above tracks.
+    try:
+        frappe.cache.delete_keys("posawesome.posawesome.api.item_processing.search.get_items.<locals>.__get_items")
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "POSAwesome item cache clear failed")
 
 
 def _fetch_item_prices(
@@ -524,6 +530,42 @@ def _select_price(
     return next(iter(price_rows.values()), frappe._dict())
 
 
+def _scale_price_to_uom(
+    price_row: frappe._dict,
+    requested_uom: Optional[str],
+    stock_uom: Optional[str],
+    uoms: List[Dict[str, Any]],
+) -> frappe._dict:
+    """Convert a fallback price row to the line's UOM.
+
+    ``_select_price`` returns another UOM's row (stock UOM, UOM-less, or the
+    first available) when the requested UOM has no Item Price. Such a rate is
+    per unit of *that* row's UOM, so a Box / Set line must be scaled by
+    cf(requested) / cf(row uom) - ERPNext's get_price_list_rate_for rule.
+    Otherwise the cart refresh on e.g. customer change writes the stock-UOM
+    rate into price_list_rate and the saved invoice ends up with a negative
+    discount_amount. Returns a copy; price_map rows are shared.
+    """
+
+    if not price_row or not requested_uom:
+        return price_row
+    row_uom = price_row.get("uom") or stock_uom or ""
+    if row_uom == requested_uom:
+        return price_row
+
+    def _factor(uom: str) -> float:
+        return next((flt(u.get("conversion_factor")) for u in uoms if u.get("uom") == uom), 0)
+
+    requested_factor = _factor(requested_uom)
+    row_factor = _factor(row_uom) or 1
+    if not requested_factor or requested_factor == row_factor:
+        return price_row
+
+    scaled = frappe._dict(price_row)
+    scaled["price_list_rate"] = flt(price_row.get("price_list_rate")) * requested_factor / row_factor
+    return scaled
+
+
 def _ensure_stock_uom(uoms: List[Dict[str, Any]], stock_uom: Optional[str]) -> List[Dict[str, Any]]:
     """Make sure the stock UOM is always present in the UOM listing."""
 
@@ -550,6 +592,7 @@ def merge_item_row(
     price_row = _select_price(
         lookup_data.price_map.get(item_code, {}), item.get("uom"), meta.get("stock_uom")
     )
+    price_row = _scale_price_to_uom(price_row, item.get("uom"), meta.get("stock_uom"), uoms)
     price_currency = price_row.get("currency") if price_row else None
 
     batch_rows = lookup_data.batch_map.get(item_code, [])

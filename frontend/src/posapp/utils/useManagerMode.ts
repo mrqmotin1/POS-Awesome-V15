@@ -8,7 +8,10 @@ export const isSessionUserManager = ref<boolean>(false)
 
 // Initialize
 export function initManagerMode(): void {
-  if (Array.isArray(frappe.user_roles) && frappe.user_roles.includes("Counter Manager")) {
+  // Module runs this at import time; guard so the module loads without the
+  // frappe global (unit tests, early bundle evaluation).
+  const roles = typeof frappe !== "undefined" ? frappe?.user_roles : undefined
+  if (Array.isArray(roles) && roles.includes("Counter Manager")) {
     isManagerMode.value = true
     isSessionUserManager.value = true
   }

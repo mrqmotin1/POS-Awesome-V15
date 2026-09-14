@@ -110,13 +110,16 @@ describe("useItemsSelectorSearch", () => {
 		expect(vm.search).toBe("");
 	});
 
-	it("prioritizes search over highlighted selection when enter is pressed in limit search mode", async () => {
+	it("treats enter as a scan of the typed value, never a plain search or highlight pick", async () => {
+		// Enter is the wedge-scanner suffix: the typed value goes straight to the
+		// scan pipeline (local index, else server) - alphanumeric codes included.
 		const searchItems = vi.fn().mockResolvedValue([]);
 		const selectHighlightedItem = vi.fn();
 		const preventDefault = vi.fn();
+		const scannerInput = createScannerInput();
 		const vm = {
-			first_search: "abcd",
-			search_input: "abcd",
+			first_search: "DL955-174",
+			search_input: "DL955-174",
 			search: "",
 			search_from_scanner: false,
 			isBackgroundLoading: false,
@@ -132,7 +135,7 @@ describe("useItemsSelectorSearch", () => {
 
 		const api = useItemsSelectorSearch({
 			getVM: () => vm,
-			scannerInput: createScannerInput(),
+			scannerInput,
 			itemSelection: vm.itemSelection,
 		});
 
@@ -140,36 +143,37 @@ describe("useItemsSelectorSearch", () => {
 		await Promise.resolve();
 
 		expect(preventDefault).toHaveBeenCalled();
-		expect(searchItems).toHaveBeenCalledWith("abcd");
+		expect(scannerInput.onBarcodeScanned).toHaveBeenCalledWith("DL955-174");
+		expect(searchItems).not.toHaveBeenCalled();
 		expect(selectHighlightedItem).not.toHaveBeenCalled();
+		// Field is cleared immediately for the next rapid scan.
+		expect(vm.search_input).toBe("");
+		expect(vm.first_search).toBe("");
 	});
 
-	it("selects the highlighted item when enter is pressed with a highlighted ref index", () => {
-		const selectHighlightedItem = vi.fn();
+	it("cancels the pending debounced search and ignores enter on an empty field", () => {
 		const preventDefault = vi.fn();
+		const scannerInput = createScannerInput();
 		const vm = {
-			first_search: "abcd",
-			search_input: "abcd",
+			first_search: "",
+			search_input: "   ",
 			search: "",
 			search_from_scanner: false,
 			isBackgroundLoading: false,
 			pos_profile: { posa_use_limit_search: 0 },
-			itemSelection: {
-				highlightedIndex: { value: 0 },
-				selectHighlightedItem,
-			},
 		};
 
 		const api = useItemsSelectorSearch({
 			getVM: () => vm,
-			scannerInput: createScannerInput(),
-			itemSelection: vm.itemSelection,
+			scannerInput,
 		});
+		const cancel = vi.spyOn(api.search_onchange, "cancel");
 
 		api.onEnter({ preventDefault } as unknown as KeyboardEvent);
 
 		expect(preventDefault).toHaveBeenCalled();
-		expect(selectHighlightedItem).toHaveBeenCalledTimes(1);
+		expect(cancel).toHaveBeenCalled();
+		expect(scannerInput.onBarcodeScanned).not.toHaveBeenCalled();
 	});
 });
 
