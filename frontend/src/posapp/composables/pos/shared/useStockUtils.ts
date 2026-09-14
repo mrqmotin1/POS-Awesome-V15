@@ -434,6 +434,12 @@ export function useStockUtils() {
 				context,
 				item.base_price_list_rate,
 			);
+			// Pin the cf-derived price against auto-refresh (get_items_details
+			// returns the stock-UOM rate without × cf for this line, e.g. on
+			// customer change), but mark it UOM-derived so pricing rules still
+			// apply - same convention as the UOM-price branch above.
+			item._manual_rate_set = true;
+			item._manual_rate_set_from_uom = true;
 		}
 		syncLineAmounts(item, context);
 
