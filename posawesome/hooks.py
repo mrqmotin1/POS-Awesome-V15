@@ -69,16 +69,20 @@ doctype_js = {
 # ------------
 
 # before_install = "posawesome.install.before_install"
-# after_install = "posawesome.install.after_install"
+# install-app marks patches.txt as done without running it, so fields/indexes
+# that are not in fixtures are ensured (create-only) on install and every migrate.
+after_install = "posawesome.install.after_install"
 # before_uninstall = "posawesome.uninstall.before_uninstall"
 after_uninstall = "posawesome.uninstall.after_uninstall"
-# NOTE: these migrations are registered one-shot in patches.txt and must NOT
-# also run on every `bench migrate`. Running them via after_migrate re-rewrote
-# the POS Awesome workspace and POS Profile section ordering on every migrate,
-# destroying any user customization. The three that previously lived only here
-# (add_gift_card_pos_profile_settings, migrate_pos_supervisor_to_role,
-# remove_item_barcode_posa_uom) have been moved into patches.txt.
-after_migrate = []
+# NOTE: the workspace / POS Profile section-reorder migrations are registered
+# one-shot in patches.txt and must NOT also run on every `bench migrate`.
+# Running them via after_migrate re-rewrote the POS Awesome workspace and POS
+# Profile section ordering on every migrate, destroying any user customization.
+# The three that previously lived only here (add_gift_card_pos_profile_settings,
+# migrate_pos_supervisor_to_role, remove_item_barcode_posa_uom) have been moved
+# into patches.txt. install.after_migrate only creates what is missing and never
+# updates or re-orders existing fields, so it is safe here.
+after_migrate = ["posawesome.install.after_migrate"]
 
 # Desk Notifications
 # ------------------
