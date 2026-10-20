@@ -847,6 +847,18 @@ def get_payment_reconciliation_details(closing_shift_doc):
         row["base"] += flt(base_amount)
         row["amount"] += flt(amount)
 
+    def resolve_payment_currency(payment_row, invoice_currency):
+        for fieldname in (
+            "posa_payment_currency",
+            "currency",
+            "account_currency",
+            "payment_currency",
+        ):
+            value = payment_row.get(fieldname)
+            if value:
+                return value
+        return invoice_currency or company_currency
+
     cash_mode_of_payment = (
         frappe.db.get_value("POS Profile", closing_shift_doc.pos_profile, "posa_cash_mode_of_payment")
         or "Cash"
