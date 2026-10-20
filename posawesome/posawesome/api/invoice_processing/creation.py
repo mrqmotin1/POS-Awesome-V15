@@ -1660,6 +1660,11 @@ def update_invoice(data):
     # ERPNext bug: an Item Group / Brand rule carrying a UOM is evaluated with
     # an empty item_code, which raises "Item None not found" at the POS.
     incoming_payment_rows = data.get("payments") or []
+    # ERPNext rebuilds POS payment rows from the profile here anyway; clearing
+    # them first suppresses its "Payment methods refreshed" alert. Amounts are
+    # restored from incoming_payment_rows below. Returns skip the rebuild.
+    if not invoice_doc.is_return:
+        invoice_doc.set("payments", [])
     invoice_doc.set_missing_values(for_validate=bool(invoice_doc.is_return))
     # ERPNext's POS defaults may update pricing policy while filling values.
     # Reassert the return invariant before any calculation or validation runs.
