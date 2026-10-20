@@ -47,6 +47,11 @@ import {
 	initLongTaskObserver,
 	isPerfEnabled,
 } from "./utils/perf.js";
+import {
+	finishStartupPhase,
+	startStartupPhase,
+	traceStartupEvent,
+} from "../utils/startupTrace";
 
 declare const __BUILD_VERSION__: string;
 
@@ -64,7 +69,14 @@ if (typeof frappe === "undefined") {
 }
 
 export async function initPosStorage() {
-	await startupInitPromise;
+	const phase = startStartupPhase("indexeddb.boot_critical_storage");
+	try {
+		await startupInitPromise;
+		finishStartupPhase(phase, "ok");
+	} catch (error) {
+		finishStartupPhase(phase, "error", { error });
+		throw error;
+	}
 }
 
 function getPosBuildVersion() {
@@ -87,6 +99,76 @@ function queueBuildReconciliation(deferInitialBaseline: boolean) {
 	return buildReconciliationChain;
 }
 
+const POS_INPUT_HELPER_SELECTOR = "input, textarea";
+
+function suppressBrowserInputHelpers(root: HTMLElement | null | undefined) {
+	if (
+		!root ||
+		typeof window === "undefined" ||
+		typeof MutationObserver === "undefined"
+	) {
+		return () => {};
+	}
+
+	const normalizeInput = (element: Element | null) => {
+		if (
+			!(
+				element instanceof HTMLInputElement ||
+				element instanceof HTMLTextAreaElement
+			)
+		) {
+			return;
+		}
+		if (
+			element.type === "file" ||
+			element.dataset.posAllowBrowserHelpers === "true"
+		) {
+			return;
+		}
+		if (!element.hasAttribute("autocomplete")) {
+			element.setAttribute("autocomplete", "off");
+		}
+		element.setAttribute("autocorrect", "off");
+		element.setAttribute("autocapitalize", "off");
+		element.setAttribute("spellcheck", "false");
+		element.setAttribute("data-1p-ignore", "true");
+		element.setAttribute("data-lpignore", "true");
+		element.setAttribute("data-bwignore", "true");
+	};
+
+	const normalizeTree = (node: ParentNode | Element | null) => {
+		if (!node) return;
+		if (node instanceof Element) {
+			normalizeInput(node);
+		}
+		node.querySelectorAll?.(POS_INPUT_HELPER_SELECTOR).forEach(
+			normalizeInput,
+		);
+	};
+
+	const handleFocusIn = (event: Event) => {
+		normalizeInput(event.target as Element | null);
+	};
+
+	normalizeTree(root);
+	const observer = new MutationObserver((mutations) => {
+		mutations.forEach((mutation) => {
+			mutation.addedNodes.forEach((node) => {
+				if (node instanceof Element) {
+					normalizeTree(node);
+				}
+			});
+		});
+	});
+	observer.observe(root, { childList: true, subtree: true });
+	root.addEventListener("focusin", handleFocusIn, true);
+
+	return () => {
+		observer.disconnect();
+		root.removeEventListener("focusin", handleFocusIn, true);
+	};
+}
+
 registerPostHydrationTask(async () => {
 	await queueBuildReconciliation(false);
 });
@@ -104,6 +186,7 @@ async function startOptionalRuntimeServices() {
 		return;
 	}
 
+	const servicesPhase = startStartupPhase("optional_runtime_services");
 	const socketStore = useSocketStore();
 	socketStore.init();
 
@@ -124,6 +207,9 @@ async function startOptionalRuntimeServices() {
 		window.location.hostname === "localhost" ||
 		window.location.hostname === "127.0.0.1"
 	) {
+		const swPhase = startStartupPhase("service_worker.registration", {
+			hasController: Boolean(navigator.serviceWorker.controller),
+		});
 		// Register at `/sw.js?v=<build>` so a new build forces a fresh
 		// SW registration. The sw.js bytes are stable across deploys
 		// (the file reads version.json at runtime), so without a
@@ -142,9 +228,17 @@ async function startOptionalRuntimeServices() {
 			.register(swUrl)
 			.then((registration) => {
 				console.log("SW registered successfully", registration);
+				finishStartupPhase(swPhase, "ok", {
+					active: Boolean(registration.active),
+					waiting: Boolean(registration.waiting),
+				});
 			})
-			.catch((err) => console.error("SW registration failed", err));
+			.catch((err) => {
+				finishStartupPhase(swPhase, "error", { error: err });
+				console.error("SW registration failed", err);
+			});
 	}
+	finishStartupPhase(servicesPhase, "ok");
 }
 
 class PosAppController {
@@ -154,12 +248,14 @@ class PosAppController {
 	router: any;
 	routerHistory: any;
 	$el: any;
+	inputHelperCleanup: (() => void) | null;
 
 	constructor(input: any) {
 		const parent = input?.parent || input;
 		this.$parent = $(document);
 		this.page = parent?.page || parent;
 		this.app = null;
+		this.inputHelperCleanup = null;
 		this.make_body();
 	}
 
@@ -168,6 +264,7 @@ class PosAppController {
 	}
 
 	async initializeApp() {
+		const phase = startStartupPhase("frappe.vue_app_mount");
 		// Vuetify instance is now imported from plugins/vuetify.ts
 		this.app = createApp(App);
 		const { router, history } = createPosAppRouter();
@@ -204,6 +301,21 @@ class PosAppController {
 		installGlobalErrorHandlers(this.app);
 
 		this.app.mount(this.$el[0]);
+		traceStartupEvent(
+			"frappe.app_shell_visible",
+			"ok",
+			{
+				route: window.location.pathname,
+			},
+			performance.now(),
+		);
+		traceStartupEvent(
+			"frappe.page.bootstrap",
+			"ok",
+			{ readyState: document.readyState },
+			performance.now(),
+		);
+		this.inputHelperCleanup = suppressBrowserInputHelpers(this.$el[0]);
 		clearChunkRecoveryState();
 		void this.router.isReady().finally(() => {
 			scheduleChunkRecoveryStateReset();
@@ -217,11 +329,14 @@ class PosAppController {
 			initLongTaskObserver("posapp");
 		}
 
+		finishStartupPhase(phase, "ok");
 		return this;
 	}
 
 	unmount() {
 		if (this.app) {
+			this.inputHelperCleanup?.();
+			this.inputHelperCleanup = null;
 			// Clean up router to prevent global navigation interference
 			if (this.router) {
 				// Remove all route guards and listeners

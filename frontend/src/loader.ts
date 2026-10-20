@@ -1,3 +1,5 @@
+import "./browserCompatibility";
+
 declare const __BUILD_VERSION__: string;
 import {
 	type BootAssetResult,

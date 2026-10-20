@@ -21,6 +21,46 @@ export const DATA_TABLE_EXPAND_COLUMN: TableHeader = {
 	minWidth: 48,
 };
 
+const DENSE_COLUMN_COUNT = 9;
+const DENSE_LAYOUT_MIN_WIDTH = 900;
+type ColumnWidthConfig = { min: number; max: number; ratio: number };
+
+const STANDARD_COLUMN_WIDTHS: Record<string, ColumnWidthConfig> = {
+	item_name: { min: 160, max: 210, ratio: 0.23 },
+	qty: { min: 92, max: 112, ratio: 0.11 },
+	uom: { min: 92, max: 112, ratio: 0.1 },
+	rate: { min: 92, max: 110, ratio: 0.105 },
+	amount: { min: 100, max: 118, ratio: 0.11 },
+	discount_percentage: { min: 96, max: 110, ratio: 0.1 },
+	discount_amount: { min: 105, max: 118, ratio: 0.11 },
+	price_list_rate: { min: 105, max: 118, ratio: 0.11 },
+	actions: { min: 68, max: 76, ratio: 0.07 },
+	posa_is_offer: { min: 70, max: 90, ratio: 0.06 },
+};
+
+const DENSE_COLUMN_WIDTHS: Record<string, ColumnWidthConfig> = {
+	item_name: { min: 148, max: 178, ratio: 0.17 },
+	qty: { min: 82, max: 96, ratio: 0.085 },
+	uom: { min: 72, max: 88, ratio: 0.075 },
+	rate: { min: 86, max: 98, ratio: 0.09 },
+	amount: { min: 94, max: 108, ratio: 0.1 },
+	discount_percentage: { min: 82, max: 94, ratio: 0.085 },
+	discount_amount: { min: 94, max: 108, ratio: 0.1 },
+	price_list_rate: { min: 92, max: 104, ratio: 0.095 },
+	actions: { min: 56, max: 64, ratio: 0.06 },
+	posa_is_offer: { min: 72, max: 82, ratio: 0.075 },
+};
+
+const getColumnWidthConfig = (header: TableHeader, dense: boolean) =>
+	(dense ? DENSE_COLUMN_WIDTHS : STANDARD_COLUMN_WIDTHS)[header.key] || {
+		min: 80,
+		max: 150,
+		ratio: 0.1,
+	};
+
+export const usesDenseColumnLayout = (headers: TableHeader[], width: number) =>
+	headers.length >= DENSE_COLUMN_COUNT && width >= DENSE_LAYOUT_MIN_WIDTH;
+
 export function getResponsiveVisibleHeaders(
 	headers: TableHeader[],
 	width: number,
@@ -36,7 +76,7 @@ export function getResponsiveVisibleHeaders(
 			return true;
 		}
 
-		if (width < 450) {
+		if (width > 0 && width < 450) {
 			return ["item_name", "qty", "amount", "actions"].includes(
 				header.key,
 			);
@@ -218,6 +258,10 @@ export function useItemsTableResponsive(
 	const tableClasses = computed(() => ({
 		[`container-${breakpoint.value}`]: true,
 		"responsive-table": true,
+		"dense-columns-view": usesDenseColumnLayout(
+			responsiveHeaders.value,
+			containerWidth.value,
+		),
 	}));
 
 	const expandedContentClasses = computed(() => ({

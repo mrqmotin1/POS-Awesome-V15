@@ -56,4 +56,54 @@ describe("useItemsSearch fuzzy local matching", () => {
 
 		expect(result.map((item) => item.item_code)).toEqual(["CHOCO-CAKE"]);
 	});
+
+	it("indexes item codes and barcodes in normalized lookup maps", () => {
+		const search = useItemsSearch();
+		const items = [
+			{
+				item_code: "MED-001",
+				item_name: "Medicine",
+				item_group: "Pharmacy",
+				item_barcode: [{ barcode: "ABC123" }],
+				barcodes: ["98765"],
+			},
+		] as any[];
+
+		search.updateIndexes(items, null);
+
+		expect(search.getItemByCode("med-001")?.item_code).toBe("MED-001");
+		expect(search.getItemByBarcode("abc123")?.item_code).toBe("MED-001");
+		expect(search.getItemByBarcode("98765")?.item_code).toBe("MED-001");
+	});
+
+	it("ranks exact code and barcode matches before broader name matches", () => {
+		const search = useItemsSearch();
+		const items = [
+			{
+				item_code: "PARA-500",
+				item_name: "Paracetamol 500",
+				item_group: "Pharmacy",
+			},
+			{
+				item_code: "OTHER",
+				item_name: "Para Support",
+				item_group: "Pharmacy",
+				item_barcode: [{ barcode: "PARA" }],
+			},
+		] as any[];
+
+		search.updateIndexes(items, null);
+
+		const result = search.performRankedLocalSearch(
+			"PARA",
+			items,
+			"ALL",
+			10,
+		);
+
+		expect(result.map((item) => item.item_code)).toEqual([
+			"OTHER",
+			"PARA-500",
+		]);
+	});
 });

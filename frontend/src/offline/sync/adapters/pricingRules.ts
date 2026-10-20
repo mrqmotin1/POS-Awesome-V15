@@ -2,9 +2,11 @@ import {
 	pricingRuleRepository,
 	type OfflinePricingRuleRecord,
 } from "../../repositories";
+import { savePricingRulesSnapshot } from "../../cache";
 import {
 	buildResourceSyncResult,
 	persistResourceSyncState,
+	refreshSnapshotFromSync,
 	type ResourceSyncResult,
 	type SyncResponse,
 	type SyncScopedProfile,
@@ -24,12 +26,55 @@ type PricingRulesSyncArgs = {
 	fetcher: PricingRulesFetcher;
 };
 
+type PricingRulesSyncProfile = SyncScopedProfile & {
+	currency?: string | null;
+	selling_price_list?: string | null;
+};
+
 function deletedRuleNames(response: SyncResponse) {
 	return (response?.deleted || [])
 		.map((entry) => String(entry?.key || ""))
 		.filter((key) => key.startsWith("pricing_rule::"))
 		.map((key) => key.slice("pricing_rule::".length).split("::")[0])
 		.filter((name): name is string => !!name);
+}
+
+function buildSnapshotContext(posProfile: PricingRulesSyncProfile) {
+	return JSON.stringify({
+		company: posProfile?.company || "",
+		price_list: posProfile?.selling_price_list || "",
+		currency: posProfile?.currency || "",
+		customer: "",
+		customer_group: "",
+		territory: "",
+		date: new Date().toISOString().slice(0, 10),
+	});
+}
+
+async function refreshPricingSnapshotFromRepository(
+	posProfile: PricingRulesSyncProfile,
+) {
+	const hasContext = Boolean(
+		posProfile?.company && posProfile?.selling_price_list && posProfile?.currency,
+	);
+	if (!hasContext) {
+		refreshSnapshotFromSync({
+			posProfile,
+			cacheState: {
+				pricingSnapshotCount: 0,
+				pricingContext: null,
+			},
+		});
+		return;
+	}
+
+	const snapshot = await pricingRuleRepository.getAll();
+	(
+		savePricingRulesSnapshot as unknown as (
+			_snapshot: OfflinePricingRuleRecord[],
+			_context: string,
+		) => void
+	)(snapshot, buildSnapshotContext(posProfile));
 }
 
 export async function syncPricingRulesResource(
@@ -52,6 +97,13 @@ export async function syncPricingRulesResource(
 
 		if (response?.full_resync_required) {
 			await pricingRuleRepository.clear();
+			refreshSnapshotFromSync({
+				posProfile: args.posProfile,
+				cacheState: {
+					pricingSnapshotCount: 0,
+					pricingContext: null,
+				},
+			});
 			await persistResourceSyncState({
 				resourceId: "pricing_rules",
 				status: "limited",
@@ -95,6 +147,7 @@ export async function syncPricingRulesResource(
 		response: finalResponse,
 		watermark: args.watermark,
 	});
+	await refreshPricingSnapshotFromRepository(args.posProfile);
 	return buildResourceSyncResult(
 		"pricing_rules",
 		"fresh",

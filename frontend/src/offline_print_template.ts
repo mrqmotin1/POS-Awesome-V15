@@ -6,6 +6,7 @@ import {
 	checkDbHealth,
 } from "./offline/index";
 import nunjucks from "nunjucks";
+import { sanitizePrintHtml } from "./posapp/utils/sanitizePrintHtml";
 
 declare const frappe: any;
 
@@ -419,11 +420,13 @@ export default async function renderOfflineInvoiceHTML(invoice: any) {
 		console.warn(
 			"No offline print template cached; using fallback template",
 		);
-		return defaultOfflineHTML(doc, doc.terms_and_conditions);
+		return sanitizePrintHtml(
+			defaultOfflineHTML(doc, doc.terms_and_conditions),
+		);
 	}
 
 	try {
-		const env = nunjucks.configure({ autoescape: false });
+		const env = nunjucks.configure({ autoescape: true });
 		env.addFilter("format_currency", (value: unknown, currency: string) => {
 			const number =
 				typeof value === "number" ? value : parseFloat(String(value));
@@ -454,9 +457,11 @@ export default async function renderOfflineInvoiceHTML(invoice: any) {
 				get_list: () => [],
 			},
 		};
-		return env.renderString(template, context);
+		return sanitizePrintHtml(env.renderString(template, context));
 	} catch (e) {
 		console.error("Failed to render offline invoice", e);
-		return defaultOfflineHTML(doc, doc.terms_and_conditions);
+		return sanitizePrintHtml(
+			defaultOfflineHTML(doc, doc.terms_and_conditions),
+		);
 	}
 }

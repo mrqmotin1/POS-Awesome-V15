@@ -1,13 +1,131 @@
 <template>
 	<v-card
 		class="cards sticky-summary-card mb-0 py-2 px-3 rounded-lg pos-themed-card"
-		:class="{ 'sticky-summary-card--dock-safe': useCompactSaleDock }"
+		:class="{
+			'sticky-summary-card--dock-safe': useCompactSaleDock && !isCounterGrid,
+			'counter-grid-summary-card': isCounterGrid,
+		}"
 	>
-		<v-row dense class="summary-content">
+		<div v-if="isCounterGrid" class="counter-grid-summary" data-testid="counter-grid-summary">
+			<div class="counter-grid-summary__metrics">
+				<div class="counter-grid-summary__metric">
+					<span>{{ __("Gross") }}</span>
+					<strong>{{ currencySymbol(displayCurrency) }}{{ formatCurrency(grossTotal) }}</strong>
+				</div>
+				<div class="counter-grid-summary__metric">
+					<span>{{ __("Item discount") }}</span>
+					<strong
+						>{{ currencySymbol(displayCurrency)
+						}}{{ formatCurrency(total_items_discount_amount) }}</strong
+					>
+				</div>
+				<div class="counter-grid-summary__metric counter-grid-summary__metric--qty">
+					<span>{{ __("Quantity") }}</span>
+					<strong>{{ formatFloat(total_qty, hide_qty_decimals ? 0 : undefined) }}</strong>
+				</div>
+				<div class="counter-grid-summary__discount">
+					<v-text-field
+						v-if="!pos_profile.posa_use_percentage_discount"
+						ref="additionalDiscountField"
+						v-model="additionalDiscountDisplay"
+						name="pos-counter-additional-discount"
+						autocomplete="transaction-amount"
+						inputmode="decimal"
+						data-1p-ignore="true"
+						data-lpignore="true"
+						data-bwignore="true"
+						@update:model-value="handleAdditionalDiscountUpdate"
+						@focus="handleAdditionalDiscountFocus"
+						@blur="handleAdditionalDiscountBlur"
+						:label="frappe._('Additional Discount')"
+						variant="outlined"
+						density="compact"
+						hide-details
+						:prefix="currencySymbol(pos_profile.currency)"
+						:disabled="
+							!pos_profile.posa_allow_user_to_edit_additional_discount ||
+							!!discount_percentage_offer_name
+						"
+					/>
+					<v-text-field
+						v-else
+						ref="additionalDiscountField"
+						v-model="additionalDiscountPercentageDisplay"
+						name="pos-counter-additional-discount-percent"
+						autocomplete="transaction-amount"
+						inputmode="decimal"
+						data-1p-ignore="true"
+						data-lpignore="true"
+						data-bwignore="true"
+						@update:model-value="handleAdditionalDiscountPercentageUpdate"
+						@change="$emit('update_discount_umount')"
+						@focus="handleAdditionalDiscountPercentageFocus"
+						@blur="handleAdditionalDiscountPercentageBlur"
+						:rules="[isNumber]"
+						:label="frappe._('Additional Discount')"
+						suffix="%"
+						variant="outlined"
+						density="compact"
+						hide-details
+						:disabled="
+							!pos_profile.posa_allow_user_to_edit_additional_discount ||
+							!!discount_percentage_offer_name
+						"
+					/>
+				</div>
+				<div class="counter-grid-summary__metric counter-grid-summary__metric--total">
+					<span>{{ __("Net total") }}</span>
+					<strong>{{ currencySymbol(displayCurrency) }}{{ formatCurrency(subtotal) }}</strong>
+				</div>
+			</div>
+
+			<ExchangeStatusPanel
+				v-if="exchangeSession"
+				compact
+				:stage="exchangeSession.stage"
+				:return-total="exchangeReturnTotal"
+				:sale-total="exchangeSaleTotal"
+				:currency-symbol="currencySymbol(displayCurrency)"
+				:currency-precision="currencyPrecision"
+				:format-amount="(value) => formatCurrency(value)"
+				:continuing="exchangeContinuing"
+				@continue="$emit('continue-exchange')"
+				@cancel="$emit('cancel-exchange')"
+			/>
+
+			<InvoiceActionButtons
+				presentation="counter-grid"
+				:pos_profile="pos_profile"
+				:saveLoading="saveLoading"
+				:loadDraftsLoading="loadDraftsLoading"
+				:selectOrderLoading="selectOrderLoading"
+				:cancelLoading="cancelLoading"
+				:invoiceManagementLoading="invoiceManagementLoading"
+				:returnsLoading="returnsLoading"
+				:printLoading="printLoading"
+				:paymentLoading="paymentLoading"
+				:customerDisplayLoading="customerDisplayLoading"
+				:exchange-active="exchangeSession?.stage === 'sale'"
+				@save-and-clear="handleSaveAndClear"
+				@load-drafts="handleLoadDrafts"
+				@select-order="handleSelectOrder"
+				@cancel-sale="handleCancelSale"
+				@open-invoice-management="handleOpenInvoiceManagement"
+				@open-returns="handleOpenReturns"
+				@print-draft="handlePrintDraft"
+				@show-payment="handleShowPayment"
+				@open-customer-display="handleOpenCustomerDisplay"
+				@open-offers="$emit('open-offers')"
+				@open-coupons="$emit('open-coupons')"
+			/>
+		</div>
+
+		<v-row v-else dense class="summary-content">
 			<v-col
-				v-if="!useCompactSaleDock || showReturnDiscountAlert"
+				v-if="!useCompactSaleDock || showReturnDiscountAlert || exchangeSession"
 				cols="12"
 				:md="useCompactSaleDock ? 12 : 7"
+				class="invoice-summary-main"
 			>
 				<v-alert
 					v-if="showReturnDiscountAlert"
@@ -22,7 +140,7 @@
 					{{ formatCurrency(return_discount_meta.prorated_discount) }}
 				</v-alert>
 
-				<div v-if="!useCompactSaleDock" class="summary-hero">
+				<div v-if="!useCompactSaleDock || exchangeSession" class="summary-hero">
 					<div class="summary-hero__copy">
 						<span class="summary-hero__eyebrow">{{ __("Active sale") }}</span>
 						<strong class="summary-hero__amount">
@@ -46,6 +164,12 @@
 							v-if="!pos_profile.posa_use_percentage_discount"
 							ref="additionalDiscountField"
 							v-model="additionalDiscountDisplay"
+							name="pos-invoice-additional-discount"
+							autocomplete="transaction-amount"
+							inputmode="decimal"
+							data-1p-ignore="true"
+							data-lpignore="true"
+							data-bwignore="true"
 							@update:model-value="handleAdditionalDiscountUpdate"
 							@focus="handleAdditionalDiscountFocus"
 							@blur="handleAdditionalDiscountBlur"
@@ -66,6 +190,12 @@
 							v-else
 							ref="additionalDiscountField"
 							v-model="additionalDiscountPercentageDisplay"
+							name="pos-invoice-additional-discount-percent"
+							autocomplete="transaction-amount"
+							inputmode="decimal"
+							data-1p-ignore="true"
+							data-lpignore="true"
+							data-bwignore="true"
 							@update:model-value="handleAdditionalDiscountPercentageUpdate"
 							@change="$emit('update_discount_umount')"
 							@focus="handleAdditionalDiscountPercentageFocus"
@@ -85,6 +215,20 @@
 						/>
 					</div>
 				</div>
+
+				<ExchangeStatusPanel
+					v-if="exchangeSession"
+					compact
+					:stage="exchangeSession.stage"
+					:return-total="exchangeReturnTotal"
+					:sale-total="exchangeSaleTotal"
+					:currency-symbol="currencySymbol(displayCurrency)"
+					:currency-precision="currencyPrecision"
+					:format-amount="(value) => formatCurrency(value)"
+					:continuing="exchangeContinuing"
+					@continue="$emit('continue-exchange')"
+					@cancel="$emit('cancel-exchange')"
+				/>
 			</v-col>
 
 			<v-col cols="12" :md="useCompactSaleDock ? 12 : 5" class="invoice-summary-actions">
@@ -104,13 +248,13 @@
 					:saveLoading="saveLoading"
 					:loadDraftsLoading="loadDraftsLoading"
 					:selectOrderLoading="selectOrderLoading"
-					:selectPurchaseOrderLoading="selectPurchaseOrderLoading"
 					:cancelLoading="cancelLoading"
 					:invoiceManagementLoading="invoiceManagementLoading"
 					:returnsLoading="returnsLoading"
 					:printLoading="printLoading"
 					:paymentLoading="paymentLoading"
 					:customerDisplayLoading="customerDisplayLoading"
+					:exchange-active="exchangeSession?.stage === 'sale'"
 					@save-and-clear="handleSaveAndClear"
 					@load-drafts="handleLoadDrafts"
 					@select-order="handleSelectOrder"
@@ -143,10 +287,13 @@
 				class="drafts-drawer__sources"
 			/>
 			<ParkedOrdersList
+				ref="desktopDraftsList"
 				:parked-orders="allDrafts"
 				:format-currency="formatCurrency"
 				:currency-symbol="currencySymbol"
 				:show-manage-all="true"
+				:loading="loadDraftsLoading"
+				:loading-title="__(currentDraftSourceOption.loadingLabel)"
 				:title="currentDraftSourceOption.panelTitle"
 				:eyebrow="currentDraftSourceOption.panelEyebrow"
 				:subtitle="currentDraftSourceOption.panelSubtitle"
@@ -154,6 +301,7 @@
 				:empty-subtitle="__(currentDraftSourceOption.emptySubtitle)"
 				@resume="handleResumeDraft"
 				@manage-all="handleManageAllDrafts"
+				@close="closeDraftsSurface"
 			/>
 		</div>
 	</v-navigation-drawer>
@@ -176,10 +324,13 @@
 					class="drafts-drawer__sources"
 				/>
 				<ParkedOrdersList
+					ref="mobileDraftsList"
 					:parked-orders="allDrafts"
 					:format-currency="formatCurrency"
 					:currency-symbol="currencySymbol"
 					:show-manage-all="true"
+					:loading="loadDraftsLoading"
+					:loading-title="__(currentDraftSourceOption.loadingLabel)"
 					:title="currentDraftSourceOption.panelTitle"
 					:eyebrow="currentDraftSourceOption.panelEyebrow"
 					:subtitle="currentDraftSourceOption.panelSubtitle"
@@ -187,6 +338,7 @@
 					:empty-subtitle="__(currentDraftSourceOption.emptySubtitle)"
 					@resume="handleResumeDraft"
 					@manage-all="handleManageAllDrafts"
+					@close="closeDraftsSurface"
 				/>
 			</v-card-text>
 		</v-card>
@@ -194,7 +346,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 import { loadItemSelectorSettings } from "../../../utils/itemSelectorSettings";
@@ -209,25 +361,34 @@ import {
 import InvoiceActionButtons from "./InvoiceActionButtons.vue";
 import ParkedOrdersList from "./ParkedOrdersList.vue";
 import DocumentSourceSelector from "../shared/DocumentSourceSelector.vue";
+import ExchangeStatusPanel from "../exchange/ExchangeStatusPanel.vue";
 
 defineOptions({
 	name: "InvoiceSummary",
 });
 
 const props = defineProps({
+	presentation: {
+		type: String,
+		default: "classic",
+	},
 	pos_profile: Object,
 	total_qty: [Number, String],
 	additional_discount: Number,
 	additional_discount_percentage: Number,
 	total_items_discount_amount: Number,
+	grossTotal: Number,
 	subtotal: Number,
 	displayCurrency: String,
+	currencyPrecision: { type: Number, default: 2 },
 	formatFloat: Function,
 	formatCurrency: Function,
 	currencySymbol: Function,
 	discount_percentage_offer_name: [String, Number],
 	isNumber: Function,
 	return_discount_meta: Object,
+	exchangeSession: Object,
+	exchangeContinuing: Boolean,
 });
 
 const emit = defineEmits([
@@ -243,7 +404,11 @@ const emit = defineEmits([
 	"print-draft",
 	"show-payment",
 	"open-customer-display",
+	"open-offers",
+	"open-coupons",
 	"resume-parked-order",
+	"continue-exchange",
+	"cancel-exchange",
 ]);
 
 const saveLoading = ref(false);
@@ -260,6 +425,8 @@ const isEditingAdditionalDiscountPercentage = ref(false);
 const additionalDiscountField = ref(null);
 const desktopDraftsDrawer = ref(false);
 const mobileDraftsDialog = ref(false);
+const desktopDraftsList = ref(null);
+const mobileDraftsList = ref(null);
 const responsive = useResponsive();
 const uiStore = useUIStore();
 const { parkedOrders, draftSource } = storeToRefs(uiStore);
@@ -271,7 +438,15 @@ const additionalDiscountPercentageDisplay = ref(
 const canEditDiscount = computed(
 	() => isSessionUserManager.value || isManagerMode.value,
 );
+const isCounterGrid = computed(() => props.presentation === "counter-grid");
+// Our fork: compact sale dock below 1024px (upstream 1100px).
 const useCompactSaleDock = computed(() => responsive.windowWidth.value < 1024);
+const exchangeReturnTotal = computed(() =>
+	Number(props.exchangeSession?.returnTotal || Math.abs(Number(props.subtotal || 0))),
+);
+const exchangeSaleTotal = computed(() =>
+	props.exchangeSession?.stage === "sale" ? Math.abs(Number(props.subtotal || 0)) : 0,
+);
 const showDesktopDrafts = computed(() => Boolean(responsive.isDesktop.value));
 const showReturnDiscountAlert = computed(
 	() =>
@@ -424,26 +599,54 @@ async function handleSaveAndClear() {
 	}
 }
 
-async function handleLoadDrafts() {
-	loadDraftsLoading.value = true;
-	try {
-		const nextSource = getDefaultDocumentSource(props.pos_profile, "invoice");
-		uiStore.setDraftSource(nextSource);
-		uiStore.setParkedOrders([]);
-		await emit("load-drafts", nextSource);
-		openDraftsSurface();
-	} finally {
-		loadDraftsLoading.value = false;
-	}
+function handleLoadDrafts() {
+	const nextSource = getDefaultDocumentSource(props.pos_profile, "invoice");
+	uiStore.setDraftSource(nextSource);
+	uiStore.setParkedOrders([]);
+	openDraftsSurface({ focus: false });
+	emit("load-drafts", nextSource);
 }
 
-function openDraftsSurface() {
+function openDraftsSurface(options = {}) {
 	if (showDesktopDrafts.value) {
 		desktopDraftsDrawer.value = true;
+		if (options.focus !== false) {
+			void focusDraftsSurface();
+		}
 		return;
 	}
 
 	mobileDraftsDialog.value = true;
+	if (options.focus !== false) {
+		void focusDraftsSurface();
+	}
+}
+
+function closeDraftsSurface() {
+	desktopDraftsDrawer.value = false;
+	mobileDraftsDialog.value = false;
+}
+
+function handleGlobalDraftsKeydown(event) {
+	if (event.key !== "Escape" || (!desktopDraftsDrawer.value && !mobileDraftsDialog.value)) {
+		return;
+	}
+	event.preventDefault();
+	event.stopPropagation();
+	closeDraftsSurface();
+}
+
+async function focusDraftsSurface() {
+	await nextTick();
+	await new Promise((resolve) => {
+		if (typeof requestAnimationFrame === "function") {
+			requestAnimationFrame(resolve);
+			return;
+		}
+		setTimeout(resolve, 0);
+	});
+	const list = showDesktopDrafts.value ? desktopDraftsList.value : mobileDraftsList.value;
+	await list?.focusFirstDraft?.();
 }
 
 async function handleSelectOrder() {
@@ -474,8 +677,7 @@ async function handleOpenInvoiceManagement() {
 }
 
 function handleManageAllDrafts() {
-	desktopDraftsDrawer.value = false;
-	mobileDraftsDialog.value = false;
+	closeDraftsSurface();
 	uiStore.setInvoiceManagementDraftSource(currentDraftSource.value);
 	emit("open-invoice-management", "drafts", currentDraftSource.value);
 }
@@ -517,15 +719,27 @@ async function handleOpenCustomerDisplay() {
 }
 
 function handleResumeDraft(draft) {
-	desktopDraftsDrawer.value = false;
-	mobileDraftsDialog.value = false;
+	closeDraftsSurface();
 	emit("resume-parked-order", draft);
 }
 
+onMounted(() => {
+	window.addEventListener("keydown", handleGlobalDraftsKeydown, true);
+});
+
+onBeforeUnmount(() => {
+	window.removeEventListener("keydown", handleGlobalDraftsKeydown, true);
+});
+
 defineExpose({
 	focusAdditionalDiscountField,
+	focusDraftsSurface,
 	handleManageAllDrafts,
 	openDraftsSurface,
+	closeDraftsSurface,
+	setDraftsLoading(value) {
+		loadDraftsLoading.value = Boolean(value);
+	},
 });
 </script>
 
@@ -556,11 +770,89 @@ defineExpose({
 	transition: all 0.3s ease;
 }
 
+.counter-grid-summary-card {
+	position: static;
+	padding: 8px 10px !important;
+	border-top: 2px solid #174a70;
+	border-radius: 0 !important;
+	box-shadow: none;
+	background: var(--pos-card-bg) !important;
+}
+
+.counter-grid-summary {
+	display: grid;
+	gap: 8px;
+}
+
+.counter-grid-summary__metrics {
+	display: grid;
+	grid-template-columns:
+		minmax(112px, 1fr) minmax(118px, 1fr) minmax(76px, 0.65fr)
+		minmax(178px, 1.35fr) minmax(150px, 1.2fr);
+	gap: 6px;
+	min-width: 0;
+}
+
+.counter-grid-summary__metric {
+	display: flex;
+	min-width: 0;
+	height: 48px;
+	padding: 5px 9px;
+	flex-direction: column;
+	justify-content: center;
+	border: 1px solid var(--pos-outline);
+	border-left: 4px solid #174a70;
+	border-radius: 3px;
+	background: var(--pos-surface-muted);
+}
+
+.counter-grid-summary__metric span {
+	font-size: 0.68rem;
+	font-weight: 600;
+	color: var(--pos-text-secondary);
+}
+
+.counter-grid-summary__metric strong {
+	overflow: hidden;
+	font-size: 0.94rem;
+	font-variant-numeric: tabular-nums;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--pos-text-primary);
+}
+
+.counter-grid-summary__metric--total {
+	border-color: #079b55;
+	border-left-color: #079b55;
+	background: var(--pos-success-container);
+}
+
+.counter-grid-summary__metric--total strong {
+	font-size: 1.05rem;
+	color: var(--pos-text-primary);
+}
+
+.counter-grid-summary__discount {
+	min-width: 0;
+}
+
+.counter-grid-summary__discount :deep(.v-field) {
+	height: 48px;
+	border-radius: 3px;
+	background: var(--pos-input-bg);
+}
+
+.counter-grid-summary__discount :deep(.v-field__input) {
+	min-height: 48px;
+	font-variant-numeric: tabular-nums;
+}
+
 .sticky-summary-card {
 	position: sticky;
 	bottom: 0;
 	z-index: 9;
-	box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+	border: 1px solid var(--pos-border-light);
+	box-shadow: var(--pos-elevation-2);
 }
 
 .sticky-summary-card--dock-safe {
@@ -572,16 +864,25 @@ defineExpose({
 }
 
 .summary-hero {
+	position: relative;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 14px;
-	padding: 14px 16px;
-	border-radius: 20px;
-	background:
-		linear-gradient(135deg, rgba(var(--v-theme-primary), 0.12), rgba(var(--v-theme-success), 0.08)),
-		var(--pos-surface-muted);
-	border: 1px solid rgba(var(--v-theme-primary), 0.12);
+	padding: 15px 16px 15px 20px;
+	border-radius: var(--pos-radius-md);
+	background: var(--pos-surface-muted);
+	border: 1px solid var(--pos-border-light);
+	overflow: hidden;
+}
+
+.summary-hero::before {
+	content: "";
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	width: 5px;
+	background: var(--pos-primary);
 }
 
 .summary-hero__copy {
@@ -593,15 +894,18 @@ defineExpose({
 
 .summary-hero__eyebrow {
 	font-size: 0.72rem;
-	font-weight: 700;
+	font-weight: 750;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: var(--pos-text-secondary);
 }
 
 .summary-hero__amount {
-	font-size: clamp(1.2rem, 2vw, 1.8rem);
+	font-family: var(--pos-font-display);
+	font-size: clamp(1.35rem, 2vw, 1.9rem);
+	font-weight: 750;
 	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
 	color: var(--pos-text-primary);
 }
 
@@ -623,12 +927,11 @@ defineExpose({
 }
 
 .summary-field {
-	transition: all 0.2s ease;
+	transition: box-shadow 140ms ease;
 }
 
 .summary-field:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 0 0 1px var(--pos-border);
 }
 
 .summary-field--alert {
