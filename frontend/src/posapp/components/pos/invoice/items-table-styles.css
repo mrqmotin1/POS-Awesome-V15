@@ -370,9 +370,6 @@
 .posa-cart-header-nudge--rate {
 	transform: translateX(8px);
 }
-.posa-cart-header-nudge--amount {
-	transform: translateX(-8px);
-}
 
 .posa-cart-table:not(.posa-cart-table--counter-grid) th {
 	padding-inline: 5px;
@@ -763,6 +760,56 @@
 	box-shadow: 0 0 0 3px var(--pos-focus-halo);
 }
 
+/* Classic cart: draw the qty box on the plain shell div, like the Rate /
+   Discount editor-display boxes, and make the Vuetify field inside it
+   transparent. The field's own outline (3 positioned pieces, plus the
+   grey .v-field__overlay theme.css forces with !important) lands on
+   half-pixels at the fractional column widths of the dense ≤1024 layout,
+   so its edges render uneven while the plain div borders stay crisp. */
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input-shell {
+	height: 32px;
+	border: 1px solid var(--pos-outline);
+	border-radius: 6px;
+	background: var(--pos-surface-raised);
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input-shell:hover,
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input-shell:focus-within {
+	background: var(--pos-primary-container);
+	box-shadow: 0 0 0 3px var(--pos-focus-halo);
+}
+
+.posa-cart-table:not(.posa-cart-table--counter-grid)
+	.posa-cart-item-cell--keyboard-active
+	.posa-cart-table__qty-input-shell {
+	border-color: transparent;
+	box-shadow: none;
+}
+
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct,
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-input__control,
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-field {
+	height: 100%;
+	min-height: 0;
+}
+
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-field,
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-field:hover,
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-field--focused {
+	background: transparent;
+	box-shadow: none !important;
+}
+
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-field__overlay {
+	background-color: transparent !important;
+}
+
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-field__outline {
+	display: none;
+}
+
 .posa-cart-table__qty-input--direct input.v-field__input {
 	color: var(--pos-text-primary);
 	font-size: 0.75rem;
@@ -783,6 +830,12 @@
 
 .posa-cart-table__qty-input--direct .v-field__input {
 	font-variant-numeric: tabular-nums;
+}
+
+/* Fill the bordered shell instead of the fixed 32px above */
+.posa-cart-table:not(.posa-cart-table--counter-grid) .posa-cart-table__qty-input--direct .v-field__input {
+	min-height: 0 !important;
+	height: 100% !important;
 }
 
 .posa-cart-item-cell--keyboard-active .posa-cart-table__qty-input .v-field {
@@ -1268,6 +1321,12 @@
 		font-size: 0.7rem;
 	}
 
+	.posa-responsive-table-container.dense-columns
+		.posa-cart-table:not(.posa-cart-table--counter-grid)
+		.posa-cart-table__qty-input-shell {
+		height: 28px;
+	}
+
 	.posa-responsive-table-container.dense-columns .posa-cart-table__editor-display {
 		min-width: 44px;
 		padding: 4px 6px;
@@ -1309,32 +1368,6 @@
 		max-width: 76px;
 	}
 
-	/* Column position fine-tuning (dense ≤1024 view only) */
-	/* QTY — nudge whole column slightly left, header stays aligned over data */
-	.posa-responsive-table-container.dense-columns .posa-cart-header-nudge--qty {
-		transform: translateX(2px);
-	}
-	.posa-responsive-table-container.dense-columns
-		.posa-cart-table
-		td[data-column-key="qty"]
-		> div {
-		transform: translateX(-6px);
-	}
-	/* Discount Amount — nudge header + data slightly left */
-	.posa-responsive-table-container.dense-columns .posa-cart-header-nudge--discount-amount {
-		transform: translateX(-6px);
-	}
-	.posa-responsive-table-container.dense-columns
-		.posa-cart-table
-		td[data-column-key="discount_amount"]
-		> div {
-		transform: translateX(-6px);
-	}
-	/* Amount — header only left, data position unchanged */
-	.posa-responsive-table-container.dense-columns .posa-cart-header-nudge--amount {
-		transform: translateX(-16px);
-	}
-
 	/* Safety: never clip — if even dense can't fit, scroll instead */
 	.posa-responsive-table-container.dense-columns {
 		overflow-x: auto;
@@ -1345,21 +1378,16 @@
 }
 
 /* =================================================================
-   >1024px — centre the custom-slot headers (Discount Amount, Amount)
-   over their centred values. These columns are align:"end", and a
-   header slot skips Vuetify's centred header__content wrapper, so the
-   label falls back to the th's text-align:end.
+   Centre the custom-slot headers (Discount Amount, Amount) over their
+   centred values. These columns are align:"end", and a header slot
+   skips Vuetify's centred header__content wrapper, so the label falls
+   back to the th's text-align:end.
    ================================================================= */
-@media (min-width: 1025px) {
-	.posa-cart-table.v-data-table
-		.v-table__wrapper
-		> table
-		> thead
-		> tr
-		> th.v-data-table-column--align-end {
-		text-align: center;
-	}
-	.posa-cart-header-nudge--amount {
-		transform: none;
-	}
+.posa-cart-table.v-data-table
+	.v-table__wrapper
+	> table
+	> thead
+	> tr
+	> th.v-data-table-column--align-end {
+	text-align: center;
 }
