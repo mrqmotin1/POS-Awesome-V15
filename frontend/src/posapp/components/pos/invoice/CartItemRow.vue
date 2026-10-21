@@ -435,7 +435,7 @@
 				</v-btn>
 			</td>
 
-			<td
+			<!-- <td
 				v-else-if="column.key === 'data-table-expand'"
 				v-bind="getCellAttrs('data-table-expand', 'text-center')"
 			>
@@ -449,7 +449,7 @@
 				>
 					<v-icon size="small">mdi-chart-line</v-icon>
 				</v-btn>
-			</td>
+			</td> -->
 		</template>
 	</tr>
 </template>
