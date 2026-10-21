@@ -1343,3 +1343,23 @@
 		min-width: 100%;
 	}
 }
+
+/* =================================================================
+   >1024px — centre the custom-slot headers (Discount Amount, Amount)
+   over their centred values. These columns are align:"end", and a
+   header slot skips Vuetify's centred header__content wrapper, so the
+   label falls back to the th's text-align:end.
+   ================================================================= */
+@media (min-width: 1025px) {
+	.posa-cart-table.v-data-table
+		.v-table__wrapper
+		> table
+		> thead
+		> tr
+		> th.v-data-table-column--align-end {
+		text-align: center;
+	}
+	.posa-cart-header-nudge--amount {
+		transform: none;
+	}
+}
