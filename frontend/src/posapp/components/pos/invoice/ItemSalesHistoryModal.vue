@@ -979,6 +979,7 @@ watch(historyRows, () => {
 }
 
 .posa-item-history-tabs {
+	flex-shrink: 0;
 	padding-inline: 12px;
 	border-bottom: 1px solid var(--counter-rugged-line);
 	background: var(--pos-table-header-bg);
@@ -1006,6 +1007,8 @@ watch(historyRows, () => {
 	display: grid;
 	grid-template-columns: minmax(260px, 2fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(180px, 1fr);
 	gap: 12px;
+	/* room for floating outlined labels, otherwise clipped by v-window overflow */
+	padding-top: 8px;
 	margin-bottom: 16px;
 }
 
