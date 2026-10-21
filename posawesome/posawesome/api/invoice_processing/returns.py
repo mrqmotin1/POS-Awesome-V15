@@ -378,6 +378,23 @@ def get_invoice_for_return(invoice_name, pos_profile=None, doctype="Sales Invoic
                 continue
             returned_qty_by_code[item_code] += abs(flt(row.get("qty") or 0))
 
+    # Rows added without scanning have no saved barcode; fall back to the item's
+    # first barcode, matching what the cart showed during the sale.
+    missing_barcode_codes = {
+        item.get("item_code")
+        for item in invoice_doc.get("items") or []
+        if item.get("item_code") and not item.get("barcode")
+    }
+    first_barcode_by_code = {}
+    if missing_barcode_codes:
+        for row in frappe.get_all(
+            "Item Barcode",
+            filters={"parent": ["in", list(missing_barcode_codes)], "parenttype": "Item"},
+            fields=["parent", "barcode"],
+            order_by="idx asc",
+        ):
+            first_barcode_by_code.setdefault(row.parent, row.barcode)
+
     filtered_items = []
     for item in invoice_doc.get("items") or []:
         item_code = item.get("item_code")
@@ -388,6 +405,7 @@ def get_invoice_for_return(invoice_name, pos_profile=None, doctype="Sales Invoic
                     "name": item.get("name"),
                     "item_code": item.get("item_code"),
                     "item_name": item.get("item_name"),
+                    "barcode": item.get("barcode") or first_barcode_by_code.get(item_code),
                     "description": item.get("description"),
                     "uom": item.get("uom"),
                     "stock_uom": item.get("stock_uom"),
