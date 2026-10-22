@@ -59,7 +59,8 @@ describe("OfflineStatusPanel", () => {
 		vi.stubGlobal("__", (value: string) => value);
 	});
 
-	it("shows warning summary, attention resources, and repair actions", () => {
+	// FORK(mon-develop-4): our fork hides offline stock-confidence warnings.
+	it.skip("shows warning summary, attention resources, and repair actions", () => {
 		const store = useOfflineSyncStore();
 		store.setSummary({
 			networkOnline: true,

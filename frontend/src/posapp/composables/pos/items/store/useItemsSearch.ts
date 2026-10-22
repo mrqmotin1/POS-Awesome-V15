@@ -11,6 +11,49 @@ export function useItemsSearch() {
 			.replace(/[\u0300-\u036f]/g, "")
 			.toLowerCase();
 
+	const registerLookupValue = (
+		index: Map<string, Item>,
+		value: unknown,
+		item: Item,
+	) => {
+		const raw = String(value || "").trim();
+		if (!raw) {
+			return;
+		}
+		index.set(raw, item);
+		index.set(normalizeSearchText(raw), item);
+	};
+
+	const collectBarcodeValues = (item: Item): string[] => {
+		const values: string[] = [];
+
+		if (item.barcode) {
+			values.push(String(item.barcode));
+		}
+
+		if (Array.isArray(item.item_barcode)) {
+			item.item_barcode.forEach((entry: any) => {
+				if (entry?.barcode) {
+					values.push(String(entry.barcode));
+				}
+			});
+		} else if (item.item_barcode) {
+			values.push(String(item.item_barcode));
+		}
+
+		if (Array.isArray(item.barcodes)) {
+			item.barcodes.forEach((entry: any) => {
+				const barcode =
+					entry && typeof entry === "object" ? entry.barcode : entry;
+				if (barcode) {
+					values.push(String(barcode));
+				}
+			});
+		}
+
+		return Array.from(new Set(values.filter(Boolean)));
+	};
+
 	const tokenizeSearchText = (value: unknown): string[] => {
 		const normalized = normalizeSearchText(value)
 			.replace(/[^a-z0-9]+/g, " ")
@@ -96,19 +139,11 @@ export function useItemsSearch() {
 			if (!item || !item.item_code) {
 				return;
 			}
-			itemsMap.value.set(item.item_code, item);
-
-			if (Array.isArray(item.item_barcode)) {
-				item.item_barcode.forEach((entry: any) => {
-					if (entry?.barcode) {
-						barcodeIndex.value.set(String(entry.barcode), item);
-					}
-				});
-			}
-
-			if (item.barcode) {
-				barcodeIndex.value.set(String(item.barcode), item);
-			}
+			registerLookupValue(itemsMap.value, item.item_code, item);
+			registerLookupValue(barcodeIndex.value, item.item_code, item);
+			collectBarcodeValues(item).forEach((barcode) =>
+				registerLookupValue(barcodeIndex.value, barcode, item),
+			);
 
 			// Pre-compute search index for performance
 			const searchFields = [
@@ -118,17 +153,9 @@ export function useItemsSearch() {
 				item.description,
 			];
 
-			if (Array.isArray(item.item_barcode)) {
-				item.item_barcode.forEach((b: any) =>
-					searchFields.push(b?.barcode),
-				);
-			} else if (item.item_barcode) {
-				searchFields.push(String(item.item_barcode));
-			}
-
-			if (Array.isArray(item.barcodes)) {
-				item.barcodes.forEach((b: string) => searchFields.push(b));
-			}
+			collectBarcodeValues(item).forEach((barcode) =>
+				searchFields.push(barcode),
+			);
 
 			if (includeSerial && Array.isArray(item.serial_no_data)) {
 				item.serial_no_data.forEach((s: any) =>
@@ -236,6 +263,65 @@ export function useItemsSearch() {
 		});
 	};
 
+	const scoreLocalMatch = (
+		item: Item,
+		searchTerm: string,
+		searchTerms: string[],
+	): number => {
+		const normalizedCode = normalizeSearchText(item.item_code);
+		const normalizedName = normalizeSearchText(item.item_name);
+		const normalizedBarcodes = collectBarcodeValues(item).map((barcode) =>
+			normalizeSearchText(barcode),
+		);
+
+		if (normalizedCode === searchTerm) return 1000;
+		if (normalizedBarcodes.includes(searchTerm)) return 950;
+		if (normalizedCode.startsWith(searchTerm)) return 800;
+		if (normalizedName.startsWith(searchTerm)) return 700;
+		if (
+			searchTerms.length &&
+			searchTerms.every((token) =>
+				tokenizeSearchText(item.item_name || "").some((nameToken) =>
+					nameToken.startsWith(token),
+				),
+			)
+		) {
+			return 650;
+		}
+		if (item._search_index?.includes(searchTerm)) return 500;
+		return 100;
+	};
+
+	const performRankedLocalSearch = (
+		term: string,
+		itemList: Item[],
+		itemGroup: string,
+		limit = 50,
+	) => {
+		const matches = performLocalSearch(term, itemList, itemGroup);
+		if (!term || !matches.length) {
+			return Number.isFinite(limit) && limit > 0
+				? matches.slice(0, limit)
+				: matches;
+		}
+
+		const searchTerm = normalizeSearchText(term);
+		const searchTerms = tokenizeSearchText(searchTerm);
+		return matches
+			.map((item, originalIndex) => ({
+				item,
+				originalIndex,
+				score: scoreLocalMatch(item, searchTerm, searchTerms),
+			}))
+			.sort(
+				(left, right) =>
+					right.score - left.score ||
+					left.originalIndex - right.originalIndex,
+			)
+			.slice(0, limit)
+			.map(({ item }) => item);
+	};
+
 	const filterItemsByGroup = (itemList: Item[], group: string) => {
 		const normalizedGroup =
 			typeof group === "string" && group.length > 0 ? group : "ALL";
@@ -246,11 +332,17 @@ export function useItemsSearch() {
 	};
 
 	const getItemByCode = (itemCode: string) => {
-		return itemsMap.value.get(itemCode);
+		return (
+			itemsMap.value.get(itemCode) ||
+			itemsMap.value.get(normalizeSearchText(itemCode))
+		);
 	};
 
 	const getItemByBarcode = (barcode: string) => {
-		return barcodeIndex.value.get(barcode);
+		return (
+			barcodeIndex.value.get(barcode) ||
+			barcodeIndex.value.get(normalizeSearchText(barcode))
+		);
 	};
 
 	return {
@@ -259,6 +351,7 @@ export function useItemsSearch() {
 		updateIndexes,
 		resetIndexes,
 		performLocalSearch,
+		performRankedLocalSearch,
 		filterItemsByGroup,
 		getItemByCode,
 		getItemByBarcode,

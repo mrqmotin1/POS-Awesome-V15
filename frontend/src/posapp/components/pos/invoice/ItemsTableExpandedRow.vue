@@ -1,5 +1,5 @@
 <template>
-	<td :colspan="colspan" class="ma-0 pa-0 posa-expanded-row-cell">
+	<component :is="rootTag" v-bind="rootAttrs">
 		<div
 			v-if="isExpanded"
 			class="posa-expanded-content responsive-expanded-content"
@@ -115,7 +115,8 @@
 								:disabled="
 									!(canEditDiscount || pos_profile.posa_allow_user_to_edit_item_discount) ||
 									!!item.posa_is_replace ||
-									!!item.posa_offer_applied
+									!!item.posa_offer_applied ||
+									!!item.retailmind_non_discountable
 								"
 								prepend-inner-icon="mdi-percent"
 							></v-text-field>
@@ -137,7 +138,8 @@
 								:disabled="
 									!(canEditDiscount || pos_profile.posa_allow_user_to_edit_item_discount) ||
 									!!item.posa_is_replace ||
-									!!item.posa_offer_applied
+									!!item.posa_offer_applied ||
+									!!item.retailmind_non_discountable
 								"
 								prepend-inner-icon="mdi-tag-minus"
 							></v-text-field>
@@ -425,13 +427,13 @@
 				<div class="text-caption mt-2">{{ __("Loading details...") }}</div>
 			</div>
 		</div>
-	</td>
+	</component>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { getDisplayableBatchOptions } from "../../../composables/pos/shared/useBatchSerial";
 import type { CartItem, POSProfile, InvoiceDoc } from "../../../types/models";
-import { computed } from "vue";
 import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
 import { useToastStore } from "../../../stores/toastStore";
 const toastStore = useToastStore();
@@ -440,6 +442,7 @@ interface Props {
 	item: CartItem | any;
 	isExpanded: boolean;
 	colspan: number;
+	panelOnly?: boolean;
 	pos_profile: POSProfile | any;
 	invoiceType?: string;
 	isReturnInvoice?: boolean;
@@ -464,7 +467,9 @@ interface Props {
 	validateDueDate: (_item: any) => void;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+	panelOnly: false,
+});
 
 const canEditDiscount = computed(
 	() => isSessionUserManager.value || isManagerMode.value,
@@ -491,6 +496,17 @@ const onQtyChange = (item: CartItem, event: any) => {
 	}
 	emit("qty-change", item, event);
 };
+
+const rootTag = computed(() => (props.panelOnly ? "div" : "td"));
+const rootAttrs = computed(() => {
+	const className = props.panelOnly
+		? "ma-0 pa-0 posa-expanded-row-cell posa-expanded-row-cell--panel"
+		: "ma-0 pa-0 posa-expanded-row-cell";
+	if (props.panelOnly) {
+		return { class: className };
+	}
+	return { colspan: props.colspan, class: className };
+});
 
 const getRaw = (item: any) => item?.raw || {};
 const getBatchOptions = (item: any) => getDisplayableBatchOptions(item?.batch_no_data);

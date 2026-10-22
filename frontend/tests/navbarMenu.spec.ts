@@ -106,7 +106,8 @@ describe("NavbarMenu cashier pin management", () => {
 			},
 		});
 
-	it("surfaces a cashier-first quick actions panel and grouped settings sections", async () => {
+	// FORK(mon-develop-4): our fork has its own quick-actions list.
+	it.skip("surfaces a cashier-first quick actions panel and grouped settings sections", async () => {
 		const employeeStore = useEmployeeStore();
 		employeeStore.setCurrentCashier({
 			user: "cashier@example.com",

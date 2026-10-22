@@ -2,6 +2,23 @@ import { watch } from "vue";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const offlineMocks = vi.hoisted(() => ({
+	beginItemCatalogGeneration: vi.fn(async (scope) => ({
+		scope,
+		generation: "generation-1",
+	})),
+	stageItemCatalogRows: vi.fn(async (items) => items.length),
+	promoteItemCatalogGeneration: vi.fn(
+		async (_scope, generation, options) => ({
+			generation,
+			rowCount: options.expectedCount,
+			previousGeneration: "",
+		}),
+	),
+	discardItemCatalogGeneration: vi.fn(async () => {}),
+	getActiveItemCatalogGeneration: vi.fn(async () => null),
+	withItemCatalogRefreshLock: vi.fn(async (_scope, task) => await task()),
+	clearPriceListCache: vi.fn(),
+	clearItemDetailsCache: vi.fn(),
 	saveItemsBulk: vi.fn(async () => {}),
 	clearStoredItems: vi.fn(async () => {}),
 	setItemsLastSync: vi.fn(),
@@ -25,6 +42,14 @@ vi.mock("../src/posapp/services/itemService", () => ({
 }));
 
 vi.mock("../src/offline/index", () => ({
+	beginItemCatalogGeneration: offlineMocks.beginItemCatalogGeneration,
+	stageItemCatalogRows: offlineMocks.stageItemCatalogRows,
+	promoteItemCatalogGeneration: offlineMocks.promoteItemCatalogGeneration,
+	discardItemCatalogGeneration: offlineMocks.discardItemCatalogGeneration,
+	getActiveItemCatalogGeneration: offlineMocks.getActiveItemCatalogGeneration,
+	withItemCatalogRefreshLock: offlineMocks.withItemCatalogRefreshLock,
+	clearPriceListCache: offlineMocks.clearPriceListCache,
+	clearItemDetailsCache: offlineMocks.clearItemDetailsCache,
 	saveItemsBulk: offlineMocks.saveItemsBulk,
 	clearStoredItems: offlineMocks.clearStoredItems,
 	setItemsLastSync: offlineMocks.setItemsLastSync,
@@ -60,10 +85,15 @@ describe("store useItemsSync background progress", () => {
 		const frappeCall = vi.fn(async ({ args }) => {
 			if (args.offset === 1) {
 				return {
-				message: [
-					{ item_code: "ITEM-2", item_name: "Item 2" },
-					{ item_code: "ITEM-3", item_name: "Item 3" },
-				],
+					message: [
+						{ item_code: "ITEM-2", item_name: "Item 2" },
+						{ item_code: "ITEM-3", item_name: "Item 3" },
+					],
+				};
+			}
+			if (args.offset === 3) {
+				return {
+					message: [{ item_code: "ITEM-4", item_name: "Item 4" }],
 				};
 			}
 			return { message: [] };
@@ -77,6 +107,7 @@ describe("store useItemsSync background progress", () => {
 			{ name: "POS-1", warehouse: "WH-1" } as any,
 			"Retail",
 			"POS-1_WH-1",
+			true,
 			true,
 			() => 2,
 			setItems,
@@ -92,11 +123,12 @@ describe("store useItemsSync background progress", () => {
 		expect(sync.loadProgress.value).toBe(100);
 		expect(observedProgress).toContain(33);
 		expect(observedProgress).toContain(67);
-		expect(sync.syncedItemsCount.value).toBe(2);
+		expect(sync.syncedItemsCount.value).toBe(3);
 		expect(setItems).toHaveBeenCalledWith(
 			[
 				{ item_code: "ITEM-2", item_name: "Item 2" },
 				{ item_code: "ITEM-3", item_name: "Item 3" },
+				{ item_code: "ITEM-4", item_name: "Item 4" },
 			],
 			{ append: true },
 		);
@@ -113,11 +145,11 @@ describe("store useItemsSync background progress", () => {
 		const frappeCall = vi.fn(async ({ args }) => {
 			if (args.offset === 0) {
 				return {
-				message: [
-					{ item_code: "ITEM-1", item_name: "Item 1" },
-					{ item_code: "ITEM-2", item_name: "Item 2" },
-					{ item_code: "ITEM-3", item_name: "Item 3" },
-				],
+					message: [
+						{ item_code: "ITEM-1", item_name: "Item 1" },
+						{ item_code: "ITEM-2", item_name: "Item 2" },
+						{ item_code: "ITEM-3", item_name: "Item 3" },
+					],
 				};
 			}
 			return { message: [] };
@@ -129,6 +161,7 @@ describe("store useItemsSync background progress", () => {
 			{ name: "POS-1", warehouse: "WH-1" } as any,
 			"Retail",
 			"POS-1_WH-1",
+			true,
 			true,
 			() => 3,
 			vi.fn(),
@@ -148,13 +181,13 @@ describe("store useItemsSync background progress", () => {
 		const frappeCall = vi.fn(async ({ args }) => {
 			if (args.offset === 1) {
 				return {
-				message: [
-					{
-						item_code: "ITEM-2",
-						item_name: "Item 2",
-						actual_qty: 7,
-					},
-				],
+					message: [
+						{
+							item_code: "ITEM-2",
+							item_name: "Item 2",
+							actual_qty: 7,
+						},
+					],
 				};
 			}
 			return { message: [] };
@@ -174,6 +207,7 @@ describe("store useItemsSync background progress", () => {
 			{ name: "POS-1", warehouse: "WH-1" } as any,
 			"Retail",
 			"POS-1_WH-1",
+			true,
 			true,
 			() => 2,
 			vi.fn(),
@@ -216,6 +250,7 @@ describe("store useItemsSync background progress", () => {
 			{ name: "POS-1", warehouse: "WH-1" } as any,
 			"Retail",
 			"POS-1_WH-1",
+			true,
 			true,
 			resolvePageSize,
 			vi.fn(),
@@ -274,6 +309,7 @@ describe("store useItemsSync background progress", () => {
 			"Retail",
 			"POS-1_WH-1",
 			true,
+			true,
 			() => 2,
 			setItems,
 			vi.fn(async () => {}),
@@ -323,6 +359,7 @@ describe("store useItemsSync background progress", () => {
 			"Retail",
 			"POS-1_WH-1",
 			true,
+			true,
 			() => 2,
 			setItems,
 			updateCachedPaginationFromStorage,
@@ -332,6 +369,82 @@ describe("store useItemsSync background progress", () => {
 		);
 
 		expect(setItems).toHaveBeenCalledTimes(2);
-		expect(updateCachedPaginationFromStorage).toHaveBeenCalledTimes(2);
+		expect(updateCachedPaginationFromStorage).toHaveBeenCalledTimes(3);
+	});
+
+	it("hydrates a force-server catalog without materializing background pages in Vue memory", async () => {
+		const sync = useItemsSync();
+		const setItems = vi.fn();
+		itemServiceMocks.getItemsCountData.mockResolvedValue(2);
+		(globalThis as any).frappe = {
+			call: vi.fn(async ({ args }) => ({
+				message:
+					args.offset === 1
+						? [{ item_code: "ITEM-2", item_name: "Item 2" }]
+						: [],
+			})),
+		};
+
+		const appended = await sync.backgroundSyncItems(
+			{
+				initialBatch: [{ item_code: "ITEM-1", item_name: "Item 1" }],
+			},
+			{ name: "POS-1", warehouse: "WH-1" } as any,
+			"Retail",
+			"POS-1_WH-1",
+			true,
+			false,
+			() => 2,
+			setItems,
+			vi.fn(async () => {}),
+			{ value: 2 },
+			{ value: false },
+			{
+				value: [{ item_code: "ITEM-1", item_name: "Item 1" }],
+			},
+		);
+
+		expect(appended).toEqual([]);
+		expect(setItems).not.toHaveBeenCalled();
+		expect(offlineMocks.stageItemCatalogRows).toHaveBeenCalledTimes(2);
+		expect(offlineMocks.promoteItemCatalogGeneration).toHaveBeenCalledWith(
+			"POS-1_WH-1",
+			"generation-1",
+			{ expectedCount: 2 },
+		);
+	});
+
+	it("discards an incomplete generation when a background page request fails", async () => {
+		const sync = useItemsSync();
+		(globalThis as any).frappe = {
+			call: vi.fn().mockRejectedValue(new Error("network unavailable")),
+		};
+
+		await sync.backgroundSyncItems(
+			{
+				initialBatch: [{ item_code: "ITEM-1", item_name: "Item 1" }],
+			},
+			{ name: "POS-1", warehouse: "WH-1" } as any,
+			"Retail",
+			"POS-1_WH-1",
+			true,
+			false,
+			() => 2,
+			vi.fn(),
+			vi.fn(async () => {}),
+			{ value: 2 },
+			{ value: false },
+			{
+				value: [{ item_code: "ITEM-1", item_name: "Item 1" }],
+			},
+		);
+
+		expect(
+			offlineMocks.promoteItemCatalogGeneration,
+		).not.toHaveBeenCalled();
+		expect(offlineMocks.discardItemCatalogGeneration).toHaveBeenCalledWith(
+			"POS-1_WH-1",
+			"generation-1",
+		);
 	});
 });

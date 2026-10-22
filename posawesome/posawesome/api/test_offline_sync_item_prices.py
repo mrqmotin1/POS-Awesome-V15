@@ -31,6 +31,9 @@ ITEM_PRICE_ROWS = [
         "uom": "Nos",
         "currency": "PKR",
         "customer": None,
+        "supplier": None,
+        "buying": 0,
+        "selling": 1,
         "price_list_rate": 100,
         "valid_from": "2026-01-01",
         "valid_upto": None,
@@ -43,6 +46,9 @@ ITEM_PRICE_ROWS = [
         "uom": "Box",
         "currency": "USD",
         "customer": "CUST-001",
+        "supplier": None,
+        "buying": 0,
+        "selling": 1,
         "price_list_rate": 15,
         "valid_from": "2026-01-01",
         "valid_upto": "2026-12-31",
@@ -55,12 +61,16 @@ ITEM_PRICE_ROWS = [
         "uom": "Nos",
         "currency": "PKR",
         "customer": None,
+        "supplier": None,
+        "buying": 1,
+        "selling": 0,
         "price_list_rate": 80,
         "valid_from": None,
         "valid_upto": None,
         "modified": "2026-06-01T10:02:00",
     },
 ]
+ITEM_PRICE_QUERY_STARTS = []
 
 
 def _install_stubs():
@@ -85,6 +95,7 @@ def _install_stubs():
                 {"name": "Export", "selling": 1},
             ]
         if doctype == "Item Price":
+            ITEM_PRICE_QUERY_STARTS.append(kwargs.get("start"))
             filters = kwargs.get("filters") or {}
             rows = [
                 row
@@ -120,6 +131,10 @@ def _install_stubs():
     sys.modules["posawesome.posawesome.api.utils"] = api_utils_module
     sys.modules["posawesome.posawesome.api.offline_sync.common"] = load_offline_sync_common()
 
+    controls_module = types.ModuleType("posawesome.posawesome.api.item_sale_controls")
+    controls_module._resolve_buying_price_list = lambda profile: "Buying"
+    sys.modules["posawesome.posawesome.api.item_sale_controls"] = controls_module
+
 
 def _load_module():
     module_name = "test_offline_sync_item_prices_target"
@@ -137,7 +152,7 @@ class TestOfflineSyncItemPrices(unittest.TestCase):
         _install_stubs()
         cls.module = _load_module()
 
-    def test_syncs_all_selling_price_lists_with_uom_currency_customer_and_validity(self):
+    def test_syncs_selling_and_buying_price_lists_with_full_price_context(self):
         response = self.module.sync_item_prices(
             pos_profile="POS-TEST",
             watermark="2026-05-31T00:00:00",
@@ -146,14 +161,17 @@ class TestOfflineSyncItemPrices(unittest.TestCase):
 
         self.assertEqual(
             [row["key"] for row in response["changes"]],
-            ["item_price::IP-001", "item_price::IP-002"],
+            ["item_price::IP-001", "item_price::IP-002", "item_price::IP-003"],
         )
         self.assertEqual(response["changes"][1]["data"]["uom"], "Box")
         self.assertEqual(response["changes"][1]["data"]["currency"], "USD")
         self.assertEqual(response["changes"][1]["data"]["customer"], "CUST-001")
         self.assertEqual(response["changes"][1]["data"]["valid_upto"], "2026-12-31")
+        self.assertEqual(response["changes"][2]["data"]["buying"], 1)
         self.assertEqual(response["deleted"], [{"key": "item_price::IP-DELETED"}])
-        self.assertEqual(response["scope"]["price_lists"], ["Export", "Retail"])
+        self.assertEqual(response["scope"]["price_lists"], ["Buying", "Export", "Retail"])
+        self.assertEqual(response["scope"]["buying_price_list"], "Buying")
+        self.assertEqual(response["schema_version"], "2026-07-17")
         self.assertEqual(response["next_watermark"], "2026-06-01T10:03:00")
 
     def test_paginates_without_advancing_the_watermark_until_the_final_page(self):
@@ -169,12 +187,33 @@ class TestOfflineSyncItemPrices(unittest.TestCase):
             offset=1,
             limit=1,
         )
+        third = self.module.sync_item_prices(
+            pos_profile="POS-TEST",
+            watermark=None,
+            offset=2,
+            limit=1,
+        )
 
         self.assertTrue(first["has_more"])
         self.assertEqual(first["next_offset"], 1)
         self.assertIsNone(first["next_watermark"])
-        self.assertFalse(second["has_more"])
-        self.assertEqual(second["next_watermark"], "2026-06-01T10:01:00")
+        self.assertTrue(second["has_more"])
+        self.assertEqual(second["next_offset"], 2)
+        self.assertIsNone(second["next_watermark"])
+        self.assertFalse(third["has_more"])
+        self.assertEqual(third["next_watermark"], "2026-06-01T10:02:00")
+
+    def test_large_pagination_offset_is_not_clamped_to_page_size_limit(self):
+        ITEM_PRICE_QUERY_STARTS.clear()
+
+        response = self.module.sync_item_prices(
+            pos_profile="POS-TEST",
+            watermark=None,
+            offset=994000,
+        )
+
+        self.assertEqual(ITEM_PRICE_QUERY_STARTS, [994000])
+        self.assertFalse(response["has_more"])
 
 
 if __name__ == "__main__":

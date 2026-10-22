@@ -5,12 +5,11 @@ from frappe.utils import nowdate
 
 from posawesome.posawesome.api.utilities import ensure_child_doctype
 
-from posawesome.posawesome.api.employees import (
-    _ensure_terminal_user,
-    _get_user_doc,
-    _is_pos_supervisor,
-    _resolve_profile_name,
+from posawesome.posawesome.api.pos_access import (
+    get_authorized_pos_profile,
+    user_can_manage_pos,
 )
+from posawesome.posawesome.api.terminal_state import get_active_terminal_cashier
 
 
 def _to_float(value) -> float:
@@ -47,27 +46,27 @@ def _doc_value(doc, key, default=None):
 
 
 def _require_supervisor(pos_profile=None, cashier=None):
-    profile_name = _resolve_profile_name(pos_profile)
-    if not profile_name:
-        frappe.throw(frappe._("POS profile is required."))
-
-    cashier = str(cashier or "").strip()
-    if not cashier:
-        frappe.throw(frappe._("Cashier is required."))
-
-    _ensure_terminal_user(profile_name, cashier)
-    user_doc = _get_user_doc(cashier)
-    if not _is_pos_supervisor(user_doc):
+    profile_doc = get_authorized_pos_profile(pos_profile)
+    profile_name = str(_doc_value(profile_doc, "name") or "").strip()
+    authoritative_cashier = get_active_terminal_cashier(profile_name)
+    if not user_can_manage_pos(authoritative_cashier):
         frappe.throw(frappe._("A POS supervisor is required for this action."))
 
-    return profile_name, cashier, user_doc
+    return profile_name, authoritative_cashier, frappe.get_doc("User", authoritative_cashier)
 
 
 def _get_profile_doc(pos_profile=None):
-    profile_name = _resolve_profile_name(pos_profile)
-    if not profile_name:
-        frappe.throw(frappe._("POS profile is required."))
-    return frappe.get_cached_doc("POS Profile", profile_name)
+    return get_authorized_pos_profile(pos_profile)
+
+
+def _canonical_profile_company(profile_doc, requested_company=None):
+    company = str(_doc_value(profile_doc, "company") or "").strip()
+    if not company:
+        frappe.throw(frappe._("The authorized POS Profile must have a company."))
+    requested_company = str(requested_company or "").strip()
+    if requested_company and requested_company != company:
+        frappe.throw(frappe._("Company does not match the authorized POS Profile."))
+    return company
 
 
 def _resolve_cost_center(profile_doc, company):
@@ -488,12 +487,11 @@ def issue_gift_card(
 ):
     profile_name, cashier, _user_doc = _require_supervisor(pos_profile, cashier)
     profile_doc = _get_profile_doc(profile_name)
+    company = _canonical_profile_company(profile_doc, company)
 
     amount = _to_float(initial_amount)
     if amount < 0:
         frappe.throw(frappe._("Initial amount cannot be negative."))
-    if not company:
-        frappe.throw(frappe._("Company is required."))
 
     code = _normalize_code(gift_card_code)
     if frappe.db.exists("POS Gift Card", {"gift_card_code": code}):
@@ -539,18 +537,21 @@ def issue_gift_card(
 def top_up_gift_card(pos_profile=None, cashier=None, gift_card_code=None, amount=0):
     profile_name, cashier, _user_doc = _require_supervisor(pos_profile, cashier)
     profile_doc = _get_profile_doc(profile_name)
+    company = _canonical_profile_company(profile_doc)
 
     top_up_amount = _to_float(amount)
     if top_up_amount <= 0:
         frappe.throw(frappe._("Top up amount must be greater than zero."))
 
     gift_card_doc = _get_gift_card(gift_card_code)
+    if str(_doc_value(gift_card_doc, "company") or "").strip() != company:
+        frappe.throw(frappe._("Gift card does not belong to company {0}.").format(company))
     if getattr(gift_card_doc, "status", "Active") != "Active":
         frappe.throw(frappe._("Only active gift cards can be topped up."))
 
     _create_issue_or_top_up_entry(
         profile_doc,
-        _doc_value(gift_card_doc, "company"),
+        company,
         top_up_amount,
         "POS Gift Card",
         _doc_value(gift_card_doc, "name"),

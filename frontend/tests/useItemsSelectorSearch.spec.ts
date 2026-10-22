@@ -32,7 +32,9 @@ describe("useItemsSelectorSearch", () => {
 					item_code: "ITEM-001",
 					item_name: "Item 001",
 					stock_uom: "Nos",
-					item_barcode: [{ barcode: "BOX-001", uom: "Box", posa_uom: "Nos" }],
+					item_barcode: [
+						{ barcode: "BOX-001", uom: "Box", posa_uom: "Nos" },
+					],
 				},
 			],
 			flags: {},
@@ -110,7 +112,7 @@ describe("useItemsSelectorSearch", () => {
 		expect(vm.search).toBe("");
 	});
 
-	it("treats enter as a scan of the typed value, never a plain search or highlight pick", async () => {
+	it("treats enter as a scan of the typed value when no item is highlighted", async () => {
 		// Enter is the wedge-scanner suffix: the typed value goes straight to the
 		// scan pipeline (local index, else server) - alphanumeric codes included.
 		const searchItems = vi.fn().mockResolvedValue([]);
@@ -125,7 +127,7 @@ describe("useItemsSelectorSearch", () => {
 			isBackgroundLoading: false,
 			pos_profile: { posa_use_limit_search: 1 },
 			itemSelection: {
-				highlightedIndex: 0,
+				highlightedIndex: -1,
 				selectHighlightedItem,
 			},
 			itemsIntegration: {
@@ -151,6 +153,42 @@ describe("useItemsSelectorSearch", () => {
 		expect(vm.first_search).toBe("");
 	});
 
+	it("adds the arrow-key highlighted item when enter is pressed", async () => {
+		const searchItems = vi.fn().mockResolvedValue([]);
+		const selectHighlightedItem = vi.fn();
+		const preventDefault = vi.fn();
+		const scannerInput = createScannerInput();
+		const vm = {
+			first_search: "milk",
+			search_input: "milk",
+			search: "",
+			search_from_scanner: false,
+			isBackgroundLoading: false,
+			pos_profile: { posa_use_limit_search: 1 },
+			itemSelection: {
+				highlightedIndex: 0,
+				selectHighlightedItem,
+			},
+			itemsIntegration: {
+				searchItems,
+			},
+		};
+
+		const api = useItemsSelectorSearch({
+			getVM: () => vm,
+			scannerInput,
+			itemSelection: vm.itemSelection,
+		});
+
+		api.onEnter({ preventDefault } as unknown as KeyboardEvent);
+		await Promise.resolve();
+
+		expect(preventDefault).toHaveBeenCalled();
+		expect(selectHighlightedItem).toHaveBeenCalledTimes(1);
+		expect(scannerInput.onBarcodeScanned).not.toHaveBeenCalled();
+		expect(searchItems).not.toHaveBeenCalled();
+	});
+
 	it("cancels the pending debounced search and ignores enter on an empty field", () => {
 		const preventDefault = vi.fn();
 		const scannerInput = createScannerInput();
@@ -174,6 +212,36 @@ describe("useItemsSelectorSearch", () => {
 		expect(preventDefault).toHaveBeenCalled();
 		expect(cancel).toHaveBeenCalled();
 		expect(scannerInput.onBarcodeScanned).not.toHaveBeenCalled();
+	});
+
+	// FORK(mon-develop-4): our fork adds the highlighted item on Enter without the Shift+Enter qty jump.
+	it.skip("preserves Shift+Enter as an explicit Qty-focus selection intent", () => {
+		const selectHighlightedItem = vi.fn();
+		const preventDefault = vi.fn();
+		const vm = {
+			first_search: "abcd",
+			search_input: "abcd",
+			pos_profile: { posa_use_limit_search: 1 },
+			itemSelection: {
+				highlightedIndex: { value: 0 },
+				selectHighlightedItem,
+			},
+		};
+		const api = useItemsSelectorSearch({
+			getVM: () => vm,
+			scannerInput: createScannerInput(),
+			itemSelection: vm.itemSelection,
+		});
+
+		api.onEnter({
+			preventDefault,
+			shiftKey: true,
+		} as unknown as KeyboardEvent);
+
+		expect(preventDefault).toHaveBeenCalled();
+		expect(selectHighlightedItem).toHaveBeenCalledWith({
+			postAddFocus: "qty",
+		});
 	});
 });
 

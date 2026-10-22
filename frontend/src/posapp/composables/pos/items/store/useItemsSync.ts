@@ -3,8 +3,15 @@ import type { Item, POSProfile } from "../../../../types/models";
 import itemService from "../../../../services/itemService";
 // @ts-ignore
 import {
+	beginItemCatalogGeneration,
+	clearItemDetailsCache,
+	clearPriceListCache,
+	discardItemCatalogGeneration,
+	getActiveItemCatalogGeneration,
 	saveItemsBulk,
-	clearStoredItems,
+	stageItemCatalogRows,
+	promoteItemCatalogGeneration,
+	withItemCatalogRefreshLock,
 	setItemsLastSync,
 	getItemsLastSync,
 	saveItemDetailsCache,
@@ -110,10 +117,29 @@ export function useItemsSync() {
 
 		try {
 			if (replaceExisting) {
-				await clearStoredItems(scope);
+				await withItemCatalogRefreshLock(scope, async () => {
+					const { generation } =
+						await beginItemCatalogGeneration(scope);
+					try {
+						const stagedCount = await stageItemCatalogRows(
+							itemsBatch,
+							scope,
+							generation,
+						);
+						await promoteItemCatalogGeneration(scope, generation, {
+							expectedCount: stagedCount,
+						});
+					} catch (error) {
+						await discardItemCatalogGeneration(
+							scope,
+							generation,
+						).catch(() => undefined);
+						throw error;
+					}
+				});
+			} else {
+				await saveItemsBulk(itemsBatch, scope);
 			}
-
-			await saveItemsBulk(itemsBatch, scope);
 			await updateCachedPaginationCallback();
 		} catch (error) {
 			console.error("Failed to persist items batch:", error);
@@ -219,7 +245,7 @@ export function useItemsSync() {
 		}
 	};
 
-	const backgroundSyncItems = async (
+	const backgroundSyncItemsUnlocked = async (
 		options: {
 			reset?: boolean;
 			groupFilter?: string;
@@ -230,6 +256,7 @@ export function useItemsSync() {
 		activePriceList: string,
 		scope: string,
 		shouldPersistItems: boolean,
+		hydrateRuntimeItems: boolean,
 		resolvePageSize: (_pageSize?: number) => number,
 		setItems: (_items: Item[], _options?: any) => void,
 		updateCachedPaginationFromStorage: () => Promise<void>,
@@ -267,9 +294,11 @@ export function useItemsSync() {
 		const bootstrapCount = Array.isArray(initialBatch)
 			? initialBatch.length
 			: items.value.length;
+		let stagedCount = 0;
+		let catalogGeneration = "";
+		let reachedCatalogEnd = false;
 		let stockCacheReady = false;
 		let batchesSincePaginationRefresh = 0;
-		let paginationNeedsRefresh = false;
 		let remainingCatalogTotal = 0;
 		const limit = resolvePageSize(BACKGROUND_SYNC_PAGE_SIZE);
 		const updateLiveProgress = (count: number) => {
@@ -391,17 +420,15 @@ export function useItemsSync() {
 
 			const waveItems = completedBatches.flat();
 			if (waveItems.length > 0) {
-				primeItemDetailsCache(
+				stagedCount += await stageItemCatalogRows(
 					waveItems,
-					posProfile,
-					activePriceList,
+					scope,
+					catalogGeneration,
 				);
 				if (containsStockQuantities(waveItems)) {
 					updateLocalStockCache(waveItems);
 					stockCacheReady = true;
 				}
-				await saveItemsBulk(waveItems, scope);
-				paginationNeedsRefresh = true;
 			}
 
 			return {
@@ -412,24 +439,21 @@ export function useItemsSync() {
 		};
 
 		try {
-			if (reset) {
-				await clearStoredItems(scope);
-				if (Array.isArray(initialBatch) && initialBatch.length) {
-					await saveItemsBulk(initialBatch, scope);
-					if (containsStockQuantities(initialBatch)) {
-						updateLocalStockCache(initialBatch);
-						stockCacheReady = true;
-					}
-					await updateCachedPaginationFromStorage();
-				}
-			} else if (Array.isArray(initialBatch) && initialBatch.length) {
+			const generationState = await beginItemCatalogGeneration(scope);
+			catalogGeneration = generationState.generation;
+			if (Array.isArray(initialBatch) && initialBatch.length) {
+				stagedCount += await stageItemCatalogRows(
+					initialBatch,
+					scope,
+					catalogGeneration,
+				);
 				if (containsStockQuantities(initialBatch)) {
 					updateLocalStockCache(initialBatch);
 					stockCacheReady = true;
 				}
 			}
 
-			let loaded = items.value.length;
+			let loaded = stagedCount;
 			let syncedCount = 0;
 			let nextOffset = reset
 				? bootstrapCount
@@ -457,11 +481,9 @@ export function useItemsSync() {
 				backgroundSyncState.value.token === token &&
 				shouldPersistItems
 			) {
-				const {
-					reachedEnd,
-					completedBatchCount,
-					waveItems,
-				} = await pendingPreparedWave;
+				const { reachedEnd, completedBatchCount, waveItems } =
+					await pendingPreparedWave;
+				reachedCatalogEnd = reachedEnd;
 
 				if (backgroundSyncState.value.token !== token) {
 					break;
@@ -474,9 +496,11 @@ export function useItemsSync() {
 					: null;
 
 				if (waveItems.length > 0) {
-					setItems(waveItems, { append: true });
-					appended.push(...waveItems);
-					loaded += waveItems.length;
+					if (hydrateRuntimeItems) {
+						setItems(waveItems, { append: true });
+						appended.push(...waveItems);
+					}
+					loaded = stagedCount;
 					batchesSincePaginationRefresh += completedBatchCount;
 
 					const shouldRefreshPagination =
@@ -490,37 +514,44 @@ export function useItemsSync() {
 						? nextPageResults.then(preparePageWave)
 						: null;
 					[syncedCount] = await Promise.all([
-						publishBatchProgress(
-							syncedCount,
-							waveItems.length,
-						),
+						publishBatchProgress(syncedCount, waveItems.length),
 						paginationRefresh,
 					]);
 					if (shouldRefreshPagination) {
 						batchesSincePaginationRefresh = 0;
-						paginationNeedsRefresh = false;
 					}
 					if (nextPreparedWave) {
 						pendingPreparedWave = nextPreparedWave;
 					}
 				}
 
-				if (
-					reachedEnd ||
-					backgroundSyncState.value.token !== token
-				) {
+				if (reachedEnd || backgroundSyncState.value.token !== token) {
 					break;
 				}
 
 				nextOffset = nextWaveOffset;
 			}
 
-			if (backgroundSyncState.value.token === token) {
+			if (
+				backgroundSyncState.value.token === token &&
+				reachedCatalogEnd
+			) {
+				const promoted = await promoteItemCatalogGeneration(
+					scope,
+					catalogGeneration,
+					{
+						expectedCount:
+							serverCatalogTotal > 0
+								? serverCatalogTotal
+								: stagedCount,
+					},
+				);
+				loaded = promoted.rowCount;
+				clearPriceListCache();
+				clearItemDetailsCache();
+				await updateCachedPaginationFromStorage();
 				loadProgress.value = 100;
 				itemsLoaded.value = true;
-				if (paginationNeedsRefresh) {
-					await updateCachedPaginationFromStorage();
-				}
 				setItemsLastSync(new Date().toISOString());
 				if (stockCacheReady) {
 					setStockCacheReady(true);
@@ -534,9 +565,22 @@ export function useItemsSync() {
 				refreshBootstrapSnapshotFromCacheState(snapshotState);
 			}
 
+			if (
+				backgroundSyncState.value.token !== token ||
+				!reachedCatalogEnd
+			) {
+				await discardItemCatalogGeneration(scope, catalogGeneration);
+			}
+
 			return appended;
 		} catch (error) {
 			console.error("Background item sync failed:", error);
+			if (catalogGeneration) {
+				await discardItemCatalogGeneration(
+					scope,
+					catalogGeneration,
+				).catch(() => undefined);
+			}
 			return appended;
 		} finally {
 			if (backgroundSyncState.value.token === token) {
@@ -544,6 +588,20 @@ export function useItemsSync() {
 				isBackgroundLoading.value = false;
 			}
 		}
+	};
+
+	const backgroundSyncItems = async (
+		...args: Parameters<typeof backgroundSyncItemsUnlocked>
+	) => {
+		const scope = args[3];
+		const activeBefore = await getActiveItemCatalogGeneration(scope);
+		return await withItemCatalogRefreshLock(scope, async () => {
+			const activeAfterWait = await getActiveItemCatalogGeneration(scope);
+			if (activeAfterWait && activeAfterWait !== activeBefore) {
+				return [];
+			}
+			return await backgroundSyncItemsUnlocked(...args);
+		});
 	};
 
 	return {

@@ -21,6 +21,46 @@ export const DATA_TABLE_EXPAND_COLUMN: TableHeader = {
 	minWidth: 48,
 };
 
+const DENSE_COLUMN_COUNT = 9;
+const DENSE_LAYOUT_MIN_WIDTH = 900;
+type ColumnWidthConfig = { min: number; max: number; ratio: number };
+
+const STANDARD_COLUMN_WIDTHS: Record<string, ColumnWidthConfig> = {
+	item_name: { min: 160, max: 210, ratio: 0.23 },
+	qty: { min: 92, max: 112, ratio: 0.11 },
+	uom: { min: 92, max: 112, ratio: 0.1 },
+	rate: { min: 92, max: 110, ratio: 0.105 },
+	amount: { min: 100, max: 118, ratio: 0.11 },
+	discount_percentage: { min: 96, max: 110, ratio: 0.1 },
+	discount_amount: { min: 105, max: 118, ratio: 0.11 },
+	price_list_rate: { min: 105, max: 118, ratio: 0.11 },
+	actions: { min: 68, max: 76, ratio: 0.07 },
+	posa_is_offer: { min: 70, max: 90, ratio: 0.06 },
+};
+
+const DENSE_COLUMN_WIDTHS: Record<string, ColumnWidthConfig> = {
+	item_name: { min: 148, max: 178, ratio: 0.17 },
+	qty: { min: 82, max: 96, ratio: 0.085 },
+	uom: { min: 72, max: 88, ratio: 0.075 },
+	rate: { min: 86, max: 98, ratio: 0.09 },
+	amount: { min: 94, max: 108, ratio: 0.1 },
+	discount_percentage: { min: 82, max: 94, ratio: 0.085 },
+	discount_amount: { min: 94, max: 108, ratio: 0.1 },
+	price_list_rate: { min: 92, max: 104, ratio: 0.095 },
+	actions: { min: 56, max: 64, ratio: 0.06 },
+	posa_is_offer: { min: 72, max: 82, ratio: 0.075 },
+};
+
+const getColumnWidthConfig = (header: TableHeader, dense: boolean) =>
+	(dense ? DENSE_COLUMN_WIDTHS : STANDARD_COLUMN_WIDTHS)[header.key] || {
+		min: 80,
+		max: 150,
+		ratio: 0.1,
+	};
+
+export const usesDenseColumnLayout = (headers: TableHeader[], width: number) =>
+	headers.length >= DENSE_COLUMN_COUNT && width >= DENSE_LAYOUT_MIN_WIDTH;
+
 export function getResponsiveVisibleHeaders(
 	headers: TableHeader[],
 	width: number,
@@ -36,7 +76,7 @@ export function getResponsiveVisibleHeaders(
 			return true;
 		}
 
-		if (width < 450) {
+		if (width > 0 && width < 450) {
 			return ["item_name", "qty", "amount", "actions"].includes(
 				header.key,
 			);
@@ -87,9 +127,9 @@ const calculateColumnWidth = (header: TableHeader, width: number, dense = false)
 	const denseWidths: Record<string, { min: number; max: number; ratio: number }> = {
 		sl: { min: 32, max: 40, ratio: 0.03 },
 		item_name: { min: 100, max: 150, ratio: 0.24 },
-		qty: { min: 74, max: 96, ratio: 0.13 },
-		rate: { min: 66, max: 90, ratio: 0.11 },
-		amount: { min: 55, max: 55, ratio: 0.12 },
+		qty: { min: 56, max: 76, ratio: 0.09 },
+		rate: { min: 62, max: 84, ratio: 0.1 },
+		amount: { min: 70, max: 90, ratio: 0.12 },
 		discount_percentage: { min: 58, max: 84, ratio: 0.09 },
 		discount_amount: { min: 55, max: 60, ratio: 0.10 },
 		price_list_rate: { min: 62, max: 96, ratio: 0.11 },
@@ -138,9 +178,9 @@ const calculateMinColumnWidth = (header: TableHeader, dense = false) => {
 	const denseMinWidths: Record<string, number> = {
 		sl: 32,
 		item_name: 100,
-		qty: 70,
-		rate: 66,
-		amount: 55,
+		qty: 56,
+		rate: 62,
+		amount: 70,
 		discount_percentage: 58,
 		discount_amount: 58,
 		price_list_rate: 62,
@@ -218,6 +258,10 @@ export function useItemsTableResponsive(
 	const tableClasses = computed(() => ({
 		[`container-${breakpoint.value}`]: true,
 		"responsive-table": true,
+		"dense-columns-view": usesDenseColumnLayout(
+			responsiveHeaders.value,
+			containerWidth.value,
+		),
 	}));
 
 	const expandedContentClasses = computed(() => ({
