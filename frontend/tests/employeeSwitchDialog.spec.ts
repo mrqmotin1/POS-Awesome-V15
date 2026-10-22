@@ -217,6 +217,7 @@ describe("EmployeeSwitchDialog", () => {
 				user: "backup@example.com",
 				pin: "1234",
 			},
+			silent: true,
 		});
 		expect(store.currentCashier?.user).toBe("backup@example.com");
 		expect(store.switchDialogOpen).toBe(false);
@@ -538,6 +539,7 @@ describe("EmployeeSwitchDialog", () => {
 		expect((window as any).frappe.call).toHaveBeenCalledWith({
 			method: "posawesome.posawesome.api.employees.save_cashier_pin",
 			args: { pos_profile: "Main POS", user: "cashier@example.com", new_pin: pin },
+			silent: true,
 		});
 		expect(store.currentCashier?.user).toBe("cashier@example.com");
 		expect(store.isLocked).toBe(false);

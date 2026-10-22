@@ -418,8 +418,21 @@ const canSubmit = computed(
 		!isSubmitting.value,
 );
 
+const serverErrorMessage = (error) => {
+	try {
+		const first = JSON.parse(error?.responseJSON?._server_messages || "[]")[0];
+		return first ? JSON.parse(first).message || first : "";
+	} catch {
+		return "";
+	}
+};
+
 const normalizeErrorMessage = (error) =>
-	error?.message || error?.exc || error?.messages?.[0] || __("Unable to verify cashier PIN.");
+	serverErrorMessage(error) ||
+	error?.message ||
+	error?.exc ||
+	error?.messages?.[0] ||
+	__("Unable to verify cashier PIN.");
 
 const selectEmployee = (user) => {
 	selectedUser.value = user;
@@ -483,6 +496,8 @@ const verifySelection = async () => {
 				user: cashier.user,
 				...(creatingPin ? { new_pin: pin } : { pin }),
 			},
+			// Errors (e.g. invalid PIN) show inline via pinError, not a Frappe msgprint.
+			silent: true,
 		});
 		const verifiedCashier = {
 			...cashier,
@@ -526,6 +541,14 @@ const submitUnlock = async () => {
 	}
 	employeeStore.unlockTerminal(verifiedCashier);
 	cashierPin.value = "";
+	// Requests rejected while locked leave Frappe's "terminal is locked" msgprint open.
+	const msgDialog = window.frappe?.msg_dialog;
+	if (
+		msgDialog?.$wrapper?.is(":visible") &&
+		/terminal is locked/i.test(msgDialog.$wrapper.text() || "")
+	) {
+		window.frappe.hide_msgprint();
+	}
 };
 
 watch(cashierPin, (value) => {
