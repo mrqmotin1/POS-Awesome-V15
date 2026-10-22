@@ -109,7 +109,10 @@ after_migrate = ["posawesome.install.after_migrate"]
 doc_events = {
     "Item": {
         "after_insert": "posawesome.posawesome.api.item_processing.alternates.clear_alternate_item_caches",
-        "on_update": "posawesome.posawesome.api.item_processing.alternates.clear_alternate_item_caches",
+        "on_update": [
+            "posawesome.posawesome.api.item_processing.alternates.clear_alternate_item_caches",
+            "posawesome.posawesome.api.item_fetchers.clear_item_caches",
+        ],
         "on_trash": "posawesome.posawesome.api.item_processing.alternates.clear_alternate_item_caches",
     },
     "Sales Invoice": {
@@ -139,9 +142,6 @@ doc_events = {
             "posawesome.posawesome.stock_realtime.publish_bin_stock_change",
             "posawesome.posawesome.api.item_fetchers.clear_stock_caches",
         ],
-    },
-    "Item": {
-        "on_update": "posawesome.posawesome.api.item_fetchers.clear_item_caches",
     },
     "Item Price": {
         "after_insert": "posawesome.posawesome.api.item_fetchers.clear_item_caches",

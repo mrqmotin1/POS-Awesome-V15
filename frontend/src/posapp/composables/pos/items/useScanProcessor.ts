@@ -640,7 +640,9 @@ export function useScanProcessor(context: ScanProcessorContext) {
 		}
 
 		if (foundItem) {
-			foundItem.barcode = scannedCode;
+			// Don't stamp scannedCode on foundItem: it is the shared catalog item, so the
+			// code would stick to later selector adds and bypass the serial/batch guard in
+			// addScannedItemToInvoice, which stamps it on its own clone instead.
 			const localAssignment = extractScanAssignmentFromItem(
 				foundItem,
 				scannedCode,
