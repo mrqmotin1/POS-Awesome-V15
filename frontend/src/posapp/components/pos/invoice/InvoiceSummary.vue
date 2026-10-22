@@ -61,7 +61,7 @@
 						@change="$emit('update_discount_umount')"
 						@focus="handleAdditionalDiscountPercentageFocus"
 						@blur="handleAdditionalDiscountPercentageBlur"
-						:rules="[isNumber]"
+						:rules="[isDiscountNumber]"
 						:label="frappe._('Additional Discount')"
 						suffix="%"
 						variant="outlined"
@@ -200,7 +200,7 @@
 							@change="$emit('update_discount_umount')"
 							@focus="handleAdditionalDiscountPercentageFocus"
 							@blur="handleAdditionalDiscountPercentageBlur"
-							:rules="[isNumber]"
+							:rules="[isDiscountNumber]"
 							:label="frappe._('Additional Discount %')"
 							suffix="%"
 							prepend-inner-icon="mdi-percent"
@@ -516,6 +516,15 @@ function normalizeDiscountDisplay(value) {
 		return "";
 	}
 	return value;
+}
+
+// A zero discount is displayed as "" (see normalizeDiscountDisplay), so an
+// empty field is valid — otherwise the reset after submit shows "invalid number".
+function isDiscountNumber(value) {
+	if (value === "" || value === null || value === undefined) {
+		return true;
+	}
+	return props.isNumber(value);
 }
 
 function normalizeAdditionalDiscountDisplay(value) {
