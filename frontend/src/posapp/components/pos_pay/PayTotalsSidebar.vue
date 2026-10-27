@@ -1148,6 +1148,11 @@ defineExpose({
 	padding: 0 12px;
 }
 
+/* Leave room for the 40px calendar icon (the padding above hid the first letters under it). */
+.pay-reference-date :deep(.dp__input_icon_pad) {
+	padding-inline-start: 40px;
+}
+
 /* RTL: datepicker component root — cascades to input + icon siblings */
 .pay-sidebar[dir="rtl"] :deep(.pay-reference-date) {
 	--dp-direction: rtl;

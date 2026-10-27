@@ -347,7 +347,8 @@ export default {
 		const employeeOptions = ref([]);
 		const partySearchLoading = ref(false);
 		const company = ref("");
-		const pos_profile_search = ref("");
+		// null, not "": Vuetify treats "" as a value and floats the label onto the heading above.
+		const pos_profile_search = ref(null);
 		const currency_filter = ref("ALL");
 		const autoAllocatePaymentAmount = ref(true);
 		const exchangeRate = ref(null);
