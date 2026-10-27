@@ -411,18 +411,34 @@
 		</v-card>
 
 		<!-- 5. Difference (Prominent Status) -->
-		<v-card
-			:color="totalOfDiff === 0 ? 'success' : totalOfDiff > 0 ? 'warning' : 'error'"
-			variant="tonal"
-			class="mb-2 difference-card"
+		<div
+			class="difference-status mb-2"
+			:class="`difference-status--${differenceState}`"
+			role="status"
+			aria-live="polite"
 		>
-			<v-card-text class="d-flex justify-space-between align-center py-2">
-				<span class="font-weight-bold">{{ __("Difference") }}</span>
-				<span class="text-subtitle-1 font-weight-bold">
-					{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(totalOfDiff) }}
-				</span>
-			</v-card-text>
-		</v-card>
+			<v-icon size="20" class="difference-status__icon">
+				{{
+					differenceState === "balanced"
+						? "mdi-check-circle"
+						: differenceState === "remaining"
+							? "mdi-progress-clock"
+							: "mdi-alert-circle"
+				}}
+			</v-icon>
+			<span class="difference-status__label">
+				{{
+					differenceState === "balanced"
+						? __("Balanced")
+						: differenceState === "remaining"
+							? __("Remaining")
+							: __("Over by")
+				}}
+			</span>
+			<span class="difference-status__amount">
+				{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(Math.abs(totalOfDiff)) }}
+			</span>
+		</div>
 
 		<!-- 6. Transaction ID -->
 		<v-card variant="outlined" class="mb-2 section-card">
@@ -669,6 +685,13 @@ const internalExchangeRate = computed({
 });
 
 const internalAutoAllocatePaymentAmount = computed(() => props.autoAllocatePaymentAmount ?? true);
+
+// Invoice total minus payments: > 0 still to collect, < 0 too much entered.
+const differenceState = computed(() => {
+	const diff = flt(props.totalOfDiff || 0, 2);
+	if (Math.abs(diff) < 0.005) return "balanced";
+	return diff > 0 ? "remaining" : "over";
+});
 
 const getPaymentMethodAccount = (mode) => {
 	if (!mode || !props.paymentMethodAccounts) return null;
@@ -1208,8 +1231,58 @@ defineExpose({
 	border-color: rgba(var(--v-theme-primary), 0.35);
 }
 
-.difference-card {
+/* Difference: icon + words + amount, so the state never depends on colour alone (>= 7:1). */
+.difference-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 44px;
+	padding: 8px 14px;
 	border-radius: 10px;
+	border: 1px solid transparent;
+	font-weight: 700;
+}
+
+.difference-status__label {
+	flex: 1;
+}
+
+.difference-status__amount {
+	font-size: 1.05rem;
+	white-space: nowrap;
+}
+
+.difference-status--balanced {
+	background: #e8f5e9;
+	border-color: #a5d6a7;
+	color: #1b5e20;
+}
+
+.difference-status--remaining {
+	background: #fff4e5;
+	border-color: #ffcc80;
+	color: #6d3a00;
+}
+
+.difference-status--over {
+	background: #fdecea;
+	border-color: #ef9a9a;
+	color: #a31515;
+}
+
+[data-theme="dark"] .difference-status--balanced {
+	background: rgba(76, 175, 80, 0.16);
+	color: #a5d6a7;
+}
+
+[data-theme="dark"] .difference-status--remaining {
+	background: rgba(255, 152, 0, 0.16);
+	color: #ffcc80;
+}
+
+[data-theme="dark"] .difference-status--over {
+	background: rgba(244, 67, 54, 0.16);
+	color: #ef9a9a;
 }
 
 .account-dialog-card {

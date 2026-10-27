@@ -37,8 +37,9 @@
 			<v-col md="3" cols="12">
 				<v-btn
 					block
-					color="warning"
-					theme="dark"
+					color="primary"
+					variant="tonal"
+					prepend-icon="mdi-magnify"
 					@click="$emit('search', internalPosProfileSearch)"
 					>{{ __("Search") }}</v-btn
 				>
@@ -48,9 +49,10 @@
 					v-if="selectedCount"
 					block
 					color="error"
-					theme="dark"
+					variant="outlined"
+					prepend-icon="mdi-close"
 					@click="$emit('clear-selection')"
-					>{{ __("Clear") }}</v-btn
+					>{{ __("Clear selection") }}</v-btn
 				>
 			</v-col>
 		</v-row>
@@ -88,7 +90,7 @@
 				<v-btn
 					block
 					color="primary"
-					theme="dark"
+					variant="outlined"
 					:loading="autoReconcileLoading"
 					:disabled="autoReconcileLoading"
 					@click="$emit('auto-reconcile', internalPosProfileSearch)"
