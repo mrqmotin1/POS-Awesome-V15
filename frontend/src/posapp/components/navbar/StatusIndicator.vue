@@ -339,7 +339,11 @@ const connectivityLabel = computed(() => {
 }
 
 .status-title-inline.status-connected {
-	color: #4caf50;
+	color: #2e7d32; /* #4caf50 was 2.8:1 on white */
+}
+
+[data-theme="dark"] .status-title-inline.status-connected {
+	color: #81c784;
 }
 
 .status-title-inline.status-offline {

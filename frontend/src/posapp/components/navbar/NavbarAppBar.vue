@@ -284,7 +284,8 @@ export default {
 		branding: {
 			handler(value) {
 				if (typeof document !== "undefined") {
-					document.title = value.name;
+					// Translated, so a site's branding app can rename the default "POS Awesome".
+					document.title = typeof window.__ === "function" ? window.__(value.name) : value.name;
 				}
 			},
 			deep: true,
