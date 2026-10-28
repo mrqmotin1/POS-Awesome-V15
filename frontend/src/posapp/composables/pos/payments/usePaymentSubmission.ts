@@ -744,7 +744,8 @@ export function usePaymentSubmission(options: PaymentSubmissionOptions) {
 		if (
 			isCreditSale &&
 			!doc.is_return &&
-			!parseBooleanSetting(profile?.posa_allow_credit_sale)
+			!parseBooleanSetting(profile?.posa_allow_credit_sale) &&
+			!parseBooleanSetting(profile?.posa_collect_payment_at_cashier)
 		) {
 			throw new Error(__("Credit Sale is not enabled in POS Profile"));
 		}

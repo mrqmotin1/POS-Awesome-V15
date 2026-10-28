@@ -9,6 +9,7 @@ vi.mock("../src/posapp/stores/toastStore", () => ({
 }));
 
 import { useDiscounts } from "../src/posapp/composables/pos/shared/useDiscounts";
+import { setManagerMode } from "../src/posapp/utils/useManagerMode";
 
 const makeContext = () => ({
 	pos_profile: { currency: "USD" },
@@ -99,5 +100,75 @@ describe("useDiscounts offer price enforcement", () => {
 				title: "Offer criteria exceeded",
 			}),
 		);
+	});
+});
+
+describe("useDiscounts non-manager item discount cap", () => {
+	const cappedContext = () => ({
+		...makeContext(),
+		pos_profile: {
+			currency: "USD",
+			posa_max_discount_allowed: 7,
+			posa_cap_item_discount_for_non_managers: 1,
+		},
+	});
+
+	beforeEach(() => {
+		toastShow.mockReset();
+		setManagerMode(false);
+		(globalThis as any).__ = (text: string) => text;
+		(globalThis as any).flt = (value: unknown, precision = 2) => {
+			const numeric = Number(value);
+			if (!Number.isFinite(numeric)) {
+				return 0;
+			}
+			return Number(numeric.toFixed(precision));
+		};
+	});
+
+	it("caps a cashier's discount at the POS Profile max", () => {
+		const item = makeOfferItem({ _offer_constraints: undefined });
+
+		const { calcPrices } = useDiscounts();
+		calcPrices(item, 15, { target: { id: "discount_percentage" } }, cappedContext());
+
+		expect(item.discount_percentage).toBeCloseTo(7);
+		expect(item.rate).toBeCloseTo(93);
+		expect(toastShow).toHaveBeenCalledWith(
+			expect.objectContaining({ title: "Discount limited by POS Profile" }),
+		);
+	});
+
+	it("caps a rate cut that implies a larger discount", () => {
+		const item = makeOfferItem({ _offer_constraints: undefined });
+
+		const { calcPrices } = useDiscounts();
+		calcPrices(item, 80, { target: { id: "rate" } }, cappedContext());
+
+		expect(item.discount_percentage).toBeCloseTo(7);
+		expect(item.rate).toBeCloseTo(93);
+	});
+
+	it("does not cap a Counter Manager", () => {
+		setManagerMode(true);
+		const item = makeOfferItem({ _offer_constraints: undefined });
+
+		const { calcPrices } = useDiscounts();
+		calcPrices(item, 15, { target: { id: "discount_percentage" } }, cappedContext());
+
+		expect(item.discount_percentage).toBeCloseTo(15);
+		expect(item.rate).toBeCloseTo(85);
+		setManagerMode(false);
+	});
+
+	it("leaves discounts alone when the profile does not enable the cap", () => {
+		const context = cappedContext();
+		context.pos_profile.posa_cap_item_discount_for_non_managers = 0;
+		const item = makeOfferItem({ _offer_constraints: undefined });
+
+		const { calcPrices } = useDiscounts();
+		calcPrices(item, 15, { target: { id: "discount_percentage" } }, context);
+
+		expect(item.discount_percentage).toBeCloseTo(15);
 	});
 });

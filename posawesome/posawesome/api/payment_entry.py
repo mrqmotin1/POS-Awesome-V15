@@ -21,5 +21,5 @@ from posawesome.posawesome.api.payment_processing.data import (
     get_unreconciled_entries,
 )
 from posawesome.posawesome.api.payment_processing.reconciliation import auto_reconcile_customer_invoices
-from posawesome.posawesome.api.payment_processing.processor import process_pos_payment
+from posawesome.posawesome.api.payment_processing.processor import process_pos_payment, process_pos_refund
 from posawesome.posawesome.api.payment_processing.journal_entry import create_direct_journal_entry

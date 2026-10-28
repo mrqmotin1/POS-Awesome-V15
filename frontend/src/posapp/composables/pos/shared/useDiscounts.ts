@@ -14,6 +14,8 @@ import {
 	toSelectedCurrency,
 } from "../../../utils/currencyConversion";
 import { useToastStore } from "../../../stores/toastStore";
+import { isManagerMode, isSessionUserManager } from "../../../utils/useManagerMode";
+import { parseBooleanSetting } from "../../../utils/stock";
 
 declare const flt: (_value: unknown, _precision?: number) => number;
 declare const __: (_text: string, _args?: any[]) => string;
@@ -417,6 +419,46 @@ export function useDiscounts() {
 	 *   - `calc_stock_qty(item, qty)` — optional; called after price update.
 	 *   - `forceUpdate()` — optional; triggers a Vue re-render.
 	 */
+	/**
+	 * Clamps an item discount to `pos_profile.posa_max_discount_allowed` when the
+	 * profile enables `posa_cap_item_discount_for_non_managers` and the user is not
+	 * a Counter Manager (by role or through Manager Login). Managers are not capped;
+	 * the Item's own `max_discount` is still enforced by ERPNext on save.
+	 *
+	 * **Mutates `item` in-place.** Returns `true` when the discount was clamped.
+	 */
+	const enforceNonManagerDiscountCap = (item: any, context: any) => {
+		const profile = context.pos_profile;
+		if (!parseBooleanSetting(profile?.posa_cap_item_discount_for_non_managers)) {
+			return false;
+		}
+		const cap = flt(profile?.posa_max_discount_allowed);
+		if (cap <= 0 || isSessionUserManager.value || isManagerMode.value) {
+			return false;
+		}
+		if (flt(item.discount_percentage) <= cap + 0.000001) {
+			return false;
+		}
+
+		item.discount_percentage = context.flt(cap, context.float_precision);
+		item.base_discount_amount = context.flt(
+			((item.base_price_list_rate || 0) * cap) / 100,
+			context.currency_precision,
+		);
+		item.discount_amount = toSelectedCurrency(context, item.base_discount_amount);
+		item.base_rate = context.flt(
+			(item.base_price_list_rate || 0) - item.base_discount_amount,
+			context.currency_precision,
+		);
+		item.rate = toSelectedCurrency(context, item.base_rate);
+		toastStore.show({
+			title: __("Discount limited by POS Profile"),
+			detail: __("The maximum discount allowed is") + " " + cap + "%",
+			color: "warning",
+		});
+		return true;
+	};
+
 	const calcPrices = (item: any, value: any, $event: any, context: any) => {
 		if (!$event?.target?.id || !item) return;
 
@@ -541,6 +583,7 @@ export function useDiscounts() {
 					fieldId,
 				)
 			) {
+				enforceNonManagerDiscountCap(item, context);
 				const blocked = enforceOfferPriceLimits(
 					item,
 					fieldId,

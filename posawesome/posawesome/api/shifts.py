@@ -5,8 +5,9 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import cint, nowdate
+from frappe.utils import cint, cstr, nowdate
 
+from posawesome.posawesome.api.item_sale_controls import item_selector_columns
 from posawesome.posawesome.api.pos_access import (
     get_authenticated_pos_user,
     get_authorized_pos_profile,
@@ -144,8 +145,28 @@ def check_opening_shift(user=None):
     return data
 
 
+def item_selector_cols(layout):
+    """Grid columns (out of 12) for the item selector panel in a POS UI layout.
+
+    Apps set it with the `posawesome_ui_layout_settings` hook, for example
+    {"layout": "Pharmacy", "item_selector_cols": 8}; the cart takes the rest.
+    Returns None (default 4/8 split) when no installed app sets a valid width.
+    """
+    for setting in reversed(frappe.get_hooks("posawesome_ui_layout_settings") or []):
+        if not isinstance(setting, dict) or cstr(setting.get("layout")).strip() != layout:
+            continue
+        cols = cint(setting.get("item_selector_cols"))
+        if 3 <= cols <= 9:
+            return cols
+    return None
+
+
 def update_opening_shift_data(data, pos_profile):
     data["pos_profile"] = frappe.get_doc("POS Profile", pos_profile)
+    # app-declared item selector columns and panel width for this profile's UI layout
+    layout = cstr(data["pos_profile"].get("posa_ui_template")).strip()
+    data["pos_profile"].set_onload("posa_item_selector_columns", item_selector_columns(layout))
+    data["pos_profile"].set_onload("posa_item_selector_cols", item_selector_cols(layout))
     if data["pos_profile"].get("posa_language"):
         frappe.local.lang = data["pos_profile"].posa_language
     data["company"] = frappe.get_doc("Company", data["pos_profile"].company)

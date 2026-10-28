@@ -15,6 +15,7 @@ def _install_stubs():
     frappe_module.as_json = lambda value: json.dumps(value, default=str)
     frappe_module.throw = lambda message: (_ for _ in ()).throw(Exception(message))
     frappe_module.get_all = lambda *args, **kwargs: []
+    frappe_module.get_hooks = lambda *args, **kwargs: []
     frappe_module.db = types.SimpleNamespace(
         get_value=lambda *args, **kwargs: None,
         sql=lambda *args, **kwargs: [],
@@ -227,6 +228,7 @@ class TestItemSearchSerialization(unittest.TestCase):
             "retailmind_old_pos_generic_name",
             "retailmind_old_pos_rack",
         ]
+        self.module.installed_item_payload_fields = self.module.installed_item_search_fields
 
         plan = self.module._build_search_plan(
             pos_profile={"posa_use_limit_search": 1},

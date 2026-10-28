@@ -89,6 +89,8 @@ export function usePosPayData({
 					currency: posProfile.value.currency,
 					pos_profile: resolvedPosProfile,
 					include_all_currencies: true,
+					include_returns:
+						Number(posProfile.value?.posa_cashier_payment_desk || 0) === 1,
 					page_start: 0,
 					page_length: OUTSTANDING_INVOICES_PAGE_LENGTH,
 				},

@@ -87,7 +87,48 @@
 					</section>
 
 					<section
-						v-if="is_cashback && invoice_doc"
+						v-if="collectAtCashier && invoice_doc"
+						class="payment-section payment-section--methods"
+						data-testid="payment-pay-type"
+					>
+						<div class="payment-section__header">
+							<span class="payment-section__icon"
+								><v-icon icon="mdi-cash-register" size="18"
+							/></span>
+							<h3 class="payment-section__title">{{ __("Pay Type") }}</h3>
+						</div>
+						<p class="text-caption text-medium-emphasis mb-2">
+							{{
+								invoice_doc.is_return
+									? __("The cashier refunds this return from POS Payments.")
+									: __("The cashier collects payment for this invoice from POS Payments.")
+							}}
+						</p>
+						<v-btn-toggle
+							v-model="invoice_doc.custom_pay_type"
+							mandatory
+							divided
+							density="comfortable"
+							rounded="lg"
+							color="primary"
+							class="w-100"
+						>
+							<v-btn
+								v-for="(mode, index) in payTypeOptions"
+								:key="mode"
+								:value="mode"
+								variant="tonal"
+								class="text-none flex-grow-1"
+								:data-payment-shortcut-index="index + 1"
+							>
+								<v-icon start size="16">{{ payTypeIcon(mode) }}</v-icon>
+								{{ __(mode) }}
+							</v-btn>
+						</v-btn-toggle>
+					</section>
+
+					<section
+						v-if="is_cashback && invoice_doc && !collectAtCashier"
 						class="payment-section payment-section--methods"
 					>
 						<div class="payment-section__header">
@@ -218,7 +259,10 @@
 						/>
 					</section>
 
-					<section v-if="pos_profile?.posa_allow_credit_sale" class="payment-section payment-section--settlement">
+					<section
+						v-if="pos_profile?.posa_allow_credit_sale && !collectAtCashier"
+						class="payment-section payment-section--settlement"
+					>
 						<div class="payment-section__header">
 							<span class="payment-section__icon"
 								><v-icon icon="mdi-credit-card-check-outline" size="18"
@@ -953,6 +997,38 @@ const visiblePaymentMethods = computed(() =>
 
 const creditSaleAllowed = computed(() => parseBooleanSetting(pos_profile.value?.posa_allow_credit_sale));
 
+// Counter profiles that hand every bill to the cashier desk take no tender here:
+// the invoice is submitted as credit (returns stored as credit) with a Pay Type,
+// and the cashier collects or refunds it later from POS Payments.
+const collectAtCashier = computed(() =>
+	parseBooleanSetting(pos_profile.value?.posa_collect_payment_at_cashier),
+);
+const payTypeOptions = computed(() =>
+	(Array.isArray(pos_profile.value?.payments) ? pos_profile.value.payments : [])
+		.map((payment) => payment?.mode_of_payment)
+		.filter(Boolean),
+);
+const payTypeIcon = (mode) => {
+	const payment = (pos_profile.value?.payments || []).find((row) => row?.mode_of_payment === mode);
+	return isCashLikePayment(payment || { mode_of_payment: mode }) ? "mdi-cash" : "mdi-credit-card-outline";
+};
+
+const applyCollectAtCashierDefaults = (doc) => {
+	if (!collectAtCashier.value || !doc) {
+		return;
+	}
+	if (!payTypeOptions.value.includes(doc.custom_pay_type)) {
+		const payments = Array.isArray(pos_profile.value?.payments) ? pos_profile.value.payments : [];
+		const defaultPayment = payments.find((payment) => parseBooleanSetting(payment?.default)) || payments[0];
+		doc.custom_pay_type = defaultPayment?.mode_of_payment || "";
+	}
+	if (doc.is_return) {
+		is_credit_return.value = true;
+	} else {
+		is_credit_sale.value = true;
+	}
+};
+
 const giftCardAppliedAmount = computed(() =>
 	(Array.isArray(giftCardRedemptions.value) ? giftCardRedemptions.value : []).reduce(
 		(sum, row) => sum + flt(row?.amount || 0, currency_precision.value),
@@ -1529,7 +1605,7 @@ const restorePaymentLinesAfterFailedSubmit = () => {
 	}
 
 	ensurePaymentLinesInitialized(doc);
-	is_credit_sale.value = false;
+	is_credit_sale.value = collectAtCashier.value && !doc.is_return;
 };
 
 const enableShortcutCreditSale = () => {
@@ -2085,6 +2161,14 @@ const handlePaymentShortcut = (event) => {
 				return;
 			}
 
+			if (collectAtCashier.value) {
+				const mode = payTypeOptions.value[counterShortcut.index];
+				if (mode && invoice_doc.value) {
+					invoice_doc.value.custom_pay_type = mode;
+				}
+				return;
+			}
+
 			const payment = visiblePaymentMethods.value[counterShortcut.index];
 			if (!payment) return;
 			if (is_mpesa_c2b_payment(payment)) {
@@ -2127,6 +2211,12 @@ const handleSubmitPaymentShortcut = async ({ print = false, amount = null } = {}
 			submit(null, false, print);
 		});
 	};
+
+	// No tender at a collect-at-cashier counter: the amount belongs to the cashier.
+	if (collectAtCashier.value) {
+		submitShortcut();
+		return;
+	}
 
 	if (amount !== null) {
 		const shortcutAmount = Number(amount);
@@ -2481,6 +2571,7 @@ onMounted(() => {
 			if (doc.is_return) {
 				applyReturnCreditDefault(doc);
 			}
+			applyCollectAtCashierDefaults(doc);
 
 			const initializedPayment = ensurePaymentLinesInitialized(doc);
 			void initializePayments();

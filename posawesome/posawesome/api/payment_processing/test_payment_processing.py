@@ -1019,6 +1019,85 @@ class TestPosPaymentProcessing(unittest.TestCase):
         self.assertEqual(fake_payment_entry.unallocated_amount, 100)
         self.assertEqual(fake_payment_entry.difference_amount, 100)
 
+    def _refund_payload(self, amount):
+        return {
+            "customer": "Walk-in Customer",
+            "company": "Test Company",
+            "pos_profile_name": "Cashier",
+            "pos_opening_shift_name": "POS-OPEN-0009",
+            "selected_invoices": [{"voucher_no": "SINV-RET-0001"}, {"voucher_no": "SINV-RET-0002"}],
+            "payment_methods": [{"mode_of_payment": "Cash", "amount": amount}],
+            "pos_profile": {
+                "posa_use_pos_awesome_payments": 1,
+                "posa_cashier_payment_desk": 1,
+                "cost_center": "Main - TC",
+                "payments": [{"mode_of_payment": "Cash"}, {"mode_of_payment": "Card"}],
+            },
+        }
+
+    def _refund_returns(self):
+        returns = {
+            "SINV-RET-0001": -50,
+            "SINV-RET-0002": -30,
+        }
+        return lambda doctype, name: AttrDict(
+            {
+                "name": name,
+                "docstatus": 1,
+                "company": "Test Company",
+                "customer": "Walk-in Customer",
+                "is_return": 1,
+                "outstanding_amount": returns[name],
+                "grand_total": returns[name],
+                "currency": "BDT",
+                "conversion_rate": 1,
+            }
+        )
+
+    @patch("posawesome.posawesome.api.payment_processing.processor.create_payment_entry")
+    @patch("posawesome.posawesome.api.payment_processing.processor.frappe")
+    def test_process_pos_refund_pays_out_returns_with_negative_allocations(
+        self,
+        mock_frappe,
+        mock_create_payment_entry,
+    ):
+        fake_payment_entry = FakePaymentEntry(paid_amount=60)
+        fake_payment_entry.paid_from_account_currency = "BDT"
+        fake_payment_entry.paid_to_account_currency = "BDT"
+        mock_create_payment_entry.return_value = fake_payment_entry
+        mock_frappe._dict.side_effect = lambda value: AttrDict(value)
+        mock_frappe.get_doc.side_effect = self._refund_returns()
+
+        result = self.processor.process_pos_refund(json.dumps(self._refund_payload(60)))
+
+        create_kwargs = mock_create_payment_entry.call_args.kwargs
+        self.assertEqual(create_kwargs["payment_type"], "Pay")
+        self.assertEqual(create_kwargs["party_type"], "Customer")
+        self.assertEqual(create_kwargs["reference_no"], "POS-OPEN-0009")
+        self.assertEqual(
+            [(ref.reference_name, ref.allocated_amount) for ref in fake_payment_entry.references],
+            [("SINV-RET-0001", -50), ("SINV-RET-0002", -10)],
+        )
+        self.assertTrue(fake_payment_entry.submitted)
+        self.assertEqual(result["new_payments_entry"][0]["name"], fake_payment_entry.name)
+
+    @patch("posawesome.posawesome.api.payment_processing.processor.create_payment_entry")
+    @patch("posawesome.posawesome.api.payment_processing.processor.frappe")
+    def test_process_pos_refund_rejects_more_than_the_returns_owe(
+        self,
+        mock_frappe,
+        mock_create_payment_entry,
+    ):
+        mock_frappe._dict.side_effect = lambda value: AttrDict(value)
+        mock_frappe.get_doc.side_effect = self._refund_returns()
+        mock_frappe.throw.side_effect = lambda message, *args, **kwargs: (_ for _ in ()).throw(Exception(message))
+
+        with self.assertRaises(Exception) as ctx:
+            self.processor.process_pos_refund(json.dumps(self._refund_payload(100)))
+
+        self.assertIn("more than the amount due", str(ctx.exception))
+        mock_create_payment_entry.assert_not_called()
+
     @patch("posawesome.posawesome.api.payment_processing.processor.create_payment_entry")
     @patch("posawesome.posawesome.api.payment_processing.processor.frappe")
     def test_process_pos_payment_uses_payload_posting_date_for_new_entries(
@@ -1770,6 +1849,56 @@ class TestPosPaymentProcessing(unittest.TestCase):
         self.assertEqual(rows[0].get("outstanding_amount"), 125)
         self.assertEqual(rows[0].get("customer_name"), "Customer 727")
         mock_legacy_helper.assert_not_called()
+
+    @patch("posawesome.posawesome.api.payment_processing.data.frappe")
+    def test_get_outstanding_invoices_includes_refundable_returns_for_cashier_desk(
+        self,
+        mock_frappe,
+    ):
+        mock_frappe._dict.side_effect = lambda value: AttrDict(value)
+        mock_frappe.get_cached_value.return_value = "Walk-in Customer"
+        mock_frappe.db.has_column.return_value = True
+        mock_frappe.get_all.return_value = [
+            AttrDict({"name": "counter@example.com", "first_name": "Rahim", "full_name": "Rahim Uddin"})
+        ]
+
+        def fake_get_list(doctype, filters=None, fields=None, order_by=None, **kwargs):
+            self.assertEqual(filters["outstanding_amount"], ("!=", 0))
+            self.assertNotIn("pos_profile", filters)
+            self.assertIn("custom_pay_type", fields)
+            base = {
+                "posting_date": "2026-03-12",
+                "posting_time": "10:15:30.123456",
+                "currency": "BDT",
+                "pos_profile": "Counter 1",
+                "customer_name": "Walk-in Customer",
+                "owner": "counter@example.com",
+                "custom_pay_type": "Cash",
+            }
+            return [
+                AttrDict({**base, "name": "SINV-0001", "outstanding_amount": 80, "grand_total": 80, "is_return": 0}),
+                AttrDict({**base, "name": "SINV-RET-0001", "outstanding_amount": -50, "grand_total": -50, "is_return": 1}),
+                # an overpaid sale is not a refund for the cashier desk
+                AttrDict({**base, "name": "SINV-0002", "outstanding_amount": -5, "grand_total": 40, "is_return": 0}),
+            ]
+
+        mock_frappe.get_list.side_effect = fake_get_list
+
+        rows = self.data.get_outstanding_invoices(
+            customer="Walk-in Customer",
+            company="Test Company",
+            currency="BDT",
+            include_all_currencies=True,
+            include_returns=True,
+        )
+
+        self.assertEqual(sorted(row.get("voucher_no") for row in rows), ["SINV-0001", "SINV-RET-0001"])
+        refund = next(row for row in rows if row.get("voucher_no") == "SINV-RET-0001")
+        self.assertEqual(refund.get("outstanding_amount"), -50)
+        self.assertEqual(refund.get("is_return"), 1)
+        self.assertEqual(refund.get("seller_name"), "Rahim")
+        self.assertEqual(refund.get("pay_type"), "Cash")
+        self.assertEqual(refund.get("pos_profile"), "Counter 1")
 
     @patch("posawesome.posawesome.api.payment_processing.data.frappe")
     def test_get_outstanding_invoices_queries_purchase_invoices_for_supplier_mode(

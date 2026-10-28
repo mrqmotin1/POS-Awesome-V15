@@ -100,10 +100,10 @@
 		>
 			<v-col
 				v-show="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'items'"
-				:xl="useCompactPosSwitcher ? 12 : 4"
-				:lg="useCompactPosSwitcher ? 12 : 4"
-				:md="useCompactPosSwitcher ? 12 : 4"
-				:sm="useCompactPosSwitcher ? 12 : 4"
+				:xl="useCompactPosSwitcher ? 12 : selectorCols"
+				:lg="useCompactPosSwitcher ? 12 : selectorCols"
+				:md="useCompactPosSwitcher ? 12 : selectorCols"
+				:sm="useCompactPosSwitcher ? 12 : selectorCols"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
@@ -111,10 +111,10 @@
 			</v-col>
 			<v-col
 				v-show="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'offers'"
-				:xl="useCompactPosSwitcher ? 12 : 4"
-				:lg="useCompactPosSwitcher ? 12 : 4"
-				:md="useCompactPosSwitcher ? 12 : 4"
-				:sm="useCompactPosSwitcher ? 12 : 4"
+				:xl="useCompactPosSwitcher ? 12 : selectorCols"
+				:lg="useCompactPosSwitcher ? 12 : selectorCols"
+				:md="useCompactPosSwitcher ? 12 : selectorCols"
+				:sm="useCompactPosSwitcher ? 12 : selectorCols"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
@@ -122,10 +122,10 @@
 			</v-col>
 			<v-col
 				v-show="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'coupons'"
-				:xl="useCompactPosSwitcher ? 12 : 4"
-				:lg="useCompactPosSwitcher ? 12 : 4"
-				:md="useCompactPosSwitcher ? 12 : 4"
-				:sm="useCompactPosSwitcher ? 12 : 4"
+				:xl="useCompactPosSwitcher ? 12 : selectorCols"
+				:lg="useCompactPosSwitcher ? 12 : selectorCols"
+				:md="useCompactPosSwitcher ? 12 : selectorCols"
+				:sm="useCompactPosSwitcher ? 12 : selectorCols"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
@@ -133,10 +133,10 @@
 			</v-col>
 			<v-col
 				v-if="(!useCompactPosSwitcher || compactPanel === 'selector') && activeView === 'payment' && !usePaymentDialog"
-				:xl="useCompactPosSwitcher ? 12 : 4"
-				:lg="useCompactPosSwitcher ? 12 : 4"
-				:md="useCompactPosSwitcher ? 12 : 4"
-				:sm="useCompactPosSwitcher ? 12 : 4"
+				:xl="useCompactPosSwitcher ? 12 : selectorCols"
+				:lg="useCompactPosSwitcher ? 12 : selectorCols"
+				:md="useCompactPosSwitcher ? 12 : selectorCols"
+				:sm="useCompactPosSwitcher ? 12 : selectorCols"
 				cols="12"
 				class="pos dynamic-col dynamic-col--selector"
 			>
@@ -145,10 +145,10 @@
 
 			<v-col
 				v-show="!useCompactPosSwitcher || compactPanel === 'invoice'"
-				:xl="useCompactPosSwitcher ? 12 : 8"
-				:lg="useCompactPosSwitcher ? 12 : 8"
-				:md="useCompactPosSwitcher ? 12 : 8"
-				:sm="useCompactPosSwitcher ? 12 : 8"
+				:xl="useCompactPosSwitcher ? 12 : invoiceCols"
+				:lg="useCompactPosSwitcher ? 12 : invoiceCols"
+				:md="useCompactPosSwitcher ? 12 : invoiceCols"
+				:sm="useCompactPosSwitcher ? 12 : invoiceCols"
 				cols="12"
 				class="pos dynamic-col dynamic-col--invoice"
 			>
@@ -345,6 +345,14 @@ export default {
 		);
 		// Our fork: compact switcher and bottom dock below 1024px (upstream 1100px).
 		const useCompactPosSwitcher = computed(() => responsive.windowWidth.value < 1024);
+		// A POS UI layout from an installed app may widen the item selector
+		// (posawesome_ui_layout_settings hook, sent with the opening data); the cart
+		// takes the rest of the 12-column row.
+		const selectorCols = computed(() => {
+			const cols = Number(posProfile.value?.__onload?.posa_item_selector_cols);
+			return Number.isInteger(cols) && cols >= 3 && cols <= 9 ? cols : 4;
+		});
+		const invoiceCols = computed(() => 12 - selectorCols.value);
 		const compactPanel = ref("selector");
 		const isPhone = computed(() => responsive.isPhone.value);
 		const showBottomDock = computed(
@@ -834,6 +842,8 @@ export default {
 			...rtl,
 			...shift,
 			...offers,
+			selectorCols,
+			invoiceCols,
 			uiStore,
 			invoiceStore,
 			__,

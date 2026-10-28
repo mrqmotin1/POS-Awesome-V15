@@ -19,38 +19,60 @@ def _get_open_sales_invoices(
     currency=None,
     pos_profile=None,
     include_all_currencies=False,
+    include_returns=False,
 ):
     filters = {
         "customer": customer,
         "company": company,
         "docstatus": 1,
-        "outstanding_amount": (">", 0),
+        # returns waiting for a refund carry a negative outstanding amount
+        "outstanding_amount": ("!=", 0) if include_returns else (">", 0),
     }
     if currency and not include_all_currencies:
         filters["currency"] = currency
     if pos_profile:
         filters["pos_profile"] = pos_profile
 
+    fields = [
+        "name",
+        "posting_date",
+        "posting_time",
+        "due_date",
+        "outstanding_amount",
+        "rounded_total",
+        "base_rounded_total",
+        "grand_total",
+        "base_grand_total",
+        "currency",
+        "pos_profile",
+        "customer_name",
+        "conversion_rate",
+        "party_account_currency",
+        "is_return",
+        "owner",
+    ]
+    # pay type chosen at the counter when payment is collected at the cashier
+    if frappe.db.has_column("Sales Invoice", "custom_pay_type"):
+        fields.append("custom_pay_type")
+
     return frappe.get_list(
         "Sales Invoice",
         filters=filters,
-        fields=[
-            "name",
-            "posting_date",
-            "due_date",
-            "outstanding_amount",
-            "rounded_total",
-            "base_rounded_total",
-            "grand_total",
-            "base_grand_total",
-            "currency",
-            "pos_profile",
-            "customer_name",
-            "conversion_rate",
-            "party_account_currency",
-        ],
+        fields=fields,
         order_by="posting_date desc, name desc",
     )
+
+
+def _get_seller_names(owners):
+    owners = sorted({owner for owner in owners if owner})
+    if not owners:
+        return {}
+    rows = frappe.get_all(
+        "User",
+        filters={"name": ["in", owners]},
+        fields=["name", "first_name", "full_name"],
+    )
+    return {row.name: row.first_name or row.full_name or row.name for row in rows}
 
 
 def _get_open_purchase_invoices(
@@ -146,12 +168,15 @@ def get_outstanding_invoices(
     page_length=None,
     party=None,
     party_type="Customer",
+    include_returns=False,
 ):
     """
     Fetch outstanding invoices with optional multi-currency support.
 
     Args:
         include_all_currencies (bool): If True, returns invoices in ALL currencies instead of filtering
+        include_returns (bool): If True, also returns sales returns with a negative
+            outstanding amount so the cashier can refund them
     """
     try:
         customer = _coerce_text_filter(customer, _("Customer"))
@@ -161,6 +186,7 @@ def get_outstanding_invoices(
         currency = _coerce_text_filter(currency, _("Currency"))
         pos_profile = _coerce_text_filter(pos_profile, _("POS Profile"))
         include_all_currencies = _coerce_bool(include_all_currencies, default=False)
+        include_returns = _coerce_bool(include_returns, default=False) and party_type == "Customer"
 
         if not customer or not company:
             return []
@@ -188,7 +214,13 @@ def get_outstanding_invoices(
                 currency=currency,
                 pos_profile=pos_profile,
                 include_all_currencies=include_all_currencies,
+                include_returns=include_returns,
             )
+        )
+        seller_names = (
+            _get_seller_names(invoice.get("owner") for invoice in invoice_rows)
+            if party_type == "Customer"
+            else {}
         )
 
         normalized_rows = []
@@ -198,7 +230,10 @@ def get_outstanding_invoices(
 
             outstanding_amount = invoice_outstanding
 
-            if outstanding_amount <= 0:
+            is_refundable_return = (
+                include_returns and cint(invoice.get("is_return")) and outstanding_amount < 0
+            )
+            if outstanding_amount <= 0 and not is_refundable_return:
                 continue
 
             row_currency = invoice.get("currency") or currency
@@ -259,6 +294,11 @@ def get_outstanding_invoices(
                         or customer_name,
                         "party_type": party_type,
                         "conversion_rate": conversion_rate,
+                        "is_return": cint(invoice.get("is_return")),
+                        "posting_time": str(invoice.get("posting_time") or ""),
+                        "seller": invoice.get("owner"),
+                        "seller_name": seller_names.get(invoice.get("owner")) or invoice.get("owner"),
+                        "pay_type": invoice.get("custom_pay_type"),
                     }
                 )
             )

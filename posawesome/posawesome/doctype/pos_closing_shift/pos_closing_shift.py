@@ -92,13 +92,38 @@ class POSClosingShift(Document):
             elif row.get("pos_invoice"):
                 invoices_by_doctype.setdefault("POS Invoice", []).append(row.pos_invoice)
 
-        if not invoices_by_doctype:
-            return
-
         cash_mode_of_payment = (
             frappe.db.get_value("POS Profile", self.pos_profile, "posa_cash_mode_of_payment")
             or "Cash"
         )
+
+        # returns stored as credit at the counter and refunded later from the
+        # cashier payment desk, referenced to this shift
+        refunds = frappe.db.sql(
+            """
+            select pe.mode_of_payment, sum(pe.base_paid_amount) as amount
+            from `tabPayment Entry` pe
+            where pe.reference_no = %(opening_shift)s
+                and pe.payment_type = 'Pay'
+                and pe.party_type = 'Customer'
+                and pe.docstatus = 1
+                and exists (
+                    select 1 from `tabPayment Entry Reference` per
+                    inner join `tabSales Invoice` si on si.name = per.reference_name
+                    where per.parent = pe.name
+                        and per.reference_doctype = 'Sales Invoice'
+                        and si.is_return = 1
+                )
+            group by pe.mode_of_payment
+            """,
+            {"opening_shift": self.pos_opening_shift},
+            as_dict=1,
+        )
+        for d in refunds:
+            if d.mode_of_payment == cash_mode_of_payment:
+                self.cash_returns = flt(self.cash_returns) - flt(d.amount)
+            else:
+                self.card_returns = flt(self.card_returns) - flt(d.amount)
 
         for doctype, invoice_names in invoices_by_doctype.items():
             data = frappe.db.sql(

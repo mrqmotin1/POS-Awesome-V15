@@ -1227,3 +1227,152 @@ def process_pos_payment(payload):
         "exchange_gain_loss_summary": exchange_gain_loss_summary,
         "net_gain_loss": net_gain_loss,
     }
+
+
+def _load_refundable_returns(invoices, company, customer):
+    returns = []
+    for row in invoices or []:
+        row = row or {}
+        invoice_name = row.get("voucher_no") or row.get("name")
+        if not invoice_name:
+            frappe.throw(_("An invoice reference is required."))
+        invoice_doc = _assert_document_scope(
+            frappe.get_doc("Sales Invoice", invoice_name),
+            "Sales Invoice",
+            company,
+            "Customer",
+            customer,
+        )
+        if not cint(_get_value(invoice_doc, "is_return")):
+            frappe.throw(_("Invoice {0} is not a return.").format(invoice_name))
+        outstanding = flt(_get_value(invoice_doc, "outstanding_amount"))
+        if outstanding >= 0:
+            frappe.throw(_("Return {0} has nothing left to refund.").format(invoice_name))
+        returns.append(
+            {
+                "name": invoice_name,
+                "doc": invoice_doc,
+                "remaining": abs(outstanding),
+            }
+        )
+    return returns
+
+
+@frappe.whitelist()
+def process_pos_refund(payload):
+    """Refund sales returns that were stored as credit at the counter.
+
+    Creates one ``Pay`` Payment Entry per tender row, allocated against the
+    selected returns (negative allocations), referenced to the cashier's
+    opening shift so it is picked up by the closing shift.
+    """
+    data = frappe._dict(json.loads(payload) if isinstance(payload, str) else payload)
+    customer = str(data.get("party") or data.get("customer") or "").strip()
+    if not customer:
+        frappe.throw(_("Party is required"))
+    if not data.pos_opening_shift_name:
+        frappe.throw(_("POS Opening Shift is required"))
+
+    profile_doc, _authoritative_cashier = _authorize_payment_request(data)
+    if not cint(profile_doc.get("posa_use_pos_awesome_payments")) or not cint(
+        profile_doc.get("posa_cashier_payment_desk")
+    ):
+        _permission_denied(_("Refunds from POS Payments are not enabled for this POS Profile."))
+
+    company = data.company
+    pos_opening_shift_name = data.pos_opening_shift_name
+    posting_date = nowdate()
+    precision = _get_currency_precision()
+
+    returns = _load_refundable_returns(data.selected_invoices, company, customer)
+    if not returns:
+        frappe.throw(_("Please select a return invoice to refund."))
+
+    allowed_modes = {
+        row.get("mode_of_payment") for row in (profile_doc.get("payments") or []) if row.get("mode_of_payment")
+    }
+    tenders = [row for row in (data.payment_methods or []) if flt(row.get("amount")) > 0]
+    if not tenders:
+        frappe.throw(_("Please enter the refund amount."))
+    for row in tenders:
+        if row.get("mode_of_payment") not in allowed_modes:
+            _permission_denied(
+                _("Mode of Payment {0} is not allowed in POS Profile {1}.").format(
+                    row.get("mode_of_payment"), profile_doc.get("name")
+                )
+            )
+
+    total_refund = flt(sum(flt(row.get("amount")) for row in tenders), precision)
+    total_due = flt(sum(inv["remaining"] for inv in returns), precision)
+    if total_refund > total_due + 0.0001:
+        frappe.throw(
+            _("Refund amount {0} is more than the amount due on the selected returns ({1}).").format(
+                total_refund, total_due
+            )
+        )
+
+    currency = returns[0]["doc"].currency
+    new_payments_entry = []
+    for row in tenders:
+        amount = flt(row.get("amount"), precision)
+        payment_entry = create_payment_entry(
+            company=company,
+            currency=currency,
+            amount=amount,
+            mode_of_payment=row.get("mode_of_payment"),
+            party=customer,
+            party_type="Customer",
+            payment_type="Pay",
+            posting_date=posting_date,
+            reference_no=pos_opening_shift_name,
+            reference_date=posting_date,
+            cost_center=profile_doc.get("cost_center"),
+            submit=0,
+            bank_account=row.get("bank_account"),
+            invoice_currency=currency,
+        )
+        if payment_entry.paid_from_account_currency != payment_entry.paid_to_account_currency:
+            frappe.throw(_("Refunds in a different currency than the customer account are not supported."))
+
+        remaining = amount
+        for inv in returns:
+            if remaining <= 0.0001:
+                break
+            if inv["remaining"] <= 0.0001:
+                continue
+            allocation = flt(min(remaining, inv["remaining"]), precision)
+            invoice_doc = inv["doc"]
+            payment_entry.append(
+                "references",
+                {
+                    "reference_doctype": "Sales Invoice",
+                    "reference_name": inv["name"],
+                    "total_amount": flt(invoice_doc.rounded_total or invoice_doc.grand_total, precision),
+                    "outstanding_amount": -inv["remaining"],
+                    "allocated_amount": -allocation,
+                    "exchange_rate": flt(invoice_doc.conversion_rate) or 1,
+                },
+            )
+            inv["remaining"] = flt(inv["remaining"] - allocation, precision)
+            remaining = flt(remaining - allocation, precision)
+
+        ref_names = ", ".join(ref.reference_name for ref in payment_entry.references)
+        payment_entry.remarks = (
+            f"Amount {currency} {amount} refunded to {customer}\n"
+            f"Transaction reference no {pos_opening_shift_name} dated {posting_date}\n"
+            f"Against Sales Invoice return {ref_names}"
+        )
+        payment_entry.save(ignore_permissions=True)
+        frappe.flags.ignore_permissions = True
+        try:
+            payment_entry.submit()
+        finally:
+            frappe.flags.ignore_permissions = False
+        new_payments_entry.append(payment_entry)
+
+    return {
+        "new_payments_entry": _to_public_entries(new_payments_entry),
+        "all_payments_entry": _to_public_entries(new_payments_entry),
+        "reconciled_payments": [],
+        "errors": [],
+    }

@@ -69,5 +69,26 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
         headers.splice(1, 1);
     }
 
+    // Columns installed apps declare for this profile's UI layout
+    // (posawesome_item_selector_columns hook), delivered with the opening data.
+    const extraColumns = posProfile?.__onload?.posa_item_selector_columns;
+    if (Array.isArray(extraColumns)) {
+        extraColumns.forEach((column: any) => {
+            const key = column?.fieldname;
+            if (!key || headers.some((header) => header.key === key)) return;
+            const header: TableHeader = {
+                title: __(column.label || key),
+                key,
+                align: "start",
+                sortable: true,
+            };
+            if (column.width) header.width = `${column.width}px`;
+            const afterIndex = headers.findIndex((h) => h.key === column.insert_after);
+            const rateIndex = headers.findIndex((h) => h.key === "rate");
+            const index = afterIndex >= 0 ? afterIndex + 1 : rateIndex >= 0 ? rateIndex : headers.length;
+            headers.splice(index, 0, header);
+        });
+    }
+
     return headers;
 }

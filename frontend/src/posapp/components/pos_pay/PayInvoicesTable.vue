@@ -120,6 +120,15 @@
 				>
 				</v-checkbox>
 			</template>
+			<template v-slot:item.voucher_no="{ item }">
+				{{ item.voucher_no }}
+				<v-chip v-if="Number(item.is_return || 0) === 1" size="x-small" color="error" class="ml-1">
+					{{ __("Return") }}
+				</v-chip>
+			</template>
+			<template v-slot:item.posting_time="{ item }">
+				{{ String(item.posting_time || "").split(".")[0] }}
+			</template>
 			<template v-slot:item.invoice_amount="{ item }">
 				{{ currencySymbol(item.currency) }}
 				{{ formatCurrency(item.invoice_amount) }}

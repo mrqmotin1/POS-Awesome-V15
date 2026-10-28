@@ -189,6 +189,44 @@ export function usePosPaySubmission({
 			};
 			ensurePaymentClientRequestId(payload);
 
+			// Cashier desk: returns stored as credit at the counter are paid out
+			// through their own endpoint, never mixed with collections.
+			const returnCount = selectedInvoicesForPayload.filter(
+				(invoice: any) => Number(invoice?.is_return || 0) === 1,
+			).length;
+			if (returnCount && returnCount !== selectedInvoicesForPayload.length) {
+				frappe.throw(__("Refund returns separately from sales invoices."));
+			}
+			if (returnCount) {
+				if (isOffline()) {
+					frappe.throw(__("Refunds need a connection to the server."));
+				}
+				const refundResponse: any = await new Promise((resolve, reject) => {
+					frappe.call({
+						method: "posawesome.posawesome.api.payment_entry.process_pos_refund",
+						args: { payload },
+						freeze: true,
+						freeze_message: __("Processing Refund"),
+						callback: (r: any) => resolve(r),
+						error: (err: any) => reject(err),
+					});
+				});
+				if (!refundResponse?.message) {
+					return;
+				}
+				frappe.utils.play_sound("submit");
+				eventBus.emit("show_message", {
+					title: __("Refund submitted"),
+					color: "success",
+				});
+				const refundName = refundResponse.message.new_payments_entry?.[0]?.name;
+				if (printAfter && refundName) {
+					load_print_page(refundName);
+				}
+				finalizeSubmission();
+				return;
+			}
+
 			if (isOffline()) {
 				try {
 					await saveOfflinePayment({ args: { payload } });

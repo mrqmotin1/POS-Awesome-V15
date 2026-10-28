@@ -56,6 +56,51 @@ def installed_item_search_fields():
     ]
 
 
+def installed_item_payload_fields():
+    """Item fields sent to the POS item selector: search fields plus the fields
+    shown by app-declared item selector columns (display only, not searched)."""
+    fields = installed_item_search_fields()
+    fields.extend(
+        column["fieldname"] for column in item_selector_columns() if column["fieldname"] not in fields
+    )
+    return fields
+
+
+ITEM_SELECTOR_COLUMNS_HOOK = "posawesome_item_selector_columns"
+
+
+def item_selector_columns(layout=None):
+    """Extra item selector columns that installed apps declare for a POS UI layout.
+
+    Apps add them with the `posawesome_item_selector_columns` hook, for example
+    {"layout": "Pharmacy", "fieldname": "custom_generic_name", "label": "Generic",
+    "insert_after": "item_name", "width": 150}. A POS Profile whose UI Template is
+    that layout shows the classic item selector with these columns. Columns for
+    fields the Item doctype does not have are skipped. Without `layout`, columns of
+    every layout are returned.
+    """
+    columns = []
+    seen = set()
+    for column in frappe.get_hooks(ITEM_SELECTOR_COLUMNS_HOOK) or []:
+        if not isinstance(column, dict):
+            continue
+        fieldname = cstr(column.get("fieldname")).strip()
+        if layout is not None and cstr(column.get("layout")).strip() != layout:
+            continue
+        if not fieldname or fieldname in seen or not item_has_field(fieldname):
+            continue
+        seen.add(fieldname)
+        columns.append(
+            {
+                "fieldname": fieldname,
+                "label": cstr(column.get("label")).strip() or fieldname,
+                "insert_after": cstr(column.get("insert_after")).strip() or None,
+                "width": cint(column.get("width")) or None,
+            }
+        )
+    return columns
+
+
 def get_item_control_flags(item_codes):
     codes = sorted({str(code).strip() for code in item_codes or [] if code})
     if not codes:

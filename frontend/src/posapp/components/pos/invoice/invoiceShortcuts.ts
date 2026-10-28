@@ -1,4 +1,5 @@
 import { resolveReturnDefaultAmount } from "../../../utils/paymentInitialization";
+import { parseBooleanSetting } from "../../../utils/stock";
 
 const isAltOnly = (event: KeyboardEvent) =>
 	event.altKey && !event.ctrlKey && !event.metaKey;
@@ -178,6 +179,7 @@ interface InvoiceShortcutsVm {
 	};
 	subtotal?: number;
 	paymentVisible?: boolean;
+	pos_profile?: { posa_collect_payment_at_cashier?: number | boolean | string };
 	shortcutSubmitInFlight?: boolean;
 	cancel_dialog?: boolean;
 	shortcutCycle?: Record<ShortcutField, number>;
@@ -500,9 +502,14 @@ const invoiceShortcuts: Record<string, unknown> & ThisType<InvoiceShortcutsVm> =
 
 				try {
 					const shouldPrint = isPrintShortcut;
-					const paymentAmount = await this.confirmPaymentSubmission(
-						this.getShortcutPaymentAmount(),
-					);
+					// a collect-at-cashier counter takes no tender, so skip the amount prompt
+					const paymentAmount = parseBooleanSetting(
+						this.pos_profile?.posa_collect_payment_at_cashier,
+					)
+						? 0
+						: await this.confirmPaymentSubmission(
+								this.getShortcutPaymentAmount(),
+							);
 					if (paymentAmount === null) {
 						return;
 					}

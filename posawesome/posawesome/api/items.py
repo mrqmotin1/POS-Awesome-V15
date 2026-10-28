@@ -46,7 +46,7 @@ from posawesome.posawesome.api.item_processing.search import (
     normalize_brand,
 )
 from posawesome.posawesome.api.item_processing.alternates import get_alternate_items
-from posawesome.posawesome.api.item_sale_controls import installed_item_search_fields
+from posawesome.posawesome.api.item_sale_controls import installed_item_payload_fields
 from posawesome.posawesome.api.pos_access import (
     assert_doctype_read_permission,
     get_authorized_pos_item,
@@ -181,7 +181,7 @@ def get_delta_items(
         "brand",
         "allow_negative_stock",
     ]
-    fields.extend([field for field in installed_item_search_fields() if field not in fields])
+    fields.extend([field for field in installed_item_payload_fields() if field not in fields])
 
     item_rows = frappe.get_all(
         "Item",

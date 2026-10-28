@@ -116,6 +116,33 @@
 						@select-row="handleInvoiceSelection"
 					/>
 
+					<div
+						v-if="cashierDesk && selected_invoices.length === 1"
+						class="mt-2 mb-4"
+						data-testid="pay-desk-invoice-items"
+					>
+						<p class="mb-1">
+							<strong>{{ __("Items in {0}", [selected_invoices[0].voucher_no]) }}</strong>
+						</p>
+						<v-data-table
+							:headers="desk_item_headers"
+							:items="desk_invoice_items"
+							:loading="desk_invoice_items_loading"
+							:items-per-page="-1"
+							density="compact"
+							hide-default-footer
+							class="elevation-1"
+						>
+							<template v-slot:item.rate="{ item }">
+								{{ formatCurrency(item.rate) }}
+							</template>
+							<template v-slot:item.net_amount="{ item }">
+								{{ currencySymbol(selected_invoices[0].currency) }}
+								{{ formatCurrency(item.net_amount) }}
+							</template>
+						</v-data-table>
+					</div>
+
 					<PayUnallocatedTable
 						v-if="showReconciliationSections"
 						v-model:selected-payments="selected_payments"
@@ -627,7 +654,24 @@ export default {
 		const paymentSectionTitle = computed(() =>
 			partyType.value === "Supplier" ? __("Supplier Payments") : __("Payments"),
 		);
-		const invoices_headers = computed(() => [
+		// Cashier desk: collect (and refund) bills that collect-at-cashier counters
+		// submitted as credit.
+		const cashierDesk = computed(
+			() => Number(pos_profile.value?.posa_cashier_payment_desk || 0) === 1,
+		);
+		const invoices_headers = computed(() => cashierDesk.value && isCustomerPartyType.value
+			? [
+				{ title: "", align: "start", sortable: false, key: "actions", width: "50px" },
+				{ title: __("Invoice"), align: "start", sortable: true, key: "voucher_no" },
+				{ title: __("Counter"), align: "start", sortable: true, key: "pos_profile" },
+				{ title: __("Seller"), align: "start", sortable: true, key: "seller_name" },
+				{ title: __("Date"), align: "start", sortable: true, key: "posting_date" },
+				{ title: __("Time"), align: "start", sortable: true, key: "posting_time" },
+				{ title: __("Pay Type"), align: "start", sortable: true, key: "pay_type" },
+				{ title: __("Total"), align: "end", sortable: true, key: "invoice_amount" },
+				{ title: __("Outstanding"), align: "end", sortable: true, key: "outstanding_amount" },
+			]
+			: [
 			{ title: "", align: "start", sortable: false, key: "actions", width: "50px" },
 			{ title: __("Invoice"), align: "start", sortable: true, key: "voucher_no" },
 			{ title: __("Type"), align: "start", sortable: true, key: "voucher_type" },
@@ -963,6 +1007,10 @@ export default {
 			payment_methods_list.value = Array.isArray(pos_profile.value?.payments)
 				? pos_profile.value.payments.map((p) => p.mode_of_payment)
 				: [];
+			// counters bill the profile's default (walk-in) customer
+			if (cashierDesk.value && pos_profile.value?.customer && !selectedCustomer.value) {
+				customersStore.setSelectedCustomer(pos_profile.value.customer);
+			}
 		};
 
 		const check_opening_entry = async () => {
@@ -1097,7 +1145,28 @@ export default {
 		function refreshOutstandingInvoices() {
 			return get_outstanding_invoices(pos_profile_search.value || null);
 		}
+		// Put the whole selected amount on the Pay Type the counter chose, so the
+		// cashier only confirms (or edits) the tender.
+		function applyDeskPayType() {
+			if (!cashierDesk.value || !payment_methods.value.length) return;
+			const payTypes = [...new Set(selected_invoices.value.map((inv) => inv.pay_type).filter(Boolean))];
+			const target =
+				payment_methods.value.find((method) => method.mode_of_payment === payTypes[0]) ||
+				payment_methods.value[0];
+			payment_methods.value.forEach((method) => {
+				method.amount = method === target ? flt(total_selected_invoices.value) : 0;
+			});
+		}
 		function handleInvoiceSelection(item) {
+			if (cashierDesk.value) {
+				const isReturn = Number(item?.is_return || 0) === 1;
+				const mixed = selected_invoices.value.some(
+					(inv) => (Number(inv?.is_return || 0) === 1) !== isReturn,
+				);
+				if (mixed) {
+					clearSelections();
+				}
+			}
 			toggleInvoiceSelection(item, customer_name, (cust) => {
 				if (isCustomerPartyType.value) {
 					customersStore.setSelectedCustomer(cust);
@@ -1108,6 +1177,75 @@ export default {
 			fetchPartyAccount();
 			loadPaymentMethodCurrencies();
 		}
+
+		// Items of the one invoice the cashier selected, to check against the bag.
+		const desk_invoice_items = ref([]);
+		const desk_invoice_items_loading = ref(false);
+		let deskItemsToken = 0;
+		async function loadDeskInvoiceItems() {
+			const token = ++deskItemsToken;
+			if (!cashierDesk.value || selected_invoices.value.length !== 1) {
+				desk_invoice_items.value = [];
+				return;
+			}
+			desk_invoice_items_loading.value = true;
+			try {
+				const r = await frappe.call({
+					method: "frappe.client.get",
+					args: { doctype: "Sales Invoice", name: selected_invoices.value[0].voucher_no },
+				});
+				if (token === deskItemsToken) {
+					desk_invoice_items.value = r.message?.items || [];
+				}
+			} catch (e) {
+				console.error("Failed to load invoice items", e);
+				if (token === deskItemsToken) desk_invoice_items.value = [];
+			} finally {
+				if (token === deskItemsToken) desk_invoice_items_loading.value = false;
+			}
+		}
+		const desk_item_headers = [
+			{ title: __("Item"), key: "item_name", align: "start" },
+			{ title: __("Qty"), key: "qty", align: "center" },
+			{ title: __("Rate"), key: "rate", align: "end" },
+			{ title: __("Discount %"), key: "discount_percentage", align: "center" },
+			{ title: __("Amount"), key: "net_amount", align: "end" },
+		];
+
+		// Counters keep sending bills; refresh the desk while the cashier is idle.
+		let deskRefreshTimer = null;
+		const stopDeskRefresh = () => {
+			if (deskRefreshTimer) {
+				clearInterval(deskRefreshTimer);
+				deskRefreshTimer = null;
+			}
+		};
+		const startDeskRefresh = () => {
+			stopDeskRefresh();
+			if (!cashierDesk.value) return;
+			deskRefreshTimer = setInterval(() => {
+				if (
+					document.hidden ||
+					isOffline() ||
+					isSubmitting.value ||
+					invoices_loading.value ||
+					selected_invoices.value.length ||
+					!customer_name.value ||
+					!isCustomerPartyType.value
+				) {
+					return;
+				}
+				refreshOutstandingInvoices();
+			}, 5000);
+		};
+		watch(
+			() => selected_invoices.value.map((inv) => inv.voucher_no).join(","),
+			() => {
+				applyDeskPayType();
+				void loadDeskInvoiceItems();
+			},
+		);
+		watch(cashierDesk, startDeskRefresh);
 		async function syncCustomerPaymentContext(normalized, { forceReload = false } = {}) {
 			if (!normalized) {
 				customer_name.value = "";
@@ -1187,6 +1325,7 @@ export default {
 		});
 
 		onBeforeUnmount(() => {
+			stopDeskRefresh();
 			if (proxy?.eventBus) {
 				proxy.eventBus.off("network-online", syncPendingPayments);
 				proxy.eventBus.off("server-online", syncPendingPayments);
@@ -1300,6 +1439,10 @@ export default {
 			dialog,
 			pos_profile,
 			pos_opening_shift,
+			cashierDesk,
+			desk_invoice_items,
+			desk_invoice_items_loading,
+			desk_item_headers,
 			paymentEntryType,
 			partyType,
 			allowedPartyTypes,

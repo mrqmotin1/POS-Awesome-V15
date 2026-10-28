@@ -483,4 +483,63 @@ describe("usePosPaySubmission", () => {
 		const callConfig = (globalThis as any).frappe.call.mock.calls[0][0];
 		expect(callConfig.args.payload.client_request_id).toEqual(expect.any(String));
 	});
+
+	const makeDeskArgs = (selectedInvoices: any[]) => ({
+		customerName: ref("Walk-in Customer"),
+		company: ref("Test Company"),
+		posProfile: ref({ name: "Cashier" }),
+		posOpeningShift: ref({ name: "POS-OPEN-0009" }),
+		exchangeRate: ref(1),
+		invoiceTotalCurrency: ref("BDT"),
+		referenceNo: ref(""),
+		referenceDate: ref(""),
+		autoAllocatePaymentAmount: ref(true),
+		payment_methods: ref([{ mode_of_payment: "Cash", amount: 50 }]),
+		selected_invoices: ref(selectedInvoices),
+		selected_payments: ref([]),
+		selected_mpesa_payments: ref([]),
+		total_selected_invoices: ref(50),
+		total_selected_payments: ref(0),
+		total_selected_mpesa_payments: ref(0),
+		total_payment_methods: ref(50),
+		clearSelections: vi.fn(),
+		resetPaymentMethodAmounts: vi.fn(),
+		load_print_page: vi.fn(),
+		eventBus: { emit: vi.fn() },
+		get_outstanding_invoices: vi.fn(),
+		get_unallocated_payments: vi.fn(),
+		get_draft_mpesa_payments_register: vi.fn(),
+		set_mpesa_search_params: vi.fn(),
+		autoReconcile: vi.fn(),
+	});
+
+	it("sends selected returns to the refund endpoint without auto reconcile", async () => {
+		(globalThis as any).frappe.call.mockImplementation(({ callback }: any) => {
+			callback({ message: { new_payments_entry: [{ name: "ACC-PAY-REFUND-1" }] } });
+		});
+		const args = makeDeskArgs([
+			{ voucher_no: "SINV-RET-0001", is_return: 1, outstanding_amount: -50 },
+		]);
+
+		const { processPayment } = usePosPaySubmission(args);
+		await processPayment({ printAfter: true });
+
+		const callConfig = (globalThis as any).frappe.call.mock.calls[0][0];
+		expect(callConfig.method).toBe("posawesome.posawesome.api.payment_entry.process_pos_refund");
+		expect(callConfig.args.payload.selected_invoices[0].voucher_no).toBe("SINV-RET-0001");
+		expect(args.autoReconcile).not.toHaveBeenCalled();
+		expect(args.load_print_page).toHaveBeenCalledWith("ACC-PAY-REFUND-1");
+		expect(args.clearSelections).toHaveBeenCalled();
+	});
+
+	it("refuses to mix returns and sales invoices in one submit", async () => {
+		const args = makeDeskArgs([
+			{ voucher_no: "SINV-0001", is_return: 0, outstanding_amount: 80 },
+			{ voucher_no: "SINV-RET-0001", is_return: 1, outstanding_amount: -50 },
+		]);
+
+		const { processPayment } = usePosPaySubmission(args);
+		await expect(processPayment()).rejects.toThrow("Refund returns separately from sales invoices.");
+		expect((globalThis as any).frappe.call).not.toHaveBeenCalled();
+	});
 });

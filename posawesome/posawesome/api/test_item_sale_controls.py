@@ -67,6 +67,51 @@ class TestItemSaleControls(unittest.TestCase):
         self.frappe.db.get_value = lambda *args, **kwargs: None
         self.frappe.db.get_single_value = lambda *args, **kwargs: None
         self.frappe.db.exists = lambda *args, **kwargs: False
+        self.frappe.get_hooks = lambda *args, **kwargs: []
+        self.frappe.get_meta = lambda doctype: FakeMeta()
+
+    def _install_pharmacy_layout_hook(self):
+        class LayoutMeta(FakeMeta):
+            def has_field(self, fieldname):
+                return fieldname in {"item_group", "brand", "custom_generic_name"} or super().has_field(fieldname)
+
+        self.frappe.get_meta = lambda doctype: LayoutMeta()
+        self.frappe.get_hooks = lambda hook, *args, **kwargs: (
+            [
+                {"layout": "Pharmacy", "fieldname": "item_group", "label": "Category", "insert_after": "item_name"},
+                {"layout": "Pharmacy", "fieldname": "custom_generic_name", "label": "Generic", "width": "140"},
+                {"layout": "Pharmacy", "fieldname": "missing_field", "label": "Missing"},
+                {"layout": "Other", "fieldname": "brand", "label": "Vendor"},
+                "not a column",
+            ]
+            if hook == "posawesome_item_selector_columns"
+            else []
+        )
+
+    def test_item_selector_columns_are_filtered_by_layout_and_item_fields(self):
+        self._install_pharmacy_layout_hook()
+
+        columns = self.controls.item_selector_columns("Pharmacy")
+
+        self.assertEqual(
+            columns,
+            [
+                {"fieldname": "item_group", "label": "Category", "insert_after": "item_name", "width": None},
+                {"fieldname": "custom_generic_name", "label": "Generic", "insert_after": None, "width": 140},
+            ],
+        )
+        self.assertEqual(self.controls.item_selector_columns("Classic"), [])
+
+    def test_item_selector_column_fields_ride_the_item_payload(self):
+        self._install_pharmacy_layout_hook()
+
+        fields = self.controls.installed_item_payload_fields()
+
+        self.assertIn("custom_generic_name", fields)
+        self.assertIn("brand", fields)
+        self.assertNotIn("missing_field", fields)
+        # display-only columns do not widen the server-side search filters
+        self.assertNotIn("custom_generic_name", self.controls.installed_item_search_fields())
 
     def _install_buying_price(self, rate=12.75, uom="Nos", currency="PKR"):
         self.frappe.db.get_single_value = lambda *args, **kwargs: "Standard Buying"
