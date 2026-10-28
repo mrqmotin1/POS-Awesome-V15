@@ -10,6 +10,7 @@ export interface QzPrintHtmlOptions {
 	printerName?: string;
 	widthMm?: number;
 	orientation?: "portrait" | "landscape";
+	encoding?: string;
 }
 
 export interface QzPrintDocumentOptions extends QzPrintHtmlOptions {
@@ -415,7 +416,10 @@ export async function printHtmlViaQz(html: string, options: QzPrintHtmlOptions =
 
 	const printer = await ensureQzPrinterReady(options.printerName);
 
-	const config = qz.configs.create(printer, { forceRaw: true });
+	const config = qz.configs.create(printer, {
+		forceRaw: true,
+		...(options.encoding ? { encoding: options.encoding } : {}),
+	});
 
 	const data = [
 		// ESC/POS drawer-kick pulse (DLE DC4 fn=1, drawer pin 2) — opens the cash drawer
@@ -513,6 +517,9 @@ export async function printDocumentViaQz(options: QzPrintDocumentOptions) {
 		throw new Error(translate("Unable to load print HTML from server."));
 	}
 
-	await printHtmlViaQz(html, options);
+	// Raw print formats can embed ESC/POS raster images (e.g. Bangla via
+	// mondayposhyper bn_line); ISO-8859-1 sends each char as one byte instead
+	// of re-encoding bytes >= 0x80 as UTF-8.
+	await printHtmlViaQz(html, { ...options, encoding: "ISO-8859-1" });
 	console.log("Document print job sent to QZ Tray", options, printFormat);
 }
