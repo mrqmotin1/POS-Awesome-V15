@@ -4,8 +4,24 @@ import pathlib
 import sys
 import types
 import unittest
+from unittest.mock import Mock
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ORIGINAL_MODULES = dict(sys.modules)
+
+
+def tearDownModule():
+    managed_prefixes = (
+        "frappe",
+        "erpnext.accounts.doctype.sales_invoice.sales_invoice",
+        "posawesome",
+    )
+    for name in list(sys.modules):
+        if name.startswith(managed_prefixes) and name not in _ORIGINAL_MODULES:
+            sys.modules.pop(name, None)
+    for name, module in _ORIGINAL_MODULES.items():
+        if name.startswith(managed_prefixes):
+            sys.modules[name] = module
 
 
 class AttrDict(dict):
@@ -25,7 +41,7 @@ class AttrDict(dict):
     def precision(self, _fieldname):
         return 2
 
-    def set_missing_values(self):
+    def set_missing_values(self, for_validate=False):
         return None
 
     def calculate_taxes_and_totals(self):
@@ -35,6 +51,7 @@ class AttrDict(dict):
 class FakeDoc:
     def __init__(self, **kwargs):
         object.__setattr__(self, "_data", dict(kwargs))
+        object.__setattr__(self, "_set_missing_values_calls", [])
         if "flags" not in self._data:
             self._data["flags"] = types.SimpleNamespace()
 
@@ -50,6 +67,9 @@ class FakeDoc:
     def get(self, key, default=None):
         return self._data.get(key, default)
 
+    def set(self, key, value):
+        self._data[key] = value
+
     def update(self, other=None, **kwargs):
         if other:
             if isinstance(other, dict):
@@ -63,7 +83,8 @@ class FakeDoc:
     def precision(self, _fieldname):
         return 2
 
-    def set_missing_values(self):
+    def set_missing_values(self, for_validate=False):
+        self._set_missing_values_calls.append(for_validate)
         return None
 
     def calculate_taxes_and_totals(self):
@@ -85,6 +106,9 @@ def _install_framework_stubs():
     class TimestampMismatchError(Exception):
         pass
 
+    class QueryDeadlockError(Exception):
+        pass
+
     frappe_utils.cint = lambda value: int(value or 0)
     frappe_utils.flt = lambda value, precision=None: round(float(value or 0), precision or 2)
     frappe_utils.getdate = lambda value: value
@@ -93,7 +117,8 @@ def _install_framework_stubs():
 
     frappe_module._dict = _FrappeDict
     frappe_module._ = lambda text: text
-    frappe_module.throw = lambda message: (_ for _ in ()).throw(Exception(message))
+    frappe_module.PermissionError = PermissionError
+    frappe_module.throw = lambda message, *args, **kwargs: (_ for _ in ()).throw(Exception(message))
     frappe_module.whitelist = lambda *args, **kwargs: (lambda fn: fn)
     frappe_module.log_error = lambda *args, **kwargs: None
     frappe_module.get_cached_value = lambda *args, **kwargs: None
@@ -104,6 +129,7 @@ def _install_framework_stubs():
         get_value=lambda *args, **kwargs: None,
         exists=lambda *args, **kwargs: False,
         rollback=lambda: None,
+        commit=lambda: None,
     )
     frappe_module.get_doc = lambda *args, **kwargs: None
     frappe_module.publish_realtime = lambda *args, **kwargs: publish_realtime_calls.append(
@@ -112,6 +138,7 @@ def _install_framework_stubs():
     frappe_module.session = types.SimpleNamespace(user="test@example.com")
 
     frappe_exceptions.TimestampMismatchError = TimestampMismatchError
+    frappe_exceptions.QueryDeadlockError = QueryDeadlockError
     enqueue_calls = []
 
     def _enqueue(*args, **kwargs):
@@ -173,6 +200,31 @@ def _install_dependency_stubs():
     payments_module.redeeming_customer_credit = lambda *_args, **_kwargs: None
     sys.modules["posawesome.posawesome.api.payments"] = payments_module
 
+    sale_controls_module = types.ModuleType("posawesome.posawesome.api.item_sale_controls")
+    sale_controls_module.collect_item_sale_control_errors = lambda *_args, **_kwargs: []
+    sale_controls_module.validate_invoice_item_sale_controls = lambda *_args, **_kwargs: None
+    sys.modules["posawesome.posawesome.api.item_sale_controls"] = sale_controls_module
+
+    terminal_state_module = types.ModuleType("posawesome.posawesome.api.terminal_state")
+    terminal_state_module.get_active_terminal_cashier = (
+        lambda *_args, **_kwargs: "cashier@example.com"
+    )
+    terminal_state_module.validate_assigned_terminal_cashier = (
+        lambda _pos_profile=None, cashier=None: cashier or "cashier@example.com"
+    )
+    sys.modules["posawesome.posawesome.api.terminal_state"] = terminal_state_module
+
+    pos_access_module = types.ModuleType("posawesome.posawesome.api.pos_access")
+    pos_access_module.get_authorized_pos_profile = (
+        lambda pos_profile=None, company=None: AttrDict(
+            name=pos_profile or "Main POS",
+            company=company or "Test Company",
+            create_pos_invoice_instead_of_sales_invoice=0,
+        )
+    )
+    pos_access_module.require_pos_supervisor_or_manager = lambda: "manager@example.com"
+    sys.modules["posawesome.posawesome.api.pos_access"] = pos_access_module
+
 
 def _install_package_stubs():
     package_paths = {
@@ -199,6 +251,149 @@ def _load_module():
     return module
 
 
+class TestCustomerCreditPrintFields(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.frappe, cls.enqueue_calls = _install_framework_stubs()
+        _install_dependency_stubs()
+        _install_package_stubs()
+        cls.creation = _load_module()
+
+    def setUp(self):
+        self.frappe.get_meta = lambda _doctype: types.SimpleNamespace(
+            has_field=lambda fieldname: fieldname
+            in {
+                "posa_redeemed_customer_credit",
+                "posa_remaining_customer_credit_balance",
+            }
+        )
+
+    def test_profile_controls_invoice_ignore_pricing_rule_policy(self):
+        self.assertEqual(
+            self.creation._profile_ignore_pricing_rule(
+                AttrDict(ignore_pricing_rule="1")
+            ),
+            1,
+        )
+        self.assertEqual(
+            self.creation._profile_ignore_pricing_rule(
+                AttrDict(ignore_pricing_rule=0)
+            ),
+            0,
+        )
+
+    def test_return_pricing_policy_overrides_profile_and_clears_applied_rules(self):
+        invoice_doc = FakeDoc(
+            is_return=1,
+            ignore_pricing_rule=0,
+            pricing_rules=[FakeDoc(pricing_rule="GROUP-DISCOUNT")],
+            flags=types.SimpleNamespace(ignore_pricing_rule=False),
+        )
+
+        policy = self.creation._apply_pricing_rule_policy(
+            invoice_doc,
+            AttrDict(ignore_pricing_rule=0),
+        )
+
+        self.assertEqual(policy, 1)
+        self.assertEqual(invoice_doc.ignore_pricing_rule, 1)
+        self.assertTrue(invoice_doc.flags.ignore_pricing_rule)
+        self.assertEqual(invoice_doc.pricing_rules, [])
+
+    def test_normal_invoice_pricing_policy_still_comes_from_profile(self):
+        invoice_doc = FakeDoc(
+            is_return=0,
+            ignore_pricing_rule=0,
+            pricing_rules=[FakeDoc(pricing_rule="GROUP-DISCOUNT")],
+            flags=types.SimpleNamespace(ignore_pricing_rule=False),
+        )
+
+        policy = self.creation._apply_pricing_rule_policy(
+            invoice_doc,
+            AttrDict(ignore_pricing_rule="1"),
+        )
+
+        self.assertEqual(policy, 1)
+        self.assertEqual(invoice_doc.ignore_pricing_rule, 1)
+        self.assertTrue(invoice_doc.flags.ignore_pricing_rule)
+        self.assertEqual(len(invoice_doc.pricing_rules), 1)
+
+    def test_draft_save_reasserts_return_pricing_invariant(self):
+        states_seen_by_save = []
+        invoice_doc = FakeDoc(
+            name=None,
+            is_return=1,
+            ignore_pricing_rule=0,
+            pricing_rules=[FakeDoc(pricing_rule="GROUP-DISCOUNT")],
+            flags=types.SimpleNamespace(ignore_pricing_rule=False),
+        )
+        invoice_doc.is_new = lambda: True
+
+        def save():
+            states_seen_by_save.append(
+                (
+                    invoice_doc.ignore_pricing_rule,
+                    invoice_doc.flags.ignore_pricing_rule,
+                    list(invoice_doc.pricing_rules),
+                )
+            )
+
+        invoice_doc.save = save
+
+        result = self.creation._save_draft_with_latest_timestamp(invoice_doc)
+
+        self.assertIs(result, invoice_doc)
+        self.assertEqual(states_seen_by_save, [(1, True, [])])
+
+    def test_customer_credit_print_fields_store_used_and_remaining_amounts(self):
+        invoice_doc = FakeDoc(doctype="Sales Invoice", grand_total=100)
+        data = {
+            "redeemed_customer_credit": 64.5,
+            "customer_credit_dict": [
+                {"total_credit": 50, "credit_to_redeem": 50},
+                {"total_credit": 50, "credit_to_redeem": 14.5},
+            ],
+        }
+
+        self.creation._apply_customer_credit_print_fields(invoice_doc, data)
+
+        self.assertEqual(invoice_doc.get("posa_redeemed_customer_credit"), 64.5)
+        self.assertEqual(invoice_doc.get("posa_remaining_customer_credit_balance"), 35.5)
+
+    def test_gift_card_rows_use_authoritative_cashier_not_client_identity(self):
+        captured_rows = []
+        gift_cards_module = types.ModuleType("posawesome.posawesome.api.gift_cards")
+        gift_cards_module.apply_invoice_gift_card_redemptions = (
+            lambda invoice_doc, rows: captured_rows.extend(rows)
+        )
+        previous_module = sys.modules.get("posawesome.posawesome.api.gift_cards")
+        sys.modules["posawesome.posawesome.api.gift_cards"] = gift_cards_module
+
+        def restore_gift_cards_module():
+            if previous_module is None:
+                sys.modules.pop("posawesome.posawesome.api.gift_cards", None)
+            else:
+                sys.modules["posawesome.posawesome.api.gift_cards"] = previous_module
+
+        self.addCleanup(restore_gift_cards_module)
+
+        self.creation._apply_invoice_gift_card_settlement(
+            FakeDoc(doctype="Sales Invoice"),
+            {
+                "_posa_authoritative_cashier": "cashier@example.com",
+                "gift_card_redemptions": [
+                    {
+                        "gift_card_code": "GC-0001",
+                        "amount": 100,
+                        "cashier": "Administrator",
+                    }
+                ],
+            },
+        )
+
+        self.assertEqual(captured_rows[0]["cashier"], "cashier@example.com")
+
+
 class TestUpdateInvoiceReturnPayments(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -211,10 +406,14 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
         _install_package_stubs()
         sys.modules.pop("posawesome.posawesome.api.idempotency", None)
         cls.creation = _load_module()
+        cls.real_validate_invoice_opening_shift = staticmethod(
+            cls.creation._validate_invoice_opening_shift
+        )
 
     def setUp(self):
         self.enqueue_calls.clear()
         self.frappe._publish_realtime_calls.clear()
+        self.creation._validate_invoice_opening_shift = lambda *args, **kwargs: None
 
     def test_return_invoice_derives_missing_base_amount_from_amount(self):
         invoice_doc = FakeDoc(
@@ -226,6 +425,7 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
             posting_date="2026-03-21",
             is_return=1,
             return_against=None,
+            pricing_rules=[FakeDoc(pricing_rule="GROUP-DISCOUNT")],
             items=[],
             payments=[
                 FakeDoc(
@@ -270,6 +470,10 @@ class TestUpdateInvoiceReturnPayments(unittest.TestCase):
         self.assertEqual(invoice_doc.payments[0].base_amount, -125)
         self.assertEqual(result["paid_amount"], -125)
         self.assertEqual(result["base_paid_amount"], -125)
+        self.assertEqual(invoice_doc._set_missing_values_calls, [True])
+        self.assertEqual(invoice_doc.ignore_pricing_rule, 1)
+        self.assertTrue(invoice_doc.flags.ignore_pricing_rule)
+        self.assertEqual(invoice_doc.pricing_rules, [])
 
     def test_return_invoice_derives_missing_amount_from_base_amount(self):
         invoice_doc = FakeDoc(
@@ -434,10 +638,14 @@ class TestStaleNamedInvoiceHandling(unittest.TestCase):
         _install_package_stubs()
         sys.modules.pop("posawesome.posawesome.api.idempotency", None)
         cls.creation = _load_module()
+        cls.real_validate_invoice_opening_shift = staticmethod(
+            cls.creation._validate_invoice_opening_shift
+        )
 
     def setUp(self):
         self.enqueue_calls.clear()
         self.frappe._publish_realtime_calls.clear()
+        self.creation._validate_invoice_opening_shift = lambda *args, **kwargs: None
 
     def _build_invoice_doc(self, **overrides):
         base = {
@@ -728,10 +936,14 @@ class TestPostSubmitPaymentProcessing(unittest.TestCase):
         _install_package_stubs()
         sys.modules.pop("posawesome.posawesome.api.idempotency", None)
         cls.creation = _load_module()
+        cls.real_validate_invoice_opening_shift = staticmethod(
+            cls.creation._validate_invoice_opening_shift
+        )
 
     def setUp(self):
         self.enqueue_calls.clear()
         self.frappe._publish_realtime_calls.clear()
+        self.creation._validate_invoice_opening_shift = lambda *args, **kwargs: None
 
     def test_process_post_submit_payments_runs_inline_when_async_disabled(self):
         calls = []
@@ -1044,10 +1256,108 @@ class TestManualPostingDatePreservation(unittest.TestCase):
         _install_package_stubs()
         sys.modules.pop("posawesome.posawesome.api.idempotency", None)
         cls.creation = _load_module()
+        cls.real_validate_invoice_opening_shift = staticmethod(
+            cls.creation._validate_invoice_opening_shift
+        )
 
     def setUp(self):
         self.enqueue_calls.clear()
         self.frappe._publish_realtime_calls.clear()
+        self.creation._validate_invoice_opening_shift = lambda *args, **kwargs: None
+        self.creation.get_active_terminal_cashier = (
+            lambda *_args, **_kwargs: "cashier@example.com"
+        )
+
+    def test_update_invoice_requires_unlocked_server_terminal_before_draft_creation(self):
+        self.creation.get_active_terminal_cashier = Mock(
+            side_effect=PermissionError("terminal is locked")
+        )
+        self.creation.frappe.get_doc = Mock(
+            side_effect=AssertionError("locked terminal must not create a draft")
+        )
+
+        with self.assertRaisesRegex(PermissionError, "terminal is locked"):
+            self.creation.update_invoice(
+                json.dumps(
+                    {
+                        "doctype": "Sales Invoice",
+                        "pos_profile": "Main POS",
+                        "company": "Test Company",
+                        "posa_cashier": "Administrator",
+                    }
+                )
+            )
+
+        self.creation.get_active_terminal_cashier.assert_called_once_with("Main POS")
+        self.creation.frappe.get_doc.assert_not_called()
+
+    def test_authoritative_cashier_replaces_forged_client_identity(self):
+        payload = {
+            "posa_cashier": "Administrator",
+            "_posa_authoritative_cashier": "attacker@example.com",
+        }
+        invoice_doc = FakeDoc(doctype="Sales Invoice")
+        self.creation.frappe.db.has_column = lambda doctype, fieldname: True
+
+        self.creation._strip_client_cashier_identity(payload)
+        self.creation._set_authoritative_cashier(
+            invoice_doc,
+            "cashier@example.com",
+        )
+
+        self.assertNotIn("posa_cashier", payload)
+        self.assertNotIn("_posa_authoritative_cashier", payload)
+        self.assertEqual(invoice_doc.posa_cashier, "cashier@example.com")
+
+    def test_background_worker_uses_owned_ledger_cashier_after_terminal_relocks(self):
+        self.creation.get_active_terminal_cashier = Mock(
+            side_effect=PermissionError("terminal is locked")
+        )
+        self.creation.validate_assigned_terminal_cashier = Mock(
+            return_value="cashier@example.com"
+        )
+        ledger_doc = FakeDoc(name="ledger-001")
+        self.creation.frappe.flags.posa_owned_submission_ledger = "ledger-001"
+        self.creation.frappe.flags.posa_background_authoritative_cashier = (
+            "cashier@example.com"
+        )
+
+        try:
+            cashier = self.creation._resolve_authoritative_cashier(
+                "Main POS",
+                ledger_doc,
+            )
+        finally:
+            delattr(self.creation.frappe.flags, "posa_owned_submission_ledger")
+            delattr(
+                self.creation.frappe.flags,
+                "posa_background_authoritative_cashier",
+            )
+
+        self.assertEqual(cashier, "cashier@example.com")
+        self.creation.validate_assigned_terminal_cashier.assert_called_once_with(
+            "Main POS",
+            "cashier@example.com",
+        )
+        self.creation.get_active_terminal_cashier.assert_not_called()
+
+    def _install_loyalty_program_module(self, conversion_factor):
+        module_name = "erpnext.accounts.doctype.loyalty_program.loyalty_program"
+        previous_module = sys.modules.get(module_name)
+
+        def restore_module():
+            if previous_module is None:
+                sys.modules.pop(module_name, None)
+            else:
+                sys.modules[module_name] = previous_module
+
+        self.addCleanup(restore_module)
+
+        loyalty_module = types.ModuleType(module_name)
+        loyalty_module.get_loyalty_program_details_with_points = lambda *args, **kwargs: AttrDict(
+            conversion_factor=conversion_factor
+        )
+        sys.modules[module_name] = loyalty_module
 
     def _build_invoice_doc(self, **overrides):
         base = {
@@ -1100,6 +1410,76 @@ class TestManualPostingDatePreservation(unittest.TestCase):
         self.assertEqual(invoice_doc.redeem_loyalty_points, 0)
         self.assertEqual(invoice_doc.loyalty_amount, 0)
         self.assertEqual(invoice_doc.loyalty_points, 0)
+
+    def test_loyalty_redemption_settings_derives_missing_points_from_amount(self):
+        invoice_doc = self._build_invoice_doc(
+            redeem_loyalty_points=1,
+            loyalty_program="Retail Loyalty",
+            loyalty_amount=25,
+            loyalty_points=0,
+            posting_date="2026-03-21",
+        )
+
+        self._install_loyalty_program_module(conversion_factor=5)
+
+        def fake_get_value(doctype, name, fieldname):
+            if (doctype, name, fieldname) == ("Loyalty Program", "Retail Loyalty", "expense_account"):
+                return "Loyalty Expense - TC"
+            if (doctype, name, fieldname) == ("POS Profile", "Main POS", "cost_center"):
+                return "Main Cost Center - TC"
+            return None
+
+        self.creation.frappe.db.get_value = fake_get_value
+
+        self.creation._apply_loyalty_redemption_settings(invoice_doc, "Main POS")
+
+        self.assertEqual(invoice_doc.loyalty_points, 5)
+        self.assertEqual(invoice_doc.redeem_loyalty_points, 1)
+
+    def test_loyalty_redemption_settings_derives_missing_points_from_company_currency_amount(self):
+        invoice_doc = self._build_invoice_doc(
+            redeem_loyalty_points=1,
+            loyalty_program="Retail Loyalty",
+            loyalty_amount=10,
+            loyalty_points=0,
+            conversion_rate=280,
+            posting_date="2026-03-21",
+        )
+
+        self._install_loyalty_program_module(conversion_factor=70)
+
+        def fake_get_value(doctype, name, fieldname):
+            if (doctype, name, fieldname) == ("Loyalty Program", "Retail Loyalty", "expense_account"):
+                return "Loyalty Expense - TC"
+            if (doctype, name, fieldname) == ("POS Profile", "Main POS", "cost_center"):
+                return "Main Cost Center - TC"
+            return None
+
+        self.creation.frappe.db.get_value = fake_get_value
+
+        self.creation._apply_loyalty_redemption_settings(invoice_doc, "Main POS")
+
+        self.assertEqual(invoice_doc.loyalty_points, 40)
+        self.assertEqual(invoice_doc.redeem_loyalty_points, 1)
+        self.assertEqual(invoice_doc.loyalty_amount, 10)
+
+    def test_loyalty_redemption_settings_clears_too_small_derived_redemption(self):
+        invoice_doc = self._build_invoice_doc(
+            redeem_loyalty_points=1,
+            loyalty_program="Retail Loyalty",
+            loyalty_amount=0.5,
+            loyalty_points=0,
+            conversion_rate=1,
+            posting_date="2026-03-21",
+        )
+
+        self._install_loyalty_program_module(conversion_factor=10)
+
+        self.creation._apply_loyalty_redemption_settings(invoice_doc, "Main POS")
+
+        self.assertEqual(invoice_doc.loyalty_points, 0)
+        self.assertEqual(invoice_doc.redeem_loyalty_points, 0)
+        self.assertEqual(invoice_doc.loyalty_amount, 0)
 
     def test_loyalty_redemption_settings_requires_configured_expense_account_for_positive_redemption(self):
         invoice_doc = self._build_invoice_doc(
@@ -1211,6 +1591,111 @@ class TestManualPostingDatePreservation(unittest.TestCase):
         self.assertEqual(invoice_doc.set_posting_time, 1)
         self.assertEqual(result["status"], 1)
 
+    def test_submit_invoice_recalculates_existing_draft_with_non_inclusive_pos_tax(self):
+        tax_row = {
+            "charge_type": "On Net Total",
+            "account_head": "VAT - TC",
+            "description": "VAT 5%",
+            "rate": 5,
+            "included_in_print_rate": 1,
+            "tax_amount": 2.59,
+            "total": 54.41,
+        }
+        invoice_doc = self._build_invoice_doc(
+            name="ACC-SINV-VAT-0001",
+            total=54.41,
+            net_total=51.82,
+            grand_total=54.41,
+            rounded_total=54.41,
+            total_taxes_and_charges=2.59,
+            items=[
+                FakeDoc(
+                    item_code="VAT-ITEM",
+                    qty=1,
+                    rate=54.41,
+                    amount=54.41,
+                    price_list_rate=68.01,
+                    discount_percentage=20,
+                    discount_amount=13.60,
+                )
+            ],
+            taxes=[tax_row],
+        )
+        calculate_calls = []
+        original_calculate_taxes_and_totals = FakeDoc.calculate_taxes_and_totals
+
+        def calculate_taxes_and_totals(_doc):
+            current_tax = invoice_doc.taxes[0]
+            calculate_calls.append(current_tax["included_in_print_rate"])
+            invoice_doc.net_total = 54.41
+            current_tax["tax_amount"] = 2.72
+            current_tax["total"] = 57.13
+            invoice_doc.total_taxes_and_charges = 2.72
+            invoice_doc.grand_total = 57.13
+            invoice_doc.rounded_total = 57.13
+
+        def submit():
+            self.assertEqual(invoice_doc.taxes[0]["included_in_print_rate"], 0)
+            self.assertEqual(invoice_doc.net_total, 54.41)
+            self.assertEqual(invoice_doc.total_taxes_and_charges, 2.72)
+            self.assertEqual(invoice_doc.grand_total, 57.13)
+            invoice_doc.docstatus = 1
+
+        FakeDoc.calculate_taxes_and_totals = calculate_taxes_and_totals
+        invoice_doc.submit = submit
+
+        self.creation.frappe.db.exists = lambda doctype, name: name == "ACC-SINV-VAT-0001"
+        self.creation.frappe.db.get_value = lambda *args, **kwargs: 0
+        self.creation.frappe.get_value = lambda *args, **kwargs: 0
+        self.creation.frappe.get_cached_value = (
+            lambda doctype, name, fieldname: 0
+            if (doctype, name, fieldname) == ("POS Profile", "Main POS", "posa_tax_inclusive")
+            else None
+        )
+        self.creation.frappe.get_doc = lambda *args: invoice_doc
+        self.creation._save_draft_with_latest_timestamp = lambda doc: doc
+        self.creation._apply_invoice_gift_card_settlement = lambda *args, **kwargs: None
+        self.creation._process_post_submit_payments = lambda *args, **kwargs: None
+
+        try:
+            result = self.creation.submit_invoice(
+                json.dumps(
+                    {
+                        "doctype": "Sales Invoice",
+                        "name": "ACC-SINV-VAT-0001",
+                        "pos_profile": "Main POS",
+                        "company": "Test Company",
+                        "currency": "USD",
+                        "customer": "CUST-0001",
+                        "total": 54.41,
+                        "net_total": 51.82,
+                        "grand_total": 54.41,
+                        "rounded_total": 54.41,
+                        "total_taxes_and_charges": 2.59,
+                        "items": [
+                            {
+                                "item_code": "VAT-ITEM",
+                                "qty": 1,
+                                "rate": 54.41,
+                                "amount": 54.41,
+                                "price_list_rate": 68.01,
+                                "discount_percentage": 20,
+                                "discount_amount": 13.60,
+                            }
+                        ],
+                        "taxes": [tax_row],
+                        "payments": [],
+                    }
+                ),
+                json.dumps({}),
+                submit_in_background=0,
+            )
+        finally:
+            FakeDoc.calculate_taxes_and_totals = original_calculate_taxes_and_totals
+
+        self.assertEqual(calculate_calls, [0])
+        self.assertEqual(result["status"], 1)
+
     def test_submit_invoice_normalizes_existing_return_draft_payments_before_save(self):
         invoice_doc = self._build_invoice_doc(
             name="ACC-SINV-RETURN-0001",
@@ -1249,6 +1734,9 @@ class TestManualPostingDatePreservation(unittest.TestCase):
         self.creation.frappe.get_doc = lambda *args: invoice_doc
         self.creation._apply_invoice_gift_card_settlement = lambda *args, **kwargs: None
         self.creation._process_post_submit_payments = lambda *args, **kwargs: None
+        # This test isolates sign normalization; refundable-balance validation
+        # has dedicated coverage in the return-processing tests.
+        self.creation._guard_return_cash_refund = lambda *args, **kwargs: None
 
         def assert_return_payments_are_negative_before_save(doc):
             self.assertEqual(doc.payments[0].amount, -90)
@@ -1292,12 +1780,406 @@ class TestInvoiceIdempotency(unittest.TestCase):
         sys.modules.pop("posawesome.posawesome.api.idempotency", None)
         cls.creation = _load_module()
         cls.original_process_post_submit_payments = cls.creation._process_post_submit_payments
+        cls.real_validate_invoice_opening_shift = staticmethod(
+            cls.creation._validate_invoice_opening_shift
+        )
 
     def setUp(self):
         self.enqueue_calls.clear()
         self.frappe._publish_realtime_calls.clear()
         self.creation.frappe.db.has_column = lambda doctype, fieldname: True
         self.creation._process_post_submit_payments = type(self).original_process_post_submit_payments
+        self.creation.get_active_terminal_cashier = (
+            lambda *_args, **_kwargs: "cashier@example.com"
+        )
+        self.creation._validate_invoice_opening_shift = lambda *args, **kwargs: None
+
+    def test_forged_profile_or_company_values_are_rejected_before_authorization(self):
+        authorize = Mock(
+            return_value=AttrDict(name="Main POS", company="Test Company")
+        )
+        original_authorize = self.creation.get_authorized_pos_profile
+        self.creation.get_authorized_pos_profile = authorize
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "get_authorized_pos_profile",
+            original_authorize,
+        )
+
+        with self.assertRaisesRegex(Exception, "POS Profile and company do not match"):
+            self.creation._resolve_authorized_invoice_profile(
+                {"pos_profile": "Main POS", "company": "Test Company"},
+                {"pos_profile": "Other POS", "company": "Other Company"},
+            )
+
+        authorize.assert_not_called()
+
+    def test_invoice_opening_shift_is_validated_even_when_client_disables_is_pos(self):
+        opening_doc = FakeDoc(
+            name="POS-OPEN-0001",
+            pos_profile="Main POS",
+            company="Test Company",
+            user="test@example.com",
+            docstatus=1,
+            status="Open",
+            pos_closing_shift=None,
+        )
+        original_get_doc = self.creation.frappe.get_doc
+        self.creation.frappe.get_doc = lambda doctype, name: opening_doc
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+
+        result = self.real_validate_invoice_opening_shift(
+            AttrDict(name="Main POS", company="Test Company"),
+            {"posa_pos_opening_shift": "POS-OPEN-0001", "is_pos": 0},
+        )
+
+        self.assertIs(result, opening_doc)
+
+    def test_invoice_opening_shift_is_required_for_new_pos_operations(self):
+        with self.assertRaisesRegex(Exception, "POS Opening Shift is required"):
+            self.real_validate_invoice_opening_shift(
+                AttrDict(name="Main POS", company="Test Company"),
+                {},
+                required=True,
+            )
+
+    def test_mutable_named_draft_requires_write_after_scoped_read(self):
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-READ-ONLY-0001",
+            docstatus=0,
+            pos_profile="Main POS",
+            company="Test Company",
+            customer="CUST-0001",
+        )
+        permission_checks = []
+
+        def assert_scope(doc, **kwargs):
+            permission_checks.append(kwargs["permission_type"])
+            if kwargs["permission_type"] == "write":
+                raise PermissionError("write permission required")
+            return doc
+
+        original_scope = self.creation.assert_invoice_request_scope
+        original_get_doc = self.creation.frappe.get_doc
+        original_exists = self.creation.frappe.db.exists
+        self.creation.assert_invoice_request_scope = assert_scope
+        self.creation.frappe.get_doc = lambda *_args: invoice_doc
+        self.creation.frappe.db.exists = lambda *_args: True
+        self.addCleanup(setattr, self.creation, "assert_invoice_request_scope", original_scope)
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+        self.addCleanup(setattr, self.creation.frappe.db, "exists", original_exists)
+
+        with self.assertRaisesRegex(PermissionError, "write permission required"):
+            self.creation._get_mutable_invoice_doc(
+                {
+                    "doctype": "Sales Invoice",
+                    "name": invoice_doc.name,
+                    "customer": "CUST-0002",
+                },
+                "Sales Invoice",
+                "Main POS",
+                "Test Company",
+            )
+
+        self.assertEqual(permission_checks, ["read", "write"])
+        self.assertEqual(invoice_doc.customer, "CUST-0001")
+
+    def test_idempotency_recovered_draft_requires_write_before_background_queue(self):
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-RECOVERED-0001",
+            docstatus=0,
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+        original_get_ledger = self.creation._get_submission_ledger
+        original_find_invoice = self.creation.find_invoice_by_client_request_id
+        original_scope = self.creation.assert_invoice_request_scope
+        original_cashier = self.creation.get_active_terminal_cashier
+        self.creation._get_submission_ledger = lambda *_args, **_kwargs: None
+        self.creation.find_invoice_by_client_request_id = (
+            lambda *_args, **_kwargs: invoice_doc
+        )
+        self.creation.assert_invoice_request_scope = Mock(
+            side_effect=PermissionError("write permission required")
+        )
+        self.creation.get_active_terminal_cashier = Mock(
+            side_effect=AssertionError("draft must be rejected before terminal or queue work")
+        )
+        self.addCleanup(
+            setattr, self.creation, "_get_submission_ledger", original_get_ledger
+        )
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "find_invoice_by_client_request_id",
+            original_find_invoice,
+        )
+        self.addCleanup(
+            setattr, self.creation, "assert_invoice_request_scope", original_scope
+        )
+        self.addCleanup(
+            setattr, self.creation, "get_active_terminal_cashier", original_cashier
+        )
+
+        with self.assertRaisesRegex(PermissionError, "write permission required"):
+            self.creation.submit_invoice(
+                json.dumps(
+                    {
+                        "doctype": "Sales Invoice",
+                        "pos_profile": "Main POS",
+                        "company": "Test Company",
+                        "customer": "CUST-0001",
+                        "posa_client_request_id": "recovered-read-only-001",
+                    }
+                ),
+                json.dumps({"idempotency_key": "recovered-read-only-001"}),
+                submit_in_background=1,
+            )
+
+        self.creation.assert_invoice_request_scope.assert_called_once_with(
+            invoice_doc,
+            pos_profile="Main POS",
+            company="Test Company",
+            permission_type="write",
+        )
+
+    def test_invoice_opening_shift_rejects_wrong_scope_owner_and_state(self):
+        base = {
+            "name": "POS-OPEN-0001",
+            "pos_profile": "Main POS",
+            "company": "Test Company",
+            "user": "test@example.com",
+            "docstatus": 1,
+            "status": "Open",
+            "pos_closing_shift": None,
+        }
+        cases = (
+            ({"pos_profile": "Other POS"}, "does not belong to this POS Profile"),
+            ({"company": "Other Company"}, "does not belong to this POS Profile"),
+            ({"user": "other@example.com"}, "does not belong to the current user"),
+            ({"docstatus": 2}, "is not submitted"),
+            ({"status": "Closed"}, "is not open"),
+            ({"pos_closing_shift": "POS-CLOSE-0001"}, "is not open"),
+        )
+        original_get_doc = self.creation.frappe.get_doc
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+        for overrides, expected_error in cases:
+            with self.subTest(expected_error=expected_error):
+                opening_doc = FakeDoc(**{**base, **overrides})
+                self.creation.frappe.get_doc = lambda doctype, name, doc=opening_doc: doc
+                with self.assertRaisesRegex(Exception, expected_error):
+                    self.real_validate_invoice_opening_shift(
+                        AttrDict(name="Main POS", company="Test Company"),
+                        {"posa_pos_opening_shift": "POS-OPEN-0001", "is_pos": 0},
+                    )
+
+    def test_trusted_delayed_work_reassigns_closed_shift_and_records_audit(self):
+        closed_shift = FakeDoc(
+            name="POS-OPEN-CLOSED",
+            pos_profile="Main POS",
+            company="Test Company",
+            user="former@example.com",
+            docstatus=1,
+            status="Closed",
+            pos_closing_shift="POS-CLOSE-0001",
+        )
+        current_shift = FakeDoc(
+            name="POS-OPEN-CURRENT",
+            pos_profile="Main POS",
+            company="Test Company",
+            user="test@example.com",
+            docstatus=1,
+            status="Open",
+            pos_closing_shift=None,
+        )
+        original_get_doc = self.creation.frappe.get_doc
+        original_get_value = self.creation.frappe.db.get_value
+        original_validator = self.creation._validate_invoice_opening_shift
+
+        def get_doc(doctype, name):
+            if doctype == "POS Opening Shift":
+                return closed_shift if name == closed_shift.name else current_shift
+            raise AssertionError((doctype, name))
+
+        self.creation.frappe.get_doc = get_doc
+        self.creation.frappe.db.get_value = lambda *_args, **_kwargs: current_shift.name
+        self.creation._validate_invoice_opening_shift = self.real_validate_invoice_opening_shift
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+        self.addCleanup(setattr, self.creation.frappe.db, "get_value", original_get_value)
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "_validate_invoice_opening_shift",
+            original_validator,
+        )
+
+        for source in ("offline_sync", "submitted_amendment"):
+            with self.subTest(source=source):
+                invoice = {
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "posa_pos_opening_shift": closed_shift.name,
+                }
+                data = {}
+                with self.creation.trusted_invoice_shift_reassignment(
+                    invoice,
+                    data,
+                    source,
+                ) as audit:
+                    self.assertEqual(invoice["posa_pos_opening_shift"], current_shift.name)
+                    self.assertEqual(data["posa_pos_opening_shift"], current_shift.name)
+                    self.assertEqual(audit["source"], source)
+                    self.assertEqual(audit["original_opening_shift"], closed_shift.name)
+                    self.assertEqual(audit["assigned_opening_shift"], current_shift.name)
+                    self.assertEqual(
+                        self.creation.frappe.flags.posa_trusted_shift_audit,
+                        audit,
+                    )
+
+    def test_trusted_delayed_work_rejects_cross_profile_original_shift(self):
+        foreign_shift = FakeDoc(
+            name="POS-OPEN-FOREIGN",
+            pos_profile="Other POS",
+            company="Other Company",
+            user="test@example.com",
+            docstatus=1,
+            status="Closed",
+            pos_closing_shift="POS-CLOSE-FOREIGN",
+        )
+        original_get_doc = self.creation.frappe.get_doc
+        self.creation.frappe.get_doc = lambda *_args: foreign_shift
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+
+        with self.assertRaisesRegex(Exception, "does not belong to this POS Profile"):
+            with self.creation.trusted_invoice_shift_reassignment(
+                {
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "posa_pos_opening_shift": foreign_shift.name,
+                },
+                {},
+                "offline_sync",
+            ):
+                pass
+
+    def test_accepted_background_shift_ownership_survives_later_shift_close(self):
+        opening_doc = FakeDoc(
+            name="POS-OPEN-0001",
+            pos_profile="Main POS",
+            company="Test Company",
+            user="test@example.com",
+            docstatus=1,
+            status="Closed",
+            pos_closing_shift="POS-CLOSE-0001",
+        )
+        original_get_doc = self.creation.frappe.get_doc
+        self.creation.frappe.get_doc = lambda doctype, name: opening_doc
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+        self.creation.frappe.flags.posa_owned_submission_ledger = "ledger-accepted-001"
+        self.creation.frappe.flags.posa_background_opening_shift = "POS-OPEN-0001"
+        self.creation.frappe.flags.posa_background_opening_user = "test@example.com"
+        self.creation.frappe.flags.posa_background_opening_accepted = True
+        self.addCleanup(
+            lambda: [
+                delattr(self.creation.frappe.flags, key)
+                for key in (
+                    "posa_owned_submission_ledger",
+                    "posa_background_opening_shift",
+                    "posa_background_opening_user",
+                    "posa_background_opening_accepted",
+                )
+                if hasattr(self.creation.frappe.flags, key)
+            ]
+        )
+
+        result = self.real_validate_invoice_opening_shift(
+            AttrDict(name="Main POS", company="Test Company"),
+            {"posa_pos_opening_shift": "POS-OPEN-0001"},
+        )
+
+        self.assertIs(result, opening_doc)
+
+    def test_client_named_draft_cannot_cross_pos_profile_scope(self):
+        cross_profile_draft = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-OTHER-0001",
+            docstatus=0,
+            pos_profile="Other POS",
+            company="Other Company",
+        )
+        original_exists = self.creation.frappe.db.exists
+        original_get_doc = self.creation.frappe.get_doc
+        self.creation.frappe.db.exists = lambda *_args, **_kwargs: True
+        self.creation.frappe.get_doc = lambda *_args, **_kwargs: cross_profile_draft
+        self.addCleanup(setattr, self.creation.frappe.db, "exists", original_exists)
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+
+        with self.assertRaisesRegex(Exception, "not available for the selected POS Profile"):
+            self.creation._get_mutable_invoice_doc(
+                {
+                    "doctype": "Sales Invoice",
+                    "name": cross_profile_draft.name,
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                },
+                "Sales Invoice",
+                "Main POS",
+                "Test Company",
+            )
+
+    def test_request_id_replay_rejects_cross_profile_invoice_without_disclosure(self):
+        cross_profile_invoice = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-SECRET-0001",
+            docstatus=1,
+            pos_profile="Other POS",
+            company="Other Company",
+        )
+        original_get_value = self.creation.frappe.db.get_value
+        original_get_doc = self.creation.frappe.get_doc
+        self.creation.frappe.db.get_value = lambda *_args, **_kwargs: cross_profile_invoice.name
+        self.creation.frappe.get_doc = lambda *_args, **_kwargs: cross_profile_invoice
+        self.addCleanup(setattr, self.creation.frappe.db, "get_value", original_get_value)
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+
+        with self.assertRaisesRegex(Exception, "not available for the selected POS Profile") as error:
+            self.creation.find_invoice_by_client_request_id(
+                "guessed-request-id",
+                preferred_doctype="Sales Invoice",
+                pos_profile="Main POS",
+                company="Test Company",
+            )
+
+        self.assertNotIn(cross_profile_invoice.name, str(error.exception))
+
+    def test_request_id_replay_requires_document_read_permission(self):
+        protected_invoice = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-PROTECTED-0001",
+            docstatus=1,
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+        protected_invoice.check_permission = Mock(side_effect=PermissionError("denied"))
+        original_get_value = self.creation.frappe.db.get_value
+        original_get_doc = self.creation.frappe.get_doc
+        self.creation.frappe.db.get_value = lambda *_args, **_kwargs: protected_invoice.name
+        self.creation.frappe.get_doc = lambda *_args, **_kwargs: protected_invoice
+        self.addCleanup(setattr, self.creation.frappe.db, "get_value", original_get_value)
+        self.addCleanup(setattr, self.creation.frappe, "get_doc", original_get_doc)
+
+        with self.assertRaises(PermissionError):
+            self.creation.find_invoice_by_client_request_id(
+                "protected-request-id",
+                preferred_doctype="Sales Invoice",
+                pos_profile="Main POS",
+                company="Test Company",
+            )
+
+        protected_invoice.check_permission.assert_called_once_with("read")
 
     def test_submit_invoice_returns_existing_submitted_doc_for_same_client_request_id(self):
         existing_doc = FakeDoc(
@@ -1323,6 +2205,14 @@ class TestInvoiceIdempotency(unittest.TestCase):
         self.creation.update_invoice = lambda *_args, **_kwargs: (_ for _ in ()).throw(
             AssertionError("duplicate replay should not build a new invoice")
         )
+        self.creation.get_active_terminal_cashier = Mock(
+            side_effect=AssertionError(
+                "final idempotent replay must not require an unlocked terminal"
+            )
+        )
+        self.creation._validate_invoice_opening_shift = (
+            self.real_validate_invoice_opening_shift
+        )
 
         result = self.creation.submit_invoice(
             json.dumps(
@@ -1343,6 +2233,221 @@ class TestInvoiceIdempotency(unittest.TestCase):
         self.assertEqual(result["name"], "ACC-SINV-IDEMP-0001")
         self.assertEqual(result["status"], 1)
         self.assertTrue(result["replayed"])
+        self.creation.get_active_terminal_cashier.assert_not_called()
+
+    def test_submit_retry_does_not_turn_failed_post_submit_ledger_into_success(self):
+        ledger_doc = FakeDoc(
+            doctype="POS Invoice Submission Ledger",
+            name="ledger-failed-retry-001",
+            ledger_key="ledger-failed-retry-001",
+            client_request_id="failed-retry-001",
+            company="Test Company",
+            pos_profile="Main POS",
+            document_type="Sales Invoice",
+            invoice_name="ACC-SINV-FAILED-0001",
+            state="FAILED",
+            request_data=json.dumps({"redeemed_customer_credit": 100}),
+            payment_context=json.dumps({"is_payment_entry": 1}),
+            error_message="post submit failed",
+        )
+        ledger_doc.save = lambda ignore_permissions=False: ledger_doc
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-FAILED-0001",
+            docstatus=1,
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+
+        def fake_get_value(doctype, filters=None, fieldname=None, **kwargs):
+            if doctype == "POS Invoice Submission Ledger":
+                return ledger_doc.name
+            if doctype == "Sales Invoice" and isinstance(filters, dict):
+                return invoice_doc.name
+            return 0
+
+        def fake_get_doc(doctype, name):
+            if doctype == "POS Invoice Submission Ledger":
+                return ledger_doc
+            if doctype == "POS Profile":
+                return AttrDict(name="Main POS", company="Test Company")
+            if doctype == "Sales Invoice":
+                return invoice_doc
+            raise AssertionError(f"unexpected get_doc call: {(doctype, name)}")
+
+        self.creation.frappe.db.get_value = fake_get_value
+        self.creation.frappe.db.exists = lambda *args, **kwargs: False
+        self.creation.frappe.get_doc = fake_get_doc
+        post_submit = Mock(side_effect=AssertionError("automatic retry must not rerun ledger work"))
+        self.creation._process_post_submit_payments = post_submit
+
+        with self.assertRaisesRegex(Exception, "post-submit processing failed"):
+            self.creation.submit_invoice(
+                json.dumps(
+                    {
+                        "doctype": "Sales Invoice",
+                        "pos_profile": "Main POS",
+                        "company": "Test Company",
+                        "customer": "CUST-0001",
+                        "posa_client_request_id": "failed-retry-001",
+                    }
+                ),
+                json.dumps({}),
+                submit_in_background=0,
+            )
+
+        self.assertEqual(ledger_doc.state, "FAILED")
+        self.assertEqual(ledger_doc.error_message, "post submit failed")
+        post_submit.assert_not_called()
+
+    def test_repair_requires_supervisor_before_loading_profile_or_ledger(self):
+        original_supervisor = self.creation.require_pos_supervisor_or_manager
+        original_profile = self.creation.get_authorized_pos_profile
+        profile_lookup = Mock(
+            side_effect=AssertionError("profile must not load before supervisor authorization")
+        )
+        self.creation.require_pos_supervisor_or_manager = Mock(
+            side_effect=PermissionError("supervisor required")
+        )
+        self.creation.get_authorized_pos_profile = profile_lookup
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "require_pos_supervisor_or_manager",
+            original_supervisor,
+        )
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "get_authorized_pos_profile",
+            original_profile,
+        )
+
+        with self.assertRaisesRegex(PermissionError, "supervisor required"):
+            self.creation.repair_invoice_submission(
+                "repair-forbidden-001",
+                "Test Company",
+                "Main POS",
+            )
+
+        profile_lookup.assert_not_called()
+
+    def test_repair_requires_unlocked_terminal_and_current_opening_shift(self):
+        original_cashier = self.creation.get_active_terminal_cashier
+        original_resolve_shift = self.creation._resolve_current_invoice_opening_shift
+        cashier = Mock(return_value="cashier@example.com")
+        shift = Mock(side_effect=PermissionError("open shift required"))
+        self.creation.get_active_terminal_cashier = cashier
+        self.creation._resolve_current_invoice_opening_shift = shift
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "get_active_terminal_cashier",
+            original_cashier,
+        )
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "_resolve_current_invoice_opening_shift",
+            original_resolve_shift,
+        )
+
+        with self.assertRaisesRegex(PermissionError, "open shift required"):
+            self.creation.repair_invoice_submission(
+                "repair-no-shift-001",
+                "Test Company",
+                "Main POS",
+            )
+
+        cashier.assert_called_once_with("Main POS")
+        shift.assert_called_once()
+
+    def test_repair_api_rethrows_durable_post_submit_failure(self):
+        ledger_doc = FakeDoc(
+            name="ledger-api-repair-failed-001",
+            client_request_id="ledger-api-repair-failed-001",
+            state="FAILED",
+            company="Test Company",
+            pos_profile="Main POS",
+            document_type="Sales Invoice",
+            invoice_name="ACC-SINV-FAILED-API-0001",
+        )
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-FAILED-API-0001",
+            docstatus=1,
+            company="Test Company",
+            pos_profile="Main POS",
+        )
+
+        def get_value(doctype, *_args, **_kwargs):
+            if doctype == "POS Invoice Submission Ledger":
+                return ledger_doc.name
+            return None
+
+        def get_doc(doctype, _name):
+            if doctype == "POS Invoice Submission Ledger":
+                return ledger_doc
+            if doctype == "Sales Invoice":
+                return invoice_doc
+            raise AssertionError(f"unexpected doctype: {doctype}")
+
+        original_repair = self.creation._repair_submitted_invoice_post_submit
+        self.creation.frappe.db.get_value = get_value
+        self.creation.frappe.db.exists = lambda doctype, name: (
+            doctype == "Sales Invoice" and name == invoice_doc.name
+        )
+        self.creation.frappe.get_doc = get_doc
+        self.creation._repair_submitted_invoice_post_submit = Mock(
+            side_effect=RuntimeError("durably failed repair")
+        )
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "_repair_submitted_invoice_post_submit",
+            original_repair,
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "durably failed repair"):
+            self.creation.repair_invoice_submission(
+                ledger_doc.client_request_id,
+                "Test Company",
+                "Main POS",
+            )
+
+        self.creation._repair_submitted_invoice_post_submit.assert_called_once_with(
+            ledger_doc,
+            invoice_doc,
+        )
+
+    def test_explicit_post_submit_repair_restores_failed_state_when_retry_crashes(self):
+        ledger_doc = FakeDoc(
+            name="ledger-repair-failed-001",
+            state="FAILED",
+            request_data=json.dumps({"redeemed_customer_credit": 100}),
+            payment_context=json.dumps({"is_payment_entry": 1}),
+            error_message="original failure",
+        )
+        ledger_doc.save = lambda ignore_permissions=False: ledger_doc
+        invoice_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-FAILED-0002",
+            docstatus=1,
+        )
+        original_processor = self.creation._process_post_submit_payments
+        self.creation._process_post_submit_payments = Mock(side_effect=Exception("retry failed"))
+        self.addCleanup(
+            setattr,
+            self.creation,
+            "_process_post_submit_payments",
+            original_processor,
+        )
+
+        with self.assertRaisesRegex(Exception, "retry failed"):
+            self.creation._repair_submitted_invoice_post_submit(ledger_doc, invoice_doc)
+
+        self.assertEqual(ledger_doc.state, "FAILED")
+        self.assertIn("retry failed", ledger_doc.error_message)
 
     def test_submit_invoice_skips_idempotency_lookup_when_custom_field_is_missing(self):
         invoice_doc = FakeDoc(
@@ -1577,6 +2682,163 @@ class TestInvoiceIdempotency(unittest.TestCase):
         self.assertEqual(submit_count["value"], 1)
         self.assertEqual(len(submitted_docs), 1)
 
+    def test_submit_invoice_waits_for_active_duplicate_submission_ledger(self):
+        ledger_doc = FakeDoc(
+            doctype="POS Invoice Submission Ledger",
+            name="ledger-active-001",
+            ledger_key="ledger-active-001",
+            client_request_id="ledger-active-001",
+            company="Test Company",
+            pos_profile="Main POS",
+            document_type="Sales Invoice",
+            state="RECEIVED",
+        )
+
+        def fake_get_value(doctype, filters=None, fieldname=None, **kwargs):
+            if doctype == "POS Invoice Submission Ledger":
+                return ledger_doc.name
+            return 0
+
+        def wait_for_result(active_ledger):
+            self.assertIs(active_ledger, ledger_doc)
+            return {
+                "name": "ACC-SINV-ACTIVE-0001",
+                "status": 1,
+                "docstatus": 1,
+                "doctype": "Sales Invoice",
+                "replayed": True,
+                "idempotent": True,
+                "ledger_state": "POST_SUBMIT_DONE",
+                "client_request_id": "ledger-active-001",
+            }
+
+        self.creation.frappe.db.has_column = lambda doctype, fieldname: True
+        self.creation.frappe.db.get_value = fake_get_value
+        self.creation.frappe.get_doc = lambda doctype, name: ledger_doc
+        self.creation.frappe.get_value = lambda *args, **kwargs: 0
+        self.creation.update_invoice = Mock(side_effect=AssertionError("duplicate request must not create a draft"))
+        self.creation._wait_for_submission_ledger_result = wait_for_result
+
+        result = self.creation.submit_invoice(
+            json.dumps(
+                {
+                    "doctype": "Sales Invoice",
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "currency": "USD",
+                    "customer": "CUST-0001",
+                    "items": [],
+                    "payments": [],
+                    "posa_client_request_id": "ledger-active-001",
+                }
+            ),
+            json.dumps({"idempotency_key": "ledger-active-001"}),
+            submit_in_background=0,
+        )
+
+        self.assertEqual(result["name"], "ACC-SINV-ACTIVE-0001")
+        self.assertTrue(result["replayed"])
+        self.creation.update_invoice.assert_not_called()
+
+    def test_submit_invoice_fast_queues_existing_draft_for_background_submission(self):
+        ledger_rows = {}
+        enqueued = {}
+        draft_doc = FakeDoc(
+            doctype="Sales Invoice",
+            name="ACC-SINV-DRAFT-0001",
+            docstatus=0,
+            pos_profile="Main POS",
+            company="Test Company",
+        )
+        opening_doc = FakeDoc(
+            name="POS-OPEN-0001",
+            pos_profile="Main POS",
+            company="Test Company",
+            user="test@example.com",
+            docstatus=1,
+            status="Open",
+            pos_closing_shift=None,
+        )
+
+        def attach_ledger_methods(ledger_doc):
+            def insert(ignore_permissions=False):
+                ledger_doc.name = ledger_doc.get("name") or ledger_doc.ledger_key
+                ledger_rows[ledger_doc.name] = ledger_doc
+                return ledger_doc
+
+            def save(ignore_permissions=False):
+                ledger_rows[ledger_doc.name] = ledger_doc
+                return ledger_doc
+
+            ledger_doc.insert = insert
+            ledger_doc.save = save
+            return ledger_doc
+
+        def fake_get_doc(*args):
+            if len(args) == 1 and isinstance(args[0], dict):
+                payload = dict(args[0])
+                if payload.get("doctype") == "POS Invoice Submission Ledger":
+                    return attach_ledger_methods(FakeDoc(**payload))
+            if args == ("Sales Invoice", "ACC-SINV-DRAFT-0001"):
+                return draft_doc
+            if args == ("POS Opening Shift", "POS-OPEN-0001"):
+                return opening_doc
+            raise AssertionError(f"unexpected get_doc call: {args}")
+
+        def fake_get_value(doctype, filters=None, fieldname=None, **kwargs):
+            if doctype == "POS Invoice Submission Ledger" and isinstance(filters, dict):
+                for row in ledger_rows.values():
+                    if all(row.get(key) == value for key, value in filters.items()):
+                        return row.name
+                return None
+            return 1 if doctype == "POS Profile" and fieldname == "posa_allow_submissions_in_background_job" else 0
+
+        def fake_enqueue(**kwargs):
+            enqueued.update(kwargs)
+
+        self.creation.frappe.db.has_column = lambda doctype, fieldname: True
+        self.creation.frappe.db.get_value = fake_get_value
+        self.creation.frappe.db.exists = (
+            lambda doctype, name: doctype == "Sales Invoice" and name == "ACC-SINV-DRAFT-0001"
+        )
+        self.creation.frappe.get_doc = fake_get_doc
+        self.creation.frappe.get_value = fake_get_value
+        self.creation.enqueue = fake_enqueue
+        self.creation._validate_invoice_opening_shift = self.real_validate_invoice_opening_shift
+        self.creation.update_invoice = Mock(side_effect=AssertionError("fast background path must not update draft synchronously"))
+
+        result = self.creation.submit_invoice(
+            json.dumps(
+                {
+                    "doctype": "Sales Invoice",
+                    "name": "ACC-SINV-DRAFT-0001",
+                    "pos_profile": "Main POS",
+                    "company": "Test Company",
+                    "currency": "USD",
+                    "customer": "CUST-0001",
+                    "items": [],
+                    "payments": [],
+                    "posa_client_request_id": "ledger-fast-001",
+                    "posa_pos_opening_shift": "POS-OPEN-0001",
+                }
+            ),
+            json.dumps({"idempotency_key": "ledger-fast-001"}),
+            submit_in_background=1,
+        )
+
+        self.assertEqual(result["name"], "ACC-SINV-DRAFT-0001")
+        self.assertEqual(result["docstatus"], 0)
+        self.assertTrue(result["queued"])
+        self.assertEqual(len(ledger_rows), 1)
+        ledger_doc = next(iter(ledger_rows.values()))
+        self.assertEqual(ledger_doc.state, "DRAFT_CREATED")
+        self.assertEqual(ledger_doc.invoice_name, "ACC-SINV-DRAFT-0001")
+        self.assertEqual(enqueued["method"], self.creation.submit_payload_in_background_job)
+        self.assertEqual(enqueued["kwargs"]["ledger_name"], ledger_doc.name)
+        self.assertEqual(enqueued["kwargs"]["opening_shift"], "POS-OPEN-0001")
+        self.assertEqual(enqueued["kwargs"]["opening_user"], "test@example.com")
+        self.creation.update_invoice.assert_not_called()
+
     def test_save_submission_ledger_inserts_named_new_doc(self):
         calls = {"insert": 0, "save": 0}
         ledger_doc = FakeDoc(
@@ -1655,6 +2917,8 @@ class TestInvoiceIdempotency(unittest.TestCase):
         def fake_get_doc(doctype, name):
             if doctype == "POS Invoice Submission Ledger":
                 return ledger_doc
+            if doctype == "POS Profile":
+                return AttrDict(name="Main POS", company="Test Company")
             if doctype == "Sales Invoice":
                 return invoice_doc
             raise AssertionError(f"unexpected get_doc call: {(doctype, name)}")
@@ -1718,6 +2982,8 @@ class TestInvoiceIdempotency(unittest.TestCase):
         def fake_get_doc(doctype, name):
             if doctype == "POS Invoice Submission Ledger":
                 return ledger_doc
+            if doctype == "POS Profile":
+                return AttrDict(name="Main POS", company="Test Company")
             if doctype == "Sales Invoice":
                 return invoice_doc
             raise AssertionError(f"unexpected get_doc call: {(doctype, name)}")
@@ -1737,6 +3003,8 @@ class TestInvoiceIdempotency(unittest.TestCase):
                 "cash_account": None,
                 "payments": [],
                 "ledger_name": "ledger-background-001",
+                "opening_shift": "POS-OPEN-0001",
+                "opening_user": "test@example.com",
             }
         )
 
@@ -1785,6 +3053,8 @@ class TestInvoiceIdempotency(unittest.TestCase):
         def fake_get_doc(doctype, name):
             if doctype == "POS Invoice Submission Ledger":
                 return ledger_doc
+            if doctype == "POS Profile":
+                return AttrDict(name="Main POS", company="Test Company")
             if doctype == "Sales Invoice":
                 return invoice_doc
             raise AssertionError(f"unexpected get_doc call: {(doctype, name)}")
@@ -1808,12 +3078,46 @@ class TestInvoiceIdempotency(unittest.TestCase):
                 "payments": [],
                 "ledger_name": "ledger-background-failed-001",
                 "user": "cashier@example.com",
+                "opening_shift": "POS-OPEN-0001",
+                "opening_user": "test@example.com",
             }
         )
 
         self.assertEqual(invoice_doc.docstatus, 1)
         self.assertEqual(ledger_doc.state, "FAILED")
         self.assertIn("post submit failed", ledger_doc.error_message)
+
+
+class TestInvoiceDeadlockRetry(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.frappe, cls.enqueue_calls = _install_framework_stubs()
+        _install_dependency_stubs()
+        _install_package_stubs()
+        cls.creation = _load_module()
+
+    def test_retries_whole_transaction_after_query_deadlock(self):
+        attempts = []
+        rollback = Mock()
+        sleep = Mock()
+        self.creation.frappe.db.rollback = rollback
+        self.creation.time.sleep = sleep
+
+        def operation():
+            attempts.append(len(attempts) + 1)
+            if len(attempts) < 3:
+                raise self.creation.QueryDeadlockError("tabCompany conflict")
+            return {"docstatus": 1}
+
+        result = self.creation._run_with_deadlock_retry(
+            operation,
+            delays=(0.01, 0.02),
+        )
+
+        self.assertEqual(result, {"docstatus": 1})
+        self.assertEqual(attempts, [1, 2, 3])
+        self.assertEqual(rollback.call_count, 2)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [0.01, 0.02])
 
 
 if __name__ == "__main__":

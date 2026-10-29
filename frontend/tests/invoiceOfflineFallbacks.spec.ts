@@ -151,6 +151,32 @@ describe("invoice offline fallbacks", () => {
 		expect(invoiceCurrency.conversion_rate.value).toBe(300);
 	});
 
+	it("resets the next invoice to the POS Profile currency", async () => {
+		const { useUIStore } = await import("../src/posapp/stores/uiStore");
+		const uiStore = useUIStore();
+		uiStore.setPosProfile({
+			name: "POS-1",
+			company: "Test Company",
+			currency: "PKR",
+			posa_decimal_precision: "2",
+		} as any);
+		uiStore.setCompanyDoc({ default_currency: "PKR" });
+
+		const { useInvoiceCurrency } = await import(
+			"../src/posapp/composables/pos/invoice/useInvoiceCurrency"
+		);
+		const invoiceCurrency = useInvoiceCurrency();
+		invoiceCurrency.selected_currency.value = "USD";
+		invoiceCurrency.exchange_rate.value = 0.0035;
+		invoiceCurrency.conversion_rate.value = 285;
+
+		await invoiceCurrency.reset_currency_to_default();
+
+		expect(invoiceCurrency.selected_currency.value).toBe("PKR");
+		expect(invoiceCurrency.exchange_rate.value).toBe(1);
+		expect(invoiceCurrency.conversion_rate.value).toBe(1);
+	});
+
 	it("rebuilds cart rates from the original price-list rate when currency is toggled back", async () => {
 		const { useUIStore } = await import("../src/posapp/stores/uiStore");
 		const { useInvoiceStore } = await import("../src/posapp/stores/invoiceStore");

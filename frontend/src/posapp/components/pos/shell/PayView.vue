@@ -1,5 +1,5 @@
 <template>
-	<div fluid :class="rtlClasses">
+	<div fluid :class="[rtlClasses, 'pay-view']">
 		<AppLoadingOverlay :visible="isPaymentRouteLocked" :message="paymentsLoadingMessage" />
 		<v-row v-show="!dialog">
 			<v-col md="8" cols="12" class="pb-2 pr-0">
@@ -87,6 +87,28 @@
 					</v-row>
 					<v-divider></v-divider>
 
+					<div
+						v-if="showReconciliationSections && isCustomerPartyType"
+						class="pay-scope-row"
+					>
+						<v-btn-toggle
+							v-model="invoiceScope"
+							mandatory
+							class="pay-segmented"
+							:aria-label="__('Show invoices for')"
+						>
+							<v-btn value="all" class="pay-segmented__btn">
+								{{ __("All customers") }}
+							</v-btn>
+							<v-btn value="customer" class="pay-segmented__btn" :disabled="!customer_name">
+								{{ customer_info?.customer_name || customer_name || __("This customer") }}
+							</v-btn>
+						</v-btn-toggle>
+						<span v-if="allCustomers" class="pay-scope-hint">
+							{{ __("Pick an invoice to collect payment from that customer.") }}
+						</span>
+					</div>
+
 					<PayInvoicesTable
 						v-if="showReconciliationSections"
 						v-model:pos-profile-search="pos_profile_search"
@@ -103,7 +125,7 @@
 						:loading="invoices_loading"
 						:auto-reconcile-loading="auto_reconcile_loading"
 						:auto-reconcile-summary="auto_reconcile_summary"
-						:party-name="customer_name"
+						:party-name="allCustomers ? '' : customer_name"
 						:section-title="invoiceSectionTitle"
 						:is-invoice-selected="isInvoiceSelected"
 						:item-class="isSelected"
@@ -182,11 +204,14 @@
 						:party-account="partyAccount"
 						:payment-method-accounts="payment_method_accounts"
 						:available-bank-accounts="available_bank_accounts"
+						:allow-payment-currency-selection="allowPaymentCurrencySelection"
+						:allowed-payment-currencies="allowedPaymentCurrencies"
 						:payment-type="paymentEntryType"
 						:invoice-conversion-rate="invoiceConversionRate"
 						@validate-exchange-rate="validateExchangeRate"
 						@fetch-exchange-rate="fetchExchangeRate"
 						@update:bank-account="handleBankAccountChange"
+						@update:payment-currency="handlePaymentCurrencyChange"
 					/>
 
 					<PayActionButtons
@@ -226,7 +251,12 @@ import {
 	silentPrint,
 	watchPrintWindow,
 } from "../../../plugins/print";
-import { printDocumentViaQz } from "../../../services/qzTray";
+import {
+	confirmDocumentPrintFallback,
+	printDocumentViaConfiguredQz,
+	shouldUseConfiguredQzDocumentPrinting,
+	shouldUseRawDocumentPrinting,
+} from "../../../services/documentPrint";
 
 import { useRtl } from "../../../composables/core/useRtl";
 import { useCustomersStore } from "../../../stores/customersStore.js";
@@ -239,6 +269,7 @@ import { usePosPayData } from "../../../composables/pos/payments/usePosPayData";
 import { usePosPaySelection } from "../../../composables/pos/payments/usePosPaySelection";
 import { usePosPaySubmission } from "../../../composables/pos/payments/usePosPaySubmission";
 import { usePaymentSharing } from "../../../composables/pos/payments/usePaymentSharing";
+import { resolveExchangeRate } from "../../../services/exchangeRateResolver";
 import {
 	getAllowedPartyTypes,
 	normalizePartyTypeForPaymentType,
@@ -304,13 +335,20 @@ export default {
 		const pos_opening_shift = ref("");
 		const paymentEntryType = ref("Receive");
 		const partyType = ref("Customer");
+		// Invoice list scope for customers: "all" = every customer's unpaid invoices (the default, so a
+		// refresh or a direct link never shows an empty list), "customer" = the selected customer only.
+		const invoiceScope = ref("all");
+		const allCustomers = computed(() => invoiceScope.value === "all" && partyType.value === "Customer");
+		// Invoice picked in the "All customers" list, selected again once its customer's invoices load.
+		const pendingInvoiceSelection = ref(null);
 		const customer_name = ref("");
 		const postingDate = ref(getTodayDate());
 		const supplierOptions = ref([]);
 		const employeeOptions = ref([]);
 		const partySearchLoading = ref(false);
 		const company = ref("");
-		const pos_profile_search = ref("");
+		// null, not "": Vuetify treats "" as a value and floats the label onto the heading above.
+		const pos_profile_search = ref(null);
 		const currency_filter = ref("ALL");
 		const autoAllocatePaymentAmount = ref(true);
 		const exchangeRate = ref(null);
@@ -380,6 +418,7 @@ export default {
 			customerName: customer_name,
 			partyType,
 			paymentType: paymentEntryType,
+			allCustomers,
 			toastStore,
 			eventBus: proxy?.eventBus,
 			currencySymbol,
@@ -419,20 +458,33 @@ export default {
 				"&trigger_print=1";
 			url = appendDebugPrintParam(url, debugPrint);
 			const printOptions = { allowOfflineFallback: isOffline(), triggerPrint: "1", debugPrint };
-			if (pos_profile.value?.posa_silent_print) {
+			const useRawPrint = shouldUseRawDocumentPrinting(pos_profile.value);
+			if (shouldUseConfiguredQzDocumentPrinting(pos_profile.value)) {
 				if (!isOffline()) {
 					try {
-						await printDocumentViaQz({
+						await printDocumentViaConfiguredQz({
 							doctype: "Payment Entry",
 							name: payment_name,
+							profile: pos_profile.value,
 							printFormat: DEFAULT_PAYMENT_ENTRY_PRINT_FORMAT,
 							noLetterhead: 1,
 							printerName: unref(pos_profile.value?.custom_pos_printer || null),
 						});
 						return;
 					} catch (error) {
-						console.warn("QZ Tray print failed, falling back to browser print", error);
+						console.warn("QZ Tray print failed", error);
+						if (confirmDocumentPrintFallback(error, { raw: useRawPrint })) {
+							silentPrint(url, printOptions);
+						}
+						return;
 					}
+				}
+				if (useRawPrint) {
+					const offlineError = new Error("Raw printing is not available while the POS is offline.");
+					if (confirmDocumentPrintFallback(offlineError, { raw: true, offline: true })) {
+						silentPrint(url, printOptions);
+					}
+					return;
 				}
 				silentPrint(url, printOptions);
 			} else {
@@ -464,7 +516,7 @@ export default {
 		});
 
 		const companyCurrencyLocal = computed(
-			() => companyCurrency.value || pos_profile.value?.currency || "USD",
+			() => companyCurrency.value || pos_profile.value?.currency || "",
 		);
 		const requiresExchangeRate = computed(
 			() => invoiceTotalCurrency.value !== companyCurrencyLocal.value,
@@ -473,7 +525,8 @@ export default {
 		const total_outstanding_amount = computed(() => {
 			if (!outstanding_invoices.value.length) return 0;
 			return outstanding_invoices.value.reduce(
-				(acc, cur) => acc + flt(cur?.outstanding_amount_in_invoice_currency ?? cur?.outstanding_amount ?? 0),
+				(acc, cur) =>
+					acc + flt(cur?.outstanding_amount_in_invoice_currency ?? cur?.outstanding_amount ?? 0),
 				0,
 			);
 		});
@@ -519,7 +572,9 @@ export default {
 						invoice_currency: invoiceCurr,
 					};
 				}
-				summary[key].amount += flt(inv.outstanding_amount_in_invoice_currency ?? inv.outstanding_amount ?? 0);
+				summary[key].amount += flt(
+					inv.outstanding_amount_in_invoice_currency ?? inv.outstanding_amount ?? 0,
+				);
 			});
 			return summary;
 		});
@@ -532,32 +587,46 @@ export default {
 		});
 
 		const getPaymentMethodCurrency = (mode) =>
-			payment_method_currencies.value[mode] || pos_profile.value.currency;
+			payment_methods.value.find((method) => method.mode_of_payment === mode)?.payment_currency ||
+			payment_method_currencies.value[mode] ||
+			pos_profile.value.currency;
+
+		const multiCurrencyPaymentsEnabled = computed(
+			() => Number(pos_profile.value?.posa_enable_multi_currency_payments || 0) === 1,
+		);
+		const allowPaymentCurrencySelection = computed(
+			() =>
+				multiCurrencyPaymentsEnabled.value &&
+				Number(pos_profile.value?.posa_allow_payment_currency_selection || 0) === 1,
+		);
+		const allowedPaymentCurrencies = computed(() => {
+			const configured = (pos_profile.value?.posa_allowed_currencies || [])
+				.filter((row) => row?.currency && Number(row.allow_for_payments ?? 1) === 1)
+				.map((row) => row.currency);
+			return [...new Set([
+				...(configured.length
+					? configured
+					: [pos_profile.value?.currency, companyCurrency.value]),
+			].filter(Boolean))];
+		});
 
 		const filtered_payment_methods = computed(() => {
 			if (!payment_methods.value.length) return [];
 			return payment_methods.value;
 		});
 
-		const rateFromCurrencyToCompany = (currency) => {
-			if (!currency || currency === companyCurrencyLocal.value) return 1;
-			if (currency === invoiceTotalCurrency.value) return flt(exchangeRate.value || 1);
-			return flt(invoiceConversionRate.value || exchangeRate.value || 1);
-		};
-
 		const new_payments_detail = computed(() => {
 			if (!filtered_payment_methods.value.length) return [];
 			return filtered_payment_methods.value
 				.filter((m) => flt(m.amount) > 0)
 				.map((m) => {
-					const mopCurrency = getPaymentMethodCurrency(m.mode_of_payment);
-					const rate = rateFromCurrencyToCompany(mopCurrency);
+					const mopCurrency = m.payment_currency || getPaymentMethodCurrency(m.mode_of_payment);
 					return {
 						mode_of_payment: m.mode_of_payment,
 						paid_amount: flt(m.amount),
 						currency: mopCurrency,
 						received_amount: flt(m.amount),
-						exchange_rate: rate,
+						exchange_rate: m.company_exchange_rate || null,
 					};
 				});
 		});
@@ -663,12 +732,11 @@ export default {
 			autoAllocatePaymentAmount,
 			autoReconcile,
 		});
-		const { isSharing: isSharingPayment, shareLastPayment: share_last_payment } =
-			usePaymentSharing({
-				customerName: customer_name,
-				partyType,
-				eventBus: proxy?.eventBus,
-			});
+		const { isSharing: isSharingPayment, shareLastPayment: share_last_payment } = usePaymentSharing({
+			customerName: customer_name,
+			partyType,
+			eventBus: proxy?.eventBus,
+		});
 
 		const fetchCompanyCurrency = async () => {
 			if (!company.value) return;
@@ -681,16 +749,16 @@ export default {
 						fieldname: "default_currency",
 					},
 				});
-				companyCurrency.value = r.message?.default_currency || pos_profile.value?.currency || "USD";
+				companyCurrency.value = r.message?.default_currency || pos_profile.value?.currency || "";
 			} catch (e) {
 				console.error("Failed to fetch company currency", e);
-				companyCurrency.value = pos_profile.value?.currency || "USD";
+				companyCurrency.value = pos_profile.value?.currency || "";
 			}
 		};
 
 		const fetchExchangeRate = async () => {
 			if (exchangeRateLoading.value || !requiresExchangeRate.value) {
-				exchangeRate.value = 1;
+				exchangeRate.value = requiresExchangeRate.value ? null : 1;
 				return;
 			}
 			if (!invoiceTotalCurrency.value || !companyCurrencyLocal.value) {
@@ -699,27 +767,25 @@ export default {
 			exchangeRateLoading.value = true;
 			exchangeRateError.value = null;
 			try {
-				const r = await frappe.call({
-					method: "erpnext.setup.utils.get_exchange_rate",
-					args: {
-						from_currency: invoiceTotalCurrency.value,
-						to_currency: companyCurrencyLocal.value,
-						transaction_date: postingDate.value || getTodayDate(),
-						args: "for_selling",
-					},
+				const result = await resolveExchangeRate({
+					profileName: pos_profile.value?.name,
+					company: company.value,
+					fromCurrency: invoiceTotalCurrency.value,
+					toCurrency: companyCurrencyLocal.value,
+					effectiveDate: postingDate.value || getTodayDate(),
+					purpose: "for_selling",
 				});
-				exchangeRate.value = flt(r.message || 1);
+				if (!result.found || !result.rate) throw new Error(__("Exchange rate unavailable"));
+				exchangeRate.value = result.rate;
 			} catch (e) {
 				exchangeRateError.value = e.message;
-				exchangeRate.value = 1;
+				exchangeRate.value = null;
 			} finally {
 				exchangeRateLoading.value = false;
 			}
 		};
 
-		const validateExchangeRate = () => {
-			if (!exchangeRate.value || exchangeRate.value <= 0) exchangeRate.value = 1;
-		};
+		const validateExchangeRate = () => Boolean(exchangeRate.value && exchangeRate.value > 0);
 
 		const set_payment_methods = () => {
 			if (!pos_profile.value?.posa_allow_make_new_payments) return;
@@ -728,8 +794,75 @@ export default {
 				amount: 0,
 				row_id: m.name,
 				bank_account: null,
+				payment_currency: null,
+				invoice_equivalent: 0,
+				invoice_exchange_rate: null,
 			}));
 		};
+
+		const resolvePaymentMethodRate = async (method) => {
+			const selectedAccount = (available_bank_accounts.value?.[method.mode_of_payment] || []).find(
+				(account) => account.account === method.bank_account,
+			);
+			const paymentCurrency =
+				method.payment_currency ||
+				selectedAccount?.account_currency ||
+				getPaymentMethodCurrency(method.mode_of_payment);
+			if (!paymentCurrency || !invoiceTotalCurrency.value || !companyCurrencyLocal.value) return;
+			const common = {
+				profileName: pos_profile.value?.name,
+				company: company.value,
+				fromCurrency: paymentCurrency,
+				effectiveDate: postingDate.value || getTodayDate(),
+			};
+			const [invoiceResult, companyResult] = await Promise.all([
+				resolveExchangeRate({ ...common, toCurrency: invoiceTotalCurrency.value }),
+				resolveExchangeRate({ ...common, toCurrency: companyCurrencyLocal.value }),
+			]);
+			method.payment_currency = paymentCurrency;
+			method._rate_error = !invoiceResult.found || !companyResult.found;
+			method.invoice_equivalent = invoiceResult.rate
+				? flt(flt(method.amount) * invoiceResult.rate)
+				: 0;
+			method.company_exchange_rate = companyResult.rate || null;
+			method.invoice_exchange_rate = invoiceResult.rate || null;
+			method.rate_date = invoiceResult.rateDate || null;
+			method.rate_source = invoiceResult.source || null;
+		};
+
+		watch(
+			() => payment_methods.value.map((m) => [m.mode_of_payment, m.amount, m.bank_account, getPaymentMethodCurrency(m.mode_of_payment)]),
+			() => payment_methods.value.forEach((method) => void resolvePaymentMethodRate(method)),
+			{ deep: true },
+		);
+
+		const normalizeSelectedPayment = async (row, amountField) => {
+			const fromCurrency = row.currency || pos_profile.value?.currency;
+			const toCurrency = invoiceTotalCurrency.value;
+			if (!fromCurrency || !toCurrency) return;
+			const result = await resolveExchangeRate({
+				profileName: pos_profile.value?.name,
+				company: company.value,
+				fromCurrency,
+				toCurrency,
+				effectiveDate: postingDate.value || getTodayDate(),
+			});
+			row._rate_error = !result.found;
+			row.invoice_equivalent = result.rate ? flt(row?.[amountField] || 0) * result.rate : 0;
+		};
+
+		watch(
+			() => [
+				invoiceTotalCurrency.value,
+				...selected_payments.value.map((row) => `${row.name}:${row.unallocated_amount}:${row.currency}`),
+				...selected_mpesa_payments.value.map((row) => `${row.name}:${row.amount}:${row.currency}`),
+			],
+			() => {
+				selected_payments.value.forEach((row) => void normalizeSelectedPayment(row, "unallocated_amount"));
+				selected_mpesa_payments.value.forEach((row) => void normalizeSelectedPayment(row, "amount"));
+			},
+			{ deep: true },
+		);
 
 		const loadPaymentMethodCurrencies = async () => {
 			if (!pos_profile.value?.payments?.length || !company.value) return;
@@ -748,6 +881,28 @@ export default {
 				payment_method_currencies.value = currencies;
 				// Fetch available accounts for all modes
 				await Promise.all(modes.map((mode) => fetchAvailableAccounts(mode)));
+				payment_methods.value.forEach((method) => {
+					const profileRow = pos_profile.value.payments.find(
+						(row) => row.mode_of_payment === method.mode_of_payment,
+					);
+					const preferredCurrency =
+						profileRow?.posa_default_payment_currency ||
+						pos_profile.value?.posa_default_payment_currency ||
+						currencies[method.mode_of_payment] ||
+						pos_profile.value?.currency;
+					const accounts = available_bank_accounts.value[method.mode_of_payment] || [];
+					const allowed = allowedPaymentCurrencies.value.includes(preferredCurrency);
+					const matchingAccount = accounts.find(
+						(account) => account.account_currency === preferredCurrency,
+					);
+					const defaultAccount = accountData[method.mode_of_payment]?.account || null;
+					method.payment_currency =
+						multiCurrencyPaymentsEnabled.value && allowed
+							? preferredCurrency
+							: currencies[method.mode_of_payment] || null;
+					method.bank_account = matchingAccount?.account || defaultAccount;
+					void resolvePaymentMethodRate(method);
+				});
 			} catch (e) {
 				console.error("Failed to load payment method accounts", e);
 			}
@@ -797,9 +952,7 @@ export default {
 				method.bank_account = bankAccount;
 				// Update currency map when account changes
 				if (bankAccount && available_bank_accounts.value[mode]) {
-					const acct = available_bank_accounts.value[mode].find(
-						(a) => a.account === bankAccount,
-					);
+					const acct = available_bank_accounts.value[mode].find((a) => a.account === bankAccount);
 					if (acct) {
 						payment_method_currencies.value = {
 							...payment_method_currencies.value,
@@ -816,6 +969,13 @@ export default {
 					}
 				}
 			}
+		};
+
+		const handlePaymentCurrencyChange = (mode, currency) => {
+			const method = payment_methods.value.find((row) => row.mode_of_payment === mode);
+			if (!method || !allowedPaymentCurrencies.value.includes(currency)) return;
+			method.payment_currency = currency;
+			void resolvePaymentMethodRate(method);
 		};
 
 		const applyOpeningData = async (data) => {
@@ -860,6 +1020,8 @@ export default {
 					refreshOutstandingInvoices();
 					get_unallocated_payments();
 					get_draft_mpesa_payments_register(payment_methods_list.value);
+				} else if (allCustomers.value) {
+					refreshOutstandingInvoices();
 				}
 			} catch (e) {
 				console.error("Error checking opening entry", e);
@@ -896,7 +1058,7 @@ export default {
 		};
 
 		const paymentRowClass = (item) => (item?.is_credit_note ? "credit-note-row" : "");
-		const isSelected = (item) => (isInvoiceSelected(item) ? "selected-row bg-primary bg-lighten-4" : "");
+		const isSelected = (item) => (isInvoiceSelected(item) ? "selected-row" : "");
 		const searchSuppliers = async (searchText = "") => {
 			partySearchLoading.value = true;
 			try {
@@ -968,6 +1130,14 @@ export default {
 			return get_outstanding_invoices(pos_profile_search.value || null);
 		}
 		function handleInvoiceSelection(item) {
+			if (allCustomers.value && item?.customer) {
+				pendingInvoiceSelection.value = item.voucher_no;
+				invoiceScope.value = "customer";
+				if (item.customer !== customer_name.value) {
+					customersStore.setSelectedCustomer(item.customer);
+				}
+				return;
+			}
 			toggleInvoiceSelection(item, customer_name, (cust) => {
 				if (isCustomerPartyType.value) {
 					customersStore.setSelectedCustomer(cust);
@@ -988,6 +1158,10 @@ export default {
 				unallocated_payments.value = [];
 				mpesa_payments.value = [];
 				exchangeRate.value = null;
+				if (isCustomerPartyType.value) {
+					if (invoiceScope.value === "all") refreshOutstandingInvoices();
+					else invoiceScope.value = "all";
+				}
 				return;
 			}
 			if (normalized === customer_name.value && !forceReload) {
@@ -1014,6 +1188,15 @@ export default {
 			refreshOutstandingInvoices();
 			get_unallocated_payments();
 			get_draft_mpesa_payments_register(payment_methods_list.value);
+		}
+
+		function applyPendingInvoiceSelection() {
+			const voucherNo = pendingInvoiceSelection.value;
+			if (!voucherNo || allCustomers.value) return;
+			const match = (outstanding_invoices.value || []).find((inv) => inv?.voucher_no === voucherNo);
+			if (!match) return;
+			pendingInvoiceSelection.value = null;
+			if (!isInvoiceSelected(match)) selected_invoices.value = [...selected_invoices.value, match];
 		}
 
 		function applyPaymentRouteTarget() {
@@ -1066,15 +1249,25 @@ export default {
 
 		watch(
 			selectedCustomer,
-			async (val) => {
+			async (val, oldVal) => {
 				const normalized = val || "";
 				if (isPaymentRouteLocked.value || !isCustomerPartyType.value) {
 					return;
+				}
+				// A customer chosen on this page narrows the list; the one carried over from the
+				// selling screen (the immediate first run) keeps the All customers view.
+				if (normalized && typeof oldVal !== "undefined") {
+					invoiceScope.value = "customer";
 				}
 				await syncCustomerPaymentContext(normalized);
 			},
 			{ immediate: true },
 		);
+
+		watch(invoiceScope, () => {
+			if (!pendingInvoiceSelection.value) clearSelections();
+			refreshOutstandingInvoices();
+		});
 
 		watch(customer_name, async (val, oldVal) => {
 			if (isPaymentRouteLocked.value || isCustomerPartyType.value) {
@@ -1151,7 +1344,11 @@ export default {
 
 		watch(company, (newCompany, oldCompany) => {
 			if (isPaymentRouteLocked.value) return;
-			if (!newCompany || newCompany === oldCompany || !customer_name.value) return;
+			if (!newCompany || newCompany === oldCompany) return;
+			if (!customer_name.value) {
+				if (allCustomers.value) refreshOutstandingInvoices();
+				return;
+			}
 			fetchPartyAccount();
 			loadPaymentMethodCurrencies();
 			refreshOutstandingInvoices();
@@ -1164,9 +1361,12 @@ export default {
 		watch(postingDate, fetchExchangeRate, { immediate: true });
 		watch([paymentRouteTarget, outstanding_invoices], () => {
 			applyPaymentRouteTarget();
+			applyPendingInvoiceSelection();
 		});
 
 		return {
+			invoiceScope,
+			allCustomers,
 			dialog,
 			pos_profile,
 			pos_opening_shift,
@@ -1250,6 +1450,8 @@ export default {
 			isPaymentRouteLocked,
 			paymentsLoadingMessage,
 			getPaymentMethodCurrency,
+			allowPaymentCurrencySelection,
+			allowedPaymentCurrencies,
 			fetchCompanyCurrency,
 			fetchExchangeRate,
 			validateExchangeRate,
@@ -1257,6 +1459,7 @@ export default {
 			loadPaymentMethodCurrencies,
 			fetchAvailableAccounts,
 			handleBankAccountChange,
+			handlePaymentCurrencyChange,
 			available_bank_accounts,
 			check_opening_entry,
 			syncPendingPayments,
@@ -1278,7 +1481,8 @@ export default {
 
 <style>
 .selected-row {
-	background-color: #e3f2fd !important;
+	background-color: var(--pos-selected-bg) !important;
+	box-shadow: inset 3px 0 0 rgb(var(--v-theme-primary));
 }
 
 .credit-note-row {
@@ -1308,140 +1512,131 @@ export default {
 	color: var(--pos-text-secondary, var(--text-secondary));
 }
 
-.pay-mode-toggle {
+/* Segmented controls (Receive/Pay, Party Type, invoice scope): the options sit inside one box,
+   so nothing is clipped by v-btn-toggle's fixed height and hidden overflow. */
+.pay-mode-toggle,
+.pay-segmented {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 2px;
 	width: fit-content;
 	max-width: 100%;
-	gap: 8px;
-	flex-wrap: wrap;
-	background: transparent !important;
+	height: auto !important;
+	padding: 3px;
+	border-radius: 12px !important;
+	border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+	background: rgba(var(--v-theme-on-surface), 0.04) !important;
+	overflow: visible !important;
 }
 
-.pay-mode-btn {
+.pay-mode-btn,
+.pay-segmented__btn {
 	--v-theme-overlay-multiplier: 0 !important;
-	min-height: 44px;
-	border-radius: 999px !important;
-	padding-inline: 18px !important;
-	font-weight: 700;
-	letter-spacing: 0.01em;
+	height: 38px !important;
+	min-height: 38px;
+	padding-inline: 16px !important;
+	border: 0 !important;
+	border-radius: 9px !important;
+	background: transparent !important;
+	color: rgba(var(--v-theme-on-surface), 0.87) !important;
+	font-weight: 600;
+	letter-spacing: 0;
 	text-transform: none;
-	border: 1px solid transparent !important;
+	box-shadow: none !important;
+	transform: none !important;
 	transition:
-		background-color 0.18s ease,
-		color 0.18s ease,
-		border-color 0.18s ease,
-		box-shadow 0.18s ease,
-		transform 0.18s ease,
-		opacity 0.18s ease !important;
-	opacity: 0.88;
+		background-color 0.15s ease,
+		color 0.15s ease;
 }
 
 .pay-mode-btn:hover,
-.pay-mode-btn:focus,
-.pay-mode-btn:focus-visible {
-	transform: translateY(-1px);
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12) !important;
+.pay-segmented__btn:hover {
+	background: rgba(var(--v-theme-on-surface), 0.06) !important;
 }
 
-.pay-mode-btn:active {
-	transform: translateY(0);
-}
-
-.pay-mode-btn.v-btn--active,
-.pay-mode-btn.v-btn--selected,
-.pay-mode-btn[aria-pressed="true"] {
-	opacity: 1;
-	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18) !important;
-	border-width: 2px !important;
-	transform: translateY(-1px);
+.pay-mode-btn:focus-visible,
+.pay-segmented__btn:focus-visible {
+	outline: 2px solid rgb(var(--v-theme-primary));
+	outline-offset: -2px;
 }
 
 .pay-mode-btn .v-btn__overlay,
-.pay-mode-btn .v-btn__underlay {
+.pay-mode-btn .v-btn__underlay,
+.pay-segmented__btn .v-btn__overlay,
+.pay-segmented__btn .v-btn__underlay {
 	opacity: 0 !important;
 	background: transparent !important;
 }
 
-.pay-mode-btn--receive {
-	background: rgba(var(--v-theme-success), 0.14) !important;
-	color: rgb(var(--v-theme-success)) !important;
-	border-color: rgba(var(--v-theme-success), 0.24) !important;
+.pay-mode-btn.v-btn--active .v-btn__content,
+.pay-mode-btn.v-btn--selected .v-btn__content,
+.pay-segmented__btn.v-btn--active .v-btn__content,
+.pay-segmented__btn.v-btn--selected .v-btn__content {
+	color: inherit !important;
+	font-weight: 700;
 }
 
+/* Active colours: solid fill, text at 4.5:1 or better. */
 .pay-mode-btn--receive.v-btn--active,
-.pay-mode-btn--receive.v-btn--selected,
-.pay-mode-btn--receive[aria-pressed="true"] {
+.pay-mode-btn--receive.v-btn--selected {
 	background: rgb(var(--v-theme-success)) !important;
 	color: #ffffff !important;
-	border-color: rgba(var(--v-theme-success), 0.92) !important;
-}
-
-.pay-mode-btn--pay {
-	background: rgba(var(--v-theme-warning), 0.16) !important;
-	color: rgb(var(--v-theme-warning)) !important;
-	border-color: rgba(var(--v-theme-warning), 0.28) !important;
 }
 
 .pay-mode-btn--pay.v-btn--active,
-.pay-mode-btn--pay.v-btn--selected,
-.pay-mode-btn--pay[aria-pressed="true"] {
+.pay-mode-btn--pay.v-btn--selected {
 	background: rgb(var(--v-theme-warning)) !important;
 	color: #1f1300 !important;
-	border-color: rgba(var(--v-theme-warning), 0.96) !important;
-}
-
-.pay-mode-btn--customer {
-	background: rgba(var(--v-theme-primary), 0.14) !important;
-	color: rgb(var(--v-theme-primary)) !important;
-	border-color: rgba(var(--v-theme-primary), 0.24) !important;
 }
 
 .pay-mode-btn--customer.v-btn--active,
 .pay-mode-btn--customer.v-btn--selected,
-.pay-mode-btn--customer[aria-pressed="true"] {
+.pay-segmented__btn.v-btn--active,
+.pay-segmented__btn.v-btn--selected {
 	background: rgb(var(--v-theme-primary)) !important;
-	color: #ffffff !important;
-	border-color: rgba(var(--v-theme-primary), 0.92) !important;
-}
-
-.pay-mode-btn--supplier {
-	background: rgba(var(--v-theme-secondary), 0.14) !important;
-	color: rgb(var(--v-theme-secondary)) !important;
-	border-color: rgba(var(--v-theme-secondary), 0.24) !important;
+	color: rgb(var(--v-theme-on-primary)) !important;
 }
 
 .pay-mode-btn--supplier.v-btn--active,
-.pay-mode-btn--supplier.v-btn--selected,
-.pay-mode-btn--supplier[aria-pressed="true"] {
+.pay-mode-btn--supplier.v-btn--selected {
 	background: rgb(var(--v-theme-secondary)) !important;
-	color: #ffffff !important;
-	border-color: rgba(var(--v-theme-secondary), 0.92) !important;
-}
-
-.pay-mode-btn--employee {
-	background: rgba(var(--v-theme-info), 0.14) !important;
-	color: rgb(var(--v-theme-info)) !important;
-	border-color: rgba(var(--v-theme-info), 0.24) !important;
+	color: rgb(var(--v-theme-on-secondary)) !important;
 }
 
 .pay-mode-btn--employee.v-btn--active,
-.pay-mode-btn--employee.v-btn--selected,
-.pay-mode-btn--employee[aria-pressed="true"] {
+.pay-mode-btn--employee.v-btn--selected {
 	background: rgb(var(--v-theme-info)) !important;
-	color: #ffffff !important;
-	border-color: rgba(var(--v-theme-info), 0.92) !important;
+	color: rgb(var(--v-theme-on-info)) !important;
 }
 
-[data-theme="dark"] .pay-mode-btn--pay.v-btn--active,
-[data-theme="dark"] .pay-mode-btn--pay.v-btn--selected,
-[data-theme="dark"] .pay-mode-btn--pay[aria-pressed="true"] {
-	color: #ffffff !important;
+.pay-segmented__btn.v-btn--disabled {
+	color: rgba(var(--v-theme-on-surface), 0.45) !important;
 }
 
-.pay-mode-btn.v-btn--active .v-btn__content,
-.pay-mode-btn.v-btn--selected .v-btn__content,
-.pay-mode-btn[aria-pressed="true"] .v-btn__content {
-	color: inherit !important;
-	font-weight: 800;
+.pay-scope-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin: 12px 0 8px;
+}
+
+.pay-scope-hint {
+	font-size: 0.85rem;
+	color: rgba(var(--v-theme-on-surface), 0.75);
+}
+
+/* Readable labels and placeholders on this page (Vuetify dims them to about 3:1). */
+.pay-view .v-field-label,
+.pay-view .v-label {
+	opacity: 1 !important;
+	color: rgba(var(--v-theme-on-surface), 0.75) !important;
+}
+
+.pay-view input::placeholder,
+.pay-view .dp__input::placeholder {
+	opacity: 1;
+	color: rgba(var(--v-theme-on-surface), 0.68) !important;
 }
 
 .pay-customer-row {

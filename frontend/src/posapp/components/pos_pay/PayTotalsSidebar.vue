@@ -159,6 +159,19 @@
 								</v-chip>
 							</div>
 
+							<v-select
+								v-if="allowPaymentCurrencySelection && paymentCurrencyOptions.length > 1"
+								:model-value="selectedMop.payment_currency || getPaymentMethodCurrency(selectedMop.mode_of_payment)"
+								:items="paymentCurrencyOptions"
+								:label="__('Tender Currency')"
+								data-test="payment-tender-currency"
+								density="compact"
+								variant="outlined"
+								hide-details
+								class="mb-2"
+								@update:model-value="onPaymentCurrencyInput"
+							/>
+
 							<div class="d-flex align-center">
 								<span class="text-caption text-medium-emphasis mr-2">
 									{{ paymentType === "Pay" ? __("Paid:") : __("Recv:") }}
@@ -172,7 +185,7 @@
 									hide-details
 									class="payment-amount-input"
 									flat
-									:prefix="currencySymbol(getPaymentMethodCurrency(selectedMop.mode_of_payment))"
+									:prefix="currencySymbol(selectedMop.payment_currency || getPaymentMethodCurrency(selectedMop.mode_of_payment))"
 									placeholder="0.00"
 									@wheel.prevent
 								/>
@@ -334,7 +347,7 @@
 					>
 						<span class="font-weight-medium" style="min-width: 40%">{{ __(entry.mode_of_payment) }}</span>
 						<span class="text-end" style="min-width: 30%">
-							{{ currencySymbol(getPaymentMethodCurrency(entry.mode_of_payment)) }}{{ formatCurrency(entry.amount) }}
+							{{ currencySymbol(entry.payment_currency || getPaymentMethodCurrency(entry.mode_of_payment)) }}{{ formatCurrency(entry.amount) }}
 						</span>
 						<span class="text-medium-emphasis text-end" style="min-width: 30%">
 							({{ currencySymbol(companyCurrency) }}{{ formatCurrency(entry.baseAmount) }})
@@ -398,18 +411,34 @@
 		</v-card>
 
 		<!-- 5. Difference (Prominent Status) -->
-		<v-card
-			:color="totalOfDiff === 0 ? 'success' : totalOfDiff > 0 ? 'warning' : 'error'"
-			variant="tonal"
-			class="mb-2 difference-card"
+		<div
+			class="difference-status mb-2"
+			:class="`difference-status--${differenceState}`"
+			role="status"
+			aria-live="polite"
 		>
-			<v-card-text class="d-flex justify-space-between align-center py-2">
-				<span class="font-weight-bold">{{ __("Difference") }}</span>
-				<span class="text-subtitle-1 font-weight-bold">
-					{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(totalOfDiff) }}
-				</span>
-			</v-card-text>
-		</v-card>
+			<v-icon size="20" class="difference-status__icon">
+				{{
+					differenceState === "balanced"
+						? "mdi-check-circle"
+						: differenceState === "remaining"
+							? "mdi-progress-clock"
+							: "mdi-alert-circle"
+				}}
+			</v-icon>
+			<span class="difference-status__label">
+				{{
+					differenceState === "balanced"
+						? __("Balanced")
+						: differenceState === "remaining"
+							? __("Remaining")
+							: __("Over by")
+				}}
+			</span>
+			<span class="difference-status__amount">
+				{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(Math.abs(totalOfDiff)) }}
+			</span>
+		</div>
 
 		<!-- 6. Transaction ID -->
 		<v-card variant="outlined" class="mb-2 section-card">
@@ -624,6 +653,11 @@ const props = defineProps({
 		type: Object,
 		default: () => ({}),
 	},
+	allowPaymentCurrencySelection: Boolean,
+	allowedPaymentCurrencies: {
+		type: Array,
+		default: () => [],
+	},
 	paymentType: {
 		type: String,
 		default: "Receive",
@@ -640,6 +674,7 @@ const emit = defineEmits([
 	"update:referenceNo",
 	"update:referenceDate",
 	"update:bankAccount",
+	"update:paymentCurrency",
 	"validate-exchange-rate",
 	"fetch-exchange-rate",
 ]);
@@ -650,6 +685,13 @@ const internalExchangeRate = computed({
 });
 
 const internalAutoAllocatePaymentAmount = computed(() => props.autoAllocatePaymentAmount ?? true);
+
+// Invoice total minus payments: > 0 still to collect, < 0 too much entered.
+const differenceState = computed(() => {
+	const diff = flt(props.totalOfDiff || 0, 2);
+	if (Math.abs(diff) < 0.005) return "balanced";
+	return diff > 0 ? "remaining" : "over";
+});
 
 const getPaymentMethodAccount = (mode) => {
 	if (!mode || !props.paymentMethodAccounts) return null;
@@ -672,13 +714,15 @@ const newPaymentFields = computed(() => {
 	if (!props.filteredPaymentMethods) return fields;
 	for (const method of props.filteredPaymentMethods) {
 		const amt = flt(method.amount);
-		const mopCurr = props.getPaymentMethodCurrency(method.mode_of_payment);
+		const mopCurr = method.payment_currency || props.getPaymentMethodCurrency(method.mode_of_payment);
 		const partyCurr = props.partyAccount?.currency || props.invoiceTotalCurrency;
 		const isReceive = props.paymentType === "Receive";
 		const fromCurr = isReceive ? partyCurr : mopCurr;
 		const toCurr = isReceive ? mopCurr : partyCurr;
-		const srcRate = rateFromCurrencyToCompany(fromCurr);
-		const tgtRate = rateFromCurrencyToCompany(toCurr);
+		const mopCompanyRate = flt(method.company_exchange_rate) || rateFromCurrencyToCompany(mopCurr);
+		const partyCompanyRate = rateFromCurrencyToCompany(partyCurr);
+		const srcRate = isReceive ? partyCompanyRate : mopCompanyRate;
+		const tgtRate = isReceive ? mopCompanyRate : partyCompanyRate;
 		let paidAmt, recvAmt;
 		if (isReceive) {
 			recvAmt = amt;
@@ -836,9 +880,19 @@ const selectedMop = computed(() => {
 
 const selectedMopRate = computed(() => {
 	if (!selectedMop.value) return 1;
-	const mopCurr = props.getPaymentMethodCurrency(selectedMop.value.mode_of_payment);
-	return rateFromCurrencyToCompany(mopCurr);
+	const mopCurr = selectedMop.value.payment_currency || props.getPaymentMethodCurrency(selectedMop.value.mode_of_payment);
+	return flt(selectedMop.value.company_exchange_rate) || rateFromCurrencyToCompany(mopCurr);
 });
+
+const paymentCurrencyOptions = computed(() => {
+	if (!selectedMopName.value) return [];
+	return [...new Set((props.allowedPaymentCurrencies || []).filter(Boolean))].sort();
+});
+
+const onPaymentCurrencyInput = (currency) => {
+	if (!selectedMop.value || !currency) return;
+	emit("update:paymentCurrency", selectedMop.value.mode_of_payment, currency);
+};
 
 watch(
 	() => props.invoiceTotalCurrency,
@@ -949,13 +1003,15 @@ const enteredPayments = computed(() => {
 				row_id: m.row_id,
 				mode_of_payment: m.mode_of_payment,
 				amount: flt(m.amount),
+				payment_currency: m.payment_currency,
+				invoiceEquivalent: flt(m.invoice_equivalent ?? m.amount),
 				baseAmount,
 			};
 		});
 });
 
 const totalNewPayments = computed(() => {
-	return enteredPayments.value.reduce((sum, e) => sum + e.amount, 0);
+	return enteredPayments.value.reduce((sum, e) => sum + e.invoiceEquivalent, 0);
 });
 
 const totalNewPaymentsBase = computed(() => {
@@ -1092,6 +1148,11 @@ defineExpose({
 	padding: 0 12px;
 }
 
+/* Leave room for the 40px calendar icon (the padding above hid the first letters under it). */
+.pay-reference-date :deep(.dp__input_icon_pad) {
+	padding-inline-start: 40px;
+}
+
 /* RTL: datepicker component root — cascades to input + icon siblings */
 .pay-sidebar[dir="rtl"] :deep(.pay-reference-date) {
 	--dp-direction: rtl;
@@ -1175,8 +1236,58 @@ defineExpose({
 	border-color: rgba(var(--v-theme-primary), 0.35);
 }
 
-.difference-card {
+/* Difference: icon + words + amount, so the state never depends on colour alone (>= 7:1). */
+.difference-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 44px;
+	padding: 8px 14px;
 	border-radius: 10px;
+	border: 1px solid transparent;
+	font-weight: 700;
+}
+
+.difference-status__label {
+	flex: 1;
+}
+
+.difference-status__amount {
+	font-size: 1.05rem;
+	white-space: nowrap;
+}
+
+.difference-status--balanced {
+	background: #e8f5e9;
+	border-color: #a5d6a7;
+	color: #1b5e20;
+}
+
+.difference-status--remaining {
+	background: #fff4e5;
+	border-color: #ffcc80;
+	color: #6d3a00;
+}
+
+.difference-status--over {
+	background: #fdecea;
+	border-color: #ef9a9a;
+	color: #a31515;
+}
+
+[data-theme="dark"] .difference-status--balanced {
+	background: rgba(76, 175, 80, 0.16);
+	color: #a5d6a7;
+}
+
+[data-theme="dark"] .difference-status--remaining {
+	background: rgba(255, 152, 0, 0.16);
+	color: #ffcc80;
+}
+
+[data-theme="dark"] .difference-status--over {
+	background: rgba(244, 67, 54, 0.16);
+	color: #ef9a9a;
 }
 
 .account-dialog-card {

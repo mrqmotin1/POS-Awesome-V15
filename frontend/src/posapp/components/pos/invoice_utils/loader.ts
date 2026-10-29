@@ -5,10 +5,43 @@ import {
 } from "../../../../offline/index";
 import { useDiscounts } from "../../../composables/pos/shared/useDiscounts";
 import { resolvePosDocumentDoctype } from "../../../utils/posDocumentMode";
+import { resolvePricingRuleName } from "./pricing_rule_names";
 
 declare const __: (_text: string, _args?: any[]) => string;
 declare const flt: (_value: unknown, _precision?: number) => number;
 declare const frappe: any;
+
+function markPricingRuleFreeLines(items: any[] = []) {
+	items.forEach((item) => {
+		if (
+			!item ||
+			!(
+				item.is_free_item === 1 ||
+				item.is_free_item === true ||
+				item.is_free_item === "1"
+			)
+		) {
+			return;
+		}
+		if (item.auto_free_source) {
+			return;
+		}
+		const ruleName = resolvePricingRuleName(item);
+		if (!ruleName) {
+			return;
+		}
+		const parentRowId =
+			item.parent_row_id ||
+			item.parent_detail_docname ||
+			item.parent_row ||
+			item.parent_docname ||
+			"";
+		item.source_rule = item.source_rule || ruleName;
+		item.auto_free_source = parentRowId
+			? `${ruleName}::${item.item_code}::${parentRowId}`
+			: `${ruleName}::${item.item_code}`;
+	});
+}
 
 /**
  * Loader Utils
@@ -81,7 +114,10 @@ export async function fetch_customer_balance(context: any) {
 		// Online mode: fetch from server and cache the result
 		const r = await frappe.call({
 			method: "posawesome.posawesome.api.customer.get_customer_balance",
-			args: { customer: context.customer, company: context.pos_profile?.company },
+			args: {
+				customer: context.customer,
+				company: context.pos_profile?.company,
+			},
 		});
 
 		const balance = r?.message?.balance || 0;
@@ -125,6 +161,7 @@ export async function load_invoice(
 	const {
 		preserveAdditionalDiscountPercentage = false,
 		preserveStickies = false,
+		preserveExchange = false,
 	} = options || {};
 	const usePercentageDiscount = Boolean(
 		context.pos_profile?.posa_use_percentage_discount,
@@ -150,7 +187,7 @@ export async function load_invoice(
 		: null;
 
 	if (context.clear_invoice) {
-		context.clear_invoice({ preserveStickies });
+		context.clear_invoice({ preserveStickies, preserveExchange });
 	}
 
 	// Restore stickies if they aren't provided in the data
@@ -209,6 +246,7 @@ export async function load_invoice(
 	context.posa_offers = data.posa_offers || [];
 	context.items = data.items || [];
 	context.packed_items = data.packed_items || [];
+	markPricingRuleFreeLines(context.items);
 
 	if (data.is_return && data.return_against) {
 		context.items.forEach((item) => {
@@ -237,6 +275,34 @@ export async function load_invoice(
 			}
 			if (!item.original_item_name) {
 				item.original_item_name = item.item_name;
+			}
+
+			// Return rows come back from the backend with a `batch_no` string but
+			// no `batch_no_data`, so the batch column renders blank until the qty
+			// is touched. Seed a single display option (with a positive qty, since
+			// getDisplayableBatchOptions filters out non-positive batches) so the
+			// selected batch shows immediately. Display-only: we deliberately do
+			// NOT call set_batch_qty here — it would refetch item details and could
+			// reset the locked return price.
+			if (
+				data.is_return &&
+				data.return_against &&
+				item.batch_no &&
+				(!Array.isArray(item.batch_no_data) ||
+					item.batch_no_data.length === 0)
+			) {
+				// The cart row's blue "Batch: …" chip is gated on has_batch_no,
+				// which the return payload omits; the item clearly has a batch.
+				if (!item.has_batch_no) item.has_batch_no = 1;
+				const displayQty = Math.abs(flt(item.qty)) || 0;
+				item.batch_no_data = [
+					{
+						batch_no: item.batch_no,
+						batch_qty: displayQty,
+						available_qty: displayQty,
+						expiry_date: item.batch_no_expiry_date || null,
+					},
+				];
 			}
 		});
 
