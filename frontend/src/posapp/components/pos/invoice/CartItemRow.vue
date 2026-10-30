@@ -20,7 +20,7 @@
 			<!-- Item Name Column -->
 			<td v-else-if="column.key === 'item_name'" v-bind="getCellAttrs('item_name', 'text-center')">
 				<div class="d-flex flex-column justify-center h-100">
-				<div class="d-flex align-center">
+				<div class="d-flex align-center flex-wrap">
 					<span class="posa-cart-item-row__item-name">{{ item.item_name }}</span>
 					<v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">
 						{{ __("Bundle") }}

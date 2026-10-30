@@ -809,7 +809,12 @@ def process_post_submit_payments_job(kwargs):
                     _mark_ledger_failed(ledger_doc, error_msg)
             except Exception:
                 pass
-        frappe.log_error(f"POS Post Submit Payment Processing Failed for {invoice}: {error_msg}")
+        # short title: Error Log titles cap at 140 chars, and a failed insert here would
+        # skip the realtime error below and leave the POS waiting until it times out
+        frappe.log_error(
+            title="POS Post Submit Payment Processing Failed",
+            message=f"{invoice}: {error_msg}",
+        )
         user = kwargs.get("user")
         if user and hasattr(frappe, "publish_realtime"):
             frappe.publish_realtime(
@@ -2304,7 +2309,7 @@ def _record_background_submission_failure(invoice, error, kwargs, user):
                 _mark_ledger_failed(ledger_doc, error_msg)
         except Exception:
             pass
-    frappe.log_error(f"POS Background Submission Failed for {invoice}: {error_msg}")
+    frappe.log_error(title="POS Background Submission Failed", message=f"{invoice}: {error_msg}")
     if hasattr(frappe, "publish_realtime"):
         frappe.publish_realtime(
             "pos_invoice_submit_error",
@@ -2538,7 +2543,8 @@ def submit_payload_in_background_job(kwargs):
             except Exception:
                 pass
         frappe.log_error(
-            f"POS Background Payload Submission Failed for {invoice.get('name')}: {error_msg}"
+            title="POS Background Payload Submission Failed",
+            message=f"{invoice.get('name')}: {error_msg}",
         )
         if hasattr(frappe, "publish_realtime"):
             frappe.publish_realtime(
