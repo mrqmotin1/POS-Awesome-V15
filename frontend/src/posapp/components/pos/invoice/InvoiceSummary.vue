@@ -103,7 +103,7 @@
 				:invoiceManagementLoading="invoiceManagementLoading"
 				:returnsLoading="returnsLoading"
 				:printLoading="printLoading"
-				:paymentLoading="paymentLoading"
+				:paymentLoading="paymentLoading || paymentBusy"
 				:customerDisplayLoading="customerDisplayLoading"
 				:exchange-active="exchangeSession?.stage === 'sale'"
 				@save-and-clear="handleSaveAndClear"
@@ -252,7 +252,7 @@
 					:invoiceManagementLoading="invoiceManagementLoading"
 					:returnsLoading="returnsLoading"
 					:printLoading="printLoading"
-					:paymentLoading="paymentLoading"
+					:paymentLoading="paymentLoading || paymentBusy"
 					:customerDisplayLoading="customerDisplayLoading"
 					:exchange-active="exchangeSession?.stage === 'sale'"
 					@save-and-clear="handleSaveAndClear"
@@ -389,6 +389,8 @@ const props = defineProps({
 	return_discount_meta: Object,
 	exchangeSession: Object,
 	exchangeContinuing: Boolean,
+	// True while Pay is saving the draft; keeps the Pay button spinning/disabled.
+	paymentBusy: Boolean,
 });
 
 const emit = defineEmits([

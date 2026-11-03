@@ -287,6 +287,7 @@
 			@open-returns="open_returns"
 			@print-draft="print_draft_invoice"
 			@show-payment="handleShowPaymentRequest"
+			:payment-busy="paymentInFlight"
 			@open-customer-display="handleOpenCustomerDisplayRequest"
 			@open-offers="handleOpenCounterAuxiliary('offers')"
 			@open-coupons="handleOpenCounterAuxiliary('coupons')"
@@ -435,6 +436,7 @@ export default {
 	data() {
 		return {
 			is_sharing: false,
+			paymentInFlight: false,
 			pos_profile: "",
 			pos_opening_shift: "",
 			stock_settings: "",

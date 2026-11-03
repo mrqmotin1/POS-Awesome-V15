@@ -13,7 +13,23 @@ const showCompactPanel = (context: any, panel: "selector" | "invoice") => {
 	context?.eventBus?.emit?.("set_compact_panel", panel);
 };
 
-export async function show_payment(context: any) {
+export function show_payment(context: any): Promise<void> {
+	// A second Pay while the first is still saving the draft would send an
+	// overlapping update_invoice for the same invoice and one of them fails
+	// ("Error processing invoice"). Callers share the running attempt instead.
+	if (context._showPaymentPromise) {
+		return context._showPaymentPromise;
+	}
+	context.paymentInFlight = true;
+	const attempt = run_show_payment(context).finally(() => {
+		context._showPaymentPromise = null;
+		context.paymentInFlight = false;
+	});
+	context._showPaymentPromise = attempt;
+	return attempt;
+}
+
+async function run_show_payment(context: any) {
 	if (context._suppressClosePaymentsTimer) {
 		clearTimeout(context._suppressClosePaymentsTimer);
 		context._suppressClosePaymentsTimer = null;

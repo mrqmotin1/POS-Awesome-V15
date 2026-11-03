@@ -78,6 +78,48 @@ describe("invoice payment dialogs", () => {
 		expect(sequence).toEqual(["assign", "validate"]);
 	});
 
+	it("shares one draft save when Pay is pressed again while it is still running", async () => {
+		const context: any = createPaymentContext();
+		let finishSave: (doc: any) => void = () => {};
+		context.process_invoice = vi.fn(
+			() =>
+				new Promise((resolve) => {
+					finishSave = resolve;
+				}),
+		);
+
+		const first = show_payment(context);
+		const second = show_payment(context);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(second).toBe(first);
+		expect(context.paymentInFlight).toBe(true);
+		expect(context.process_invoice).toHaveBeenCalledTimes(1);
+
+		finishSave({ doctype: "Sales Invoice", grand_total: 10, total: 10, payments: [] });
+		await Promise.all([first, second]);
+
+		expect(context.paymentInFlight).toBe(false);
+		expect(context.eventBus.emit.mock.calls.filter(([name]) => name === "show_payment")).toHaveLength(1);
+
+		// Released afterwards: the next Pay runs normally.
+		context.process_invoice = vi.fn(async () => ({ doctype: "Sales Invoice", total: 10, payments: [] }));
+		await show_payment(context);
+		expect(context.process_invoice).toHaveBeenCalledTimes(1);
+	});
+
+	it("releases the Pay lock when payment is refused before saving", async () => {
+		const context: any = createPaymentContext();
+		context.customer = "";
+
+		await show_payment(context);
+
+		expect(context.toastStore.show).toHaveBeenCalledWith({ title: "Select a customer", color: "error" });
+		expect(context.paymentInFlight).toBe(false);
+		expect(context._showPaymentPromise).toBeNull();
+		expect(context.process_invoice).not.toHaveBeenCalled();
+	});
+
 	it("switches compact layout back to the invoice when closing payments", () => {
 		const context = {
 			_suppressClosePayments: false,
