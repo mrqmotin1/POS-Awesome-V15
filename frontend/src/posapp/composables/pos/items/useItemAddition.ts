@@ -486,6 +486,9 @@ export function useItemAddition() {
 			}
 
 			let new_item: any;
+			// Line that received a merged qty; returned so callers (e.g. focus cart
+			// qty after add) treat a repeat add like a new line.
+			let mergedLine: any = null;
 			if (index === -1 || context.new_line) {
 				new_item = getNewItem(item, context);
 				new_item._needs_update = true; // Mark new item for background update
@@ -912,6 +915,7 @@ export function useItemAddition() {
 					if (extra_items.length > 0) {
 						addSplitItemsDirectly(context, extra_items);
 					}
+					mergedLine = cur_item;
 				}
 			} else {
 				let cur_item = context.items[index];
@@ -1002,6 +1006,7 @@ export function useItemAddition() {
 				// Trigger background flush
 				if (context.triggerBackgroundFlush)
 					context.triggerBackgroundFlush();
+				mergedLine = cur_item;
 			}
 			if (context.forceUpdate) {
 				runAsyncTask(() => context.forceUpdate(), "force_update");
@@ -1010,6 +1015,7 @@ export function useItemAddition() {
 			if (new_item) {
 				handleItemExpansion(new_item, context);
 			}
+			return mergedLine;
 		},
 	);
 

@@ -297,6 +297,12 @@ defineExpose({ scrollToIndex, getTableElement, tableRef });
 	background-color: rgba(var(--v-theme-primary), 0.32);
 }
 
+/* Vuetify fades the cell background over 0.28s; while arrowing through the list
+   the previous row stayed shaded and looked like a second highlight. */
+.sleek-data-table :deep(.v-table__wrapper > table > tbody > tr > td) {
+	transition: none;
+}
+
 .rate-cell-primary {
 	display: inline-flex;
 	align-items: center;

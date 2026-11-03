@@ -179,6 +179,7 @@ import {
 	type BatchAllocation,
 } from "../../../composables/pos/shared/batchAllocation";
 import { loadItemSelectorSettings } from "../../../utils/itemSelectorSettings";
+import { shouldFocusCartQtyAfterItemAdd } from "../../../utils/cartFocusSettings";
 import { logComponentRender } from "../../../utils/perf";
 import CartItemRow from "./CartItemRow.vue";
 import CounterGridEntryRow from "./CounterGridEntryRow.vue";
@@ -960,6 +961,13 @@ const getItemIndex = (item: any) => {
 };
 
 const handleQtyEditSubmitted = (item: any) => {
+	// Qty was focused right after the item was added: Enter returns to the item
+	// search so the cashier can scan/type the next item.
+	if (!props.counterGrid && shouldFocusCartQtyAfterItemAdd(props.pos_profile)) {
+		deactivateKeyboardGrid();
+		eventBus?.emit("focus_item_search");
+		return;
+	}
 	advanceGridEntryFromItem(item, "qty");
 };
 

@@ -70,10 +70,12 @@ describe("useItemAddition new line behavior", () => {
 
 		const second = createItem();
 		await api.prepareItemForCart(second, 1, context);
-		await api.addItem(second, context);
+		const merged = await api.addItem(second, context);
 
 		expect(context.items).toHaveLength(1);
 		expect(context.items[0].qty).toBe(2);
+		// returned so "focus cart qty after item add" also fires on a repeat add
+		expect(merged).toBe(context.items[0]);
 	});
 
 	it("uses the selector quantity even when the catalog row carries a stale qty", async () => {
