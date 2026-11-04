@@ -88,7 +88,8 @@ describe("bootstrap runtime reevaluation", () => {
 		stopListening();
 	});
 
-	it("clears the stock-confidence warning in the same session after stock sync succeeds", () => {
+	// FORK(mon-develop-4): our fork hides offline bootstrap warnings (51c60cee, 27c227f4).
+	it.skip("clears the stock-confidence warning in the same session after stock sync succeeds", () => {
 		const stopListening = listenForBootstrapSnapshotUpdates(() => {
 			const validation = validateBootstrapSnapshot(getBootstrapSnapshot(), {
 				buildVersion: "build-2",

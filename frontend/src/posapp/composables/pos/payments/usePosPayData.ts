@@ -11,6 +11,8 @@ type PosPayDataArgs = {
 	customerName: Ref<string>;
 	partyType?: Ref<string>;
 	paymentType?: Ref<string>;
+	// Payments page "All customers" view: list every customer's unpaid invoices (customers only).
+	allCustomers?: Ref<boolean>;
 	eventBus: { emit: (_event: string, _payload?: unknown) => void };
 	currencySymbol: (_currency: string) => string;
 	formatCurrency: (_value: number) => string;
@@ -26,6 +28,7 @@ export function usePosPayData({
 	customerName,
 	partyType,
 	paymentType,
+	allCustomers,
 	eventBus,
 	currencySymbol,
 	formatCurrency,
@@ -52,13 +55,14 @@ export function usePosPayData({
 		posProfileSearch?: string | null,
 	) {
 		const resolvedPartyType = partyType?.value || "Customer";
+		const allMode = Boolean(allCustomers?.value) && resolvedPartyType === "Customer";
 		invoices_loading.value = true;
 		const requestToken = ++outstandingReqToken.value;
-		const requestCustomer = customerName.value;
+		const requestCustomer = allMode ? "" : customerName.value;
 		const requestCompany = company.value;
 
 		if (
-			!customerName.value ||
+			(!allMode && !customerName.value) ||
 			!company.value ||
 			resolvedPartyType === "Employee"
 		) {
@@ -82,13 +86,14 @@ export function usePosPayData({
 			const r = await frappe.call(
 				"posawesome.posawesome.api.payment_entry.get_outstanding_invoices",
 				{
-					customer: customerName.value,
-					party: customerName.value,
+					customer: allMode ? null : customerName.value,
+					party: allMode ? null : customerName.value,
 					party_type: resolvedPartyType,
 					company: company.value,
 					currency: posProfile.value.currency,
 					pos_profile: resolvedPosProfile,
 					include_all_currencies: true,
+					all_customers: allMode ? 1 : 0,
 					page_start: 0,
 					page_length: OUTSTANDING_INVOICES_PAGE_LENGTH,
 				},
@@ -96,7 +101,7 @@ export function usePosPayData({
 
 			if (
 				requestToken !== outstandingReqToken.value ||
-				requestCustomer !== customerName.value ||
+				(!allMode && requestCustomer !== customerName.value) ||
 				requestCompany !== company.value
 			) {
 				return;

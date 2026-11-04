@@ -196,11 +196,14 @@ describe("offline sync resource runner", () => {
 				name: "POS-1",
 			},
 			schemaVersion: "2026-04-09",
-			getPersistedState: vi.fn(async () => ({
-				resourceId: "item_prices",
-				status: "fresh",
-				watermark: "old-item-price-watermark",
-			} as any)),
+			getPersistedState: vi.fn(
+				async () =>
+					({
+						resourceId: "item_prices",
+						status: "fresh",
+						watermark: "old-item-price-watermark",
+					}) as any,
+			),
 			callOfflineSyncMethod,
 		});
 
@@ -254,6 +257,65 @@ describe("offline sync resource runner", () => {
 			expect.not.objectContaining({
 				customer: expect.anything(),
 				customer_group: expect.anything(),
+			}),
+		);
+	});
+
+	it("immediately rebuilds and promotes a resource when its server schema changed", async () => {
+		adapterMocks.syncBootstrapConfigResource
+			.mockResolvedValueOnce({
+				resourceId: "bootstrap_config",
+				status: "limited",
+				watermark: null,
+				schemaVersion: "2026-04-09",
+				response: {
+					full_resync_required: true,
+					schema_version: "2026-04-09",
+				},
+			})
+			.mockResolvedValueOnce({
+				resourceId: "bootstrap_config",
+				status: "fresh",
+				watermark: "fresh-watermark",
+				schemaVersion: "2026-04-09",
+				response: { schema_version: "2026-04-09" },
+			});
+
+		const result = await runSupportedOfflineSyncResource({
+			resource: {
+				id: "bootstrap_config",
+				fullResyncSupported: true,
+			} as any,
+			posProfile: { name: "POS-1" },
+			getPersistedState: vi.fn(
+				async () =>
+					({
+						resourceId: "bootstrap_config",
+						watermark: "legacy-watermark",
+						schemaVersion: "legacy-schema",
+					}) as any,
+			),
+			callOfflineSyncMethod: vi.fn(),
+		});
+
+		expect(result.status).toBe("fresh");
+		expect(adapterMocks.syncBootstrapConfigResource).toHaveBeenCalledTimes(
+			2,
+		);
+		expect(
+			adapterMocks.syncBootstrapConfigResource.mock.calls[0][0],
+		).toEqual(
+			expect.objectContaining({
+				watermark: "legacy-watermark",
+				schemaVersion: "legacy-schema",
+			}),
+		);
+		expect(
+			adapterMocks.syncBootstrapConfigResource.mock.calls[1][0],
+		).toEqual(
+			expect.objectContaining({
+				watermark: null,
+				schemaVersion: "2026-04-09",
 			}),
 		);
 	});

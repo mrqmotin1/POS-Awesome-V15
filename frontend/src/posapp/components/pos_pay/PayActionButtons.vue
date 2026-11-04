@@ -7,7 +7,7 @@
 					block
 					size="large"
 					color="primary"
-					theme="dark"
+					variant="outlined"
 					@click="$emit('submit')"
 					:disabled="disabled || loading"
 					:loading="loading"
@@ -19,8 +19,9 @@
 				<v-btn
 					block
 					size="large"
-					color="success"
-					theme="dark"
+					color="primary"
+					variant="flat"
+					prepend-icon="mdi-printer"
 					@click="$emit('submit-and-print')"
 					:disabled="disabled || loading"
 					:loading="loading"
@@ -32,8 +33,8 @@
 				<v-btn
 					block
 					size="large"
-					color="info"
-					theme="dark"
+					color="primary"
+					variant="text"
 					prepend-icon="mdi-share-variant"
 					@click="$emit('share-last-payment')"
 					:disabled="disabled || loading || shareLoading"

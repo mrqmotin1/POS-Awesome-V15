@@ -21,11 +21,12 @@ def _get_open_sales_invoices(
     include_all_currencies=False,
 ):
     filters = {
-        "customer": customer,
         "company": company,
         "docstatus": 1,
         "outstanding_amount": (">", 0),
     }
+    if customer:
+        filters["customer"] = customer
     if currency and not include_all_currencies:
         filters["currency"] = currency
     if pos_profile:
@@ -36,6 +37,7 @@ def _get_open_sales_invoices(
         filters=filters,
         fields=[
             "name",
+            "customer",
             "posting_date",
             "due_date",
             "outstanding_amount",
@@ -146,12 +148,15 @@ def get_outstanding_invoices(
     page_length=None,
     party=None,
     party_type="Customer",
+    all_customers=False,
 ):
     """
     Fetch outstanding invoices with optional multi-currency support.
 
     Args:
         include_all_currencies (bool): If True, returns invoices in ALL currencies instead of filtering
+        all_customers (bool): Customers only. If True, ignore the customer and return every customer's
+            unpaid invoices for the company (the Payments page "All customers" view).
     """
     try:
         customer = _coerce_text_filter(customer, _("Customer"))
@@ -161,8 +166,11 @@ def get_outstanding_invoices(
         currency = _coerce_text_filter(currency, _("Currency"))
         pos_profile = _coerce_text_filter(pos_profile, _("POS Profile"))
         include_all_currencies = _coerce_bool(include_all_currencies, default=False)
+        all_customers = _coerce_bool(all_customers, default=False) and party_type != "Supplier"
+        if all_customers:
+            customer = None
 
-        if not customer or not company:
+        if not company or not (customer or all_customers):
             return []
 
         page_start = _coerce_non_negative_int(page_start, default=0)
@@ -172,7 +180,7 @@ def get_outstanding_invoices(
 
         label_doctype = "Supplier" if party_type == "Supplier" else "Customer"
         label_field = "supplier_name" if party_type == "Supplier" else "customer_name"
-        customer_name = frappe.get_cached_value(label_doctype, customer, label_field)
+        customer_name = frappe.get_cached_value(label_doctype, customer, label_field) if customer else None
 
         invoice_rows = (
             _get_open_purchase_invoices(
@@ -202,6 +210,7 @@ def get_outstanding_invoices(
                 continue
 
             row_currency = invoice.get("currency") or currency
+            row_party = customer or invoice.get("customer")
 
             # Convert outstanding from party account currency to invoice currency
             # Examples:
@@ -243,14 +252,14 @@ def get_outstanding_invoices(
                         "posting_date": invoice.get("posting_date"),
                         "currency": row_currency,
                         "pos_profile": invoice.get("pos_profile") if party_type == "Customer" else None,
-                        "customer": customer,
+                        "customer": row_party,
                         "customer_name": (
                             invoice.get("supplier_name")
                             if party_type == "Supplier"
                             else invoice.get("customer_name")
                         )
                         or customer_name,
-                        "party": customer,
+                        "party": row_party,
                         "party_name": (
                             invoice.get("supplier_name")
                             if party_type == "Supplier"

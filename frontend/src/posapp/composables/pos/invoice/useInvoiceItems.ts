@@ -130,6 +130,34 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 	]);
 
 	const selected_columns = ref<string[]>([]);
+	const optionalColumnKeys = computed(
+		() =>
+			new Set(
+				available_columns.value
+					.filter((col) => !col.required)
+					.map((col) => col.key),
+			),
+	);
+	const normalizeSelectedColumns = (columns: unknown) => {
+		if (!Array.isArray(columns)) {
+			return [];
+		}
+
+		const selected = new Set<string>();
+		for (const column of columns) {
+			if (typeof column !== "string") {
+				continue;
+			}
+			const key = column === "discount_value" ? "discount_percentage" : column;
+			if (optionalColumnKeys.value.has(key)) {
+				selected.add(key);
+			}
+		}
+		return [...selected];
+	};
+	const setSelectedColumns = (columns: unknown) => {
+		selected_columns.value = normalizeSelectedColumns(columns);
+	};
 	const items_headers = computed(() => {
 		return available_columns.value.filter(
 			(col) => selected_columns.value.includes(col.key) || col.required,
@@ -161,17 +189,13 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 		try {
 			const saved = localStorage.getItem("posawesome_selected_columns");
 			if (saved) {
-				const parsed: string[] = JSON.parse(saved);
-				// Migrate old "discount_value" key (renamed to "discount_percentage")
-				selected_columns.value = parsed.map((key) =>
-					key === "discount_value" ? "discount_percentage" : key,
-				);
+				setSelectedColumns(JSON.parse(saved));
 			} else {
-				// Base defaults: required columns only. Optional columns
-				// (price list rate, discounts) come from POS Profile flags below.
-				selected_columns.value = available_columns.value
-					.filter((col) => col.required)
-					.map((col) => col.key);
+				// Our fork: base defaults are the required columns only; optional columns
+				// (price list rate, discounts) come from the POS Profile flags below.
+				setSelectedColumns(
+					available_columns.value.filter((col) => col.required).map((col) => col.key),
+				);
 			}
 			// Merge in any POS-Profile-mandated columns.
 			applyProfileColumnDefaults();
@@ -402,8 +426,10 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 
 		if (field_name === "qty") {
 			syncLineAmounts(item);
-			bus.emit("apply_pricing_rules");
 			notifyCartLineChanged();
+			// Emit after the store totals/version are current so pricing evaluates
+			// the committed quantity, including transaction-level thresholds.
+			bus.emit("apply_pricing_rules");
 		}
 
 		return parsedValue;
@@ -562,6 +588,7 @@ export function useInvoiceItems(invoiceType: Ref<string>) {
 	return {
 		items_headers,
 		selected_columns,
+		setSelectedColumns,
 		available_columns,
 		loadColumnPreferences,
 		saveColumnPreferences,

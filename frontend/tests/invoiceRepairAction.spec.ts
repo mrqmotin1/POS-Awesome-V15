@@ -55,7 +55,15 @@ describe("InvoiceManagement repair change allocation", () => {
 			change_amount: 2160,
 		};
 
-		expect((InvoiceManagement as any).methods.isRepairCandidate(candidate)).toBe(true);
+		const context = {
+			repairCandidateScopeReady: true,
+			repairCandidateInvoiceNames: [candidate.name],
+			repairedChangeAllocationInvoiceNames: [],
+			matchesRepairCandidatePattern: (InvoiceManagement as any).methods.matchesRepairCandidatePattern,
+			changeAllocationRepairState: (InvoiceManagement as any).methods.changeAllocationRepairState,
+		};
+
+		expect((InvoiceManagement as any).methods.isRepairCandidate.call(context, candidate)).toBe(true);
 		expect((InvoiceManagement as any).methods.isRepairCandidate(nonCandidate)).toBe(false);
 	});
 
@@ -68,13 +76,14 @@ describe("InvoiceManagement repair change allocation", () => {
 		};
 
 		const context = {
+			repairCandidateInvoiceNames: [],
 			repairedChangeAllocationInvoiceNames: ["ACC-SINV-2026-08532"],
 			repairCandidateScopeReady: true,
 			matchesRepairCandidatePattern: (InvoiceManagement as any).methods.matchesRepairCandidatePattern,
 			changeAllocationRepairState: (InvoiceManagement as any).methods.changeAllocationRepairState,
 		};
 
-		expect((InvoiceManagement as any).methods.changeAllocationRepairState.call(context, repaired)).toBe("repaired");
+		expect((InvoiceManagement as any).methods.changeAllocationRepairState.call(context, repaired)).toBe(null);
 		expect((InvoiceManagement as any).methods.isRepairCandidate.call(context, repaired)).toBe(false);
 	});
 
@@ -115,6 +124,9 @@ describe("InvoiceManagement repair change allocation", () => {
 				outstanding_amount: -2160,
 				change_amount: 2160,
 			},
+			repairCandidateScopeReady: true,
+			repairCandidateInvoiceNames: ["ACC-SINV-2026-08532"],
+			repairedChangeAllocationInvoiceNames: [],
 			matchesRepairCandidatePattern: (InvoiceManagement as any).methods.matchesRepairCandidatePattern,
 			changeAllocationRepairState: (InvoiceManagement as any).methods.changeAllocationRepairState,
 			isRepairCandidate: (InvoiceManagement as any).methods.isRepairCandidate,

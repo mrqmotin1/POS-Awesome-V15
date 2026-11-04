@@ -37,13 +37,13 @@ export async function show_payment(context: any) {
 			return;
 		}
 
+		if (context.ensure_auto_batch_selection) await context.ensure_auto_batch_selection();
+
 		const isValid = context.validate ? await context.validate() : true;
 
 		if (!isValid) {
 			return;
 		}
-
-		if (context.ensure_auto_batch_selection) await context.ensure_auto_batch_selection();
 
 		// Capture the transient refundable cap before process_invoice()/backend
 		// reload, which return a doc stripped of non-DocType fields. It is
@@ -155,6 +155,14 @@ export async function show_payment(context: any) {
 		if (carriedRefundableAmount != null && invoice_doc) {
 			invoice_doc.posa_refundable_amount = carriedRefundableAmount;
 		}
+		const exchangeSession = context.invoiceStore?.exchangeSession;
+		if (exchangeSession?.stage === "sale" && exchangeSession.returnDoc) {
+			if (exchangeSession.returnDoc.customer !== invoice_doc.customer) {
+				throw new Error(__("Replacement sale customer must match the return customer."));
+			}
+			invoice_doc.posa_exchange_credit = Number(exchangeSession.returnTotal || 0);
+			invoice_doc.posa_exchange_request_id = exchangeSession.clientRequestId;
+		}
 
 		context.eventBus.emit("show_payment", "true");
 		context.eventBus.emit("send_invoice_doc_payment", invoice_doc);
@@ -182,6 +190,11 @@ export async function get_draft_invoices(
 			context.pos_profile,
 			source ?? context.uiStore?.draftSource,
 		);
+		context.uiStore.setDraftSource?.(selectedSource);
+		context.uiStore.setParkedOrders?.([]);
+		context.$refs?.invoiceSummary?.setDraftsLoading?.(true);
+		context.$refs?.invoiceSummary?.openDraftsSurface?.({ focus: false });
+
 		const drafts = await fetchDocumentSourceRecords({
 			source: selectedSource,
 			posOpeningShift: context.pos_opening_shift,
@@ -190,28 +203,24 @@ export async function get_draft_invoices(
 				? "POS Invoice"
 				: "Sales Invoice",
 		});
-		context.uiStore.setDraftSource?.(selectedSource);
 		context.uiStore.setDraftsData?.(drafts);
 		context.uiStore.setParkedOrders?.(drafts);
 		context.uiStore.closeDrafts?.();
+		context.$refs?.invoiceSummary?.setDraftsLoading?.(false);
 
 		if (typeof context.$nextTick === "function") {
 			await context.$nextTick();
 		}
-		if (drafts.length > 0) {
-			context.$refs?.invoiceSummary?.openDraftsSurface?.();
-		} else {
-			context.toastStore.show({
-				title: __("No draft invoices available"),
-				color: "warning",
-			});
-		}
+		context.$refs?.invoiceSummary?.openDraftsSurface?.({ focus: false });
+		await context.$refs?.invoiceSummary?.focusDraftsSurface?.();
 	} catch (error) {
 		console.error("Error fetching draft invoices:", error);
 		context.toastStore.show({
 			title: __("Unable to fetch documents"),
 			color: "error",
 		});
+	} finally {
+		context.$refs?.invoiceSummary?.setDraftsLoading?.(false);
 	}
 }
 
@@ -393,6 +402,8 @@ export async function change_price_list_rate(
 					price_list: priceList,
 					rate: nextRate,
 					uom: item.uom || item.stock_uom || undefined,
+					pos_profile: context.pos_profile?.name,
+					customer: context.customer || undefined,
 				},
 			});
 			item._price_list_rate_persisted = true;

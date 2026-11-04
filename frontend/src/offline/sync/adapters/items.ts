@@ -1,15 +1,20 @@
 import {
+	beginItemCatalogGeneration,
 	clearItemDetailsCache,
 	clearPriceListCache,
-	clearStoredItems,
 	deleteStoredItemsByCodes,
+	discardItemCatalogGeneration,
+	getActiveItemCatalogGeneration,
 	getStoredItemsCountByScope,
 	mergeCachedPriceListItems,
 	removeCachedPriceListItems,
 	removeItemDetailsCacheEntries,
 	saveItemDetailsCache,
 	saveItemsBulk,
+	stageItemCatalogRows,
+	promoteItemCatalogGeneration,
 	setItemsLastSync,
+	withItemCatalogRefreshLock,
 } from "../../cache";
 import { getSyncResourceState } from "../syncState";
 import {
@@ -124,11 +129,21 @@ async function applyItemSyncResponse(
 	args: ItemsSyncArgs,
 	response: SyncResponse,
 	storageScope: string,
+	generation: string | null = null,
 ) {
 	const changedItems = extractChangedItems(response);
+	let stagedCount = 0;
 	if (changedItems.length) {
-		await saveItemsBulk(changedItems, storageScope);
-		if (args.priceList) {
+		if (generation) {
+			stagedCount = await stageItemCatalogRows(
+				changedItems,
+				storageScope,
+				generation,
+			);
+		} else {
+			await saveItemsBulk(changedItems, storageScope);
+		}
+		if (!generation && args.priceList) {
 			saveItemDetailsCache(
 				args.posProfile.name,
 				args.priceList,
@@ -139,18 +154,16 @@ async function applyItemSyncResponse(
 	}
 
 	const deletedItemCodes = extractDeletedItemCodes(response);
-	if (deletedItemCodes.length) {
+	if (!generation && deletedItemCodes.length) {
 		await deleteStoredItemsByCodes(deletedItemCodes, storageScope);
 		removeItemDetailsCacheEntries(
 			args.posProfile.name,
 			deletedItemCodes,
 			args.priceList || null,
 		);
-		removeCachedPriceListItems(
-			deletedItemCodes,
-			args.priceList || null,
-		);
+		removeCachedPriceListItems(deletedItemCodes, args.priceList || null);
 	}
+	return stagedCount;
 }
 
 async function fetchAndStoreItemPages({
@@ -158,16 +171,19 @@ async function fetchAndStoreItemPages({
 	watermark,
 	schemaVersion,
 	storageScope,
+	generation = null,
 }: {
 	args: ItemsSyncArgs;
 	watermark: string | null;
 	schemaVersion?: string | null;
 	storageScope: string;
+	generation?: string | null;
 }) {
 	let startAfter: string | null = null;
 	let latestWatermark = watermark;
 	let schemaVersionSeen = schemaVersion || null;
 	let lastResponse: SyncResponse = {};
+	let stagedCount = 0;
 
 	while (true) {
 		const response = await args.fetcher({
@@ -185,7 +201,15 @@ async function fetchAndStoreItemPages({
 			return response;
 		}
 
-		await applyItemSyncResponse(args, response, storageScope);
+		const responseStagedCount = await applyItemSyncResponse(
+			args,
+			response,
+			storageScope,
+			generation,
+		);
+		if (generation) {
+			stagedCount += responseStagedCount;
+		}
 		latestWatermark = laterWatermark(
 			latestWatermark,
 			response?.next_watermark,
@@ -212,7 +236,44 @@ async function fetchAndStoreItemPages({
 		next_watermark:
 			lastResponse?.has_more && watermark ? watermark : latestWatermark,
 		schema_version: schemaVersionSeen,
+		staged_count: stagedCount,
 	};
+}
+
+async function fetchAndPromoteFullItemCatalog(
+	args: ItemsSyncArgs,
+	storageScope: string,
+	schemaVersion: string | null | undefined,
+) {
+	return await withItemCatalogRefreshLock(storageScope, async () => {
+		const { generation } = await beginItemCatalogGeneration(storageScope);
+		try {
+			const response = await fetchAndStoreItemPages({
+				args,
+				watermark: null,
+				schemaVersion,
+				storageScope,
+				generation,
+			});
+			if (response?.full_resync_required) {
+				await discardItemCatalogGeneration(storageScope, generation);
+				return response;
+			}
+
+			await promoteItemCatalogGeneration(storageScope, generation, {
+				expectedCount: Number((response as any)?.staged_count || 0),
+				allowEmpty: true,
+			});
+			clearPriceListCache();
+			clearItemDetailsCache();
+			return response;
+		} catch (error) {
+			await discardItemCatalogGeneration(storageScope, generation).catch(
+				() => undefined,
+			);
+			throw error;
+		}
+	});
 }
 
 export async function syncItemsResource(
@@ -221,33 +282,32 @@ export async function syncItemsResource(
 	const scopeChanged = await hasItemScopeChanged(args.posProfile);
 	let effectiveWatermark = scopeChanged ? null : args.watermark || null;
 	const storageScope = buildItemStorageScope(args.posProfile);
-
-	if (scopeChanged) {
-		await clearStoredItems();
-		clearPriceListCache();
-		clearItemDetailsCache();
+	if (!(await getActiveItemCatalogGeneration(storageScope))) {
+		// V16 and limit-search profiles may have a watermark without a complete
+		// durable catalog. Build the first generation before accepting deltas.
+		effectiveWatermark = null;
 	}
 
-	let response = await fetchAndStoreItemPages({
-		args,
-		watermark: effectiveWatermark,
-		schemaVersion: args.schemaVersion,
-		storageScope,
-	});
+	let response = effectiveWatermark
+		? await fetchAndStoreItemPages({
+				args,
+				watermark: effectiveWatermark,
+				schemaVersion: args.schemaVersion,
+				storageScope,
+			})
+		: await fetchAndPromoteFullItemCatalog(
+				args,
+				storageScope,
+				args.schemaVersion,
+			);
 
 	if (response?.full_resync_required) {
 		effectiveWatermark = null;
-		if (!scopeChanged) {
-			await clearStoredItems();
-			clearPriceListCache();
-			clearItemDetailsCache();
-		}
-		response = await fetchAndStoreItemPages({
+		response = await fetchAndPromoteFullItemCatalog(
 			args,
-			watermark: effectiveWatermark,
-			schemaVersion: null,
 			storageScope,
-		});
+			null,
+		);
 	}
 
 	if (response?.full_resync_required) {

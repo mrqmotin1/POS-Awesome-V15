@@ -99,6 +99,7 @@ describe("offline storage ownership", () => {
 			{
 				name: "CUST-1",
 				customer_name: "Customer 1",
+				mobile_no: "+92 300-1234567",
 				loyalty_program: "Retail Loyalty",
 				loyalty_points: 2,
 				conversion_factor: 5,
@@ -110,6 +111,11 @@ describe("offline storage ownership", () => {
 			expect.objectContaining({
 				name: "CUST-1",
 				customer_name: "Customer 1",
+				mobile_no: "+92 300-1234567",
+				_mobile_search_keys: expect.arrayContaining([
+					"923001234567",
+					"3001234567",
+				]),
 				loyalty_program: "Retail Loyalty",
 				loyalty_points: 2,
 				conversion_factor: 5,

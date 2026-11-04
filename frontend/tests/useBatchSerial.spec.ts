@@ -14,13 +14,36 @@ afterEach(() => {
 });
 
 describe("useBatchSerial.setSerialNo", () => {
+	it("keeps sales UOM quantity when serial count matches converted stock quantity", () => {
+		const { setSerialNo } = useBatchSerial();
+		const item: any = {
+			has_serial_no: 1,
+			qty: 1,
+			stock_qty: 2,
+			conversion_factor: 2,
+			serial_no_data: [
+				{ serial_no: "SER-001" },
+				{ serial_no: "SER-002" },
+			],
+			serial_no_selected: ["SER-001", "SER-002"],
+		};
+
+		setSerialNo(item, { forceUpdate: vi.fn() });
+
+		expect(item.qty).toBe(1);
+		expect(item.stock_qty).toBe(2);
+	});
+
 	it("does not force qty to zero when no serial is selected", () => {
 		const { setSerialNo } = useBatchSerial();
 		const context = { forceUpdate: vi.fn() };
 		const item: any = {
 			has_serial_no: 1,
 			has_batch_no: 0,
-			serial_no_data: [{ serial_no: "SER-001" }, { serial_no: "SER-002" }],
+			serial_no_data: [
+				{ serial_no: "SER-001" },
+				{ serial_no: "SER-002" },
+			],
 			serial_no_selected: [],
 			stock_qty: 15,
 			qty: 15,
@@ -127,6 +150,31 @@ describe("useBatchSerial.setBatchQty", () => {
 		expect(item.batch_no_data.map((b: any) => b.batch_no)).toEqual([
 			"B-VALID",
 		]);
+	});
+
+	it("reserves existing cart quantities in stock UOM", () => {
+		const { getBatchAvailability } = useBatchSerial();
+		const item: any = {
+			posa_row_id: "ROW-NEW",
+			item_code: "BOXED",
+			qty: 1,
+			conversion_factor: 6,
+			batch_no_data: [{ batch_no: "B-1", batch_qty: 12 }],
+		};
+		const batches = getBatchAvailability(item, {
+			items: [
+				item,
+				{
+					posa_row_id: "ROW-EXISTING",
+					item_code: "BOXED",
+					batch_no: "B-1",
+					qty: 1,
+					conversion_factor: 6,
+				},
+			],
+		});
+
+		expect(batches[0].available_qty).toBe(6);
 	});
 
 	it("applies batch price immediately during auto batch selection", () => {
@@ -262,5 +310,37 @@ describe("useBatchSerial.setBatchQty", () => {
 		expect(item.base_price_list_rate).toBe(15);
 		expect(item.amount).toBe(30);
 		expect(item.base_amount).toBe(30);
+	});
+
+	it("does not replace a locked return price when batch changes", () => {
+		const { setBatchQty } = useBatchSerial();
+		const context: any = {
+			items: [],
+			pos_profile: { currency: "USD" },
+			price_list_currency: "USD",
+			selected_currency: "USD",
+			exchange_rate: 1,
+			currency_precision: 2,
+			flt: Number,
+		};
+		const item: any = {
+			item_code: "RETURN-BATCH",
+			qty: -1,
+			has_batch_no: 1,
+			locked_price: true,
+			rate: 15,
+			price_list_rate: 15,
+			base_rate: 15,
+			base_price_list_rate: 15,
+			batch_no_data: [
+				{ batch_no: "B-RETURN", batch_qty: 5, batch_price: 9 },
+			],
+		};
+
+		setBatchQty(item, "B-RETURN", false, context);
+
+		expect(item.batch_no).toBe("B-RETURN");
+		expect(item.rate).toBe(15);
+		expect(item.price_list_rate).toBe(15);
 	});
 });

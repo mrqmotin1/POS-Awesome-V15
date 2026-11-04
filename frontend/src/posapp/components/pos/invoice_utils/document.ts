@@ -162,7 +162,12 @@ export function get_invoice_doc(context: any) {
 		posProfile: context.pos_profile,
 	});
 	doc.is_pos = 1;
-	doc.ignore_pricing_rule = 0;
+	doc.ignore_pricing_rule =
+		context.pos_profile?.ignore_pricing_rule === true ||
+		context.pos_profile?.ignore_pricing_rule === 1 ||
+		context.pos_profile?.ignore_pricing_rule === "1"
+			? 1
+			: 0;
 	doc.company = doc.company || context.pos_profile?.company || null;
 	doc.pos_profile = doc.pos_profile || context.pos_profile?.name || null;
 	doc.posa_show_custom_name_marker_on_print =
@@ -286,6 +291,10 @@ export function get_invoice_doc(context: any) {
 	}
 
 	doc.additional_discount_percentage = discountPercentage;
+	doc.apply_discount_on =
+		sourceDoc.apply_discount_on ||
+		(context._pricing_rule_transaction_discount ? "Net Total" : null);
+	doc.pricing_rules = sourceDoc.pricing_rules || null;
 
 	// Calculate grand total with correct sign for returns
 	let grandTotal = context.subtotal;
@@ -382,6 +391,11 @@ export function get_invoice_doc(context: any) {
 	// Add POS specific fields
 	doc.posa_pos_opening_shift = context.pos_opening_shift?.name || null;
 	doc.payments = get_payments(context);
+	doc.posa_change_returns = Array.isArray(sourceDoc.posa_change_returns)
+		? sourceDoc.posa_change_returns
+		: [];
+	doc.posa_change_returned = flt(sourceDoc.posa_change_returned || 0);
+	doc.posa_remaining_change = flt(sourceDoc.posa_remaining_change || 0);
 
 	// Handle return specific fields
 	if (isReturn) {
@@ -411,6 +425,10 @@ export function get_invoice_doc(context: any) {
 					payment.amount = -Math.abs(payment.amount);
 				if (payment.base_amount > 0)
 					payment.base_amount = -Math.abs(payment.base_amount);
+				if (payment.posa_original_amount > 0)
+					payment.posa_original_amount = -Math.abs(payment.posa_original_amount);
+				if (payment.posa_account_amount > 0)
+					payment.posa_account_amount = -Math.abs(payment.posa_account_amount);
 			});
 		}
 	}
@@ -440,7 +458,12 @@ export function get_invoice_doc(context: any) {
 	}
 
 	// Add flags to ensure proper rate handling
-	doc.ignore_pricing_rule = 0;
+	doc.ignore_pricing_rule =
+		context.pos_profile?.ignore_pricing_rule === true ||
+		context.pos_profile?.ignore_pricing_rule === 1 ||
+		context.pos_profile?.ignore_pricing_rule === "1"
+			? 1
+			: 0;
 
 	// Preserve the real price list currency
 	doc.price_list_currency = context.price_list_currency;
@@ -471,7 +494,12 @@ export function get_invoice_doc(context: any) {
 	// Ensure payments have correct base amounts
 	if (doc.payments && doc.payments.length) {
 		doc.payments.forEach((payment) => {
-			if (context.selected_currency !== companyCurrency) {
+			if (payment.posa_payment_currency && payment.posa_company_exchange_rate) {
+				payment.base_amount = flt(
+					payment.posa_original_amount * payment.posa_company_exchange_rate,
+					context.currency_precision,
+				);
+			} else if (context.selected_currency !== companyCurrency) {
 				// Convert payment amount to base currency
 				payment.base_amount = toCompanyCurrency(context, payment.amount);
 			} else {
@@ -482,6 +510,10 @@ export function get_invoice_doc(context: any) {
 			if (isReturn) {
 				payment.amount = -Math.abs(payment.amount);
 				payment.base_amount = -Math.abs(payment.base_amount);
+				if (payment.posa_original_amount !== undefined)
+					payment.posa_original_amount = -Math.abs(payment.posa_original_amount);
+				if (payment.posa_account_amount !== undefined)
+					payment.posa_account_amount = -Math.abs(payment.posa_account_amount);
 			}
 		});
 	}
@@ -715,6 +747,16 @@ export function get_payments(context: any) {
 					account: payment.account,
 					type: payment.type,
 					base_amount: payment_amount, // Will be fixed in get_invoice_doc if needed
+					posa_payment_currency: payment.posa_payment_currency,
+					posa_original_amount: payment.posa_exchange_rate
+						? context.flt(payment_amount / payment.posa_exchange_rate, context.currency_precision)
+						: payment_amount,
+					posa_exchange_rate: payment.posa_exchange_rate,
+					posa_company_exchange_rate: payment.posa_company_exchange_rate,
+					posa_rate_date: payment.posa_rate_date,
+					posa_rate_source: payment.posa_rate_source,
+					posa_account_currency: payment.posa_account_currency,
+					posa_account_amount: payment.posa_account_amount,
 				};
 			});
 		}
@@ -743,6 +785,8 @@ export function get_payments(context: any) {
 						? 1
 						: 0,
 				base_amount: 0,
+				posa_default_payment_currency: payment.posa_default_payment_currency,
+				account_currency: payment.account_currency,
 			}));
 	}
 
@@ -767,6 +811,8 @@ export function get_payments(context: any) {
 						? 1
 						: 0,
 				base_amount: 0,
+				posa_default_payment_currency: payment.posa_default_payment_currency,
+				account_currency: payment.account_currency,
 			}));
 	}
 

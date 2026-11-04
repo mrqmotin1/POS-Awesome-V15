@@ -15,6 +15,7 @@
 			:item-class="itemClass"
 			:row-props="rowProps"
 			@scroll.passive="handleListScroll"
+			@keydown="handleTableKeydown"
 		>
 			<template v-if="multiSelect" v-slot:item.item-select="{ item }">
 				<v-checkbox-btn
@@ -23,10 +24,7 @@
 				/>
 			</template>
 			<template v-if="multiSelect" v-slot:header.item-select>
-				<v-checkbox-btn
-					:model-value="allSelected"
-					@click.stop="emit('select-all', !allSelected)"
-				/>
+				<v-checkbox-btn :model-value="allSelected" @click.stop="emit('select-all', !allSelected)" />
 			</template>
 			<template v-slot:item.rate="{ item }">
 				<div v-if="context !== 'purchase'">
@@ -123,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 import ItemRateInfoMenu from "./ItemRateInfoMenu.vue";
 import { priceListToSelectedCurrency } from "../../../utils/erpnextCurrency";
 
@@ -144,6 +142,7 @@ const props = defineProps({
 	ratePrecision: { type: Function, required: true },
 	getItemRateInfo: { type: Function, required: true },
 	isNegative: { type: Function, required: true },
+	highlightedItemCode: { type: String, default: "" },
 	itemClass: { type: [String, Function], default: "" },
 	rowProps: { type: [Object, Function], default: null },
 	noDataText: { type: String, default: "" },
@@ -155,10 +154,7 @@ const emit = defineEmits(["row-click", "list-scroll", "toggle-selection", "selec
 
 const effectiveHeaders = computed(() => {
 	if (!props.multiSelect) return props.headers;
-	return [
-		{ key: "item-select", title: "", sortable: false, width: "48px" },
-		...props.headers,
-	];
+	return [{ key: "item-select", title: "", sortable: false, width: "48px" }, ...props.headers];
 });
 
 function isItemSelected(item) {
@@ -182,6 +178,55 @@ const handleListScroll = (event) => {
 	emit("list-scroll", event);
 };
 
+const getTableRoot = () => {
+	const value = tableRef.value;
+	return value?.$el || value;
+};
+
+const syncHighlightedRow = async () => {
+	await nextTick();
+	const root = getTableRoot();
+	if (!root?.querySelectorAll) return;
+	const activeCode = String(props.highlightedItemCode || "");
+	let activeRow = null;
+	root.querySelectorAll("[data-item-code]").forEach((row) => {
+		const isActive = activeCode && row.getAttribute("data-item-code") === activeCode;
+		row.classList.toggle("item-row-highlighted", Boolean(isActive));
+		row.setAttribute("aria-selected", isActive ? "true" : "false");
+		if (isActive) activeRow = row;
+	});
+	activeRow?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+};
+
+watch(
+	[() => props.highlightedItemCode, () => props.displayedItems],
+	() => {
+		void syncHighlightedRow();
+	},
+	{ flush: "post" },
+);
+
+const handleTableKeydown = (event) => {
+	const key = event.key || "";
+	if (key !== "Enter" && key !== " ") {
+		return;
+	}
+
+	const row = event.target?.closest?.("[data-item-code]");
+	const itemCode = row?.getAttribute?.("data-item-code");
+	if (!itemCode) {
+		return;
+	}
+
+	const item = props.displayedItems.find((candidate) => candidate?.item_code === itemCode);
+	if (!item) {
+		return;
+	}
+
+	event.preventDefault();
+	emit("row-click", event, { item });
+};
+
 const formatActualQty = (value) => {
 	const numericQty = Number(value ?? 0);
 	if (!Number.isFinite(numericQty)) {
@@ -194,10 +239,7 @@ const formatActualQty = (value) => {
 };
 
 const priceListCurrency = (item) =>
-	item.original_currency ||
-	item.currency ||
-	item.price_list_currency ||
-	props.posProfile.currency;
+	item.original_currency || item.currency || item.price_list_currency || props.posProfile.currency;
 
 const primaryRate = (item) => item.original_rate ?? item.rate ?? 0;
 

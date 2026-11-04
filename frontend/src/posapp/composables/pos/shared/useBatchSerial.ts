@@ -1,4 +1,5 @@
 import { fromCompanyCurrency } from "../../../utils/erpnextCurrency";
+import { getItemRequiredStockQty } from "./batchAllocation";
 
 export const getDisplayableBatchOptions = (batchList: any): any[] => {
 	if (!Array.isArray(batchList)) {
@@ -76,9 +77,16 @@ export function useBatchSerial() {
 			const currentAbsQty = Number.isFinite(currentQty)
 				? Math.abs(currentQty)
 				: 0;
+			const conversionFactor = Number(item.conversion_factor || 1);
+			const safeConversionFactor =
+				Number.isFinite(conversionFactor) && conversionFactor > 0
+					? conversionFactor
+					: 1;
+			const currentAbsStockQty = currentAbsQty * safeConversionFactor;
 			const sign = Number.isFinite(currentQty) && currentQty < 0 ? -1 : 1;
-			if (currentAbsQty !== selectedCount) {
-				item.qty = sign * selectedCount;
+			if (currentAbsStockQty !== selectedCount) {
+				item.qty = sign * (selectedCount / safeConversionFactor);
+				item.stock_qty = sign * selectedCount;
 				if (context?.forceUpdate) context.forceUpdate();
 			}
 		};
@@ -156,7 +164,7 @@ export function useBatchSerial() {
 
 		existing_items.forEach((element) => {
 			if (!element.batch_no || !element.qty) return;
-			let qtyToAllocate = Number(element.qty) || 0;
+			let qtyToAllocate = getItemRequiredStockQty(element);
 			if (element.qty < 0) return; // Don't subtract returns from availability? Or should we add them?
 			// Usually returns add back to stock. But simple logic: if qty > 0, it consumes stock.
 			// Returns (negative qty) technically free up stock, but for auto-selection we care about "taking" stock.
@@ -284,7 +292,12 @@ export function useBatchSerial() {
 			const parsedBatchPrice = Number(batch_to_use.batch_price);
 			const hasBatchPrice =
 				Number.isFinite(parsedBatchPrice) && parsedBatchPrice > 0;
-			const shouldApplyBatchPrice = hasBatchPrice;
+			const priceLocked =
+				item.locked_price === true ||
+				item.locked_price === 1 ||
+				item.locked_price === "1";
+			const shouldApplyBatchPrice =
+				hasBatchPrice && !priceLocked && item._manual_rate_set !== true;
 
 			if (shouldApplyBatchPrice) {
 				// Store batch price in base currency

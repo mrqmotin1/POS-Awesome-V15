@@ -143,7 +143,9 @@ def _normalize_pairs(currency_pairs, profile, enabled_currencies):
     explicit_pairs = _parse_pairs(currency_pairs)
     if explicit_pairs:
         return explicit_pairs, True
-    return _discover_pairs(profile, enabled_currencies), False
+    # Startup sync is metadata-only. Rates are requested lazily after a
+    # transaction actually selects a foreign currency.
+    return [], False
 
 
 def _get_exchange_rows(resolved_pairs):
@@ -253,7 +255,11 @@ def sync_currency_scope(
             )
         if explicit_pairs and not _should_include(pair_modified, watermark):
             continue
-        exchange_rate, rate_date = get_latest_rate(from_currency, to_currency)
+        exchange_rate, rate_date = get_latest_rate(
+            from_currency,
+            to_currency,
+            silent=True,
+        )
         changes.append(
             {
                 "key": f"exchange_rate::{from_currency}::{to_currency}",

@@ -2,6 +2,7 @@ import { ref, unref, type Ref, type ComputedRef } from "vue";
 // @ts-ignore
 import { getSmartTenderSuggestions } from "../../../../utils/smartTender";
 import { toCompanyCurrency } from "../../../utils/erpnextCurrency";
+import { isCashLikePaymentLine } from "../../../utils/cashTender";
 
 declare const frappe: any;
 declare const __: (_str: string, _args?: any[]) => string;
@@ -11,6 +12,7 @@ export interface PaymentMethodsOptions {
 	posProfile: Ref<any>;
 	diffPayment?: ComputedRef<number>;
 	getNetInvoiceAmount?: () => number;
+	getNetCompanyAmount?: () => number;
 	formatFloat?: (_val: any) => number;
 	stores: {
 		toastStore: any;
@@ -26,6 +28,12 @@ export interface PaymentMethodsOptions {
 	getPaidChange?: () => number;
 	getCreditChange?: () => number;
 	onBackToInvoice?: () => void;
+	onPaymentInvoiceAmountChanged?: (
+		_payment: any,
+		_invoiceAmount: number,
+		_companyAmount?: number,
+	) => void | Promise<void>;
+	onPaymentCleared?: (_payment: any) => void;
 }
 
 export function usePaymentMethods(options: PaymentMethodsOptions) {
@@ -44,6 +52,21 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 
 	const flt = (v: any) =>
 		formatFloat ? formatFloat(v) : parseFloat(String(v)) || 0;
+	const syncPaymentCurrency = (payment: any, companyAmount?: number) => {
+		if (options.onPaymentInvoiceAmountChanged) {
+			void options.onPaymentInvoiceAmountChanged(
+				payment,
+				flt(payment.amount),
+				companyAmount,
+			);
+		}
+	};
+	const clearPayment = (payment: any) => {
+		payment.amount = 0;
+		payment._posa_auto_remainder = false;
+		if (payment.base_amount !== undefined) payment.base_amount = 0;
+		if (options.onPaymentCleared) options.onPaymentCleared(payment);
+	};
 
 	const currencyContext = (doc = unref(invoiceDoc)) => ({
 		...(doc || {}),
@@ -63,12 +86,13 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 
 	// Get M-Pesa payment modes from backend
 	const get_mpesa_modes = () => {
-		const company = unref(posProfile)?.company;
+		const profile = unref(posProfile);
+		const company = profile?.company;
 		if (!company) return;
 
 		frappe.call({
 			method: "posawesome.posawesome.api.m_pesa.get_mpesa_mode_of_payment",
-			args: { company },
+			args: { company, pos_profile: profile?.name },
 			async: true,
 			callback: function (r: any) {
 				if (!r.exc) {
@@ -94,20 +118,7 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 	};
 
 	const isCashLikePayment = (payment: any) => {
-		if (!payment) return false;
-
-		const profile = unref(posProfile);
-		const configuredCashMOP = String(
-			profile?.posa_cash_mode_of_payment || "",
-		).toLowerCase();
-		const type = String(payment.type || "").toLowerCase();
-
-		if (type === "cash") return true;
-
-		const mode = String(payment.mode_of_payment || "").toLowerCase();
-		if (configuredCashMOP && mode === configuredCashMOP) return true;
-
-		return mode.includes("cash");
+		return isCashLikePaymentLine(payment, unref(posProfile));
 	};
 
 	const reset_cash_payments = () => {
@@ -116,7 +127,7 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 
 		doc.payments.forEach((payment: any) => {
 			if (payment.mode_of_payment.toLowerCase() === "cash") {
-				payment.amount = 0;
+				clearPayment(payment);
 			}
 		});
 	};
@@ -166,6 +177,7 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 						toCompanyCurrency(currencyContext(doc), newAmount),
 					);
 				}
+				syncPaymentCurrency(other);
 
 				remaining_excess = flt(remaining_excess - reduction);
 			}
@@ -247,22 +259,31 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 		// Reset other payments
 		doc.payments.forEach((p: any) => {
 			if (p.mode_of_payment !== payment.mode_of_payment) {
-				p.amount = 0;
-				if (p.base_amount !== undefined) p.base_amount = 0;
+				clearPayment(p);
 			}
 		});
 
+		payment._posa_auto_remainder = false;
 		payment.amount = invoiceAmount;
 		if (payment.base_amount !== undefined) {
-			const baseAmount = toCompanyCurrency(currencyContext(doc), invoiceAmount);
-			payment.base_amount = isReturn
-				? -Math.abs(baseAmount)
-				: baseAmount;
+			const baseAmount = toCompanyCurrency(
+				currencyContext(doc),
+				invoiceAmount,
+			);
+			payment.base_amount = isReturn ? -Math.abs(baseAmount) : baseAmount;
 		}
+		syncPaymentCurrency(payment);
 	};
 
 	const set_rest_amount = (payment: any, isReturn = false) => {
 		const doc = unref(invoiceDoc);
+		if (
+			!doc?.payments ||
+			!payment ||
+			payment._posa_remainder_locked
+		) {
+			return;
+		}
 		const invoiceAmount = getInvoiceSettlementAmount();
 		const currentPaid = doc.payments.reduce(
 			(acc: number, p: any) => acc + flt(p.amount),
@@ -277,21 +298,42 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 			amount = Math.max(amount, 0);
 		}
 
+		let companyAmount: number | undefined;
+		if (typeof options.getNetCompanyAmount === "function") {
+			const companyTarget = options.getNetCompanyAmount();
+			const totalCompanyPayments = doc.payments.reduce(
+				(sum: number, row: any) => sum + flt(row?.base_amount || 0),
+				0,
+			);
+			const otherCompanyPayments =
+				totalCompanyPayments - flt(payment.base_amount || 0);
+			companyAmount = flt(companyTarget - otherCompanyPayments);
+			if (!isReturn) companyAmount = Math.max(companyAmount, 0);
+		}
+
+		doc.payments.forEach((row: any) => {
+			if (row !== payment) row._posa_auto_remainder = false;
+		});
 		payment.amount = amount;
+		payment._posa_auto_remainder = true;
 		if (payment.base_amount !== undefined) {
-			const baseAmount = toCompanyCurrency(currencyContext(doc), amount);
+			const baseAmount =
+				companyAmount ?? toCompanyCurrency(currencyContext(doc), amount);
 			payment.base_amount = isReturn ? -Math.abs(baseAmount) : baseAmount;
 		}
+		syncPaymentCurrency(payment, companyAmount);
+	};
+
+	const toggle_remainder_lock = (payment: any) => {
+		if (!payment) return;
+		payment._posa_remainder_locked = !payment._posa_remainder_locked;
 	};
 
 	const clear_all_amounts = () => {
 		const doc = unref(invoiceDoc);
 		if (doc && doc.payments) {
 			doc.payments.forEach((payment: any) => {
-				payment.amount = 0;
-				if (payment.base_amount !== undefined) {
-					payment.base_amount = 0;
-				}
+				clearPayment(payment);
 			});
 		}
 	};
@@ -424,6 +466,7 @@ export function usePaymentMethods(options: PaymentMethodsOptions) {
 		set_mpesa_payment,
 		set_full_amount,
 		set_rest_amount,
+		toggle_remainder_lock,
 		clear_all_amounts,
 		request_payment,
 		autoBalancePayments,

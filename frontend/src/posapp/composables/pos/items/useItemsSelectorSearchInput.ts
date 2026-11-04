@@ -59,6 +59,9 @@ export function useItemsSelectorSearchInput({
 
 	const handleSearchInput = (value: unknown) => {
 		const normalized = String(value ?? "");
+		// Our fork: Enter adds an arrow-key highlighted item, so new typed/scanned text
+		// must drop any old highlight - otherwise a scan would add the highlighted item.
+		if (normalized !== searchInput.value) clearHighlightedItem();
 		searchInput.value = normalized;
 		firstSearch.value = normalized;
 		scannerInput.handleSearchInput?.(normalized);

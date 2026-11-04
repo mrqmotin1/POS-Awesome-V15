@@ -3,10 +3,13 @@
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
+	"browserslist": [
+		"Chrome >= 109"
+	],
 	"scripts": {
 		"dev": "vite",
 		"serve": "vite preview",
-		"build": "vue-tsc --noEmit && vite build",
+		"build": "vue-tsc --noEmit && vite build && node scripts/audit-chrome109-css.mjs",
 		"type-check": "vue-tsc --noEmit",
 		"lint": "eslint .",
 		"format": "prettier --write \"**/*.{js,vue,css,scss,html}\"",
@@ -44,6 +47,7 @@
 		"vuetify": "^3.12.6"
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "4.12.1",
 		"@eslint/js": "^9.16.0",
 		"@playwright/test": "^1.56.1",
 		"@types/lodash": "^4.17.23",

@@ -45,7 +45,9 @@ function resetRecoveryState() {
 			return;
 		}
 		window.localStorage?.removeItem(LAST_RECOVERY_TS_KEY);
-	} catch {}
+	} catch {
+		// localStorage unavailable (private mode / blocked): ignore.
+	}
 	window.sessionStorage.removeItem(CHUNK_RELOAD_KEY);
 	window.sessionStorage.removeItem(CHUNK_CACHE_RECOVERY_KEY);
 	window.sessionStorage.removeItem(CHUNK_RECOVERY_IN_PROGRESS_KEY);
@@ -90,7 +92,9 @@ function redirectToPosApp(param: string) {
 	}
 	try {
 		window.localStorage?.setItem(LAST_RECOVERY_TS_KEY, String(Date.now()));
-	} catch {}
+	} catch {
+		// localStorage unavailable (private mode / blocked): ignore.
+	}
 	window.location.replace(
 		buildChunkRecoveryLocation(window.location, param, Date.now()),
 	);

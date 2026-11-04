@@ -115,13 +115,47 @@ def make_closing_shift_from_opening(opening_shift):
     taxes = []
     payments = []
     pos_payments_table = []
+
+    def find_payment(mode_of_payment, currency):
+        return next(
+            (
+                row
+                for row in payments
+                if row.mode_of_payment == mode_of_payment
+                and (row.get("currency") or company_currency) == (currency or company_currency)
+            ),
+            None,
+        )
+
+    def add_payment_amount(mode_of_payment, currency, original_amount, base_amount):
+        row = find_payment(mode_of_payment, currency)
+        if not row:
+            row = frappe._dict(
+                {
+                    "mode_of_payment": mode_of_payment,
+                    "currency": currency or company_currency,
+                    "opening_amount": 0,
+                    "opening_amount_in_currency": 0,
+                    "expected_amount": 0,
+                    "expected_amount_in_currency": 0,
+                }
+            )
+            payments.append(row)
+        row.expected_amount += flt(base_amount)
+        row.expected_amount_in_currency += flt(original_amount)
+        return row
+
     for detail in opening_shift.get("balance_details"):
+        detail_currency = detail.get("currency") or company_currency
         payments.append(
             frappe._dict(
                 {
                     "mode_of_payment": detail.get("mode_of_payment"),
                     "opening_amount": detail.get("amount") or 0,
                     "expected_amount": detail.get("amount") or 0,
+                    "currency": detail_currency,
+                    "opening_amount_in_currency": detail.get("amount") or 0,
+                    "expected_amount_in_currency": detail.get("amount") or 0,
                 }
             )
         )
@@ -168,44 +202,36 @@ def make_closing_shift_from_opening(opening_shift):
                 )
 
         for p in d.payments:
-            existing_pay = [pay for pay in payments if pay.mode_of_payment == p.mode_of_payment]
-            conversion_rate = d.get("conversion_rate")
-            amount = get_base_value(p, "amount", "base_amount", conversion_rate)
-            if existing_pay:
-                existing_pay[0].expected_amount += flt(amount)
-            else:
-                payments.append(
-                    frappe._dict(
-                        {
-                            "mode_of_payment": p.mode_of_payment,
-                            "opening_amount": 0,
-                            "expected_amount": flt(amount),
-                        }
-                    )
-                )
+            payment_currency = p.get("posa_payment_currency") or d.get("currency") or company_currency
+            original_amount = p.get("posa_original_amount")
+            if original_amount in (None, ""):
+                original_amount = p.get("amount")
+            add_payment_amount(
+                p.mode_of_payment,
+                payment_currency,
+                original_amount,
+                get_base_value(p, "amount", "base_amount", d.get("conversion_rate")),
+            )
 
-        # Change always leaves the cash drawer, so deduct it from the cash mode once
-        # per invoice - NOT inside the payment-row loop above. Gating it on a row
-        # whose mode_of_payment matched the cash mode silently skipped any invoice
-        # that carries no cash row at all (a card-only tender), overstating expected
-        # cash by the change that was handed over anyway.
-        invoice_change = flt(
-            get_base_value(d, "change_amount", "base_change_amount", d.get("conversion_rate"))
-        )
-        if invoice_change and not d.get("is_return") and cash_mode_of_payment:
-            existing_cash = [pay for pay in payments if pay.mode_of_payment == cash_mode_of_payment]
-            if existing_cash:
-                existing_cash[0].expected_amount -= invoice_change
-            else:
-                payments.append(
-                    frappe._dict(
-                        {
-                            "mode_of_payment": cash_mode_of_payment,
-                            "opening_amount": 0,
-                            "expected_amount": -invoice_change,
-                        }
-                    )
+        # Change always leaves the cash drawer: deduct it once per invoice (outside the
+        # payment-row loop above), never for returns (our fork, 7c03dc07).
+        is_return = d.get("is_return")
+        change_rows = d.get("posa_change_returns") or []
+        if change_rows and not is_return:
+            for change in change_rows:
+                add_payment_amount(
+                    cash_mode_of_payment,
+                    change.get("currency") or d.get("currency"),
+                    -abs(flt(change.get("original_amount"))),
+                    -abs(flt(change.get("base_amount"))),
                 )
+        elif flt(d.get("change_amount")) and not is_return:
+            add_payment_amount(
+                cash_mode_of_payment,
+                d.get("currency") or company_currency,
+                -abs(flt(d.get("change_amount"))),
+                -abs(get_base_value(d, "change_amount", "base_change_amount", d.get("conversion_rate"))),
+            )
 
     pos_payments = get_payments_entries(opening_shift.get("name"))
 
@@ -221,21 +247,22 @@ def make_closing_shift_from_opening(opening_shift):
         # a legacy one, and legacy entries reconciled against a source Receive entry
         # carry no invoice reference at all. Legacy entries are instead handled
         # operationally - close every open shift before deploying.
-        existing_pay = [pay for pay in payments if pay.mode_of_payment == py.mode_of_payment]
         multiplier = -1 if py.payment_type == "Pay" else 1
         signed_amount = multiplier * abs(get_base_value(py, "paid_amount", "base_paid_amount"))
-        if existing_pay:
-            existing_pay[0].expected_amount += signed_amount
-        else:
-            payments.append(
-                frappe._dict(
-                    {
-                        "mode_of_payment": py.mode_of_payment,
-                        "opening_amount": 0,
-                        "expected_amount": signed_amount,
-                    }
-                )
-            )
+        payment_currency = (
+            py.get("paid_to_account_currency")
+            if py.payment_type == "Receive"
+            else py.get("paid_from_account_currency")
+        ) or company_currency
+        original_amount = (
+            py.get("received_amount") if py.payment_type == "Receive" else py.get("paid_amount")
+        )
+        add_payment_amount(
+            py.mode_of_payment,
+            payment_currency,
+            multiplier * abs(flt(original_amount)),
+            signed_amount,
+        )
 
     cash_movements = frappe.get_all(
         "POS Cash Movement",
@@ -244,19 +271,12 @@ def make_closing_shift_from_opening(opening_shift):
     )
     cash_movement_total = sum(flt(row.get("amount")) for row in cash_movements)
     if cash_movement_total:
-        existing_cash = [pay for pay in payments if pay.mode_of_payment == cash_mode_of_payment]
-        if existing_cash:
-            existing_cash[0].expected_amount -= cash_movement_total
-        else:
-            payments.append(
-                frappe._dict(
-                    {
-                        "mode_of_payment": cash_mode_of_payment,
-                        "opening_amount": 0,
-                        "expected_amount": -cash_movement_total,
-                    }
-                )
-            )
+        add_payment_amount(
+            cash_mode_of_payment,
+            company_currency,
+            -cash_movement_total,
+            -cash_movement_total,
+        )
 
     closing_shift.set("pos_transactions", pos_transactions)
     closing_shift.set("payment_reconciliation", payments)

@@ -38,11 +38,15 @@ export const useItemsSelectorSearch = ({
 		if (typeof vm.usesLimitSearch === "boolean") {
 			return vm.usesLimitSearch;
 		}
-		if (vm.usesLimitSearch && typeof vm.usesLimitSearch.value === "boolean") {
+		if (
+			vm.usesLimitSearch &&
+			typeof vm.usesLimitSearch.value === "boolean"
+		) {
 			return vm.usesLimitSearch.value;
 		}
 		return resolveBooleanSetting(
-			vm.pos_profile?.posa_use_limit_search ?? vm.pos_profile?.pose_use_limit_search,
+			vm.pos_profile?.posa_use_limit_search ??
+				vm.pos_profile?.pose_use_limit_search,
 		);
 	};
 
@@ -51,7 +55,10 @@ export const useItemsSelectorSearch = ({
 		if (typeof vm.storageAvailable === "boolean") {
 			return vm.storageAvailable;
 		}
-		if (vm.storageAvailable && typeof vm.storageAvailable.value === "boolean") {
+		if (
+			vm.storageAvailable &&
+			typeof vm.storageAvailable.value === "boolean"
+		) {
 			return vm.storageAvailable.value;
 		}
 		return false;
@@ -122,7 +129,10 @@ export const useItemsSelectorSearch = ({
 			clearHighlightedItem();
 			return;
 		}
-		if (typeof (itemSelection || vm?.itemSelection)?.clearHighlightedItem === "function") {
+		if (
+			typeof (itemSelection || vm?.itemSelection)
+				?.clearHighlightedItem === "function"
+		) {
 			(itemSelection || vm.itemSelection).clearHighlightedItem();
 		}
 	};
@@ -195,7 +205,10 @@ export const useItemsSelectorSearch = ({
 
 		const searchTerm = scannedCode || vm.first_search;
 		await scannerInput.ensureScaleBarcodeSettings();
-		if (!vm.displayedItems.length || !searchTerm) {
+		const displayedItems = Array.isArray(vm.displayedItems)
+			? vm.displayedItems
+			: [];
+		if (!displayedItems.length || !searchTerm) {
 			return;
 		}
 
@@ -205,7 +218,7 @@ export const useItemsSelectorSearch = ({
 		vm.search = search;
 
 		const qty = Number(get_item_qty(searchTerm));
-		const new_item = { ...vm.displayedItems[0] };
+		const new_item = { ...displayedItems[0] };
 		new_item.qty = flt(qty);
 		if (isScaleBarcode) {
 			new_item._barcode_qty = true;
@@ -354,7 +367,8 @@ export const useItemsSelectorSearch = ({
 					await searchItems(trimmedQuery);
 				} else {
 					const getItems = getItemsLoader(vm);
-					const shouldForceServer = !hasStorageAvailable(vm) || !isOffline();
+					const shouldForceServer =
+						!hasStorageAvailable(vm) || !isOffline();
 					if (getItems) {
 						await getItems(shouldForceServer);
 					}
@@ -408,6 +422,14 @@ export const useItemsSelectorSearch = ({
 		if (!vm) return;
 		if (event && typeof event.preventDefault === "function") {
 			event.preventDefault();
+		}
+
+		// Enter on an item highlighted with the arrow keys adds that item. Scanner-safe:
+		// any new typed/scanned text clears the highlight first
+		// (useItemsSelectorSearchInput.handleSearchInput).
+		if (getHighlightedIndex(itemSelection || vm.itemSelection) >= 0) {
+			(itemSelection || vm.itemSelection).selectHighlightedItem();
+			return;
 		}
 
 		const trimmedQuery = String(getCurrentSearchInput(vm) || "").trim();

@@ -28,6 +28,11 @@ const parseOptionalFloat = (value: unknown): number | null => {
 	return Number.isFinite(numeric) ? numeric : null;
 };
 
+const resolvePositiveAmount = (value: unknown): number => {
+	const numeric = Number.parseFloat(String(value ?? 0));
+	return Number.isFinite(numeric) ? Math.max(0, Math.abs(numeric)) : 0;
+};
+
 /**
  * Rounds `value` to `precision` decimal places using symmetric (half-up) rounding.
  * Non-finite inputs return `0`.
@@ -133,6 +138,12 @@ export const matchPriceListAndCurrency = (
 		return false;
 	}
 	return true;
+};
+
+export const matchUom = (rule: AnyRecord, item: AnyRecord): boolean => {
+	const ruleUom = String(rule?.uom || "").trim();
+	if (!ruleUom) return true;
+	return ruleUom === String(item?.uom || "").trim();
 };
 
 const pushUnique = (
@@ -356,6 +367,36 @@ const computeThresholdInfo = (rule: AnyRecord, qty: number) => {
 	return { minimum, multiplier };
 };
 
+const amountWithinThreshold = (
+	rule: AnyRecord,
+	lineAmount: number,
+	transactionAmount: number,
+): boolean => {
+	const minAmount =
+		parseOptionalFloat(rule.min_amt) ??
+		parseOptionalFloat(rule.min_amount) ??
+		0;
+	const maxAmount =
+		parseOptionalFloat(rule.max_amt) ??
+		parseOptionalFloat(rule.max_amount);
+
+	if (!minAmount && (maxAmount === null || maxAmount <= 0)) {
+		return true;
+	}
+
+	const applyOn = String(rule.apply_on || "").toLowerCase();
+	const amount =
+		applyOn === "transaction" ? transactionAmount : lineAmount;
+
+	if (minAmount > 0 && amount < minAmount) {
+		return false;
+	}
+	if (maxAmount !== null && maxAmount > 0 && amount > maxAmount) {
+		return false;
+	}
+	return true;
+};
+
 const applyFreeItemRule = (
 	rule: AnyRecord,
 	item: AnyRecord,
@@ -494,16 +535,22 @@ export const evaluatePricingRules = ({
 	item,
 	qty,
 	docQty,
+	docAmount,
+	cartAmount,
 	baseRate,
 	ctx,
 	indexes,
+	evaluationScope = "line",
 }: {
 	item: AnyRecord;
 	qty?: number | string;
 	docQty?: number | string;
+	docAmount?: number | string;
+	cartAmount?: number | string;
 	baseRate?: number;
 	ctx?: AnyRecord;
 	indexes?: PricingRuleIndexBundle;
+	evaluationScope?: "line" | "transaction";
 }): {
 	pricing: {
 		rate: number;
@@ -549,9 +596,22 @@ export const evaluatePricingRules = ({
 						0,
 				);
 	const startRate = Number.isFinite(effectiveBase) ? effectiveBase : 0;
+	const lineAmount =
+		docAmount !== undefined
+			? resolvePositiveAmount(docAmount)
+			: resolvePositiveAmount(startRate * absoluteDocQty);
+	const transactionAmount =
+		cartAmount !== undefined ? resolvePositiveAmount(cartAmount) : lineAmount;
 
 	// Optimization: collect candidates once
-	const candidates = collectCandidates(item, indexes);
+	const candidates = collectCandidates(item, indexes).filter((rule) => {
+		const isTransaction =
+			String(rule?.apply_on || "").toLowerCase() === "transaction";
+		return (
+			(evaluationScope === "transaction" ? isTransaction : !isTransaction) &&
+			matchUom(rule, item)
+		);
+	});
 
 	const pricingRules: AnyRecord[] = [];
 	const freeRules: AnyRecord[] = [];
@@ -573,18 +633,29 @@ export const evaluatePricingRules = ({
 		if (!matchPriceListAndCurrency(rule, ctx?.price_list, ctx?.currency)) {
 			continue;
 		}
+		if (!amountWithinThreshold(rule, lineAmount, transactionAmount)) {
+			continue;
+		}
 
 		if (isFreeRule(rule)) {
 			const minimum =
 				Number.parseFloat(rule.min_qty || rule.recurse_for || 1) || 1;
-			if (effectiveQty >= minimum) {
+			const maximum = parseOptionalFloat(rule.max_qty);
+			if (
+				effectiveQty >= minimum &&
+				(maximum === null || maximum <= 0 || effectiveQty <= maximum)
+			) {
 				freeRules.push(rule);
 			}
 			continue;
 		}
 
 		const minimum = Number.parseFloat(rule.min_qty || 0);
-		if (effectiveQty < minimum) {
+		const maximum = parseOptionalFloat(rule.max_qty);
+		if (
+			effectiveQty < minimum ||
+			(maximum !== null && maximum > 0 && effectiveQty > maximum)
+		) {
 			continue;
 		}
 
@@ -657,11 +728,49 @@ export const evaluatePricingRules = ({
 	return { pricing, freebies };
 };
 
+/**
+ * Evaluates rules whose ERPNext scope is the whole transaction exactly once.
+ * Transaction rules are header-level rules: their quantity and amount thresholds
+ * use cart totals and a fixed discount amount must not be repeated per item/qty.
+ */
+export const evaluateTransactionPricingRules = ({
+	cartAmount,
+	cartQty,
+	ctx,
+	indexes,
+}: {
+	cartAmount?: number | string;
+	cartQty?: number | string;
+	ctx?: AnyRecord;
+	indexes?: PricingRuleIndexBundle;
+}) => {
+	const transactionRules = (indexes?.general || []).filter(
+		(rule) => String(rule?.apply_on || "").toLowerCase() === "transaction",
+	);
+
+	return evaluatePricingRules({
+		item: {},
+		qty: cartQty,
+		docQty: cartQty,
+		docAmount: cartAmount,
+		cartAmount,
+		baseRate: resolvePositiveAmount(cartAmount),
+		ctx,
+		indexes: {
+			general: transactionRules,
+			preSorted: indexes?.preSorted,
+		},
+		evaluationScope: "transaction",
+	});
+};
+
 // Deprecated: Wrappers for backward compatibility
 export const applyLocalPricingRules = (params: {
 	item: AnyRecord;
 	qty?: number | string;
 	docQty?: number | string;
+	docAmount?: number | string;
+	cartAmount?: number | string;
 	baseRate?: number;
 	ctx?: AnyRecord;
 	indexes?: PricingRuleIndexBundle;
@@ -674,6 +783,8 @@ export const computeFreeItems = (params: {
 	item: AnyRecord;
 	qty?: number | string;
 	docQty?: number | string;
+	docAmount?: number | string;
+	cartAmount?: number | string;
 	baseRate?: number;
 	ctx?: AnyRecord;
 	indexes?: {

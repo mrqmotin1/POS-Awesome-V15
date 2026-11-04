@@ -1,5 +1,8 @@
 import { checkDbHealth, db, isOffline, memory, persist } from "./db";
-import { buildCustomerSearchText } from "../posapp/stores/customers/customerSearch";
+import {
+	buildCustomerMobileSearchKeys,
+	buildCustomerSearchText,
+} from "../posapp/stores/customers/customerSearch";
 import {
 	claimRetryableQueueEntries,
 	clearWriteQueueEntries,
@@ -273,6 +276,9 @@ export async function setCustomerStorage(customers: AnyRecord[]) {
 				{
 					...normalized,
 					_search_text: buildCustomerSearchText(normalized),
+					_mobile_search_keys: buildCustomerMobileSearchKeys(
+						normalized.mobile_no,
+					),
 				},
 			];
 		});

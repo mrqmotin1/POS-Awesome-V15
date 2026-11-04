@@ -104,7 +104,7 @@ def _install_stubs():
         {"name": "PKR"},
         {"name": "USD"},
     ]
-    invoice_utils_module.get_latest_rate = lambda from_currency, to_currency: (
+    invoice_utils_module.get_latest_rate = lambda from_currency, to_currency, **kwargs: (
         279.5,
         "2026-04-09",
     )
@@ -181,7 +181,7 @@ class TestOfflineSyncCurrencies(unittest.TestCase):
         self.assertIn("next_watermark", response)
         self.assertIn("has_more", response)
 
-    def test_discovers_all_required_multi_currency_pairs_when_none_are_supplied(self):
+    def test_startup_sync_is_metadata_only_when_no_pairs_are_supplied(self):
         response = self.module.sync_currency_scope(
             pos_profile="POS-TEST",
             watermark=None,
@@ -193,18 +193,9 @@ class TestOfflineSyncCurrencies(unittest.TestCase):
             for row in response["changes"]
             if row["key"].startswith("exchange_rate::")
         }
-        self.assertEqual(
-            pair_keys,
-            {
-                "exchange_rate::PKR::USD",
-                "exchange_rate::PKR::GBP",
-                "exchange_rate::USD::PKR",
-                "exchange_rate::USD::GBP",
-                "exchange_rate::GBP::PKR",
-            },
-        )
+        self.assertEqual(pair_keys, set())
 
-    def test_paginates_the_discovered_currency_matrix(self):
+    def test_paginates_startup_currency_metadata(self):
         first = self.module.sync_currency_scope(
             pos_profile="POS-TEST",
             watermark=None,
@@ -220,11 +211,11 @@ class TestOfflineSyncCurrencies(unittest.TestCase):
             limit=10,
         )
 
-        self.assertTrue(first["has_more"])
-        self.assertEqual(first["next_offset"], 2)
-        self.assertIsNone(first["next_watermark"])
+        self.assertFalse(first["has_more"])
+        self.assertIsNone(first["next_offset"])
+        self.assertEqual(first["next_watermark"], "2026-04-09T10:03:00")
         self.assertFalse(second["has_more"])
-        self.assertEqual(second["next_watermark"], "2026-04-09T10:04:00")
+        self.assertEqual(second["next_watermark"], "2026-04-09T10:03:00")
 
     def test_sync_currency_scope_skips_unchanged_results_for_current_watermark(self):
         response = self.module.sync_currency_scope(

@@ -1,12 +1,15 @@
 import frappe
 
 from posawesome.posawesome.api.offline_sync.common import (
-    _build_response,
+    _build_response as _build_common_response,
+    _coerce_limit,
+    _coerce_offset,
     _max_timestamp,
     _resolve_profile,
 )
+from posawesome.posawesome.api.item_sale_controls import _resolve_buying_price_list
 
-SYNC_SCHEMA_VERSION = "2026-04-09"
+SYNC_SCHEMA_VERSION = "2026-07-17"
 
 ITEM_PRICE_FIELDS = [
     "name",
@@ -15,6 +18,9 @@ ITEM_PRICE_FIELDS = [
     "uom",
     "currency",
     "customer",
+    "supplier",
+    "buying",
+    "selling",
     "price_list_rate",
     "valid_from",
     "valid_upto",
@@ -22,15 +28,15 @@ ITEM_PRICE_FIELDS = [
 ]
 
 
-def _coerce_int(value, default, minimum=0, maximum=2000):
-    try:
-        resolved = int(value if value is not None else default)
-    except (TypeError, ValueError):
-        resolved = default
-    return max(minimum, min(resolved, maximum))
+def _build_response(**kwargs):
+    response = _build_common_response(**kwargs)
+    response["schema_version"] = SYNC_SCHEMA_VERSION
+    return response
 
 
-def _selling_price_lists(profile):
+def _profile_price_lists(profile):
+    """Return every selling list plus the profile's authoritative buying floor list."""
+
     rows = (
         frappe.get_all(
             "Price List",
@@ -44,7 +50,10 @@ def _selling_price_lists(profile):
     selected = profile.get("selling_price_list")
     if selected and selected not in names:
         names.append(selected)
-    return sorted(set(names))
+    buying_price_list = _resolve_buying_price_list(profile.get("name"))
+    if buying_price_list and buying_price_list not in names:
+        names.append(buying_price_list)
+    return sorted(set(names)), buying_price_list
 
 
 def _deleted_item_prices(watermark):
@@ -87,14 +96,17 @@ def sync_item_prices(
     if not profile:
         frappe.throw("pos_profile is required")
 
-    price_lists = _selling_price_lists(profile)
+    price_lists, buying_price_list = _profile_price_lists(profile)
     if not price_lists:
         response = _build_response(next_watermark=watermark)
-        response["scope"] = {"price_lists": []}
+        response["scope"] = {
+            "price_lists": [],
+            "buying_price_list": buying_price_list,
+        }
         return response
 
-    resolved_offset = _coerce_int(offset, 0)
-    resolved_limit = _coerce_int(limit, 500, minimum=1)
+    resolved_offset = _coerce_offset(offset)
+    resolved_limit = _coerce_limit(limit, 500)
     filters = {"price_list": ("in", price_lists)}
     if watermark:
         filters["modified"] = [">", watermark]
@@ -139,5 +151,8 @@ def sync_item_prices(
         has_more=has_more,
     )
     response["next_offset"] = resolved_offset + len(page_rows) if has_more else None
-    response["scope"] = {"price_lists": price_lists}
+    response["scope"] = {
+        "price_lists": price_lists,
+        "buying_price_list": buying_price_list,
+    }
     return response

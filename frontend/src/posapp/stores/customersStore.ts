@@ -11,7 +11,12 @@ import type {
 } from "../types/models";
 import {
 	buildCustomerSearchParts,
+	buildCustomerMobileSearchKeys,
+	customerMobileMatchesSearch,
 	customerMatchesSearchParts,
+	customerMatchesSearchTerm,
+	getCustomerDuplicateFields,
+	isCustomerMobileSearchTerm,
 	normalizeCustomerSearchTerm,
 } from "./customers/customerSearch";
 import { resetCustomerLoadingCoordinator } from "../modules/customers/customerLoadingCoordinator";
@@ -172,9 +177,9 @@ export const useCustomersStore = defineStore("customers", () => {
 	const nextCustomerStart = ref<string | null>(null);
 	const nextCustomerOffset = ref(0);
 	const loadingCustomers = ref(false);
+	const searchingCustomers = ref(false);
 	const customersLoaded = ref(false);
 	const isCustomerBackgroundLoading = ref(false);
-	const pendingCustomerSearch = ref<string | null>(null);
 	const loadProgress = ref(0);
 	const totalCustomerCount = ref(0);
 	const loadedCustomerCount = ref(0);
@@ -184,6 +189,7 @@ export const useCustomersStore = defineStore("customers", () => {
 	const isUpdateCustomerDialogOpen = ref(false);
 	const customerToUpdate = ref<StoredCustomer | null>(null);
 	let customerFetchPromise: Promise<void> | null = null;
+	let customerSearchRequestId = 0;
 	const customerLoadLogState = {
 		local: false,
 		server: false,
@@ -358,53 +364,234 @@ export const useCustomersStore = defineStore("customers", () => {
 		syncBootstrapCustomerReadiness(0);
 	}
 
-	async function performSearch({ append = false } = {}) {
-		await ensureDatabase();
-
-		let collection = db.table("customers");
-		const normalizedTerm = normalizeCustomerSearchTerm(searchTerm.value);
-		if (normalizedTerm) {
-			const searchParts = buildCustomerSearchParts(normalizedTerm);
-			collection = collection.filter((customer: CustomerSummary) =>
-				customerMatchesSearchParts(customer, searchParts),
-			);
+	async function fetchServerCustomerMatches(
+		term: string,
+	): Promise<CustomerSummary[]> {
+		if (!posProfile.value || isOffline()) {
+			return [];
+		}
+		const serializedProfile = getSerializedProfile(posProfile.value);
+		if (!serializedProfile) {
+			return [];
 		}
 
-		const offset = page.value * PAGE_SIZE;
-		const results = await collection
-			.offset(offset)
-			.limit(PAGE_SIZE)
-			.toArray();
-
-		if (append) {
-			customers.value = [...customers.value, ...results];
-		} else {
-			customers.value = results;
-		}
-
-		hasMore.value = results.length === PAGE_SIZE;
-		if (hasMore.value) {
-			page.value += 1;
-		}
-
-		return results.length;
+		return new Promise((resolve) => {
+			frappe.call({
+				method: "posawesome.posawesome.api.customers.search_customers",
+				args: {
+					pos_profile: serializedProfile,
+					search_term: term,
+					limit: PAGE_SIZE,
+				},
+				callback: (response: any) => resolve(response.message || []),
+				error: (error: any) => {
+					console.error(
+						"Failed to search customers on the server",
+						error,
+					);
+					resolve([]);
+				},
+			});
+		});
 	}
 
-	async function searchCustomers(term = "", append = false) {
+	async function searchIndexedMobileCustomers(
+		term: string,
+		requestedPage: number,
+	): Promise<CustomerSummary[]> {
+		const searchKeys = buildCustomerMobileSearchKeys(term);
+		if (!searchKeys.length) {
+			return [];
+		}
+		const requestedLimit = (requestedPage + 1) * PAGE_SIZE;
+		const mobilePages = await Promise.all(
+			searchKeys.map((key) =>
+				db
+					.table("customers")
+					.where("_mobile_search_keys")
+					.startsWith(key)
+					.limit(requestedLimit)
+					.toArray(),
+			),
+		);
+		const identifierPages = await Promise.all(
+			["name", "customer_name", "tax_id"].map((field) =>
+				db
+					.table("customers")
+					.where(field)
+					.startsWith(term)
+					.limit(requestedLimit)
+					.toArray(),
+			),
+		);
+		const normalizedMatches = await db
+			.table("customers")
+			.filter((customer: CustomerSummary) =>
+				customerMatchesSearchTerm(customer, term),
+			)
+			.limit(requestedLimit)
+			.toArray();
+		const uniqueMatches = new Map<string, CustomerSummary>();
+		mobilePages.flat().forEach((customer: CustomerSummary) => {
+			if (
+				customer?.name &&
+				customerMobileMatchesSearch(customer.mobile_no, term)
+			) {
+				uniqueMatches.set(customer.name, customer);
+			}
+		});
+		identifierPages.flat().forEach((customer: CustomerSummary) => {
+			if (customer?.name && customerMatchesSearchTerm(customer, term)) {
+				uniqueMatches.set(customer.name, customer);
+			}
+		});
+		normalizedMatches.forEach((customer: CustomerSummary) => {
+			if (customer?.name) {
+				uniqueMatches.set(customer.name, customer);
+			}
+		});
+		return Array.from(uniqueMatches.values())
+			.sort((left, right) => left.name.localeCompare(right.name))
+			.slice(requestedPage * PAGE_SIZE, requestedLimit);
+	}
+
+	async function performSearch({ append = false, allowRemote = false } = {}) {
+		const requestId = ++customerSearchRequestId;
+		const requestedTerm = normalizeCustomerSearchTerm(searchTerm.value);
+		const requestedPage = page.value;
+		if (!append) {
+			searchingCustomers.value = true;
+		}
+
+		try {
+			await ensureDatabase();
+			let results: CustomerSummary[];
+			const isMobileSearch =
+				isCustomerMobileSearchTerm(requestedTerm) &&
+				buildCustomerMobileSearchKeys(requestedTerm).length > 0;
+			if (isMobileSearch) {
+				results = await searchIndexedMobileCustomers(
+					requestedTerm,
+					requestedPage,
+				);
+			} else {
+				let collection = db.table("customers");
+				if (requestedTerm) {
+					const searchParts = buildCustomerSearchParts(requestedTerm);
+					collection = collection.filter(
+						(customer: CustomerSummary) =>
+							customerMatchesSearchParts(customer, searchParts),
+					);
+				}
+				const offset = requestedPage * PAGE_SIZE;
+				results = await collection
+					.offset(offset)
+					.limit(PAGE_SIZE)
+					.toArray();
+			}
+
+			if (!append && allowRemote && Boolean(requestedTerm)) {
+				const remoteResults =
+					await fetchServerCustomerMatches(requestedTerm);
+				if (remoteResults.length) {
+					await setCustomerStorage(remoteResults);
+					const mergedResults = new Map<string, CustomerSummary>();
+					[...results, ...remoteResults].forEach((customer) => {
+						if (customer?.name) {
+							mergedResults.set(customer.name, customer);
+						}
+					});
+					results = Array.from(mergedResults.values())
+						.sort((left, right) =>
+							left.name.localeCompare(right.name),
+						)
+						.slice(0, PAGE_SIZE);
+				}
+			}
+
+			// IndexedDB searches can overlap while the cashier is typing or while a
+			// background sync publishes a new batch. Only the latest request may
+			// replace the selector results.
+			if (
+				requestId !== customerSearchRequestId ||
+				requestedTerm !== normalizeCustomerSearchTerm(searchTerm.value)
+			) {
+				return 0;
+			}
+
+			if (append) {
+				customers.value = [...customers.value, ...results];
+			} else {
+				customers.value = results;
+			}
+
+			hasMore.value = results.length === PAGE_SIZE;
+			if (hasMore.value) {
+				page.value = requestedPage + 1;
+			}
+
+			return results.length;
+		} finally {
+			if (!append && requestId === customerSearchRequestId) {
+				searchingCustomers.value = false;
+			}
+		}
+	}
+
+	async function searchCustomers(
+		term = "",
+		append = false,
+		allowRemote = false,
+	) {
 		if (!append) {
 			searchTerm.value = normalizeCustomerSearchTerm(term);
-			resetPagination();
+			page.value = 0;
+			hasMore.value = true;
 		}
-		return performSearch({ append });
+		return performSearch({ append, allowRemote });
 	}
 
 	async function queueSearch(term: string) {
 		const normalized = normalizeCustomerSearchTerm(term);
-		if (isCustomerBackgroundLoading.value) {
-			pendingCustomerSearch.value = normalized;
-			return null;
-		}
-		return searchCustomers(normalized, false);
+		return searchCustomers(normalized, false, true);
+	}
+
+	async function findLocalDuplicateCustomers(
+		candidate: Partial<CustomerSummary>,
+		excludeCustomer: string | null = null,
+	) {
+		await ensureDatabase();
+		const allowDuplicateNames = Boolean(
+			(
+				posProfile.value as POSProfile & {
+					posa_allow_duplicate_customer_names?: boolean | number;
+				}
+			)?.posa_allow_duplicate_customer_names,
+		);
+		const results = await db
+			.table("customers")
+			.filter((customer: CustomerSummary) => {
+				if (excludeCustomer && customer.name === excludeCustomer) {
+					return false;
+				}
+				return Boolean(
+					getCustomerDuplicateFields(
+						customer,
+						candidate,
+						!allowDuplicateNames,
+					).length,
+				);
+			})
+			.limit(5)
+			.toArray();
+		return results.map((customer: CustomerSummary) => ({
+			...customer,
+			matching_fields: getCustomerDuplicateFields(
+				customer,
+				candidate,
+				!allowDuplicateNames,
+			),
+		}));
 	}
 
 	async function loadMoreCustomers() {
@@ -476,8 +663,7 @@ export const useCustomersStore = defineStore("customers", () => {
 				loadProgress.value = Math.min(
 					99,
 					Math.round(
-						(loadedCustomerCount.value /
-							totalCustomerCount.value) *
+						(loadedCustomerCount.value / totalCustomerCount.value) *
 							100,
 					),
 				);
@@ -527,6 +713,9 @@ export const useCustomersStore = defineStore("customers", () => {
 			const rows = pages.flat();
 			if (rows.length > 0) {
 				await setCustomerStorage(rows);
+				if (normalizeCustomerSearchTerm(searchTerm.value)) {
+					await searchCustomers(searchTerm.value);
+				}
 			}
 			return { rows, reachedEnd };
 		};
@@ -547,9 +736,7 @@ export const useCustomersStore = defineStore("customers", () => {
 						rows[rows.length - 1]?.name || null;
 					nextCustomerOffset.value = nextWaveOffset;
 					await publishProgress(previousCount, rows.length);
-					syncBootstrapCustomerReadiness(
-						loadedCustomerCount.value,
-					);
+					syncBootstrapCustomerReadiness(loadedCustomerCount.value);
 					if (customers.value.length === 0) {
 						await searchCustomers(searchTerm.value);
 					}
@@ -561,9 +748,7 @@ export const useCustomersStore = defineStore("customers", () => {
 					setCustomersLastSync(new Date().toISOString());
 					loadProgress.value = 100;
 					customersLoaded.value = true;
-					syncBootstrapCustomerReadiness(
-						loadedCustomerCount.value,
-					);
+					syncBootstrapCustomerReadiness(loadedCustomerCount.value);
 					logFinalLoadedCustomerCount();
 					break;
 				}
@@ -581,11 +766,6 @@ export const useCustomersStore = defineStore("customers", () => {
 				loadProgress.value >= 99
 			) {
 				loadProgress.value = 100;
-			}
-			if (pendingCustomerSearch.value !== null) {
-				const term = pendingCustomerSearch.value;
-				pendingCustomerSearch.value = null;
-				await searchCustomers(term);
 			}
 		}
 	}
@@ -848,9 +1028,9 @@ export const useCustomersStore = defineStore("customers", () => {
 		nextCustomerStart,
 		nextCustomerOffset,
 		loadingCustomers,
+		searchingCustomers,
 		customersLoaded,
 		isCustomerBackgroundLoading,
-		pendingCustomerSearch,
 		loadProgress,
 		totalCustomerCount,
 		loadedCustomerCount,
@@ -862,6 +1042,7 @@ export const useCustomersStore = defineStore("customers", () => {
 		setCustomerInfo,
 		searchCustomers,
 		queueSearch,
+		findLocalDuplicateCustomers,
 		loadMoreCustomers,
 		verifyServerCustomerCount,
 		get_customer_names,
