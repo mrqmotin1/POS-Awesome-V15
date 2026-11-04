@@ -960,7 +960,12 @@ const getItemIndex = (item: any) => {
 };
 
 const handleQtyEditSubmitted = (item: any) => {
-	advanceGridEntryFromItem(item, "qty");
+	if (props.counterGrid) {
+		advanceGridEntryFromItem(item, "qty");
+		return;
+	}
+	deactivateKeyboardGrid();
+	eventBus?.emit("focus_item_search");
 };
 
 const handleGridEditorSubmitted = (item: any, fromCellKey: CartGridColumnKey) => {
