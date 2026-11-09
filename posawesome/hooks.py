@@ -251,7 +251,7 @@ fixtures = [
                     "POS Profile-posa_cashier_payment_desk",
                     "POS Profile-posa_pay_single_invoice_selection",
                     "POS Profile-posa_allow_credit_sale",
-                    "POS Profile-posa_collect_payment_at_cashier",
+                    "POS Profile-posa_payment_flow",
                     "POS Profile-posa_pos_awesome_advance_settings",
                     "Batch-posa_batch_price",
                     "POS Profile-posa_max_discount_allowed",

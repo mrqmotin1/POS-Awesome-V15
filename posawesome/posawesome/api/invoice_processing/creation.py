@@ -1057,9 +1057,9 @@ def _validate_credit_sale_allowed(invoice_doc, data):
         invoice_doc.pos_profile,
         "posa_allow_credit_sale",
     )
-    # collect-at-cashier counters submit every invoice as credit by design
-    if not cint(allow_credit_sale) and not cint(
-        frappe.db.get_value("POS Profile", invoice_doc.pos_profile, "posa_collect_payment_at_cashier")
+    # Pay at Cashier counters submit every invoice as credit by design
+    if not cint(allow_credit_sale) and (
+        frappe.db.get_value("POS Profile", invoice_doc.pos_profile, "posa_payment_flow") != "Pay at Cashier"
     ):
         frappe.throw(_("Credit Sale is not enabled in POS Profile"))
 

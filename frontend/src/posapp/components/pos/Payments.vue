@@ -1000,9 +1000,7 @@ const creditSaleAllowed = computed(() => parseBooleanSetting(pos_profile.value?.
 // Counter profiles that hand every bill to the cashier desk take no tender here:
 // the invoice is submitted as credit (returns stored as credit) with a Pay Type,
 // and the cashier collects or refunds it later from POS Payments.
-const collectAtCashier = computed(() =>
-	parseBooleanSetting(pos_profile.value?.posa_collect_payment_at_cashier),
-);
+const collectAtCashier = computed(() => pos_profile.value?.posa_payment_flow === "Pay at Cashier");
 const payTypeOptions = computed(() =>
 	(Array.isArray(pos_profile.value?.payments) ? pos_profile.value.payments : [])
 		.map((payment) => payment?.mode_of_payment)

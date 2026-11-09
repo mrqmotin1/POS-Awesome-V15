@@ -47,3 +47,4 @@ posawesome.patches.add_item_exchange_feature
 posawesome.patches.remove_printer_profile_from_workspace
 posawesome.patches.remove_printer_profile_feature
 posawesome.patches.add_item_exchange_report_to_workspace
+posawesome.patches.replace_collect_at_cashier_with_payment_flow
