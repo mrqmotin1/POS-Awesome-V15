@@ -164,6 +164,7 @@ ORDERED_CHAIN = [
     "posa_use_pos_awesome_payments",
     "posa_allow_partial_payment",
     "posa_cashier_payment_desk",
+    "posa_pay_single_invoice_selection",
     "column_break_uolvm",
     "posa_allow_make_new_payments",
     "posa_allow_reconcile_payments",

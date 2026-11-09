@@ -695,6 +695,9 @@ export default {
 		const cashierDesk = computed(
 			() => Number(pos_profile.value?.posa_cashier_payment_desk || 0) === 1,
 		);
+		const singleInvoiceSelection = computed(
+			() => Number(pos_profile.value?.posa_pay_single_invoice_selection || 0) === 1,
+		);
 		const invoices_headers = computed(() => cashierDesk.value && isCustomerPartyType.value
 			? [
 				{ title: "", align: "start", sortable: false, key: "actions", width: "50px" },
@@ -1196,6 +1199,10 @@ export default {
 			});
 		}
 		function handleInvoiceSelection(item) {
+			// One invoice at a time: picking a different invoice drops the previous pick.
+			if (singleInvoiceSelection.value && !isInvoiceSelected(item)) {
+				selected_invoices.value = [];
+			}
 			if (cashierDesk.value) {
 				const isReturn = Number(item?.is_return || 0) === 1;
 				const mixed = selected_invoices.value.some(

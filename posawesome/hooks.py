@@ -249,6 +249,7 @@ fixtures = [
                     "POS Profile-posa_allow_submissions_in_background_job",
                     "POS Profile-posa_allow_partial_payment",
                     "POS Profile-posa_cashier_payment_desk",
+                    "POS Profile-posa_pay_single_invoice_selection",
                     "POS Profile-posa_allow_credit_sale",
                     "POS Profile-posa_collect_payment_at_cashier",
                     "POS Profile-posa_pos_awesome_advance_settings",
