@@ -1004,7 +1004,7 @@ export default {
 			this.barcodeLoading = true;
 			try {
 				const res = await frappe.call({
-					method: "mondayposhyper.pos.api.validate_manager_barcode",
+					method: "tamanna_1.pos.api.validate_manager_barcode",
 					args: { barcode: this.barcodeInput.trim() },
 				});
 				if (res.message.success) {
@@ -1042,7 +1042,7 @@ export default {
 			this.loading = true
 			try {
 				const res = await frappe.call({
-				method: "mondayposhyper.pos.api.validate_manager",
+				method: "tamanna_1.pos.api.validate_manager",
 				args: {
 					username: this.username,
 					password: this.password
