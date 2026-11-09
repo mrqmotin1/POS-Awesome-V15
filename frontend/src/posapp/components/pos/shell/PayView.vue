@@ -138,33 +138,6 @@
 						@select-row="handleInvoiceSelection"
 					/>
 
-					<div
-						v-if="cashierDesk && selected_invoices.length === 1"
-						class="mt-2 mb-4"
-						data-testid="pay-desk-invoice-items"
-					>
-						<p class="mb-1">
-							<strong>{{ __("Items in {0}", [selected_invoices[0].voucher_no]) }}</strong>
-						</p>
-						<v-data-table
-							:headers="desk_item_headers"
-							:items="desk_invoice_items"
-							:loading="desk_invoice_items_loading"
-							:items-per-page="-1"
-							density="compact"
-							hide-default-footer
-							class="elevation-1"
-						>
-							<template v-slot:item.rate="{ item }">
-								{{ formatCurrency(item.rate) }}
-							</template>
-							<template v-slot:item.net_amount="{ item }">
-								{{ currencySymbol(selected_invoices[0].currency) }}
-								{{ formatCurrency(item.net_amount) }}
-							</template>
-						</v-data-table>
-					</div>
-
 					<PayUnallocatedTable
 						v-if="showReconciliationSections"
 						v-model:selected-payments="selected_payments"
@@ -202,6 +175,37 @@
 					class="invoices mx-auto mt-3 p-3 pos-themed-card"
 					style="max-height: calc(100dvh - 32px); height: calc(100dvh - 32px)"
 				>
+					<div class="pay-right-stack">
+					<!-- Items of the one selected bill, to check against the bag. -->
+					<div
+						v-if="showSelectedInvoiceItems"
+						class="pay-desk-items mb-2"
+						data-testid="pay-desk-invoice-items"
+					>
+						<p class="mb-1">
+							<strong>{{ __("Items in {0}", [selected_invoices[0].voucher_no]) }}</strong>
+						</p>
+						<v-data-table
+							:headers="desk_item_headers"
+							:items="desk_invoice_items"
+							:loading="desk_invoice_items_loading"
+							:items-per-page="-1"
+							density="compact"
+							fixed-header
+							hide-default-footer
+							class="elevation-1 pay-desk-items__table"
+						>
+							<template v-slot:item.rate="{ item }">
+								{{ formatCurrency(item.rate) }}
+							</template>
+							<template v-slot:item.net_amount="{ item }">
+								{{ currencySymbol(selected_invoices[0].currency) }}
+								{{ formatCurrency(item.net_amount) }}
+							</template>
+						</v-data-table>
+					</div>
+
+					<div class="pay-right-stack__sidebar">
 					<PayTotalsSidebar
 						ref="payTotalsSidebarRef"
 						v-model:exchange-rate="exchangeRate"
@@ -240,6 +244,8 @@
 						@update:bank-account="handleBankAccountChange"
 						@update:payment-currency="handlePaymentCurrencyChange"
 					/>
+					</div>
+					</div>
 
 					<PayActionButtons
 						:loading="isSubmitting"
@@ -1222,9 +1228,15 @@ export default {
 		const desk_invoice_items = ref([]);
 		const desk_invoice_items_loading = ref(false);
 		let deskItemsToken = 0;
+		// Any profile: exactly one Sales Invoice selected.
+		const showSelectedInvoiceItems = computed(() => {
+			if (!isCustomerPartyType.value || selected_invoices.value.length !== 1) return false;
+			const type = selected_invoices.value[0]?.voucher_type;
+			return !type || type === "Sales Invoice";
+		});
 		async function loadDeskInvoiceItems() {
 			const token = ++deskItemsToken;
-			if (!cashierDesk.value || selected_invoices.value.length !== 1) {
+			if (!showSelectedInvoiceItems.value) {
 				desk_invoice_items.value = [];
 				return;
 			}
@@ -1510,6 +1522,7 @@ export default {
 			pos_profile,
 			pos_opening_shift,
 			cashierDesk,
+			showSelectedInvoiceItems,
 			desk_invoice_items,
 			desk_invoice_items_loading,
 			desk_item_headers,
@@ -1623,6 +1636,30 @@ export default {
 </script>
 
 <style>
+/* Right column: selected bill's items on top, totals sidebar fills the rest. */
+.pay-right-stack {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+.pay-desk-items {
+	flex: 0 0 auto;
+	max-height: 40%;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+.pay-desk-items__table {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+.pay-right-stack__sidebar {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
 .selected-row {
 	background-color: var(--pos-selected-bg) !important;
 	box-shadow: inset 3px 0 0 rgb(var(--v-theme-primary));
