@@ -106,7 +106,6 @@
 						</p>
 						<v-btn-toggle
 							v-model="invoice_doc.custom_pay_type"
-							mandatory
 							divided
 							density="comfortable"
 							rounded="lg"
@@ -1015,10 +1014,9 @@ const applyCollectAtCashierDefaults = (doc) => {
 	if (!collectAtCashier.value || !doc) {
 		return;
 	}
+	// No pre-pick: the seller must choose the Pay Type before submitting.
 	if (!payTypeOptions.value.includes(doc.custom_pay_type)) {
-		const payments = Array.isArray(pos_profile.value?.payments) ? pos_profile.value.payments : [];
-		const defaultPayment = payments.find((payment) => parseBooleanSetting(payment?.default)) || payments[0];
-		doc.custom_pay_type = defaultPayment?.mode_of_payment || "";
+		doc.custom_pay_type = "";
 	}
 	if (doc.is_return) {
 		is_credit_return.value = true;
@@ -2066,6 +2064,16 @@ const submit = async (_event, payment_received = false, print = false) => {
 
 const submitInvoiceWrapper = async (print, callbackOverrides = {}, options = {}) => {
 	if (submissionInFlight.value) {
+		return;
+	}
+
+	// Pay at Cashier: the cashier needs the Pay Type, so block until one is picked
+	// and keep the payment dialog open.
+	if (collectAtCashier.value && invoice_doc.value && !invoice_doc.value.custom_pay_type) {
+		toastStore.show({
+			title: __("Please select Pay Type"),
+			color: "error",
+		});
 		return;
 	}
 
