@@ -52,6 +52,7 @@ def _get_open_sales_invoices(
         "party_account_currency",
         "is_return",
         "owner",
+        "discount_amount",
     ]
     # pay type chosen at the counter when payment is collected at the cashier
     if frappe.db.has_column("Sales Invoice", "custom_pay_type"):
@@ -63,6 +64,27 @@ def _get_open_sales_invoices(
         fields=fields,
         order_by="posting_date desc, name desc",
     )
+
+
+def _add_item_discounts(rows):
+    """Add each invoice's item discounts (qty x per-unit discount) to its total_discount,
+    with one grouped query for the rows being returned."""
+    names = [row.voucher_no for row in rows if row.get("voucher_no")]
+    if not names:
+        return
+    item_discounts = dict(
+        frappe.db.sql(
+            """
+            select parent, sum(qty * discount_amount)
+            from `tabSales Invoice Item`
+            where parenttype = 'Sales Invoice' and parent in %(names)s
+            group by parent
+            """,
+            {"names": names},
+        )
+    )
+    for row in rows:
+        row.total_discount = flt(row.get("total_discount")) + flt(item_discounts.get(row.voucher_no))
 
 
 def _get_seller_names(owners):
@@ -308,6 +330,8 @@ def get_outstanding_invoices(
                         "seller": invoice.get("owner"),
                         "seller_name": seller_names.get(invoice.get("owner")) or invoice.get("owner"),
                         "pay_type": invoice.get("custom_pay_type"),
+                        # invoice-level additional discount; item discounts are added below
+                        "total_discount": flt(invoice.get("discount_amount")),
                     }
                 )
             )
@@ -322,7 +346,10 @@ def get_outstanding_invoices(
         )
 
         if page_length:
-            return normalized_rows[page_start : page_start + page_length]
+            normalized_rows = normalized_rows[page_start : page_start + page_length]
+
+        if party_type != "Supplier":
+            _add_item_discounts(normalized_rows)
 
         return normalized_rows
     except Exception as e:

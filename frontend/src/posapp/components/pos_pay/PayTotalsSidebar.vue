@@ -17,6 +17,23 @@
 						</div>
 					</div>
 				</div>
+				<!-- Item + additional discounts on the selected invoices -->
+				<template v-if="selectedInvoicesDiscount">
+					<div
+						class="d-flex justify-space-between align-center text-body-2 mt-1"
+						data-testid="pay-selected-gross"
+					>
+						<span class="text-medium-emphasis">{{ __("Before Discount") }}</span>
+						<span>{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(selectedInvoicesGross) }}</span>
+					</div>
+					<div
+						class="d-flex justify-space-between align-center text-body-2 font-weight-medium text-error"
+						data-testid="pay-selected-discount"
+					>
+						<span>{{ __("Discount") }}</span>
+						<span>-{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(Math.abs(selectedInvoicesDiscount)) }}</span>
+					</div>
+				</template>
 			</v-card-text>
 		</v-card>
 
@@ -611,6 +628,8 @@ const props = defineProps({
 	posProfile: Object,
 	totalSelectedInvoices: Number,
 	selectedInvoicesCount: Number,
+	selectedInvoicesDiscount: { type: Number, default: 0 },
+	selectedInvoicesGross: { type: Number, default: 0 },
 	totalSelectedPayments: Number,
 	totalSelectedMpesa: Number,
 	paymentMethods: Array,

@@ -215,6 +215,8 @@
 						:pos-profile="pos_profile"
 						:total-selected-invoices="total_selected_invoices"
 						:selected-invoices-count="selected_invoices.length"
+						:selected-invoices-discount="selectedInvoicesDiscount"
+						:selected-invoices-gross="selectedInvoicesGross"
 						:total-selected-payments="total_selected_payments"
 						:total-selected-mpesa="total_selected_mpesa_payments"
 						:payment-methods="payment_methods"
@@ -1235,6 +1237,19 @@ export default {
 		const desk_invoice_items = ref([]);
 		const desk_invoice_items_loading = ref(false);
 		let deskItemsToken = 0;
+		// Discount on the selected bills (item + additional, from get_outstanding_invoices)
+		// and their amount before it.
+		const selectedInvoicesDiscount = computed(() =>
+			flt(selected_invoices.value.reduce((sum, inv) => sum + flt(inv?.total_discount), 0)),
+		);
+		const selectedInvoicesGross = computed(() =>
+			flt(
+				selected_invoices.value.reduce(
+					(sum, inv) => sum + flt(inv?.invoice_amount) + flt(inv?.total_discount),
+					0,
+				),
+			),
+		);
 		// Any profile: exactly one Sales Invoice selected.
 		const showSelectedInvoiceItems = computed(() => {
 			if (!isCustomerPartyType.value || selected_invoices.value.length !== 1) return false;
@@ -1555,6 +1570,8 @@ export default {
 			pos_opening_shift,
 			cashierDesk,
 			showSelectedInvoiceItems,
+			selectedInvoicesDiscount,
+			selectedInvoicesGross,
 			desk_invoice_items,
 			desk_invoice_items_loading,
 			desk_item_headers,
