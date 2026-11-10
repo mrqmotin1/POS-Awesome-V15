@@ -119,8 +119,16 @@ doc_events = {
         "validate": "posawesome.posawesome.api.invoice.validate",
         "before_save": "posawesome.posawesome.api.payment_currency.preserve_multi_currency_payment_amounts",
         "before_submit": "posawesome.posawesome.api.invoice.before_submit",
+        "on_submit": "posawesome.posawesome.api.cashier_desk_realtime.on_sales_invoice_change",
         "before_cancel": "posawesome.posawesome.api.invoice.before_cancel",
-        "on_cancel": "posawesome.posawesome.api.invoice.on_cancel",
+        "on_cancel": [
+            "posawesome.posawesome.api.invoice.on_cancel",
+            "posawesome.posawesome.api.cashier_desk_realtime.on_sales_invoice_change",
+        ],
+    },
+    "Payment Entry": {
+        "on_submit": "posawesome.posawesome.api.cashier_desk_realtime.on_payment_entry_change",
+        "on_cancel": "posawesome.posawesome.api.cashier_desk_realtime.on_payment_entry_change",
     },
     "POS Invoice": {
         "validate": "posawesome.posawesome.api.invoice.validate",

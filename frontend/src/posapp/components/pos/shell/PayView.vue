@@ -1249,12 +1249,20 @@ export default {
 			}
 			desk_invoice_items_loading.value = true;
 			try {
+				// Only the item rows the table shows, not the whole invoice.
 				const r = await frappe.call({
-					method: "frappe.client.get",
-					args: { doctype: "Sales Invoice", name: selected_invoices.value[0].voucher_no },
+					method: "frappe.client.get_list",
+					args: {
+						doctype: "Sales Invoice Item",
+						parent: "Sales Invoice",
+						filters: { parent: selected_invoices.value[0].voucher_no, parenttype: "Sales Invoice" },
+						fields: ["item_name", "qty", "rate", "discount_percentage", "net_amount"],
+						order_by: "idx asc",
+						limit_page_length: 0,
+					},
 				});
 				if (token === deskItemsToken) {
-					desk_invoice_items.value = r.message?.items || [];
+					desk_invoice_items.value = Array.isArray(r.message) ? r.message : [];
 				}
 			} catch (e) {
 				console.error("Failed to load invoice items", e);
@@ -1271,31 +1279,48 @@ export default {
 			{ title: __("Amount"), key: "net_amount", align: "end" },
 		];
 
-		// Counters keep sending bills; refresh the desk while the cashier is idle.
+		// Counters keep sending bills. The server pushes CASHIER_DESK_REFRESH_EVENT when
+		// a POS bill is submitted, cancelled or paid, so the desk reloads at once; a slow
+		// poll only covers a dropped realtime connection.
+		const CASHIER_DESK_REFRESH_EVENT = "posa_cashier_desk_refresh";
+		const DESK_FALLBACK_POLL_MS = 60000;
 		let deskRefreshTimer = null;
+		let deskRealtimeDebounce = null;
+		const canRefreshDesk = () =>
+			cashierDesk.value &&
+			!document.hidden &&
+			!isOffline() &&
+			!isSubmitting.value &&
+			!invoices_loading.value &&
+			isCustomerPartyType.value &&
+			(allCustomers.value || Boolean(customer_name.value));
+		const onDeskRealtime = (data) => {
+			if (data?.company && company.value && data.company !== company.value) return;
+			// Several bills can land together: reload once.
+			clearTimeout(deskRealtimeDebounce);
+			deskRealtimeDebounce = setTimeout(() => {
+				if (canRefreshDesk()) refreshOutstandingInvoices();
+			}, 300);
+		};
 		const stopDeskRefresh = () => {
 			if (deskRefreshTimer) {
 				clearInterval(deskRefreshTimer);
 				deskRefreshTimer = null;
 			}
+			clearTimeout(deskRealtimeDebounce);
+			deskRealtimeDebounce = null;
+			frappe.realtime?.off?.(CASHIER_DESK_REFRESH_EVENT, onDeskRealtime);
 		};
 		const startDeskRefresh = () => {
 			stopDeskRefresh();
 			if (!cashierDesk.value) return;
+			frappe.realtime?.on?.(CASHIER_DESK_REFRESH_EVENT, onDeskRealtime);
 			deskRefreshTimer = setInterval(() => {
-				if (
-					document.hidden ||
-					isOffline() ||
-					isSubmitting.value ||
-					invoices_loading.value ||
-					selected_invoices.value.length ||
-					!customer_name.value ||
-					!isCustomerPartyType.value
-				) {
-					return;
+				// The poll keeps the old rule: never reshuffle the list under a pick.
+				if (canRefreshDesk() && !selected_invoices.value.length) {
+					refreshOutstandingInvoices();
 				}
-				refreshOutstandingInvoices();
-			}, 5000);
+			}, DESK_FALLBACK_POLL_MS);
 		};
 		watch(
 			() => selected_invoices.value.map((inv) => inv.voucher_no).join(","),
@@ -1304,7 +1329,7 @@ export default {
 				void loadDeskInvoiceItems();
 			},
 		);
-		watch(cashierDesk, startDeskRefresh);
+		watch(cashierDesk, startDeskRefresh, { immediate: true });
 		async function syncCustomerPaymentContext(normalized, { forceReload = false } = {}) {
 			if (!normalized) {
 				customer_name.value = "";
