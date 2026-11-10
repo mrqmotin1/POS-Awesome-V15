@@ -350,7 +350,11 @@ export default {
 		// takes the rest of the 12-column row.
 		const selectorCols = computed(() => {
 			const cols = Number(posProfile.value?.__onload?.posa_item_selector_cols);
-			return Number.isInteger(cols) && cols >= 3 && cols <= 9 ? cols : 4;
+			const layoutCols = Number.isInteger(cols) && cols >= 3 && cols <= 9 ? cols : 4;
+			// Below 1280px a wide selector would leave the cart too narrow for its
+			// table and action buttons (Pharmacy 8/4 = ~340px cart at 1024), so the
+			// cart keeps at least 5 of 12 columns there.
+			return responsive.windowWidth.value < 1280 ? Math.min(layoutCols, 7) : layoutCols;
 		});
 		const invoiceCols = computed(() => 12 - selectorCols.value);
 		const compactPanel = ref("selector");

@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
 	DATA_TABLE_EXPAND_COLUMN,
 	buildFinalVisibleColumns,
+	getNarrowScrollHeaders,
 	getResponsiveVisibleHeaders,
+	usesNarrowScrollLayout,
 } from "../src/posapp/composables/pos/items/useItemsTableResponsive";
 
 const headers = [
@@ -98,5 +100,45 @@ describe("items table final visible columns", () => {
 			"actions",
 			"data-table-expand",
 		]);
+	});
+});
+
+describe("narrow cart on a desktop screen", () => {
+	const cartHeaders = [{ key: "sl", title: "SL", required: true }, ...headers];
+
+	it("applies only to a narrow cart on a screen at least 1024px wide", () => {
+		expect(usesNarrowScrollLayout(400, 1024)).toBe(true);
+		expect(usesNarrowScrollLayout(649, 1280)).toBe(true);
+		expect(usesNarrowScrollLayout(650, 1024)).toBe(false);
+		expect(usesNarrowScrollLayout(400, 1023)).toBe(false);
+		expect(usesNarrowScrollLayout(0, 1024)).toBe(false);
+	});
+
+	it("puts SL, Name, QTY, Rate, Amount first and keeps every other column after them", () => {
+		const narrow = getNarrowScrollHeaders(cartHeaders);
+
+		expect(narrow.map((column) => column.key)).toEqual([
+			"sl",
+			"item_name",
+			"qty",
+			"rate",
+			"amount",
+			"uom",
+			"price_list_rate",
+			"discount_percentage",
+			"discount_amount",
+			"posa_is_offer",
+			"actions",
+		]);
+	});
+
+	it("keeps the five main columns within a ~400px cart", () => {
+		const narrow = getNarrowScrollHeaders(cartHeaders);
+		const mainWidth = narrow
+			.slice(0, 5)
+			.reduce((sum, column) => sum + Number(column.width), 0);
+
+		expect(mainWidth).toBeLessThanOrEqual(390);
+		narrow.forEach((column) => expect(column.minWidth).toBe(column.width));
 	});
 });

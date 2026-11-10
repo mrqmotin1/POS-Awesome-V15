@@ -1234,6 +1234,152 @@
 }
 
 /* =================================================================
+   NARROW CART (container < 650px on a ≥1024px screen, e.g. Pharmacy 7/5)
+   SL / Name / QTY / Rate / Amount fit the pane; the other selected
+   columns follow and scroll sideways. Widths come from the headers;
+   --narrow-table-width is their sum (useItemsTableResponsive).
+   ================================================================= */
+/* !important: Invoice.vue hides horizontal overflow on the wrapper at ≤1024px */
+.posa-responsive-table-container.narrow-scroll .posa-cart-table .v-table__wrapper {
+	overflow-x: auto !important;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table table {
+	table-layout: fixed !important;
+	width: var(--narrow-table-width) !important;
+	min-width: 100% !important;
+	max-width: none !important;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table td,
+.posa-responsive-table-container.narrow-scroll .posa-cart-table th {
+	padding: 6px 4px;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table th,
+.posa-responsive-table-container.narrow-scroll .posa-cart-table th .v-data-table-header__content {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	font-size: 0.78rem;
+}
+
+/* Name: stay inside its own cell (it spilled over SL), start-aligned, wrap */
+.posa-responsive-table-container.narrow-scroll .posa-cart-table td[data-column-key="item_name"] {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	overflow: hidden;
+	text-align: start !important;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table
+	td[data-column-key="item_name"]
+	.d-flex {
+	align-items: flex-start !important;
+	justify-content: flex-start !important;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table
+	td[data-column-key="item_name"]
+	.posa-cart-item-row__item-name {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	text-align: start;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table
+	td[data-column-key="item_name"]
+	.v-chip {
+	max-width: 100%;
+	overflow: hidden;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table
+	td[data-column-key="item_name"]
+	.v-chip__content {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table
+	td[data-column-key="item_name"]
+	.barcode-display {
+	text-align: start !important;
+	overflow-wrap: anywhere;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table td[data-column-key="sl"] {
+	text-align: center !important;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table__qty-counter {
+	min-width: 0;
+	max-width: 80px;
+}
+
+/* QTY: small centred box with a thin visible border */
+.posa-responsive-table-container.narrow-scroll .posa-cart-table td[data-column-key="qty"] {
+	text-align: center !important;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table:not(.posa-cart-table--counter-grid)
+	.posa-cart-table__qty-input-shell {
+	width: 54px;
+	min-width: 0;
+	max-width: 54px;
+	height: 28px;
+	margin: 0 auto;
+	border: 1px solid var(--pos-outline) !important;
+	border-radius: 4px;
+	box-shadow: none !important;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table:not(.posa-cart-table--counter-grid)
+	.posa-cart-item-cell--keyboard-active
+	.posa-cart-table__qty-input-shell {
+	border-color: rgb(var(--v-theme-primary)) !important;
+}
+
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table:not(.posa-cart-table--counter-grid)
+	.posa-cart-table__qty-input-shell:hover,
+.posa-responsive-table-container.narrow-scroll
+	.posa-cart-table:not(.posa-cart-table--counter-grid)
+	.posa-cart-table__qty-input-shell:focus-within {
+	border-color: rgb(var(--v-theme-primary)) !important;
+	box-shadow: none !important;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table__qty-input--direct {
+	max-width: 100%;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table__qty-input--direct .v-field__outline {
+	display: none;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table__qty-input--direct input {
+	padding: 0 2px;
+	text-align: center;
+	font-size: 0.82rem;
+}
+
+.posa-responsive-table-container.narrow-scroll .posa-cart-table__editor-display {
+	min-width: 0;
+	padding: 4px;
+	font-size: 0.78rem;
+}
+
+/* =================================================================
    1024×768 LAYOUT OVERRIDES
    Only applied on screens up to 1024px wide.
    Larger screens use the original design above unchanged.

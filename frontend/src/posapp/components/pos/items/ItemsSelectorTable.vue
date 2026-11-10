@@ -5,6 +5,7 @@
 			:headers="effectiveHeaders"
 			:items="displayedItems"
 			class="sleek-data-table overflow-y-auto"
+			:class="{ 'sleek-data-table--extra-columns': hasExtraColumns }"
 			:style="{ height: 'calc(100% - 80px)' }"
 			item-key="item_code"
 			fixed-header
@@ -151,6 +152,13 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["row-click", "list-scroll", "toggle-selection", "select-all"]);
+
+// Columns added by an app layout (e.g. Pharmacy: Category, Generic, Vendor). The
+// 1024x768 rules that size the last two columns as Rate / AVL. QTY skip these tables.
+const STANDARD_SELECTOR_KEYS = new Set(["item_name", "item_code", "rate", "actual_qty", "item-select"]);
+const hasExtraColumns = computed(() =>
+	(props.headers || []).some((header) => !STANDARD_SELECTOR_KEYS.has(header?.key)),
+);
 
 const effectiveHeaders = computed(() => {
 	if (!props.multiSelect) return props.headers;
@@ -441,23 +449,49 @@ defineExpose({ scrollToIndex, getTableElement, tableRef });
 		box-sizing: border-box;
 	}
 
-	/* AVL. QTY = last column */
-	.sleek-data-table :deep(th:last-child),
-	.sleek-data-table :deep(td:last-child) {
+	/* AVL. QTY = last column (standard Name / Rate / AVL. QTY set only) */
+	.sleek-data-table:not(.sleek-data-table--extra-columns) :deep(th:last-child),
+	.sleek-data-table:not(.sleek-data-table--extra-columns) :deep(td:last-child) {
 		width: 32%;
 		text-align: center;
 	}
 
 	/* Rate = second-from-last column */
-	.sleek-data-table :deep(th:nth-last-child(2)),
-	.sleek-data-table :deep(td:nth-last-child(2)) {
+	.sleek-data-table:not(.sleek-data-table--extra-columns) :deep(th:nth-last-child(2)),
+	.sleek-data-table:not(.sleek-data-table--extra-columns) :deep(td:nth-last-child(2)) {
 		width: 21%;
 		text-align: center;
 	}
 
 	/* right-align inline rate box */
-	.sleek-data-table :deep(td:nth-last-child(2)) .rate-cell-primary {
+	.sleek-data-table:not(.sleek-data-table--extra-columns) :deep(td:nth-last-child(2)) .rate-cell-primary {
 		justify-content: flex-end;
+	}
+
+	/* App layouts with extra columns (e.g. Pharmacy: Category, Generic, Vendor):
+	   Name gets the widest share, Rate / AVL. QTY a fixed slice, the extra
+	   columns split the rest; everything starts at the left. */
+	.sleek-data-table--extra-columns :deep(th) {
+		width: auto !important;
+		min-width: 0 !important;
+	}
+	.sleek-data-table--extra-columns :deep(th.item-name-col) {
+		width: 28% !important;
+	}
+	.sleek-data-table--extra-columns :deep(th.selector-col-rate),
+	.sleek-data-table--extra-columns :deep(th.selector-col-qty) {
+		width: 11% !important;
+	}
+	.sleek-data-table--extra-columns :deep(th),
+	.sleek-data-table--extra-columns :deep(td) {
+		text-align: start !important;
+		padding-left: 6px !important;
+		padding-right: 6px !important;
+		overflow-wrap: break-word;
+	}
+	.sleek-data-table--extra-columns :deep(th .v-data-table-header__content) {
+		justify-content: flex-start;
+		white-space: normal;
 	}
 }
 </style>

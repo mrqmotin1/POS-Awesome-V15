@@ -105,6 +105,47 @@ export function getResponsiveVisibleHeaders(
 	}));
 }
 
+// Narrow cart on a desktop-size screen (e.g. Pharmacy layout at 1024x768, cart
+// ~400px): SL / Name / QTY / Rate / Amount stay in view at fixed widths and the
+// rest of the selected columns follow them, reachable by horizontal scroll.
+// Phones (viewport < 1024) keep the column-hiding rules above.
+const NARROW_SCROLL_MAX_CONTAINER_WIDTH = 650;
+const NARROW_SCROLL_MIN_VIEWPORT_WIDTH = 1024;
+const NARROW_PRIORITY_KEYS = ["sl", "item_name", "qty", "rate", "amount"];
+const NARROW_COLUMN_WIDTHS: Record<string, number> = {
+	sl: 30,
+	item_name: 136,
+	qty: 70,
+	rate: 68,
+	amount: 74,
+	discount_percentage: 70,
+	discount_amount: 74,
+	price_list_rate: 76,
+	uom: 64,
+	posa_is_offer: 60,
+	actions: 66,
+};
+const NARROW_DEFAULT_COLUMN_WIDTH = 72;
+
+export const usesNarrowScrollLayout = (containerWidth: number, viewportWidth: number) =>
+	containerWidth > 0 &&
+	containerWidth < NARROW_SCROLL_MAX_CONTAINER_WIDTH &&
+	viewportWidth >= NARROW_SCROLL_MIN_VIEWPORT_WIDTH;
+
+export function getNarrowScrollHeaders(headers: TableHeader[]) {
+	const rank = (header: TableHeader) => {
+		const index = NARROW_PRIORITY_KEYS.indexOf(header.key);
+		return index === -1 ? NARROW_PRIORITY_KEYS.length : index;
+	};
+	return headers
+		.map((header, position) => ({ header, position }))
+		.sort((a, b) => rank(a.header) - rank(b.header) || a.position - b.position)
+		.map(({ header }) => {
+			const width = NARROW_COLUMN_WIDTHS[header.key] ?? NARROW_DEFAULT_COLUMN_WIDTH;
+			return { ...header, width, minWidth: width };
+		});
+}
+
 export function buildFinalVisibleColumns(
 	headers: TableHeader[],
 	width: number,
@@ -221,12 +262,29 @@ export function useItemsTableResponsive(
 		return "xl";
 	};
 
+	// Recomputed whenever the cart resizes, which a window resize also causes.
+	const narrowScroll = computed(() =>
+		usesNarrowScrollLayout(
+			containerWidth.value,
+			typeof window !== "undefined" ? window.innerWidth : 0,
+		),
+	);
+
 	const responsiveHeaders = computed(() => {
 		const width = containerWidth.value;
 		if (!headers.value || headers.value.length === 0) return [];
 
+		if (narrowScroll.value) {
+			return getNarrowScrollHeaders(headers.value);
+		}
 		return getResponsiveVisibleHeaders(headers.value, width);
 	});
+
+	const narrowTableWidth = computed(() =>
+		narrowScroll.value
+			? responsiveHeaders.value.reduce((sum, header) => sum + Number(header.width || 0), 0)
+			: 0,
+	);
 
 	const isColumnVisible = (key: string) => {
 		return responsiveHeaders.value.some((h) => h.key === key);
@@ -238,6 +296,7 @@ export function useItemsTableResponsive(
 		minHeight: "0",
 		"--container-width": containerWidth.value + "px",
 		"--container-height": containerHeight.value + "px",
+		"--narrow-table-width": narrowTableWidth.value + "px",
 	}));
 
 	// +1 for the expand column appended by buildFinalVisibleColumns.
@@ -251,8 +310,9 @@ export function useItemsTableResponsive(
 		"medium-view":
 			containerWidth.value >= 600 && containerWidth.value < 900,
 		"large-view": containerWidth.value >= 900,
-		"dense-columns": visibleColumnCount.value >= 8,
-		"ultra-dense-columns": visibleColumnCount.value >= 9,
+		"dense-columns": !narrowScroll.value && visibleColumnCount.value >= 8,
+		"ultra-dense-columns": !narrowScroll.value && visibleColumnCount.value >= 9,
+		"narrow-scroll": narrowScroll.value,
 	}));
 
 	const tableClasses = computed(() => ({

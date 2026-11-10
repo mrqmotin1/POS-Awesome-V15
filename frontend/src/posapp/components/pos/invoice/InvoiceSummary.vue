@@ -183,6 +183,7 @@
 								!(canEditDiscount || pos_profile.posa_allow_user_to_edit_additional_discount) ||
 								!!discount_percentage_offer_name
 							"
+							hide-details="auto"
 							class="summary-field summary-field--dock"
 						/>
 
@@ -211,8 +212,17 @@
 								!(canEditDiscount || pos_profile.posa_allow_user_to_edit_additional_discount) ||
 								!!discount_percentage_offer_name
 							"
+							hide-details="auto"
 							class="summary-field summary-field--dock"
 						/>
+						<!-- Narrow cart only: the field's label sits under it (see @container) -->
+						<div class="summary-hero__field-caption">
+							{{
+								pos_profile.posa_use_percentage_discount
+									? __("Additional Discount %")
+									: __("Additional Discount")
+							}}
+						</div>
 					</div>
 				</div>
 
@@ -862,7 +872,11 @@ defineExpose({
 	z-index: 9;
 	border: 1px solid var(--pos-border-light);
 	box-shadow: var(--pos-elevation-2);
+	/* sized by the cart column, not the screen (e.g. Pharmacy 7/5 at 1024px) */
+	container-type: inline-size;
+	container-name: posa-summary;
 }
+
 
 .sticky-summary-card--dock-safe {
 	margin-bottom: calc(var(--bottom-safe-space) + 8px);
@@ -928,6 +942,19 @@ defineExpose({
 
 .summary-hero__field-wrap {
 	width: min(260px, 100%);
+}
+
+/* Shown only in a narrow cart, where the field's floating label is hidden. */
+.summary-hero__field-caption {
+	display: none;
+	margin-top: 2px;
+	padding-inline-start: 2px;
+	font-size: 0.68rem;
+	line-height: 1.2;
+	color: var(--pos-text-secondary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .invoice-summary-actions {
@@ -1000,6 +1027,85 @@ defineExpose({
 
 	.sticky-summary-card--dock-safe {
 		margin-bottom: calc(var(--bottom-safe-space) + 8px);
+	}
+}
+
+/* Narrow cart: Active sale on top, then PAY and three compact buttons per row,
+   instead of a 7/5 split that squeezes every button label. */
+@container posa-summary (max-width: 600px) {
+	/* Compact Active sale: one short row, so the actions stay on screen at 1024x768 */
+	.summary-content {
+		row-gap: 4px;
+	}
+	.summary-hero {
+		align-items: center;
+		padding: 3px 8px 3px 12px;
+		gap: 5px;
+	}
+	.summary-hero__eyebrow {
+		display: none;
+	}
+	.summary-hero__copy {
+		gap: 0;
+	}
+	.summary-hero__amount {
+		font-size: 1.2rem;
+	}
+	.summary-hero__meta {
+		flex-wrap: nowrap;
+		white-space: nowrap;
+		font-size: 0.72rem;
+		gap: 0 8px;
+	}
+	.summary-hero__field-wrap {
+		width: 150px;
+		flex-shrink: 0;
+	}
+	.summary-field--dock :deep(.v-field) {
+		--v-input-control-height: 32px;
+		min-height: 32px;
+	}
+	.summary-field--dock :deep(.v-field__input) {
+		min-height: 32px;
+		padding-top: 2px;
+		padding-bottom: 2px;
+		font-size: 0.82rem;
+	}
+	/* label moves under the field */
+	.summary-field--dock :deep(.v-field-label) {
+		display: none;
+	}
+	.summary-hero__field-caption {
+		display: block;
+	}
+	.invoice-summary-actions :deep(.pay-btn) {
+		height: 40px !important;
+		min-height: 40px !important;
+	}
+
+	.summary-content > .invoice-summary-main,
+	.summary-content > .invoice-summary-actions {
+		flex: 0 0 100%;
+		max-width: 100%;
+	}
+	.invoice-summary-actions :deep(.v-col-sm-6) {
+		flex: 0 0 33.3333%;
+		max-width: 33.3333%;
+	}
+	.invoice-summary-actions :deep(.summary-btn--utility),
+	.invoice-summary-actions :deep(.summary-btn--danger) {
+		min-height: 36px !important;
+		padding-inline: 4px !important;
+		font-size: 0.72rem !important;
+		letter-spacing: 0;
+	}
+	.invoice-summary-actions :deep(.summary-btn--utility .v-btn__prepend),
+	.invoice-summary-actions :deep(.summary-btn--danger .v-btn__prepend) {
+		margin-inline-end: 3px;
+	}
+	.invoice-summary-actions :deep(.summary-btn--utility .v-btn__content),
+	.invoice-summary-actions :deep(.summary-btn--danger .v-btn__content) {
+		white-space: nowrap !important;
 	}
 }
 </style>

@@ -8,6 +8,7 @@ export interface TableHeader {
     sortable?: boolean;
     width?: string;
     cellProps?: Record<string, any> | ((_data: any) => Record<string, any>);
+    headerProps?: Record<string, any>;
 }
 
 /**
@@ -52,6 +53,7 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
             sortable: true,
             key: "item_name",
             cellProps: { class: "item-name-col" },
+            headerProps: { class: "item-name-col" },
         },
         {
             title: __("Code"),
@@ -59,8 +61,20 @@ export function getItemsTableHeaders(context: "pos" | "purchase" | string, posPr
             sortable: true,
             key: "item_code",
         },
-        { title: __("Rate"), key: "rate", align: "start", cellProps: { class: "nowrap-col" } },
-        { title: __("AVL. QTY"), key: "actual_qty", align: "start", cellProps: { class: "nowrap-col" } },
+        {
+            title: __("Rate"),
+            key: "rate",
+            align: "start",
+            cellProps: { class: "nowrap-col" },
+            headerProps: { class: "selector-col-rate" },
+        },
+        {
+            title: __("AVL. QTY"),
+            key: "actual_qty",
+            align: "start",
+            cellProps: { class: "nowrap-col" },
+            headerProps: { class: "selector-col-qty" },
+        },
         // { title: __("UOM"), key: "stock_uom", align: "start" },
     ];
 
