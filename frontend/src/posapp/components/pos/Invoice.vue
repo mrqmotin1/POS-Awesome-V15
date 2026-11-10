@@ -2168,8 +2168,21 @@ export default {
         max-height: 100% !important;
         
         /* Turn ON internal scrolling */
-        overflow-y: auto !important; 
-        overflow-x: hidden !important; 
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Sticky cart header: the table itself must fill the container, or its
+       wrapper grows with the rows and the container scrolls the header away. */
+    :deep(.items-table-wrapper .posa-cart-table) {
+        height: 100% !important;
+        max-height: 100% !important;
+        display: flex;
+        flex-direction: column;
+    }
+
+    :deep(.items-table-wrapper .posa-cart-table .v-table__wrapper) {
+        min-height: 0;
     }
 }
 </style>

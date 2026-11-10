@@ -2052,6 +2052,54 @@ defineExpose({
 	border-radius: 22px;
 }
 
+/* Sticky item-list header: the table must be the element that scrolls. The
+   results card fills the selection card and the table fills the results card,
+   so v-table__wrapper scrolls under its fixed header instead of the whole
+   selection card scrolling it away. */
+.items-selector-shell:not(.items-selector-shell--counter-dialog) .selection-card {
+	display: flex;
+	flex-direction: column;
+}
+
+.items-selector-shell:not(.items-selector-shell--counter-dialog) .selection-card > .dynamic-padding {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.items-selector-shell:not(.items-selector-shell--counter-dialog) .dynamic-padding > .selector-header-card {
+	flex: 0 0 auto;
+}
+
+.items-selector-shell:not(.items-selector-shell--counter-dialog) .dynamic-padding > .selector-results-card {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.items-selector-shell:not(.items-selector-shell--counter-dialog) .selector-results-card > .items {
+	flex: 1 1 auto;
+	min-height: 0;
+	flex-wrap: nowrap;
+}
+
+.items-selector-shell:not(.items-selector-shell--counter-dialog) .selector-results-card > .items > .v-col {
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.items-selector-shell:not(.items-selector-shell--counter-dialog) :deep(.items-table-container) {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.items-selector-shell:not(.items-selector-shell--counter-dialog) :deep(.items-table-container > .sleek-data-table) {
+	height: 100% !important;
+}
+
 .selector-section-card {
 	background: var(--pos-card-bg) !important;
 	border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
