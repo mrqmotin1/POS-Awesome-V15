@@ -117,7 +117,7 @@ export function useMondayZplPrint() {
 			for (const item of validItems) {
 				try {
 					const zplRes = await frappe.call({
-						method: "tamanna_1.barcode.api.get_zpl_for_item_new",
+						method: "monday_pharmacy.barcode.api.get_zpl_for_item_new",
 						args: {
 							item_code: item.item_code,
 							print_format: printFormat,
