@@ -1216,7 +1216,10 @@ def process_pos_payment(payload):
             msg += "<tr><td>{0}</td></tr>".format(error)
         msg += "</tbody>"
         msg += "</table>"
-    if len(msg) > 0:
+    # Cashier desk shows its own "payment submitted" toast; only pop the summary
+    # dialog there when something failed.
+    quiet_success = cint(profile_doc.get("posa_cashier_payment_desk")) and not errors
+    if len(msg) > 0 and not quiet_success:
         frappe.msgprint(msg)
 
     return {

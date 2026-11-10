@@ -205,7 +205,57 @@
 						</v-data-table>
 					</div>
 
-					<div class="pay-right-stack__sidebar">
+					<!-- Cashier desk: only the bill totals, the mode and Submit. -->
+					<div v-if="deskSimple" class="pay-desk-panel" data-testid="pay-desk-panel">
+						<v-card variant="outlined" class="pay-desk-panel__totals pa-3 mb-2">
+							<div class="d-flex justify-space-between align-center text-body-2">
+								<span class="text-medium-emphasis">{{ __("Invoice Total") }}</span>
+								<span data-testid="pay-desk-invoice-total">
+									{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(selectedInvoicesGross) }}
+								</span>
+							</div>
+							<div class="d-flex justify-space-between align-center text-body-2 text-error mt-1">
+								<span>{{ __("Discount") }}</span>
+								<span data-testid="pay-desk-discount">
+									-{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(Math.abs(selectedInvoicesDiscount)) }}
+								</span>
+							</div>
+							<v-divider class="my-2" />
+							<div class="d-flex justify-space-between align-center">
+								<span class="text-subtitle-1 font-weight-bold">
+									{{ total_selected_invoices < 0 ? __("Total Refund") : __("Total Payable") }}
+								</span>
+								<span class="text-h6 font-weight-bold text-primary" data-testid="pay-desk-payable">
+									{{ currencySymbol(invoiceTotalCurrency) }}{{ formatCurrency(Math.abs(total_selected_invoices)) }}
+								</span>
+							</div>
+						</v-card>
+						<v-select
+							v-model="deskModeOfPayment"
+							:items="deskModeOptions"
+							:label="__('Mode of Payment')"
+							:disabled="!selected_invoices.length"
+							density="compact"
+							variant="outlined"
+							hide-details
+							class="mb-2"
+							data-testid="pay-desk-mode"
+						/>
+						<v-btn
+							block
+							size="large"
+							color="primary"
+							class="pay-desk-panel__submit"
+							:loading="isSubmitting"
+							:disabled="!selected_invoices.length || isSubmitting"
+							data-testid="pay-desk-submit"
+							@click="submit"
+						>
+							{{ __("Submit") }}
+						</v-btn>
+					</div>
+
+					<div v-show="!deskSimple" class="pay-right-stack__sidebar">
 					<PayTotalsSidebar
 						ref="payTotalsSidebarRef"
 						v-model:exchange-rate="exchangeRate"
@@ -250,6 +300,7 @@
 					</div>
 
 					<PayActionButtons
+						v-if="!deskSimple"
 						:loading="isSubmitting"
 						:share-loading="isSharingPayment"
 						:disabled="false"
@@ -700,9 +751,9 @@ export default {
 		const singleInvoiceSelection = computed(
 			() => Number(pos_profile.value?.posa_pay_single_invoice_selection || 0) === 1,
 		);
+		// Cashier desk: no checkbox column, clicking a row selects the bill.
 		const invoices_headers = computed(() => cashierDesk.value && isCustomerPartyType.value
 			? [
-				{ title: "", align: "start", sortable: false, key: "actions", width: "50px" },
 				{ title: __("Invoice"), align: "start", sortable: true, key: "voucher_no" },
 				{ title: __("Counter"), align: "start", sortable: true, key: "pos_profile" },
 				{ title: __("Seller"), align: "start", sortable: true, key: "seller_name" },
@@ -1202,8 +1253,28 @@ export default {
 			// Show that mode in Make New Payment instead of the default (Cash).
 			if (selected_invoices.value.length && target) {
 				payTotalsSidebarRef.value?.selectMop(target.mode_of_payment);
+				deskModeOfPayment.value = target.mode_of_payment;
 			}
 		}
+
+		// Cashier desk right column: totals, one Mode of Payment and Submit only.
+		const deskSimple = computed(() => cashierDesk.value && isCustomerPartyType.value);
+		const deskModeOfPayment = ref(null);
+		const deskModeOptions = computed(() =>
+			[...new Set((payment_methods.value || []).map((method) => method.mode_of_payment).filter(Boolean))].map(
+				(mode) => ({ title: __(mode), value: mode }),
+			),
+		);
+		// The cashier switched mode: the whole payable goes on that mode.
+		watch(deskModeOfPayment, (mode) => {
+			if (!deskSimple.value || !mode || !selected_invoices.value.length) return;
+			const target = payment_methods.value.find((method) => method.mode_of_payment === mode);
+			if (!target) return;
+			payment_methods.value.forEach((method) => {
+				method.amount = method === target ? flt(total_selected_invoices.value) : 0;
+			});
+			payTotalsSidebarRef.value?.selectMop(mode);
+		});
 		function handleInvoiceSelection(item) {
 			// One invoice at a time: picking a different invoice drops the previous pick.
 			if (singleInvoiceSelection.value && !isInvoiceSelected(item)) {
@@ -1290,13 +1361,22 @@ export default {
 				if (token === deskItemsToken) desk_invoice_items_loading.value = false;
 			}
 		}
-		const desk_item_headers = [
-			{ title: __("Item"), key: "item_name", align: "start" },
-			{ title: __("Qty"), key: "qty", align: "center" },
-			{ title: __("Rate"), key: "rate", align: "end" },
-			{ title: __("Discount %"), key: "discount_percentage", align: "center" },
-			{ title: __("Amount"), key: "net_amount", align: "end" },
-		];
+		// Per-line discount matters at the desk (only some items carry one); the
+		// short "Disc %" title keeps Amount inside a narrow column.
+		// Not sortable: a bill's few lines need no sorting, and the hidden sort
+		// icon pushed the centred headers off their values.
+		const desk_item_headers = computed(() => [
+			{ title: __("Item"), key: "item_name", align: "start", sortable: false },
+			{ title: __("Qty"), key: "qty", align: "center", sortable: false },
+			{ title: __("Rate"), key: "rate", align: "end", sortable: false },
+			{
+				title: deskSimple.value ? __("Disc %") : __("Discount %"),
+				key: "discount_percentage",
+				align: "center",
+				sortable: false,
+			},
+			{ title: __("Amount"), key: "net_amount", align: "end", sortable: false },
+		]);
 
 		// Counters keep sending bills. The server pushes CASHIER_DESK_REFRESH_EVENT when
 		// a POS bill is submitted, cancelled or paid, so the desk reloads at once; a slow
@@ -1574,6 +1654,9 @@ export default {
 			pos_opening_shift,
 			cashierDesk,
 			showSelectedInvoiceItems,
+			deskSimple,
+			deskModeOfPayment,
+			deskModeOptions,
 			// template ref: without it the sidebar ref stays null
 			payTotalsSidebarRef,
 			selectedInvoicesDiscount,
@@ -1713,6 +1796,65 @@ export default {
 .pay-right-stack__sidebar {
 	flex: 1 1 auto;
 	min-height: 0;
+}
+/* Cashier desk: totals, mode and Submit in normal flow (nothing overlaps) */
+.pay-desk-panel {
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+}
+.pay-desk-items__table td,
+.pay-desk-items__table th {
+	padding-inline: 4px !important;
+	font-size: 0.8rem !important;
+}
+/* Fixed shares so Amount always fits; names wrap between words and only
+   break inside a word longer than the Item column. */
+.pay-desk-items__table table {
+	table-layout: fixed;
+	width: 100%;
+}
+.pay-desk-items__table th:nth-child(1) { width: 34%; }
+.pay-desk-items__table th:nth-child(2) { width: 10%; }
+.pay-desk-items__table th:nth-child(3) { width: 18%; }
+.pay-desk-items__table th:nth-child(4) { width: 14%; }
+.pay-desk-items__table th:nth-child(5) { width: 24%; }
+.pay-desk-items__table td:first-child {
+	overflow-wrap: break-word;
+	word-break: normal;
+}
+/* Header and value share one alignment per column: Qty / Disc % centred,
+   Rate / Amount right. Headers stay on one line, except Disc % which puts
+   "%" on a second line so Amount keeps its room. */
+.pay-desk-items__table th {
+	white-space: nowrap;
+}
+.pay-desk-items__table th:nth-child(4) {
+	white-space: normal;
+	line-height: 1.15;
+}
+.pay-desk-items__table th:nth-child(2),
+.pay-desk-items__table td:nth-child(2),
+.pay-desk-items__table th:nth-child(4),
+.pay-desk-items__table td:nth-child(4) {
+	text-align: center !important;
+}
+.pay-desk-items__table th:nth-child(2) .v-data-table-header__content,
+.pay-desk-items__table th:nth-child(4) .v-data-table-header__content {
+	justify-content: center;
+}
+.pay-desk-items__table th:nth-child(3),
+.pay-desk-items__table td:nth-child(3),
+.pay-desk-items__table th:nth-child(5),
+.pay-desk-items__table td:nth-child(5) {
+	text-align: end !important;
+}
+/* Vuetify lays end-aligned headers out row-reverse, which turns flex-end into
+   "left"; use a normal row so the title sits over the right-aligned values. */
+.pay-desk-items__table th:nth-child(3) .v-data-table-header__content,
+.pay-desk-items__table th:nth-child(5) .v-data-table-header__content {
+	flex-direction: row !important;
+	justify-content: flex-end !important;
 }
 
 .selected-row {
