@@ -1199,6 +1199,10 @@ export default {
 			payment_methods.value.forEach((method) => {
 				method.amount = method === target ? flt(total_selected_invoices.value) : 0;
 			});
+			// Show that mode in Make New Payment instead of the default (Cash).
+			if (selected_invoices.value.length && target) {
+				payTotalsSidebarRef.value?.selectMop(target.mode_of_payment);
+			}
 		}
 		function handleInvoiceSelection(item) {
 			// One invoice at a time: picking a different invoice drops the previous pick.
@@ -1570,6 +1574,8 @@ export default {
 			pos_opening_shift,
 			cashierDesk,
 			showSelectedInvoiceItems,
+			// template ref: without it the sidebar ref stays null
+			payTotalsSidebarRef,
 			selectedInvoicesDiscount,
 			selectedInvoicesGross,
 			desk_invoice_items,

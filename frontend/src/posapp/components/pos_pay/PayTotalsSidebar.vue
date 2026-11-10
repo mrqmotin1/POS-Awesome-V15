@@ -917,6 +917,13 @@ watch(
 	() => props.invoiceTotalCurrency,
 	(newCurrency) => {
 		if (!props.filteredPaymentMethods?.length || !newCurrency) return;
+		// Keep a mode already chosen (e.g. the invoice's Pay Type) if it fits the currency.
+		if (
+			selectedMop.value &&
+			props.getPaymentMethodCurrency(selectedMop.value.mode_of_payment) === newCurrency
+		) {
+			return;
+		}
 		const match = props.filteredPaymentMethods.find(
 			(m) => props.getPaymentMethodCurrency(m.mode_of_payment) === newCurrency,
 		);
@@ -1069,9 +1076,18 @@ const clearOverridesOnSubmit = () => {
 	basePaidAuditLog.value = [];
 };
 
+// Show this mode in "Make New Payment" (e.g. the Pay Type the counter chose).
+const selectMop = (modeOfPayment) => {
+	if (!modeOfPayment) return;
+	if ((props.filteredPaymentMethods || []).some((m) => m.mode_of_payment === modeOfPayment)) {
+		selectedMopName.value = modeOfPayment;
+	}
+};
+
 defineExpose({
 	updateReferenceDate,
 	clearOverridesOnSubmit,
+	selectMop,
 });
 </script>
 
