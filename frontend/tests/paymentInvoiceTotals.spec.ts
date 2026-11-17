@@ -51,11 +51,16 @@ const VTextFieldStub = defineComponent({
 			type: String,
 			default: "",
 		},
+		prefix: {
+			type: String,
+			default: "",
+		},
 	},
 	setup(props, { slots }) {
 		return () =>
 			h("div", { "data-label": props.label }, [
-				h("span", String(props.modelValue ?? "")),
+				h("span", { class: "prefix" }, props.prefix),
+				h("span", { class: "value" }, String(props.modelValue ?? "")),
 				slots["append-inner"]?.(),
 			]);
 	},
@@ -112,5 +117,45 @@ describe("InvoiceTotals", () => {
 		expect(itemDiscountTooltip.attributes("data-tooltip")).toContain(
 			"Additional Discount is the separate invoice-level discount.",
 		);
+	});
+
+	it("shows the currency symbol once on every total", () => {
+		const symbols: Record<string, string> = { BDT: "৳", USD: "$" };
+		const wrapper = mount(InvoiceTotals, {
+			props: {
+				invoice_doc: {
+					currency: "BDT",
+					net_total: 12,
+					total_taxes_and_charges: 0,
+					total: 12,
+					discount_amount: 0,
+					grand_total: 12,
+					rounded_total: 12,
+				},
+				itemDiscountTotal: 0,
+				displayCurrency: "BDT",
+				diff_payment: 0,
+				diff_label: "Change (BDT)",
+				// Mirrors useFormat: a currency argument puts the symbol in the value.
+				currencySymbol: (currency?: string) => symbols[currency || "USD"],
+				formatCurrency: (value: number, currency?: string) =>
+					`${currency ? symbols[currency] : ""}${Number(value).toFixed(2)}`,
+			},
+			global: {
+				components: {
+					VRow: BoxStub,
+					VCol: BoxStub,
+					VIcon: VIconStub,
+					VTooltip: VTooltipStub,
+					VTextField: VTextFieldStub,
+				},
+			},
+		});
+
+		for (const label of ["Net Total", "Tax and Charges", "Total Amount", "Change (BDT)", "Grand Total"]) {
+			const field = wrapper.find(`[data-label="${label}"]`);
+			expect(field.find(".prefix").text(), label).toBe("৳");
+			expect(field.find(".value").text(), label).not.toContain("৳");
+		}
 	});
 });

@@ -7,9 +7,9 @@
 				color="primary"
 				:label="frappe._('Net Total')"
 				class="sleek-field pos-themed-input"
-				:model-value="formatCurrency(invoice_doc.net_total, displayCurrency)"
+				:model-value="formatCurrency(invoice_doc.net_total)"
 				readonly
-				:prefix="currencySymbol()"
+				:prefix="currencySymbol(displayCurrency)"
 				persistent-placeholder
 			></v-text-field>
 		</v-col>
@@ -21,9 +21,9 @@
 				:label="frappe._('Tax and Charges')"
 				class="sleek-field pos-themed-input"
 				hide-details
-				:model-value="formatCurrency(invoice_doc.total_taxes_and_charges, displayCurrency)"
+				:model-value="formatCurrency(invoice_doc.total_taxes_and_charges)"
 				readonly
-				:prefix="currencySymbol()"
+				:prefix="currencySymbol(displayCurrency)"
 				persistent-placeholder
 			></v-text-field>
 		</v-col>
@@ -35,9 +35,9 @@
 				:label="frappe._('Total Amount')"
 				class="sleek-field pos-themed-input"
 				hide-details
-				:model-value="formatCurrency(invoice_doc.total, displayCurrency)"
+				:model-value="formatCurrency(invoice_doc.total)"
 				readonly
-				:prefix="currencySymbol()"
+				:prefix="currencySymbol(displayCurrency)"
 				persistent-placeholder
 			></v-text-field>
 		</v-col>
@@ -50,10 +50,10 @@
 				class="sleek-field pos-themed-input"
 				hide-details
 				:model-value="
-					formatCurrency(diff_payment < 0 ? -diff_payment : diff_payment, displayCurrency)
+					formatCurrency(diff_payment < 0 ? -diff_payment : diff_payment)
 				"
 				readonly
-				:prefix="currencySymbol()"
+				:prefix="currencySymbol(displayCurrency)"
 				persistent-placeholder
 			></v-text-field>
 		</v-col>

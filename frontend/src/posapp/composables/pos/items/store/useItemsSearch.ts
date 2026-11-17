@@ -151,6 +151,7 @@ export function useItemsSearch() {
 				item.item_name,
 				item.barcode,
 				item.description,
+				item.retailmind_old_pos_generic_name,
 			];
 
 			collectBarcodeValues(item).forEach((barcode) =>
@@ -232,6 +233,7 @@ export function useItemsSearch() {
 				item.item_name,
 				item.barcode,
 				item.description,
+				item.retailmind_old_pos_generic_name,
 			];
 
 			if (Array.isArray(item.item_barcode)) {
