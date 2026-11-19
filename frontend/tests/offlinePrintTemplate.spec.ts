@@ -82,4 +82,34 @@ describe("offline print fallback totals", () => {
 		// FORK(mon-develop-4): the Spark offline receipt does not print terms & conditions.
 		expect(html).toContain("Content-Security-Policy");
 	});
+
+	// FORK(mon-develop-4): defaultOfflineHTML is async; the upstream sanitizePrintHtml
+	// wrap must await it or the receipt prints the literal "[object Promise]".
+	it("renders the fork fallback receipt instead of [object Promise]", async () => {
+		const html = await renderOfflineInvoiceHTML({
+			name: "ACC-SINV-2026-00042",
+			company: "Test Co",
+			posting_date: "2026-11-19",
+			grand_total: 105,
+			net_total: 100,
+			total_taxes_and_charges: 5,
+			items: [
+				{
+					item_code: "ITEM-1",
+					item_name: "Blue Shirt",
+					qty: 1,
+					rate: 100,
+					amount: 100,
+				},
+			],
+			taxes: [],
+			payments: [{ mode_of_payment: "Cash", amount: 105 }],
+		});
+
+		expect(html).not.toContain("[object Promise]");
+		expect(html).toContain("TAX INVOICE");
+		expect(html).toContain("Blue Shirt");
+		expect(html).toContain("19-11-2026");
+		expect(html).toContain("Content-Security-Policy");
+	});
 });

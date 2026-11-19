@@ -420,8 +420,10 @@ export default async function renderOfflineInvoiceHTML(invoice: any) {
 		console.warn(
 			"No offline print template cached; using fallback template",
 		);
+		// defaultOfflineHTML is async (Monday fork); without await the Promise is
+		// stringified to "[object Promise]" by sanitizePrintHtml.
 		return sanitizePrintHtml(
-			defaultOfflineHTML(doc, doc.terms_and_conditions),
+			await defaultOfflineHTML(doc, doc.terms_and_conditions),
 		);
 	}
 
@@ -461,7 +463,7 @@ export default async function renderOfflineInvoiceHTML(invoice: any) {
 	} catch (e) {
 		console.error("Failed to render offline invoice", e);
 		return sanitizePrintHtml(
-			defaultOfflineHTML(doc, doc.terms_and_conditions),
+			await defaultOfflineHTML(doc, doc.terms_and_conditions),
 		);
 	}
 }
